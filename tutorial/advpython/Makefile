@@ -28,8 +28,9 @@ PERL = perl
 # them.
 COLLATEINDEX = ../../docbook/collateindex.pl
 XML_DECL = ../../docbook/xml.dcl
-HTML_DSSSL = "../../docbook/docbook-utils.dsl\#html"
-PRINT_DSSSL = "../../docbook/docbook-utils.dsl\#print"
+HTML_DSSSL = ../../docbook/docbook-utils.dsl\#html
+PRINT_DSSSL = ../../docbook/docbook-utils.dsl\#print
+DOCBOOK_CATALOG = ../../docbook/catalog
 
 ##############################################
 ##  You shouldn't have to change anything below here.
@@ -82,7 +83,8 @@ pdf: $(PDF)
 index.xml: $(DOCBOOK) $(HTMLDIR_EXISTS)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
 	(cd $(HTMLDIR) && \
-	$(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
+	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
+	      -c ../$(DOCBOOK_CATALOG)\
 	      ../$(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
 	$(PERL) $(COLLATEINDEX) -o index.xml $(HTMLDIR)/HTML.index
 	rm $(HTMLDIR)/HTML.index
@@ -94,15 +96,18 @@ $(HTMLDIR_EXISTS):
 $(HTMLCHUNKS): index.xml $(HTMLDIR_EXISTS)
 	(cd $(HTMLDIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
+	      -c ../$(DOCBOOK_CATALOG)\
 	      ../$(XML_DECL) ../$(DOCBOOK))
 
 $(HTMLNOCHUNKS): $(DOCBOOK) index.xml
 	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
+	     -c $(DOCBOOK_CATALOG)\
 	     $(XML_DECL) $(DOCBOOK) \
 	     > $(HTMLNOCHUNKS)
 
 $(PDF): $(DOCBOOK) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
+	     -c $(DOCBOOK_CATALOG)\
 	     $(XML_DECL) $(DOCBOOK)
 	$(PDFJADETEX) $(TEX) > $(TEMP) || \
 	        (cat $(TEMP); rm $(TEMP); false)
