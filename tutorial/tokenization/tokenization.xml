@@ -30,7 +30,7 @@
 
 <!------------------------------------------------------------------------>
 
-<section id="intro"><title>Introduction</title>
+<section id="token.intro"><title>Introduction</title>
 
 <para>
 Texts are usually represented in a computer as files containing a
@@ -88,6 +88,7 @@ lang="en">are</literal> and <literal lang="en">not</literal>, but not
 for <literal lang="en">aren't</literal>.  In this case, we would
 probably be happy to say that <literal>aren't</literal> is a contraction
 of two distinct words. 
+
 <!--We can make a similar point about
 <literal>1992's</literal>. We might want to run a small program over our
 text to extract all words which express dates. In this case, we would
@@ -104,14 +105,17 @@ whitespace). Second, according to our criterion, punctuation symbols
 will form part of words; that is, a string like
 <literal>investors,</literal> will also count as a word, since there is
 no whitespace between <literal>investors</literal> and the following
-comma.
+comma. Consequently, we run the risk of failing to recognise that 
+<literal>investors,</literal> (with appended comma) is a token of the
+same type as <literal>investors</literal> (without appended comma. More
+importantly, we would like punctuation to be a <quote>first-class
+citizen</quote> for tokenization and subsequent processing. For example,
+we might want to implement a rule which says that a word followed by a period is likely to
+be an abbreviation if the immediately following word has a lowercase
+initial. However, to formulate such a rule, we must be able to identify
+a period as a token in its own right.
 
-<!--
-Conversely, we might want to look up names of places in a gazeteer (a
-list of places together with their associated geographic location), and
-in this case, we would probably want to treat <literal lang="en">South
-Korea</literal> as a single <quote>word</quote>.
--->
+
 </para>
 
 <para>
@@ -479,13 +483,15 @@ case.
 'Hello world.  This is a test file.\n'
 ]]></programlisting>
 
-<para> However, it is usually preferrable to represent a text as a
+<para> However, as we noted in <xref linkend="token.representing"/>, it
+is usually preferrable to represent a text as a
     <literal>list</literal> of <literal>Token</literal>s.  These
     <literal>list</literal>s are typically created using a
     <glossterm>tokenizer</glossterm>, such as <ulink
     url="&refdoc;/nltk.tokenizer.WhitespaceTokenizer-class.html"
-    ><literal>WhitespaceTokenizer</literal></ulink> (which splits words apart
-    based on whitespace): </para>
+    ><literal>WhitespaceTokenizer</literal></ulink> (which splits
+    strings into words at 
+    whitespaces): </para>
 
 <programlisting><![CDATA[
 >>> from nltk.tokenizer import *
@@ -496,10 +502,14 @@ case.
 <[<Hello>, <world.>, <This>, <is>, <a>, <test>, <file.>]>
 ]]></programlisting>
 
+<note>
+<para>By <quote>whitespce</quote>, we mean not only interword space, but
+also tab and line-end.</para>
+</note>
 <para> Observe that the <literal>text_token</literal> initially
 contains a single token for the entire text.  We further tokenize this
 into its component word tokens, and the result is stored as an
-annotation of the original token.  The original source token and the
+attribute of the original token.  That is, the original source token and the
 resulting tokens are all stored together, as the following code
 illustrates:<footnote><para>The default method for printing a token
 containing subtokens is just to print the subtokens.</para></footnote>
@@ -540,15 +550,15 @@ words.  An example for stemming is shown below:
 </para>
 </note>
 
-<para>Tokenization based on white space is too simplistic for most
-applications.  For instance, it fails to separate the last word of a
-phrase or sentence from punctuation characters, such as comma, period,
-exclamation mark and question mark.  As its name suggests,
-<literal>RegexpTokenizer</literal> employs a regular expression to
-determine how text should be split up.  This regular expression
-specifies the characters that can be included in a valid word.  To
-define a tokenizer that includes punctuation as separate tokens, we
-could use:</para>
+<para>We noted in <xref linkend="token.intro"/>that tokenization based
+on whitespace is too simplistic for most applications; for instance, it
+fails to separate the last word of a phrase or sentence from punctuation
+characters, such as comma, period, exclamation mark and question mark.
+As its name suggests, <literal>RegexpTokenizer</literal> employs a
+regular expression to determine how text should be split up.  This
+regular expression specifies the characters that can be included in a
+valid word.  To define a tokenizer that includes punctuation as separate
+tokens, we could use:</para>
 
 <programlisting><![CDATA[
 >>> regexp = r'\w+|[^\w\s]+'
@@ -558,7 +568,18 @@ could use:</para>
 >>> print text_token
 <[<Hello>, <.>, <Isn>, <'>, <t>, <this>, <fun>, <?>]>
 ]]></programlisting>
-
+<tip>
+<para>Recall that <literal>\w+|[^\w\s]+</literal> is a disjunction of
+two subexpressions, namely <literal>w+</literal> and
+<literal>[^\w\s]+</literal>. The first of these matches one or more
+<quote>word</quote> characters; i.e., characters other than whitespace
+or punctuation. The second pattern is a negated range expression; it
+matches on or more characters which are not word characters (i.e., not a
+match for
+<literal>\w</literal>) and not a whitespace character  (i.e., not a
+match for
+<literal>\s</literal>).</para>
+</tip>
 <para> The regular expression in this example will match
 a sequence consisting of one or more word characters <literal>\w+</literal>.
 It will also match a sequence consisting of one or more punctuation
@@ -1656,6 +1677,12 @@ miscellaneous: government & house organs    115     37    152     13     99    2
 
 <section id="reading">
   <title>Further Reading</title>
+
+<para>John Hopkins Center for Language and Speech Processing, 1999
+Summer Workshop on Normalization of Non-Standard Words<ulink
+url="http://www.clsp.jhu.edu/ws99/projects/normal/report.pdf"><citetitle>Final
+Report</citetitle></ulink>.
+</para>
 
   <para>SIL Glossary of Linguistic Terms:
     http://www.sil.org/linguistics/GlossaryOfLinguisticTerms/
