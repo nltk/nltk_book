@@ -9,17 +9,17 @@
 
 ##############################################
 ##  Automatically find tutorial reports.
-REPORTS = $(shell ls */*.info |sed 's/[/][^/]*\.info//')
+REPORTS = $(dir $(wildcard */*.info))
 
 ##############################################
 ##  You shouldn't have to change anything below here.
 
-DVI := $(REPORTS:=.dvi)
-PS := $(REPORTS:=.ps)
-PDF := $(REPORTS:=.pdf)
-CLEAN := $(REPORTS:=.clean)
-HTML := $(REPORTS:=.html)
-ALL := $(REPORTS:=.all)
+DVI := $(REPORTS:/=.dvi)
+PS := $(REPORTS:/=.ps)
+PDF := $(REPORTS:/=.pdf)
+CLEAN := $(REPORTS:/=.clean)
+HTML := $(REPORTS:/=.html)
+ALL := $(REPORTS:/=.all)
 
 all: $(ALL)
 dvi: $(DVI)

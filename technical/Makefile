@@ -14,11 +14,11 @@ REPORTS = $(dir $(wildcard */*.info))
 ##############################################
 ##  You shouldn't have to change anything below here.
 
-DVI := $(REPORTS:=.dvi)
-PS := $(REPORTS:=.ps)
-PDF := $(REPORTS:=.pdf)
-CLEAN := $(REPORTS:=.clean)
-HTML := $(REPORTS:=.html)
+DVI := $(REPORTS:=/.dvi)
+PS := $(REPORTS:=/.ps)
+PDF := $(REPORTS:=/.pdf)
+CLEAN := $(REPORTS:=/.clean)
+HTML := $(REPORTS:=/.html)
 
 all: pdf
 dvi: $(DVI)
