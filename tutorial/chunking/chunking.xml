@@ -961,79 +961,6 @@ Split NN followed by DT:
 
   </section> <!-- Merge/Split -->
 
-    <section> <title> Chunking Strategies </title>
-
-      <para>There are a surprising number of different ways to chunk a
-      sentence.  The chunk rules can add, shift and remove chunk delimiters
-      in many ways, and the chunk rules can be combined in many ways.
-      One can use a small number of very complex rules, or a long sequence of
-      much simpler rules.  This section gives a brief overview of the main
-      approaches.</para>
-
-      <section> <title> Static vs Iterative Chunking </title>
-
-        <para>In static chunking we write a single regular expression which
-        accomplishes the chunking of a certain type of phrase in a single step.
-        We have already seen an example of this, which is repeated below:</para>
-
-<programlisting><![CDATA[
-AbstractChunkRule(r'(<DT><JJ>*<NN>)', r'{\1}', doc="chunking <DT><JJ>*<NN>")
-]]></programlisting>
-
-        <para>This single rule identifies a particular kind of noun phrase chunk
-        using a single regular expression.</para>
-
-        <para>It is possible to do the same thing iteratively.  We start by chunking
-        nouns, then move the left delimiter leftwards:</para>
-
-<programlisting><![CDATA[
-    AbstractChunkRule(r'(<NN.*>)', r'{\1}', doc="chunking NN")
-    AbstractChunkRule(r'(<DT|JJ>){', r'{\1', right=r'<JJ|NN.*>', doc="shifting delimiter left"
-]]></programlisting>
-
-        <note><para>The second rule is unable to apply to its own output.
-        To apply this maximally it is necessary to invoke it many times over.</para></note>
-
-        <para>Another iterative approach which is easier to use begins by
-        putting everything into its own chunk, then removing chunk boundaries:</para>
-
-<programlisting><![CDATA[
-    AbstractChunkRule(r'(<.*>)', r'{\1}', doc="chunking every tag")
-    DT_JJ_NNX = r'<DT|JJ|NN.*>'
-    AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
-                      doc="chunk any groups of <DT> <JJ> and <NNX>")
-]]></programlisting>
-
-    </section> <!-- Static vs Iterative Chunking -->
-
-    <section> <title> Chunking vs Chinking </title>
-
-      <para>Chunking begins with an unchunked sentence and adds chunk
-      delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
-      begins with the entire sentence in a single chunk then removes,
-      or <emphasis>unchunks</emphasis>, pieces which cannot be part of a
-      chunk.  This is convenient in situations where it is relatively
-      easy to specify those tags and sequences of tags which
-      <emphasis>cannot</emphasis> be in a chunk.</para>
-
-      <para>For example, we could chunk a whole sentence then
-      chink the verbs using the following rules:</para>
-
-<programlisting><![CDATA[
-    AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
-    AbstractChunkRule(r'(<VB.*>)', r'}\1{', doc='chink the verbs')
-]]></programlisting>
-
-      <para>Note the directionality of the braces in the second argument
-      of the second constructor - they face outwards.  Thus, the closing
-      brace closes the chunk which started at the beginning of the sentence
-      (or after the previous verb).  Similarly, the opening brace begins
-      a new chunk which goes to the end of the sentence (or the next verb).</para>
-
-    </section> <!-- Chunking vs Chinking -->
-    
-  </section> <!-- Chunking Strategies -->
-
   <section id="evaluation">
     <title> Evaluating Chunk Parsers </title>
 
@@ -1175,44 +1102,44 @@ follows:
       from the Wall Street Journal tagged files. </para>
 
 <programlisting><![CDATA[
-# Import the relevant modules, classes, and functions.
+>>> item = treebank.items('tagged')[10]
+>>> tree = treebank.read(item)
+<PARAS=[<SENTS=[<TREE=(S: (NP_CHUNK: <South/NNP> <Korea/NNP>) <registered/VBD> ...
+]]></programlisting>
+      
+      <para>The result is a set of chunk structures, grouped into
+      paragraphs.  We can access the third sentence of the first
+      paragraph as shown below:</para>
+
+<programlisting><![CDATA[
 from nltk.tokenizer import RegexpTokenizer
 from nltk.parser.chunk import *
 from nltk.corpus import treebank
-from nltk.tree import TreeToken
 
-# Create a sentence tokenizer. 
-sent_tokenizer = RegexpTokenizer('(=======+)?\n\n+', negative=1)
-        
 # Create the chunk parser that we wish to test.
-rule1 = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
-
-# Read the treebank corpus, and tokenize it into sentences.
-sentences = []
-for item in treebank.items('tagged'): 
-    sentence = treebank.tokenize(item, tokenizer=sent_tokenizer) 
-    sentences += sentence['SUBTOKENS']
-
-# Convert each sentence into a chunk structure. 
-chunk_structs = []
-chunk_tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')
-for sent in sentences:
-    chunk_tokenizer.tokenize(sent)
-    chunk_structs.append(TreeToken(NODE='S', CHILDREN=sent['SUBTOKENS']))
+rule = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
+chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S')
 
 # Create a new ChunkScore utility class
 chunkscore = ChunkScore()
 
-# Test the chunk parser.
-for chunk_struct in chunk_structs:
-    test = Token(SUBTOKENS=chunk_struct.leaves())
-    chunkparser.parse(test)
-    chunkscore.score(chunk_struct, test['TREE'])
+# Read the treebank corpus, and tokenize it into sentences.
+sentences = []
+for item in treebank.items('tagged')[:2]:
+    for para in treebank.read(item, add_locs=True)['PARAS']:
+        for sent in para['SENTS']:
+            test = Token(SUBTOKENS = sent['TREE'].leaves())
+            chunkparser.parse(test)
+            chunkscore.score(sent['TREE'], test['TREE'])
 
 # Print the results
 print chunkscore
 ]]></programlisting>
+
+  <note><para>It is important to add locations to tokens
+    (using <literal>add_locs=True</literal>) so that
+    the scorer doesn't confuse tokens taken from different
+    regions of the data...</para></note>
 
 <!--
     <para>Here's another example of chunking code,
@@ -1259,32 +1186,10 @@ print chunkscore
 
       <para> The overall results of the evaluation can be viewed by
       printing the <literal>ChunkScore</literal>.  Each evaluation
-      metric is also returned by an accessor method:</para>
-
-      <itemizedlist>
-        <listitem><para><ulink
-        url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#precision"
-        ><literal>precision</literal></ulink></para> </listitem>
-
-        <listitem><para><ulink
-        url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#recall"
-        ><literal>recall</literal></ulink></para> </listitem>
-
-        <listitem><para><ulink
-        url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#f_measure"
-        ><literal>f_measure</literal></ulink></para> </listitem>
-
-        <listitem><para><ulink
-        url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#missed"
-        ><literal>missed</literal></ulink></para> </listitem>
-
-        <listitem><para><ulink
-        url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#incorrect"
-        ><literal>incorrect</literal></ulink></para> </listitem>
-      
-      </itemizedlist>
-
-      <para> The <literal>missed</literal> and
+      metric is also returned by an accessor method:
+      <literal>precision()</literal>, <literal>recall</literal>,
+      <literal>f_measure</literal>, <literal>missed</literal>, and
+      <literal>incorrect</literal>.  The <literal>missed</literal> and
       <literal>incorrect</literal> methods can be especially useful
       when trying to improve the performance of a chunk
       parser: </para>
@@ -1321,6 +1226,15 @@ for i in range(15):
 
     </section> <!-- ChunkScore -->
 
+    <section>
+      <title> Baseline performance with an automatic chunker </title>
+
+      <para>Discuss a simple training method which classifies each
+        tag as most likely inside vs outside a chunk, then chunk
+        text based on this method.</para>
+
+    </section>
+
   </section> <!-- Evaluating Chunk Parsers-->
 
 
@@ -1333,6 +1247,15 @@ for i in range(15):
 
   <section>
     <title>Conclusion</title>
+
+      <para>There are a surprising number of different ways to chunk a
+      sentence.  The chunk rules can add, shift and remove chunk delimiters
+      in many ways, and the chunk rules can be combined in many ways.
+      One can use a small number of very complex rules, or a long sequence of
+      much simpler rules.  One can hand-craft a collection of rules,
+      or train up a brute-force method using existing chunked text.
+      </para>
+
 
     <itemizedlist>
       <listitem>
@@ -1439,6 +1362,7 @@ for i in range(15):
         </para></listitem>
       </orderedlist>
     </listitem>
+
   </orderedlist>
 
 </section>    
