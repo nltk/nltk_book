@@ -7,7 +7,7 @@
 
 ##############################################
 ##  A list of all the reports.
-REPORTS = proposal reptypes
+REPORTS = proposal reptypes printing
 
 ##############################################
 ##  You shouldn't have to change anything below here.
