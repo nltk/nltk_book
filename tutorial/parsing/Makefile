@@ -11,7 +11,9 @@
 ##  The name of the report (without the .xml extension)
 REPORT = parsing
 
-IMG = parse_tree.png rdparser1.png rdparser2.png rdparser3.png rdparser4.png rdparser5.png rdparser6.png
+IMG = parse_tree.png rdparser1.png rdparser2.png rdparser3.png rdparser4.png rdparser5.png rdparser6.png\
+	srparser1.png srparser2.png srparser3.png srparser4.png srparser5.png srparser6.png\
+        srparser7.png srparser8.png srparser9.png
 
 ##############################################
 ##  The name of the html index file.  If the main element
