@@ -114,6 +114,7 @@ _copy_tutorial: $(TUTORIAL_DOCS)
 $(TUTORIAL_DOCS): 
 	@cp -R tutorial/$@/$@ $(WEBPAGE_TUTORIAL_DIR)
 	@cp tutorial/$@/$@.pdf $(WEBPAGE_TUTORIAL_DIR)
+	@ln -s ../../stylesheet-images $(WEBPAGE_TUTORIAL_DIR)/$@
 
 .PHONY: $(TECHNICAL_DOCS)
 _copy_technical: $(TECHNICAL_DOCS)
@@ -155,7 +156,10 @@ webpage.tar.gz: webpage.tar
 	rm -f webpage.tar.gz
 	gzip webpage.tar
 
-xfer: webpage.tar.gz
+xfer: webpage
+	rsync -arz -e ssh $(WEBPAGE_DIR)/* $(WEBHOST_NAME):$(WEBHOST_DIR)
+
+old_xfer: webpage.tar.gz
 	scp webpage.tar.gz $(WEBHOST_NAME):$(WEBHOST_DIR)
 	ssh $(WEBHOST_NAME) "(cd $(WEBHOST_DIR);\
 	                      gunzip webpage.tar.gz;\
