@@ -53,6 +53,28 @@
 ;; Place footnotes at the bottom of the page.
 (define bop-footnotes #t)
 
+;; Include the Copyright and the legal notice on the titlepage.
+(define (article-titlepage-recto-elements)
+  (list (normalize "title") 
+	(normalize "subtitle") 
+	(normalize "corpauthor") 
+	(normalize "authorgroup") 
+	(normalize "author") 
+	(normalize "abstract")
+        (normalize "copyright")
+        (normalize "legalnotice")))
+(define (book-titlepage-recto-elements)
+  (list (normalize "title") 
+	(normalize "subtitle") 
+	(normalize "graphic") 
+	(normalize "mediaobject")
+	(normalize "corpauthor") 
+	(normalize "authorgroup") 
+	(normalize "author") 
+	(normalize "editor")
+        (normalize "copyright")
+        (normalize "legalnotice")))
+
 ; === Media objects ===
 
 ;; this magic allows to use different graphical formats for printing
@@ -162,6 +184,20 @@
 ;; Articles include a table of contents & a titlepage.
 (define %generate-article-titlepage% #t)
 (define %generate-article-toc% #t)      
+
+;; Include the Copyright and the legal notice on the titlepage.
+(define (article-titlepage-recto-elements)
+  (list (normalize "title")
+	(normalize "subtitle")
+	(normalize "corpauthor")
+	(normalize "authorgroup")
+	(normalize "author")
+	(normalize "releaseinfo")
+	(normalize "copyright")
+	(normalize "pubdate")
+	(normalize "revhistory")
+	(normalize "abstract")
+        (normalize "legalnotice")))
 
 ;; End HTML Parameters
 ;; ===================================================================
