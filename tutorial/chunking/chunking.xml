@@ -41,9 +41,9 @@ to read (each top-level section is a single web-page). -->
     parsing is actually more like tagging than conventional parsing,
     in the sense that it typically uses finite-state methods and
     employs rules that work directly off the (tagged) surface string.
-    This contrasts with conventional parsing, which normally uses
-    context-free rules expressed over abstract categories
-    (e.g. phrasal categories).</para>
+    This contrasts with conventional parsing which normally uses
+    context-free rules expressed over abstract categories such as
+    noun phrases and verb phrases.</para>
 
     <para> In terms of the other NLP tasks, chunking usually takes
     place after tokenization and tagging.</para>
@@ -57,7 +57,7 @@ to read (each top-level section is a single web-page). -->
   </section> <!-- Introduction -->
 
   <section id="ChunkParserI">
-    <title> The Chunk Parser Interface </title>
+    <title> Chunk Structures and the Chunk Parser Interface </title>
 
     <para> A <glossterm>chunk parser</glossterm> finds contiguous,
     non-overlapping spans of related tokens, and groups them together.
@@ -137,13 +137,13 @@ sat/VBD on/IN
   ('NP': 'the'/'DT' 'mat'/'NN')@[5w:7w] ]
 </programlisting>
     
-    <para> If you want to create a chunk structure from thist list,
+    <para> If you want to create a chunk structure from this list,
     simply use the <literal>TreeToken</literal> constructor to merge
     the tokens and chunks into a single tree.
     </para>
 
 <programlisting>
-&prompt; <command>correct_chunkstruct = TreeToken('S', *correct_chunk)</command>
+&prompt; <command>correct_chunkstruct = TreeToken('S', *correct_chunks)</command>
 ('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
       'sat'/'VBD' 'on'/'IN'
       ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
@@ -171,7 +171,7 @@ sat/VBD on/IN
     <!-- XX add nltk.corpus support here? -->
     <section id="tokenize_wsj"> <title> Tokenizing WSJ Tagged Data </title>
 
-      <para> The resources CD contains about 2,500 sentences of
+      <para> The <literal>nltk/data</literal> directory contains about 1,650 sentences of
       tagged, chunked data, split between 99 files.  Within each file,
       sentences are split by blank lines and by "divider" lines
       containing 38 equal signs.  We can use a regular expression
@@ -182,8 +182,17 @@ sat/VBD on/IN
 <programlisting>
 <emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
 <emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
-import os
+from nltk.corpus import *
+from nltk.tokenizer import *
+#set_basedir('PATH_TO_NLTK_DATA')
+
 sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
+sentences = []
+for entry in treebank.entries('tagged'):
+    sentences += treebank.tokenize(entry, tokenizer=sent_tokenizer)
+
+OLDER STYLE CODE:
+
 sentences = []
 files = os.listdir(path)
 for file in files:
@@ -289,12 +298,11 @@ for sentence in sentences:
       ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
-  </section> <!-- REChunkParser intro -->
-
-  <section id="TagString">
+  <section id="REChunkParser.TagString">
     <title> Tag Strings and Tag Patterns </title>
 
-    <para> Rules are defined in terms of regular expression patterns
+    <para> <literal>REChunkParser</literal>
+    rules are defined in terms of regular expression patterns
     over "tag strings."  A <glossterm>tag string</glossterm> is a
     string consisting of angle-bracket delimited tag names.  An example
     of a <glossterm>tag string</glossterm> is: </para>
@@ -327,7 +335,7 @@ for sentence in sentences:
         <para> Whitespace in tag patterns is ignored; so
         "<literal>&lt;DT&gt; | &lt;NN&gt;</literal>" is equivalent to
         "<literal>&lt;DT&gt;|&lt;NN&gt;</literal>".  This allows you to make your
-        tag patterns easier to read, by inserting whitespace in
+        tag patterns easier to read by inserting whitespace in
         appropriate places. </para>
       </listitem>
       <listitem>
@@ -341,7 +349,7 @@ for sentence in sentences:
         
   </section> <!-- Tag Strings & Tag Patterns -->
 
-  <section id="REChunkParserRule">
+  <section id="REChunkParser.REChunkParserRule">
     <title> REChunkParser Rules </title>
 
     <para> <literal>REChunkParser</literal> rules are all defined in
@@ -388,23 +396,23 @@ for sentence in sentences:
       </listitem>
     </itemizedlist>
 
-    <section id="REChunkParserRule.descriptions">
-      <title> Rule Descriptions </title>
-
-      <para> Each rule must have a "description" associated with it,
+      <note><para> Each rule must have a "description" associated with it,
       which provides a short explanation of the purpose or the effect
       of the rule.  This description is accessed via the 
       <ulink url="&refdoc;/nltk.rechunkparser.REChunkParserRule-class.html#descr"
-      ><literal>descr</literal></ulink> method: </para>
+      ><literal>descr</literal></ulink> method: </para></note>
 
 <programlisting>
 &prompt; <command>print rule1.descr()</command>
 'Chunk sequences of NN and DT'
 </programlisting>
 
-    </section> <!-- Descriptions -->
+      <para>The following sectoins describe <literal>REChunkParser</literal>
+      rules in detail.</para>
 
-  </section> <!-- Rules: intro -->
+  </section> <!-- Chunk parser rules -->
+
+  </section> <!-- REChunkParser intro -->
 
   <section id="chunkrule"> <title> ChunkRule </title>
 
@@ -502,18 +510,14 @@ Chunk optional det, zero or more adj, and a noun:
         <!-- Add a specific ref? -->
       </note>
 
-    </section> <!-- Tracing -->
-
-    <section id="chunkrule.cascading"> <title> Cascading Rules </title>
-
-      <para> <literal>REChunkParser</literal>s can be generated from
+      <note><para> <literal>REChunkParser</literal>s can be generated from
       multiple <literal>ChunkRule</literal>s.  In this case, each rule
       will be applied in turn.  For example, the following code chunks
       the example sentence by first finding all sequences of three
       tokens whose tags are "<literal>DT</literal>",
       "<literal>JJ</literal>", and "<literal>NN</literal>"; and then
       looking for any sequence of tokens whose tags are either
-      "<literal>DT</literal>" or "<literal>NN</literal>".  </para>
+      "<literal>DT</literal>" or "<literal>NN</literal>".  </para></note>
 
 <programlisting>
 &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;',</command>
@@ -978,7 +982,7 @@ Split NN followed by DT:
       <literal>ChunkRule</literal>, <literal>ChinkRule</literal>,
       <literal>UnChunkRule</literal>, <literal>MergeRule</literal>,
       and <literal>SplitRule</literal>.  They are all relatively
-      straight forward specializations of
+      straightforward specializations of
       <literal>REChunkParserRule</literal>.</para>
     </note>
 
@@ -1034,7 +1038,7 @@ Split NN followed by DT:
       <title> ChunkScore </title>
 
       <para> <ulink url="&refdoc;/nltk.chunkparser.ChunkScore-class.html"
-      ><literal>ChunkScore</literal></ulink>is a utility class for
+      ><literal>ChunkScore</literal></ulink> is a utility class for
       scoring chunk parsers.  It can be used to evaluate the output of
       a chunk parser, using precision, recall, f-measure, missed
       chunks, and incorrect chunks.  It can also be used to combine
