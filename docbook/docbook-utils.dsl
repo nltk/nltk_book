@@ -171,6 +171,37 @@
 ;; and/or table of contents.
 (define (chunk-skip-first-element-list) '())
 
+;; Use nav-up to link back to the tutorials toc page.  The first
+;; define statement defines the HTML for the nav-up link that we want.
+;; The second define statement says to use that for the nav-up link.
+;; The third define statement says to always include a nav-up link
+;; (even on the title page).
+(define %nltk-tutorial-footer%
+    (make element gi: "center"
+          (make element
+                gi: "a"
+                attributes: (list (list "HREF" ".."))
+                (literal "NLTK Tutorials"))))
+(define (nav-up elemnode) %nltk-tutorial-footer%)
+(define (nav-up? elemnode) #t)
+
+;; By default, the "nav-home" link just says "Home".  But we'd prefer
+;; to make it explicit that it's linking to the top of the current
+;; tutorial.  Also, it's nice to have the name of the current tutorial
+;; on the page somewhere.  So use the title of the article as the
+;; text for the link.  This *should* be easy, but for reasons that I
+;; dont understand, the obvious code "(element-title-sosofo home)"
+;; doesn't seem to do the right thing.  So we have to find the
+;; articleinfo/bookinfo nade, and get *it's* title, instead.
+(define (gentext-nav-home home)
+  (let* ((clist (children home))
+         (ainfo (select-elements clist (normalize "articleinfo")))
+         (binfo (select-elements clist (normalize "boookinfo")))
+         (info (if (node-list-empty? ainfo)
+                   (if (node-list-empty? binfo) clist binfo)
+                   ainfo)))
+    (element-title-sosofo (node-list-first info))))
+
 ; === Books only ===
 
 (define %generate-book-titlepage% #t)
