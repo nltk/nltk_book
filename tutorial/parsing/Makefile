@@ -19,10 +19,12 @@ HTMLDIR = $(REPORT)
 INDEX = $(HTMLDIR)/t1.html
 HTMLNOCHUNKS = $(HTMLDIR)/nochunks.html
 PDF = $(REPORT).pdf
+PS = $(REPORT).ps
 
 all: html pdf
 html: $(INDEX) $(HTMLNOCHUNKS)
 pdf: $(PDF)
+ps: $(PS)
 
 $(HTMLDIR):
 	mkdir $(HTMLDIR) 2>/dev/null || true
@@ -35,6 +37,9 @@ $(HTMLNOCHUNKS): $(DOCBOOK) $(HTMLDIR)
 
 $(PDF): $(DOCBOOK)
 	jw -f docbook -b pdf $(DOCBOOK)
+
+$(PS): $(DOCBOOK)
+	jw -f docbook -b ps $(DOCBOOK)
 
 clean:
 	rm -rf $(HTMLDIR) $(PDF)
