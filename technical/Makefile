@@ -1,12 +1,14 @@
-# Technical report Makefile
-# Edward Loper
-# 
-# Created [05/24/01 09:54 PM]
+# Natural Language Toolkit: Main technical report Makefile
 #
-# To add a new report, add its name to the "REPORTS" variable.
+# Copyright (C) 2001 University of Pennsylvania
+# Author: Edward Loper <edloper@gradient.cis.upenn.edu>
+# URL: <http://nltk.sf.net>
+# For license information, see LICENSE.TXT
+#
+# $Id$
 
 ##############################################
-##  A list of all the reports.
+##  A list of all the technical reports
 REPORTS = proposal reptypes printing
 
 ##############################################

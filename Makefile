@@ -1,8 +1,11 @@
-# Documenation Makefile
-# Edward Loper
-# 
-# Created [05/24/01 09:54 PM]
+# Natural Language Toolkit: Documentation Makefile
 #
+# Copyright (C) 2001 University of Pennsylvania
+# Author: Edward Loper <edloper@gradient.cis.upenn.edu>
+# URL: <http://nltk.sf.net>
+# For license information, see LICENSE.TXT
+#
+# $Id$
 
 all:
 	$(MAKE) -C tutorial
