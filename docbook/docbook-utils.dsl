@@ -62,6 +62,10 @@
 (define acceptable-mediaobject-notations
    (list "linespecific"))
 
+;; Where do we keep the admon graphics (for <warn> etc)?
+(define %admon-graphics-path%
+  "../../stylesheet-images/")
+
 ; === Rendering ===
 
 ;; not much whitespace after orderedlist head
@@ -121,6 +125,11 @@
   (list "EPS" "BMP" "GIF" "linespecific"))                                                                                                    
 ; === Rendering ===
 (define %admon-graphics% #t)		;; use symbols for Caution|Important|Note|Tip|Warning
+
+;; Don't combine the first section with the preceeding titlepage
+;; and/or table of contents.
+(define (chunk-skip-first-element-list)
+  '())
 
 ; === Books only ===
 (define %generate-book-titlepage% #t)
