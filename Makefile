@@ -8,7 +8,7 @@
 # $Id$
 
 # What's the current version of NLTK?
-NLTK_VERSION = 1.0
+NLTK_VERSION = 1.1a
 
 # Where is the web page hosted on the web?
 NLTK_URL = http://nltk.sourceforge.net
@@ -19,7 +19,7 @@ WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 REFDOC_DIR = reference
 
 # Options for epydoc.  
-EPYDOC_OPTS = -vv -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL) 
+EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL) 
 
 # The location of extra (static) html files to include in the
 # webpage.
