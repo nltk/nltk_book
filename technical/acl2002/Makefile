@@ -11,6 +11,12 @@
 ##  The name of the report
 REPORT = acl02
 
+help: usage
+usage:
+	@echo
+	@echo make '[dvi | ps | pdf | clean]'
+	@echo
+
 # We're using bibtex:
 $(REPORT).dvi: $(REPORT).bbl
 BIBFILE = nltk.bib
@@ -43,7 +49,7 @@ clean:
 	latex $*.tex || (rm -f $@ && false)
 
 %.ps: %.dvi
-	dvips -t letter -o $@ $<
+	dvips -t letter -o $@ $< -G0 -Ppdf
 
 %.eps: %.dot
 	dot -Tps -o $@ $<
@@ -52,4 +58,7 @@ clean:
 	tgif -print -eps $<
 
 %.pdf: %.ps
-	ps2pdf $< $@
+	ps2pdf -sPAPERSIZE=letter -dMaxSubsetPct=100 \
+	       -dCompatibilityLevel=1.2 -dSubsetFonts=true \
+	       -dEmbedAllFonts=true $< $@
+
