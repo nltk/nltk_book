@@ -15,7 +15,7 @@ REPORT = classifying
 ##  The name of the html index file.  If the main element
 ##  has an id, then it's based on that; otherwise, it's t1.html
 ##  for articles, and book1.html for books.
-HTMLINDEX = book1.html
+HTMLINDEX = t1.html
 
 ##############################################
 ##  Programs and DSSSLs; change these if necessary.
@@ -24,6 +24,8 @@ JADE = jade
 PDFJADETEX = pdfjadetex
 PERL = perl
 
+# We keep these in the repository, so you shouldn't need to change
+# them.
 COLLATEINDEX = ../../docbook/collateindex.pl
 XML_DECL = ../../docbook/xml.dcl
 HTML_DSSSL = "../../docbook/docbook-utils.dsl\#html"
@@ -50,6 +52,9 @@ AUX = $(REPORT).aux
 TEMP = $(REPORT).temp
 OUT = $(REPORT).out
 
+# Keep track of whether we've created the HTML directory.
+HTMLDIR_EXISTS = $(HTMLDIR)/.exists
+
 # Notes on the makefile:
 #
 # Unfortunately, (open)jade doesn't let us specify an output directory
@@ -61,12 +66,20 @@ OUT = $(REPORT).out
 # if that fails, then do B.  This is important, e.g., to keep
 # index.xml from thinking that it succeeded if only the first call to
 # collateindex succeeded.
+#
+# I use $(HTMLDIR_EXISTS) to make sure that the html directory gets
+# built at the appopriate times.  Before, I had things just depend on
+# $(HTMLDIR), and $(HTMLDIR) would run mkdir; but apparently writing
+# files changes the mod-time on $(HTMLDIR), so make thinks that it needs
+# to re-make $(HTMLDIR) (and therefore needs to remake everything that
+# depends on it)
 
-all: $(HTMLDIR) index.xml html pdf
+
+all: index.xml html pdf
 html: $(HTMLCHUNKS) $(HTMLNOCHUNKS)
 pdf: $(PDF)
 
-index.xml: $(DOCBOOK)
+index.xml: $(DOCBOOK) $(HTMLDIR_EXISTS)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
 	(cd $(HTMLDIR) && \
 	$(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
@@ -74,10 +87,11 @@ index.xml: $(DOCBOOK)
 	$(PERL) $(COLLATEINDEX) -o index.xml $(HTMLDIR)/HTML.index
 	rm $(HTMLDIR)/HTML.index
 
-$(HTMLDIR):
+$(HTMLDIR_EXISTS):
 	mkdir $(HTMLDIR) 2>/dev/null || true
+	touch $(HTMLDIR_EXISTS)
 
-$(HTMLCHUNKS): index.xml
+$(HTMLCHUNKS): index.xml $(HTMLDIR_EXISTS)
 	(cd $(HTMLDIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
 	      ../$(XML_DECL) ../$(DOCBOOK))
@@ -98,7 +112,8 @@ $(PDF): $(DOCBOOK) index.xml
 	rm $(LOG) $(AUX) $(TEX) $(OUT)
 
 clean:
-	rm -rf $(HTMLDIR) $(PDF) index.xml $(LOG) $(TEX) $(AUX) $(TEMP) $(OUT)
+	rm -rf $(HTMLDIR)
+	rm -f $(PDF) index.xml $(LOG) $(TEX) $(AUX) $(TEMP) $(OUT)
 
 usage: help
 help:
