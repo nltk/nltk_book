@@ -21,6 +21,14 @@ CLEAN := $(REPORTS:/=.clean)
 HTML := $(REPORTS:/=.html)
 ALL := $(REPORTS:/=.all)
 
+help: usage
+usage:
+	@echo "Usage:"
+	@echo "    make all         -- Build HTML & PDF output"
+	@echo "    make html        -- Build HTML output"
+	@echo "    make pdf         -- Build PDF output"
+	@echo "    make clean       -- Remove all built files"
+
 all: $(ALL)
 dvi: $(DVI)
 ps: $(PS)
@@ -45,9 +53,3 @@ html: $(HTML)
 
 %.html: %
 	$(MAKE) -C $< html
-
-usage: help
-help:
-	@echo "Usage:"
-	@echo "     make [all | html | pdf | clean]"
-
