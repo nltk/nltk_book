@@ -292,6 +292,22 @@
 	(normalize "abstract")
         (normalize "legalnotice")))
 
+;; Include the header navbar on *all* pages (incl. the titlepage)
+(define (book-header-navigation elemnode #!optional (navlist '()))
+  (let* ((prev  (if (null? navlist)
+		    (prev-chunk-element elemnode)
+		    (list-ref navlist 0)))
+	 (next  (if (null? navlist)
+		    (next-chunk-element elemnode)
+		    (list-ref navlist 1)))
+	 (prevsib (if (null? navlist)
+		    (prev-major-component-chunk-element elemnode)
+		    (list-ref navlist 2)))
+	 (nextsib (if (null? navlist)
+		    (next-major-component-chunk-element elemnode)
+		    (list-ref navlist 3))))
+      (default-header-navigation elemnode prev next prevsib nextsib)))
+
 ; === Articles only ===
 
 ;; Articles include a table of contents & a titlepage.
@@ -311,6 +327,22 @@
 	(normalize "revhistory")
 	(normalize "abstract")
         (normalize "legalnotice")))
+
+;; Include the header navbar on *all* pages (incl. the titlepage)
+(define (article-header-navigation elemnode #!optional (navlist '()))
+  (let* ((prev  (if (null? navlist)
+		    (prev-chunk-element elemnode)
+		    (list-ref navlist 0)))
+	 (next  (if (null? navlist)
+		    (next-chunk-element elemnode)
+		    (list-ref navlist 1)))
+	 (prevsib (if (null? navlist)
+		    (prev-major-component-chunk-element elemnode)
+		    (list-ref navlist 2)))
+	 (nextsib (if (null? navlist)
+		    (next-major-component-chunk-element elemnode)
+		    (list-ref navlist 3))))
+      (default-header-navigation elemnode prev next prevsib nextsib)))
 
 ;; End HTML Parameters
 ;; ===================================================================
