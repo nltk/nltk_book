@@ -34,7 +34,7 @@ INDEXGEN = ../src/webpage_index.py
 
 # Python executable and Epydoc executable.
 PYTHON = python
-EPYDOC = epydoc
+EPYDOC = python -c "import epydoc.cli;epydoc.cli.cli()"
 
 # Find the tutorial documents & technical documents.
 TUTORIAL_DOCS = $(shell cd tutorial;ls */*.info |sed 's/[/][^/]*\.info//')
