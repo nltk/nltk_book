@@ -14,12 +14,17 @@ REPORTS = proposal reptypes
 
 DVI := $(REPORTS:=.dvi)
 PS := $(REPORTS:=.ps)
+PDF := $(REPORTS:=.pdf)
 CLEAN := $(REPORTS:=.clean)
 
 all: dvi
 dvi: $(DVI)
 ps: $(PS)
+pdf: $(PDF)
 clean: $(CLEAN)
+
+%.pdf: %
+	$(MAKE) -C $< pdf
 
 %.ps: %
 	$(MAKE) -C $< ps

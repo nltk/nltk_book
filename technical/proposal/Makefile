@@ -18,10 +18,12 @@ REPORT = proposal
 # Find the name of the dvi and ps files.
 DVI := $(REPORT).dvi
 PS := $(REPORT).ps
+PDF := $(REPORT).pdf
 
 # Top-level rules.
 dvi: $(DVI)
 ps: $(PS)
+pdf: $(PDF)
 clean:
 	rm -f *.eps *.log *.aux *.dvi *.ps *.toc
 
@@ -39,3 +41,5 @@ clean:
 %.eps: %.obj
 	tgif -print -eps $<
 
+%.pdf: %.ps
+	ps2pdf $< $@
