@@ -58,8 +58,9 @@ PNG_IMAGES := $(IMAGE_BASENAMES:=.png) # Image format for PDF output
 
 # DSSSL sheets
 XML_DECL = ../../docbook/xml.dcl
-HTML_DSSSL = ../../docbook/docbook-utils.dsl\#html
-PRINT_DSSSL = ../../docbook/docbook-utils.dsl\#print
+DOCBOOK_DSSSL = ../../docbook/docbook-utils.dsl
+HTML_DSSSL = $(DOCBOOK_DSSSL)\#html
+PRINT_DSSSL = $(DOCBOOK_DSSSL)\#print
 DOCBOOK_CATALOG = ../../docbook/catalog
 
 # Index creation
@@ -134,7 +135,7 @@ clean:
 $(INDEXED_DOCBOOK): $(DOCBOOK) $(INDEX_GLOSSTERMS)
 	$(PYTHON) $(INDEX_GLOSSTERMS) $(DOCBOOK) $(INDEXED_DOCBOOK)
 
-index.xml: $(INDEXED_DOCBOOK) $(COLLATEINDEX)
+index.xml: $(INDEXED_DOCBOOK) $(COLLATEINDEX) $(DOCBOOK_DSSSL)
 	mkdir -p $(HTML_DIR)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
 	(cd $(HTML_DIR) && \
@@ -146,10 +147,10 @@ index.xml: $(INDEXED_DOCBOOK) $(COLLATEINDEX)
 
 ##############################################
 ##  HTML output generation
-html: $(HTML_CHUNKS) $(HTML_NOCHUNKS) $(HTML_IMAGES)
+html: $(HTML_IMAGES) $(HTML_CHUNKS) $(HTML_NOCHUNKS)
 
 # Create the multi-file version of the tutorial.
-$(HTML_CHUNKS): $(INDEXED_DOCBOOK) index.xml
+$(HTML_CHUNKS): $(INDEXED_DOCBOOK) $(DOCBOOK_DSSSL) index.xml
 	mkdir -p $(HTML_DIR)
 	(cd $(HTML_DIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
@@ -157,7 +158,7 @@ $(HTML_CHUNKS): $(INDEXED_DOCBOOK) index.xml
 	      ../$(XML_DECL) ../$(INDEXED_DOCBOOK))
 
 # Create the single-file version of the tutorial.
-$(HTML_NOCHUNKS): $(INDEXED_DOCBOOK) index.xml
+$(HTML_NOCHUNKS): $(INDEXED_DOCBOOK) $(DOCBOOK_DSSSL) index.xml
 	mkdir -p $(HTML_DIR)
 	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
 	     -c $(DOCBOOK_CATALOG) \
@@ -174,7 +175,7 @@ $(HTML_IMAGES): $(PNG_IMAGES)
 ##  PDF output generation
 pdf: $(PDF)
 
-$(PDF): $(INDEXED_DOCBOOK) $(EPS_IMAGES) index.xml
+$(PDF): $(INDEXED_DOCBOOK) $(EPS_IMAGES) $(DOCBOOK_DSSSL) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
 	     -c $(DOCBOOK_CATALOG) -V tex-backend\
 	     $(XML_DECL) $(INDEXED_DOCBOOK)
@@ -190,7 +191,7 @@ $(PDF): $(INDEXED_DOCBOOK) $(EPS_IMAGES) index.xml
 ps: $(PS)
 dvi: $(DVI)
 
-$(DVI): $(INDEXED_DOCBOOK) index.xml
+$(DVI): $(INDEXED_DOCBOOK) $(EPS_IMAGES) $(DOCBOOK_DSSSL) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
 	     -c $(DOCBOOK_CATALOG) -V tex-backend \
 	     $(XML_DECL) $(INDEXED_DOCBOOK)
