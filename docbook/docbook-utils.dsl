@@ -74,8 +74,8 @@
 ; === File names ===
 (define %root-filename% "index")	;; name for the root html file
 (define %html-ext% ".html")		;; default extension for html output files
-(define %html-prefix% "")               ;; prefix for all filenames generated (except root)
-(define %use-id-as-filename% #f)        ;; if #t uses ID value, if present, as filename
+(define %html-prefix% "section-")       ;; prefix for all filenames generated (except root)
+(define %use-id-as-filename% #t)        ;; if #t uses ID value, if present, as filename
                                         ;;   otherwise a code is used to indicate level
                                         ;;   of chunk, and general element number
                                         ;;   (nth element in the document)
