@@ -1,5 +1,9 @@
 <!-- This file defines the DocBook-utils Style Sheet for DocBook
-     Eric Bischoff <eric@caldera.de>
+     Original author: Eric Bischoff <eric@caldera.de>
+     Modified by Edward Loper and Steven Bird
+
+     For a list of variables that can be customized, see:
+         sgml/docbook/docbook-dsssl-1.78/*/dbparam.dsl
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -40,7 +44,7 @@
 ;;;; use A4 paper - comment this out if needed
 ;; (define %paper-type% "A4") 
 
-;; Alternate which side the headers are on.  This doesn't seem to work.
+;; Alternate which side the headers are on.
 (define %two-side% #t)
 
 ;; Decrease the indentation for section contents.
@@ -62,10 +66,6 @@
 (define acceptable-mediaobject-notations
    (list "linespecific"))
 
-;; Where do we keep the admon graphics (for <warn> etc)?
-(define %admon-graphics-path%
-  "../../stylesheet-images/")
-
 ; === Rendering ===
 
 ;; not much whitespace after orderedlist head
@@ -84,12 +84,11 @@
     language: (dsssl-language-code)
     (process-children)))
 
-; === Other options (see sgml/docbook/docbook-dsssl-1.78/print/dbparam.dsl ===
-
 ;; Don't list URLs (mainly of ref docs); they clutter up the text.
 (define %show-ulinks% #f) 
 
-
+;; End Print Parameters
+;; ===================================================================
     </STYLE-SPECIFICATION-BODY>
   </STYLE-SPECIFICATION>
 
@@ -100,46 +99,72 @@
 ;; Call: jade -d docbook-utils.dsl#html
 
 ; === File names ===
-(define %root-filename% "index")	;; name for the root html file
-(define %html-ext% ".html")		;; default extension for html output files
-(define %html-prefix% "section-")       ;; prefix for all filenames generated (except root)
-(define %use-id-as-filename% #t)        ;; if #t uses ID value, if present, as filename
-                                        ;;   otherwise a code is used to indicate level
-                                        ;;   of chunk, and general element number
-                                        ;;   (nth element in the document)
-(define use-output-dir #f)              ;; output in separate directory?
-(define %output-dir% "HTML")            ;; if output in directory, it's called HTML
+
+;; name for the root html file
+(define %root-filename% "index")
+
+;; default extension for html output files
+(define %html-ext% ".html")
+
+;; prefix for all filenames generated (except root)
+(define %html-prefix% "section-")
+
+;; if #t uses ID value, if present, as filename otherwise a code is
+;; used to indicate level of chunk, and general element number (nth
+;; element in the document)
+(define %use-id-as-filename% #t)
+
+;; output in separate directory?
+(define use-output-dir #f)
+
+;; if output in directory, it's called HTML
+(define %output-dir% "HTML")
 
 ; === HTML settings ===
-(define %html-pubid% "-//W3C//DTD HTML 4.01 Transitional//EN") ;; Nearly true :-(
+;; Nearly true :-(
+(define %html-pubid% "-//W3C//DTD HTML 4.01 Transitional//EN") 
 (define %html40% #t)
 
 ; === Media objects ===
-(define preferred-mediaobject-extensions  ;; this magic allows to use different graphical
-  (list "png" "jpg" "jpeg"))		;;   formats for printing and putting online
+;; This magic allows to use different graphical formats for printing
+;; and putting online
+(define preferred-mediaobject-extensions
+  (list "png" "jpg" "jpeg"))
 (define acceptable-mediaobject-extensions
-  (list "bmp" "gif" "eps" "epsf" "avi" "mpg" "mpeg" "qt"))
+  (list "png" "bmp" "gif" "eps" "epsf" "avi" "mpg" "mpeg" "qt"))
 (define preferred-mediaobject-notations
   (list "PNG" "JPG" "JPEG"))
 (define acceptable-mediaobject-notations
-  (list "EPS" "BMP" "GIF" "linespecific"))                                                                                                    
+  (list "EPS" "BMP" "GIF" "linespecific"))
+(define %graphic-default-extension% 
+  "png")
+
 ; === Rendering ===
-(define %admon-graphics% #t)		;; use symbols for Caution|Important|Note|Tip|Warning
+
+;; use symbols for Caution|Important|Note|Tip|Warning
+(define %admon-graphics% #t)
+(define %admon-graphics-path% "../../stylesheet-images/")
 
 ;; Don't combine the first section with the preceeding titlepage
 ;; and/or table of contents.
-(define (chunk-skip-first-element-list)
-  '())
+(define (chunk-skip-first-element-list) '())
 
 ; === Books only ===
+
 (define %generate-book-titlepage% #t)
 (define %generate-book-toc% #t)
-(define ($generate-chapter-toc$) #f)	;; never generate a chapter TOC in books
+
+;; never generate a chapter TOC in books
+(define ($generate-chapter-toc$) #f)
 
 ; === Articles only ===
-(define %generate-article-titlepage% #t)
-(define %generate-article-toc% #t)      ;; make TOC
 
+;; Articles include a table of contents & a titlepage.
+(define %generate-article-titlepage% #t)
+(define %generate-article-toc% #t)      
+
+;; End HTML Parameters
+;; ===================================================================
     </STYLE-SPECIFICATION-BODY>
   </STYLE-SPECIFICATION>
 
