@@ -24,8 +24,8 @@ JADE = jade
 PDFJADETEX = pdfjadetex
 PERL = perl
 
-COLLATEINDEX = /usr/bin/collateindex.pl
-XML_DECL = /usr/share/sgml/xml.dcl
+COLLATEINDEX = ../../docbook/collateindex.pl
+XML_DECL = ../../docbook/xml.dcl
 HTML_DSSSL = "../../docbook/docbook-utils.dsl\#html"
 PRINT_DSSSL = "../../docbook/docbook-utils.dsl\#print"
 
@@ -70,7 +70,7 @@ index.xml: $(DOCBOOK)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
 	(cd $(HTMLDIR) && \
 	$(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
-	      $(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
+	      ../$(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
 	$(PERL) $(COLLATEINDEX) -o index.xml $(HTMLDIR)/HTML.index
 	rm $(HTMLDIR)/HTML.index
 
@@ -80,7 +80,7 @@ $(HTMLDIR):
 $(HTMLCHUNKS): index.xml
 	(cd $(HTMLDIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
-	      $(XML_DECL) ../$(DOCBOOK))
+	      ../$(XML_DECL) ../$(DOCBOOK))
 
 $(HTMLNOCHUNKS): $(DOCBOOK) index.xml
 	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
