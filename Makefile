@@ -7,15 +7,24 @@
 #
 # $Id$
 
+# What's the current version of NLTK?
+NLTK_VERSION = 0.5
+
 # Where is the web page hosted on the web?
 WEBHOST_NAME = shell.sf.net
 WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 
-# (Local) output directory for reference documentation
+# (Local) output directory for reference documentation.  REFDOC_DIR
+# contains just public objects; FULLREFDOC_DIR contains private
+# objects as well.
 REFDOC_DIR = reference
+FULLREFDOC_DIR = fullreference
 
-# Options for epydoc.  Add "-p" to include private objects.
-EPYDOC_OPTS = -vv -n nltk -u http://nltk.sf.net
+# Options for epydoc.  Use -css to specify a CSS stylesheet (see
+# epydoc for more info)
+EPYDOC_OPTS = -vv -n 'nltk&nbsp;$(NLTK_VERSION)' -u http://nltk.sf.net
+EPYDOC_FULLREF_OPTS = -vv -n 'nltk&nbsp;$(NLTK_VERSION)' \
+                      -u http://nltk.sf.net -p -css2
 
 # The location of extra (static) html files to include in the
 # webpage.
@@ -27,6 +36,7 @@ WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
 WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
+WEBPAGE_FULLREF_DIR = $(WEBPAGE_DIR)/fullref
 
 # Python script to generate webpage indices
 INDEXGEN = ../src/webpage_index.py
@@ -55,6 +65,7 @@ all: tutorial misc technical reference
 
 usage: help
 help: 
+	@echo
 	@echo "Usage:"
 	@echo "    make all       -- Build all documentation (does not"\
 	                            "include the webpage)"
@@ -64,6 +75,7 @@ help:
 	@echo "    make misc      -- Build miscellaneous documentation"
 	@echo "    make technical -- Build technical documentation"
 	@echo "    make reference -- Build reference documentation"
+	@echo "    make fullref   -- Build full reference documentation"
 	@echo
 	@echo "    make webpage   -- Build the web page (in $(WEBPAGE_DIR))"
 	@echo "    make xfer      -- Build the web page and upload it"\
@@ -82,14 +94,17 @@ clean:
 
 WEBPAGE_DIR_EXISTS = $(WEBPAGE_DIR)/.exists
 REFDOC_DIR_EXISTS = $(REFDOC_DIR)/.exists
+FULLREFDOC_DIR_EXISTS = $(FULLREFDOC_DIR)/.exists
 WEBPAGE_REF_DIR_EXISTS = $(WEBPAGE_REF_DIR)/.exists
 WEBPAGE_TECH_DIR_EXISTS = $(WEBPAGE_TECH_DIR)/.exists
 WEBPAGE_TUTORIAL_DIR_EXISTS = $(WEBPAGE_TUTORIAL_DIR)/.exists
 WEBPAGE_PSET_DIR_EXISTS = $(WEBPAGE_PSET_DIR)/.exists
+WEBPAGE_FULLREF_DIR_EXISTS = $(WEBPAGE_FULLREF_DIR)/.exists
 
 # Keep track of whether the refdocs are up to date, so we don't
 # have to rebuild them.
 REFDOC_UPTODATE = $(REFDOC_DIR)/.uptodate
+FULLREFDOC_UPTODATE = $(FULLREFDOC_DIR)/.uptodate
 
 ##//////////////////////////////////////////////////
 ##  Basic Documentation types.
@@ -104,10 +119,15 @@ technical:
 	$(MAKE) -C technical all
 
 reference: $(REFDOC_UPTODATE)
-
 $(REFDOC_UPTODATE): $(REFDOC_DIR_EXISTS) $(SOURCES)
 	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) $(SOURCES)
 	touch $(REFDOC_UPTODATE)
+
+fullref: full_reference
+full_reference: $(FULLREFDOC_UPTODATE)
+$(FULLREFDOC_UPTODATE): $(FULLREFDOC_DIR_EXISTS) $(SOURCES)
+	$(EPYDOC) $(EPYDOC_FULLREF_OPTS) -o $(FULLREFDOC_DIR) $(SOURCES)
+	touch $(FULLREFDOC_UPTODATE)
 
 ##//////////////////////////////////////////////////
 ##  Web page generation
@@ -139,6 +159,10 @@ _copy_reference:
 	@echo "[Copying reference documentation]"
 	@cp -R $(REFDOC_DIR)/* $(WEBPAGE_REF_DIR)
 
+_copy_full_reference:
+	@echo "[Copying full reference documentation]"
+	@cp -R $(FULLREFDOC_DIR)/* $(WEBPAGE_FULLREF_DIR)
+
 _copy_psets:
 	@echo "[Copying problem sets]"
 	@$(PYTHON) $(INDEXGEN) psets ../psets \
@@ -146,13 +170,13 @@ _copy_psets:
 
 _webpage: $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
           $(WEBPAGE_TECH_DIR_EXISTS) $(WEBPAGE_PSET_DIR_EXISTS) \
-          $(WEBPAGE_TUTORIAL_DIR_EXISTS) _copy_static \
-	  _copy_technical _copy_tutorial _copy_reference \
-	  _copy_psets
+          $(WEBPAGE_TUTORIAL_DIR_EXISTS) $(WEBPAGE_FULLREF_DIR_EXISTS) \
+          _copy_static _copy_technical _copy_tutorial _copy_reference \
+	  _copy_full_reference _copy_psets
 
 web: webpage
 html: webpage
-webpage: technical tutorial reference _webpage
+webpage: technical tutorial reference full_reference _webpage
 
 ##//////////////////////////////////////////////////
 ##  Web page transfer
@@ -178,25 +202,34 @@ old_xfer: webpage.tar.gz
 ##  Build directories, if they don't exist.
 
 $(WEBPAGE_DIR_EXISTS):
-	mkdir $(WEBPAGE_DIR) 2>/dev/null || true
+	mkdir -p $(WEBPAGE_DIR)
 	touch $(WEBPAGE_DIR_EXISTS)
 
 $(REFDOC_DIR_EXISTS):
-	mkdir $(REFDOC_DIR) 2>/dev/null || true
+	mkdir -p $(REFDOC_DIR)
 	touch $(REFDOC_DIR_EXISTS)
 
 $(WEBPAGE_REF_DIR_EXISTS):
-	mkdir $(WEBPAGE_REF_DIR) 2>/dev/null || true
+	mkdir -p $(WEBPAGE_REF_DIR)
 	touch $(WEBPAGE_REF_DIR_EXISTS)
 
 $(WEBPAGE_TECH_DIR_EXISTS):
-	mkdir $(WEBPAGE_TECH_DIR) 2>/dev/null || true
+	mkdir -p $(WEBPAGE_TECH_DIR)
 	touch $(WEBPAGE_TECH_DIR_EXISTS)
 
 $(WEBPAGE_TUTORIAL_DIR_EXISTS):
-	mkdir $(WEBPAGE_TUTORIAL_DIR) 2>/dev/null || true
+	mkdir -p $(WEBPAGE_TUTORIAL_DIR)
 	touch $(WEBPAGE_TUTORIAL_DIR_EXISTS)
 
 $(WEBPAGE_PSET_DIR_EXISTS):
-	mkdir $(WEBPAGE_PSET_DIR) 2>/dev/null || true
+	mkdir -p $(WEBPAGE_PSET_DIR)
 	touch $(WEBPAGE_PSET_DIR_EXISTS)
+
+$(FULLREFDOC_DIR_EXISTS):
+	mkdir -p $(FULLREFDOC_DIR)
+	touch $(FULLREFDOC_DIR_EXISTS)
+
+$(WEBPAGE_FULLREF_DIR_EXISTS):
+	mkdir -p $(WEBPAGE_FULLREF_DIR)
+	touch $(WEBPAGE_FULLREF_DIR_EXISTS)
+
