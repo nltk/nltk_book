@@ -1,0 +1,591 @@
+% Natural Language Toolkit Technical Report:
+% Interfaces
+%
+% Copyright (C) 2003 University of Pennsylvania
+% Author: Edward Loper <edloper@gradient.cis.upenn.edu>
+% URL: <http://nltk.sf.net>
+% For license information, see LICENSE.TXT
+%
+% $Id$
+
+\documentclass[11pt]{article}
+\usepackage{fullpage, alltt}
+
+\begin{document}
+\title{Interfaces\\
+\Large Natural Language Processing Toolkit: Technical Report}
+\author{Edward Loper}
+\maketitle
+
+%============= INTRODUCTION =============%
+\section{Introduction}
+
+An \textit{interface} is a specification of the behavior for a set of
+related methods.  NLTK defines standard interfaces to ensure that
+different components will work together; and to allow different
+implementations of the same component to be easily substituted for
+each other.  NLTK defines two types of interface:
+
+\begin{itemize}
+\item \textit{Processing interfaces} are used to define natural
+  language processing tasks (such as parsing or classifying texts).
+\item \textit{Data type interfaces} are used to define standard
+  methods for accessing data types that have multiple implementations
+  (such as probability distributions).
+\end{itemize}
+
+%============= BACKGROUND =============%
+\section{Background}
+\subsection{Protocols}
+
+Python does not provide any language-level support for defining or
+enforcing interfaces.  Instead, Python tends to rely on
+\textit{protocols}, which are informal interfaces that are specified
+by external documentation.  Protocols are typically defined relative
+to existing data types or classes.  For example, the ``sequence''
+protocol requires that an object implement the methods that tuples and
+lists implement.\footnote{Or some subset of these methods; the exact
+  requirements are not usually made explicit.}
+
+This informal interface system allows Python functions to be used
+polymorphically: you can call a function with a object type that it
+doesn't expect, as long as you guarantee that the object behaves
+correctly.  It also allows individual functions to only require
+certain aspects of an protocol.  For example, a function that reads from
+a file-like object might just require that its input implement the
+\texttt{read} and \texttt{readline} methods.
+
+\newpage\noindent
+However, Python's informal protocol system has several disadvantages:
+\begin{itemize}
+\item In order to avoid duplicating documentation, interfaces must be
+  documented externally (not in docstrings).  However, there is no
+  standard place to doccument interfaces; and since the interfaces are
+  separated from the code, it is easy for the interfaces to get
+  out-of-sync with the code.
+\item Since protocols are usually documented informally, different
+  programmers may make different assumptions about what is required or
+  guaranteed.  These differences in assumption can lead to subtle
+  bugs, which can only be detected at run-time.
+\item It is not possible to automatically check that classes correctly
+  implement interfaces.
+\item If a function requires only certain aspects of an protocol, then
+  it can be more difficult to change that function's implementation.
+  In the example above, it would be impossible to change the function
+  that required a file-like object to an implementation that uses
+  \texttt{seek} (without checking all calls to that function).
+\end{itemize}
+
+% Add other related work (e.g., zope ExtensionClasses?)
+
+%============= INTERFACE CLASSES =============%
+\section{Interface Classes}
+
+For NLTK, we wanted to provide explicit formal definitions for all
+interfaces.  We decided to encode these formal definitions using
+special superclasses which we call ``interface classes.''  An
+\textit{interface class} is a class that defines simple stubs for each
+method that the interface specifies.  These stubs use docstrings to
+describe the method's required behavior; and raise exceptions if
+called.  This system has three primary advantages over external
+documentation: 
+
+\begin{itemize}
+\item For classes that implement an interface, the API documentation
+  for methods can be inherited from the interface.\footnote{This
+    assumes the use of an API documentation tool that supports
+    documentation inheritance, such as Epydoc.}  This helps avoid
+  duplicating documentation.
+\item It is possible to automatically verify that classes define all
+  of the required methods, using the required signatures.
+\item It is easier to maintain consistancy between the interfaces'
+  definitions and implementations in different versions of the
+  toolkit.
+\end{itemize}
+
+\subsection{Naming Interface Classes}
+
+Interface classes are always named with a trailing capital ``I,'' such
+as \texttt{TokenizerI} or \texttt{EventI}.
+
+\subsection{Interface Class Docstrings}
+
+An interface class's docstring should describe the purpose of the
+interface, and provide any necessary background information.  It
+should also specify which methods (if any) are optional.
+
+\subsection{Interface Class Constructors}
+
+% Will this cause problems with the new super construct?
+Interface classes should not define constructors.
+
+\subsection{Interface Methods}
+
+Every interface class defines a set of \textit{interface methods},
+each of which specifies the behavior for a single method of the same
+name.  An interface method consists of a declaration, followed by a
+body containing a docstring and a \texttt{raise AssertionError(...)}
+command:
+
+\begin{alltt}
+    def \textit{name}(\textit{parameters...}):
+        """
+        \textit{docstring}
+        """
+        raise AssertionError("\textit{name} not overridden")
+\end{alltt}
+
+\subsubsection{Optional Methods}
+
+Interfaces may define ``optional methods,'' which should be
+implemented when possible, but are not required.  The optionality of a
+method is specified in two ways:
+
+\begin{itemize}
+\item Optional methods should raise a \texttt{NotImplementedError}
+  exception (instead of an \texttt{AssertionError} exception).
+\item The interface class docstring should provide a list of all
+  optional methods.
+\end{itemize}
+
+\noindent
+The following template should be used to write optional methods:
+
+\begin{alltt}
+    def \textit{name}(\textit{parameters...}):
+        """
+        \textit{docstring}
+        """
+        raise NotImplementedError("\textit{name} is not implemented")
+\end{alltt}
+
+\subsection{Implementing an Interface}
+
+If a class implements an interface, then it must list that interface
+as one of its base classes; and it must override each of the
+interface's (required) methods.  Each overriding method must have a
+compatible signature with the interface method\footnote{An overriding
+  method is compatible with a base method if it will accept any set of
+  parameters that the base method would accept.  For example, an
+  overriding method may add a new optional argument; but it may not
+  remove or rename an argument.}; and must have behavior that conforms
+to the behavior described by the interface method's docstring.
+
+Note that a single class can implement multiple interfaces, by
+declaring them in its list of base classes, and overriding all of
+their methods.
+
+\subsection{Interface Inheritance Hierarchies}
+
+Specialized interfaces can be derived from more general interfaces
+using inheritance.  In particular, you can create a specialized
+interface class by declaring it as a subclass of a more general
+interface.  The documentation for any methods defined by the more
+general interface will be inherited by the specialized interface.
+
+For example, the \texttt{ParserI} interface class defines a general
+interface for parsing; and its subclass \texttt{ProbabilisticParserI}
+defines a more specialized interface for probabilistic parsing.
+
+%============= TYPES OF INTERFACE =============%
+\section{Types of Interface}
+
+NLTK defines a large set of interfaces.  To help organize these
+interfaces, we have categorized them according to a number of
+attributes.  The most basic division is between \textit{processing
+  interfaces}, which are used to define natural language processing
+tasks (such as parsing or classifying texts); and \textit{data type
+  interfaces}, which are used to define standard interfaces to data
+types that have multiple implementations.
+
+%============= PROCESSING INTERFACES =============%
+\section{Processing Interfaces}
+
+The primary use of interfaces in NLTK is to define standard
+specifications for natural language processing tasks.  Each processing
+interface is named after a single processing task, such as
+\texttt{TokenizerI} (for tokenizing) and \texttt{ParserI} (for
+parsing).\footnote{A processing interface's name should be based the
+  deverbal noun formed from the task's verb.}
+
+Each processing interface defines at least one method, which performs
+the language processing task and returns the result.  If no result is
+found, then this method should return \texttt{None}.  The name for
+this method should be based on imperitive form of the interface name,
+such as \texttt{tokenize} (for tokenizing) and \texttt{parse} (for
+parsing).
+
+When appropriate, each processing interface should also define a
+method that returns a list of the possible results for the given task,
+sorted in descending order of quality.\footnote{For some
+  implementation-specific definition of quality; note that it is
+  perfectly acceptable to define all possible results to have the same
+  quality, in which case results will be returned in arbitrary order.}
+This method is named by appending ``\texttt{\_n}'' to the imperitive
+form of the interface name, such as \texttt{tokenize\_n} for
+tokenizing; and \texttt{parse\_n} for parsing.  The signature for this
+methods should be formed by adding an optional parameter \texttt{n} to
+the signature of the basic language processing task method, which
+controls the maximum number of results that should be returned.  If
+\texttt{n} is not specified, then all available results should be
+returned.
+
+\subsection{Input and Output}
+
+Almost all processing interfaces define tasks that take tokens or
+collections of tokens as input; and return tokens or collections of
+tokens as outputs.  Some advantages of working with tokens rather than
+types include:
+
+\begin{itemize}
+\item It makes it easy to keep track of what information was derived
+  from what source; and to connect together pieces of information that
+  have been generated by different tasks.
+\item It makes it easy to differentiate two occurances of the same
+  type.
+\item It often aids in the evaluation of system performance, by
+  allowing direct token-by-token comparison of two algorithms' output
+  without the need for any alignment algorithms.
+\end{itemize}
+
+A notable exception to the rule that most interfaces take tokens as
+inputs is the \texttt{tokenizer} method, which is responsible for
+creating the original list of tokens from a string.
+
+\newpage
+Processing interfaces can be divided into classes, based on their
+input and output.  Currently, all NLTK processing classes fit into the
+following categories:
+
+\begin{itemize}
+\item \textit{Token list generator}: creates a list of tokens.
+  \texttt{TokenizerI} is an example of a token list generator.
+\item \textit{Token map}: takes a single token as its input, and
+  returns a token with the same location and a new type.
+  \texttt{ClassifierI} is an example of a token map.
+\item \textit{Token list map}: takes a list of tokens as its input,
+  and returns a list of tokens with the same locations, and new types.
+  \texttt{TaggerI} is an example of a token list map.
+\item \textit{Token list collector}: takes a list of tokens as its
+  input, and returns a single new token composed from the list.
+  \texttt{ParserI} is an example of a token list collector.
+\item \textit{Processing class factory}: creates new instances of
+  processing classes.  C{ClassifierTrainerI} is an example of a
+  processing class factory.
+\end{itemize}
+
+Additional classes are likely to be added in the future.  Some likely
+candidates include the following classes:
+
+\begin{itemize}
+\item \textit{Token list filter}: takes a list of tokens as its
+  input, and returns a list containing a subset of the tokens from the
+  input list (preserving order).  A stop-word list might be defined
+  with this class of processing interface.
+\item \textit{Token expander}: takes a single token as its input, and
+  returns a list of tokens derived from the single token.  A
+  morphological analyzer might be defined with this class of
+  processing interface.
+\end{itemize}
+
+\subsection{Function}
+
+Processing interfaces can be also be divided into classes based on
+their basic function.  This provides a partially orthoganal
+classification to the the input/output categories.  Currently, all
+NLTK processing classes fit into the following categories:
+
+\begin{itemize}
+\item \textit{Extender}: Returns data containing a superset of the
+  information in the input.  An example of a token extender is
+  \texttt{TaggerI}, which adds tags to each tokens' types; or
+  \texttt{ParserI}, which adds constituancy information.
+\item \textit{Selector}: Returns data containing a subset of the
+  information in the input.  An example of a selector is a stop-word
+  list, which filters out tokens with a given set of types.
+\item \textit{Transformer}: Returns data that contains neither a
+  superset nor a subset of the information in the input.  An example
+  of a transformer is an automatic speech recognition processing
+  interface.
+\end{itemize}
+
+Note that the distinction between these classes is often \textit{not}
+determined by the processing task itself.  For example, we could
+define a tagging interface to return either a list of tagged words (an
+extender) or a list of tags (a transformer).
+
+%============= DATA TYPE INTERFACES =============%
+\section{Data type Interfaces}
+
+Data type interfaces are used to provide specifications for data types
+that are too general to be captured by a single class.  For example,
+the \texttt{ProbDistI} interface class defines an interface for
+probability distributions, which can be implemented using a wide
+variety of techniques.
+
+In NLTK, data type interfaces are not nearly as common as processing
+interfaces.  Because they introduce extra complexity, they should only
+be used to define a data type when it is not practical to use a single
+class.  Currently, NLTK defines data type interfaces for two domains:
+probability distributions (\texttt{ProbDistI} and
+\texttt{ConditionalProbDistI}); and classification features
+(\texttt{FeatureDetectorI}, \texttt{FeatureDetectorListI}, and
+\texttt{FeatureValueListI}).  The classification feature data type
+interfaces may be removed or revised when the classification system is
+redesigned.
+
+%============= DEFINING NEW INTERFACES =============%
+\section{Defining New Interfaces}
+
+When defining a new interface for NLTK, be sure to keep the following
+questions and guidelines in mind:
+
+\begin{itemize}
+\item Is it a data interface or a processing interface?  Note that in
+  some cases, this will be a design decision (e.g., a ``rule'' class
+  could be reformulated as a ``decider'' class).
+\item For processing interfaces, which input/output class does the
+  interface belong to?
+\item For processing interfaces, which function class does the
+  interface belong to?
+  \begin{itemize}
+  \item If you're trying to decide whether a processing interface
+    should be an extender or a transformer, think about typical uses
+    of the interface's output.  Is the new information usually used in
+    conjunction with the original information, or in place of it?
+  \end{itemize}
+\item What auxilliary data types are needed to define the interface?
+\item Interfaces should be as general as is practical, and should not
+  introduce any unnecessary restrictions on tasks.  For example,
+  interfaces should try not to constrain what objects can be used for
+  token types.
+\item Interfaces should be named using standard terms, where possible.
+  Interface names (including interface method names) should not
+  conflict with other names that are already used by the toolkit.
+  Neutral names are preferred over domain-specific names.
+\item Think about what tasks are likely to be used to generate input
+  for the interface, or to process its output; and make sure that the
+  interface can be easily combined with the interfaces for those other
+  tasks.
+\item Is the new interface just a special case of an existing
+  interface?  For example, there is probably no need for a ``word
+  sense disambiguation'' interface, since word sense disambiguation is
+  just a specific domain for classification.
+\item Is the nomenclature used to define the interface internally
+  consistant?  Is it consistant with the literature?\footnote{An
+    example of inconsistant nomenclature that is currently in NLTK is
+    the fact that classifiers assign ``labels'' instead of
+    ``classifications.''}
+  
+\end{itemize}
+
+%============= CURRENT INTERFACES =============%
+\section{Current Interfaces}
+\subsection{Processing Interfaces}
+The following table lists the processing interfaces that are currently
+defined by NLTK, and lists the I/O and functional classifications for
+each interface.
+
+\vspace{3mm}\noindent
+\begin{tabular}{|p{.5\textwidth}|l|l|}
+\hline
+  \textbf{Interface} & \textbf{I/O Classification} &
+  \textbf{Function} \\
+\hline
+\texttt{TokenizerI}
+  
+\textit{\qquad Divides a text into a list of tokens}
+& token list generator & transformer \\
+\hline
+\texttt{TaggerI}
+
+\textit{\qquad Adds a tag to each token in a list}
+& token list map & extender \\
+\hline
+\texttt{StemmerI}
+
+\textit{\qquad Strips morphological affixes}
+& token list map & selector \\
+\hline
+\texttt{ParserI}
+
+\textit{\qquad Identifies token constituants}
+& token list collector & extender \\
+\hline
+\texttt{ChunkParserI}
+
+\textit{\qquad Identifies non-overlapping groups of tokens}
+& token list collector & extender \\
+\hline
+\texttt{ProbabilisticParserI}
+
+\textit{\qquad Identifies token constituants}
+& token list collector & extender \\
+\hline
+\texttt{ClassifierI}
+
+\textit{\qquad Adds a label to a text}
+& token list map & extender \\
+\hline
+\texttt{ClassifierTrainerI}
+
+\textit{\qquad Creates a new classifier}
+& processing class factory & transformer \\
+% Leave this out for now: \texttt{FeatureSelectorI} & 
+\hline
+\texttt{CorpusReaderI}
+
+\textit{\qquad Parses and reads standard corpora}
+& generator & (special)\\
+\hline
+\end{tabular}
+
+\subsection{Data Interfaces}
+
+The following list desribes the data interfaces that are currently
+defined by NLTK.
+
+\begin{enumerate}
+\item \textbf{Probability Distributions}
+  \begin{itemize}
+  \item \textbf{\texttt{ProbDistI}} is an interface for probability
+    distributions.  Probability distributions are typically derived
+    from frequency distributions (e.g., \texttt{MLEProbDist}), but can
+    also be created analytically (e.g., \texttt{UniformProbDist}).
+  \item \textbf{\texttt{ConditionalProbDistI}} is an interface for
+    conditional probability distributions.  Probability distributions
+    that are derived from frequency distributions are typically
+    created using the \texttt{ConditionalProbDist} implementation; but
+    implementations for analytic distributions (eg gaussians) may also
+    be added.
+  \end{itemize}
+\newpage
+\item \textbf{Chart Parsers}
+  \begin{itemize}
+  \item \textbf{\texttt{ChartRuleI}} is an interface for rules that
+    controls what edges should be added to a chart in a
+    \texttt{ChartParser}.
+  \item \textbf{\texttt{IncrementalChartRuleI}} is an interface for
+    rules that controls what edges should be added to a chart in an
+    \texttt{IncrementalChartParser}.
+  \item \textbf{\texttt{EdgeI}} is an interface for edges in a chart.
+    This class is used as a superclass for \texttt{ProductionEdge} and
+    \texttt{TokenEdge}.\footnote{Since it is very unlikely to ever get
+      other implementations, it might make more sense to change this
+      class from an interface to an abstract superclass.}
+  \end{itemize}
+\item \textbf{Classificaiton Features}\footnote{The classification
+    system is being redesigned, and these interfaces are likely to be
+    removed.}
+  \begin{itemize}
+  \item \textbf{\texttt{FeatureDetectorI}} is an interface for
+    ``feature detectors,'' which map labeled texts to values.
+  \item \textbf{\texttt{FeatureValueListI}} is an interface for sparse
+    encodings of lists of feature values.
+  \item \textbf{\texttt{FeatureDetectorListI}} is an interface for
+    sparse encodings of lists of feature detectors.
+  \end{itemize}
+\end{enumerate}
+
+\section{Open Questions}
+
+\subsection{Extenders vs Transformers}
+
+For a given task, how should we decide whether its interface should be
+an extender or a transformer?  Some examples of the alternatives for
+current interfaces include:
+
+\vspace{3mm}
+\begin{tabular}{|l|ll|}
+  \hline
+  Task & Extender Interface Output& Transformer Interface Output\\
+  \hline
+  Tagging &
+    list of Token($\langle$word, tag$\rangle$, loc) &
+    list of Token(tag, loc) \\
+  Classifying & 
+    Token($\langle$text, label$\rangle$, loc) &
+    Token(label, loc) \\
+  Stemming & 
+    Token($\langle$word, stem$\rangle$, loc) &
+    Token(stem, loc) \\
+  \hline
+\end{tabular}
+\vspace{3mm}
+
+Note that the output would always be a token; at issue is what
+information would be included in the token's type.  Note also that
+an extender can be converted to a transformer by discarding the
+input word/text; and that a transformer can be converted to an
+extender by aligning its output with its input (using locations),
+and ``gluing'' the input word/text to the output.
+
+Currently, we're using a mix of extenders and transformers, and
+attempting to choose the class that will most likely be useful to
+users.  However, the decision between extenders and transformers can
+be fairly arbitrary in some cases, and might cause confusion.
+
+\newpage
+One alternative would be to eliminate extenders, and make everything
+a transformer.  The user would ``glue'' information from different
+stages together, where necessary.  E.g., a user who wanted to tag
+some text and send it through a lexicalized parser could run:
+
+\begin{alltt}
+  >>> toks = my\_tokenizer.tokenize(text)
+  >>> tags = my\_tagger.tag(toks)
+  >>> tagged\_toks = [Token(TaggedType(tok.type(), tag.type()), tok.loc())
+  ...                for (tok, tag) in zip(toks, tags)]
+  >>> tree = my\_parser.parse(tagged\_toks)
+\end{alltt}
+
+Another option would be to eliminate transformers, and make
+everything an extender.  The user would discard unnecessary
+information, if they don't want it.  For example, a user who wanted
+to tag and parse text with an unlexicalized parser could run:
+
+\begin{alltt}
+  >>> toks = my\_tokenizer.tokenize(text)
+  >>> tagged\_toks = my\_tagger.tag(toks)
+  >>> tags = [Token(tok.type().tag(), tok.loc()) for tok in tagged\_toks]
+  >>> tree = my\_parser.parse(tags)
+  >>> lexicalized\_tree = tree.lexicalize(toks)\footnote{This function\
+is hypothetical.}
+\end{alltt}
+
+So, should we continue to use a mix of transformers and extenders?  Or
+should we use one or the other exclusively?
+
+\subsection{Accessing Context}
+
+One issue with the token-based interfaces is that it can be difficult
+to access a token's context.  For example, to disambiguate the sense
+of a word, we might want to know what words are near it; but if a
+processing class is only given the token, then it can't access this
+information.
+
+There are several ways we might address this issue, but each has its
+own problems.
+
+\begin{itemize}
+\item Add pointers from tokens to the texts that they came from.
+  Disadvantages: maintaining back pointers can be dangerous and error
+  prone.  For example, if the user modifies the text, then the back
+  pointers may become invalid.  This could potentially be solved by
+  making all texts immutable (e.g., use tuples instead of lists for
+  tokenized text); but that seems somewhat draconian.
+  
+\item Add an explicit feature-collection step, which acts on complete
+  texts, and maps each token to a set of features that describes the
+  token (e.g., words in its context).  Interfaces that need access to
+  context would then act on these feature tokens, rather than on the
+  original tokens.  Disadvantages: added complexity can be complex.
+  Sometimes ``context'' is not best thought of as a set of features.
+  
+\item Add an extra ``text'' parameter to most interfaces, which can be
+  used to look up the context of a token.  Disadvantages: finding the
+  context for a token is likely to require linear search, and so would
+  be very slow; interfaces become less simple and clean.
+\end{itemize}
+    
+\end{document}
