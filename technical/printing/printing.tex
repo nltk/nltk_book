@@ -41,13 +41,23 @@
 
   The following goals guide the design of printed representations.
 
+  \subsection{Primary Goals}
+
   \begin{description}
 
-    \item[Compactness] Printed representations should be simple and
-    compact.  Simpler representations are easier to read and easier to
-    understand, especially when the object is included in the
-    representation of a larger data structure, such as a list of
-    objects.
+    \item[Type Indication] The representation should give some direct
+    or indirect indication of its type.  In particular, it should be
+    easy to tell the type of an object from its printed
+    representation.
+
+    \item[Intuitiveness] Representations should rely on the
+    conventional meanings of formats and symbols (e.g., the use of
+    ``@'' to denote ``at'').  This will make it easier for users to
+    understand what the representations stand for.
+
+    \item[Standard Representations] When possible, established
+    standard representations (such as ``dog/NP'' for tagging) should
+    be used.
 
     \item[Consistancy] The printed representation of an object should
     be consistant between different environments.  Inconsistant
@@ -60,26 +70,312 @@
     should include some indication that the field is contained within
     it.
 
-    \item[Type Indication] The representation should give some direct
-    or indirect indication of its type.  In particular, it should be
-    easy to tell the type of an object from its printed
-    representation.
+  \end{description}
+
+  \subsection{Secondary Goals}
+
+  \begin{description}
 
     \item[Value Indication] If two objects have the same value, they
     should have the same printed representations; if two objects have
     different values, then they should have different printed
     representations.
 
-    \item[Intuitiveness] Representations should rely on the
-    conventional meanings of formats and symbols (e.g., the use of
-    ``@'' to denote ``at'').  This will make it easier for users to
-    understand what the representations stand for.
-
-    \item[Standard Representations] When possible, established
-    standard representations (such as ``dog/NP'' for tagging) should
-    be used.
+    \item[Compactness] Printed representations should be simple and
+    compact.  Simpler representations are easier to read and easier to
+    understand, especially when the object is included in the
+    representation of a larger data structure, such as a list of
+    objects.
 
   \end{description}
+
+%============= PYTHON =============%
+\section{Python Constructs}
+
+  Python classes may define two different string representations: one
+  is returned by \texttt{str}, and the other by \texttt{repr}.  The
+  differences between these two represenetations are:
+
+  \begin{itemize}
+
+    \item The ``Official'' Definitions
+    (\texttt{http://www.python.org/doc/current/ref/customization.html})
+    \begin{itemize}
+      \item 
+        \texttt{repr}: If at all possible, this should look like a
+        valid Python expression that could be used to recreate an
+        object with the same value (given an appropriate
+        environment). If this is not possible, a string of the form
+        "$<$...some useful description...$>$" should be returned.
+        This is typically used for debugging, so it is important that
+        the representation is information-rich and unambiguous.
+
+      \item
+        \texttt{str}: This differs from \_\_repr\_\_() in that it does not
+        have to be a valid Python expression: a more convenient or
+        concise representation may be used instead. 
+    \end{itemize}
+
+    \item Usage Contexts
+    \begin{itemize}
+
+      \item \texttt{repr}
+      \begin{itemize}
+        \item The result of \texttt{repr()}
+        \item The result of backquotes (e.g., \texttt{`x`})
+        \item The result of the string formatting operator
+            ``\texttt{\%r}''
+        \item Used when an object representation is ``contained'' in
+            another object representation (e.g., to display an element
+            of a list or a key of a dictionary)
+      \end{itemize}
+
+      \item \texttt{str}
+      \begin{itemize}
+        \item The result of \texttt{str()}
+        \item The result of the string formatting operator 
+            ``\texttt{\%s}''
+        \item The output of print
+      \end{itemize}
+
+    \end{itemize}
+
+    \item Builtin Type Usage Conventions
+    \begin{itemize}
+      \item \texttt{repr(x)} contains no newlines.
+      \item \texttt{repr(x)} contains only simple ASCII characters.
+    \end{itemize}
+
+    \item Default Values
+    \begin{itemize}
+      \item The default value for \texttt{repr} is a string of the form:\\
+        \texttt{$<$\_\_\textit{module}\_\_.\textit{class} instance at \textit{address}$>$}
+      \item The default value for \texttt{str} is the value returned
+        by \texttt{repr}
+    \end{itemize}
+
+  \end{itemize}
+
+  \subsection{The Official Definition}
+
+    After consideration of the contexts in which \texttt{repr} and
+    \texttt{str} are used, we have decided \emph{not} to make use of
+    the ``official'' definitions.  This decision is primarily
+    motivated by the fact that \texttt{repr} is always used when an
+    object representation is ``contained'' in another object
+    representation.  We believe that this would lead to overly verbose
+    and difficult to read representations of complex objects.  For
+    example, if we adopted the ``official'' definition of
+    \texttt{repr}, then the string representation (using \texttt{repr}
+    \emph{or} \texttt{str}) of a list of tokens would look something
+    like:
+
+\begin{verbatim}
+"[Token('The', Location(0, 1, unit='w', source='foo.txt')), Token('dog', Lo
+cation(1, 2, unit='w', source='foo.txt')), Token('saw', Location(2, 3, unit
+='w', source='foo.txt')), Token('the', Location(3, 4, unit='w', source='foo
+.txt')), Token('man', Location(4, 5, unit='w', source='foo.txt'))]"
+\end{verbatim}
+
+    We believe that this is signifigantly less readable than the
+    result of using a \texttt{repr} which does not evaluate to return
+    its original value:
+
+\begin{verbatim}
+"['The'@[0w]@'foo.txt', 'dog'@[1w]@'foo.txt', 'saw'@[2w]@'foo.txt', 'the'@[
+3w]@'foo.txt', 'man'@[4w]@'foo.txt']"
+\end{verbatim}
+
+  \subsection{str vs repr}
+
+    Instead, we will make the following distinction between the
+    \texttt{str} and \texttt{repr} string representations:
+
+    \begin{itemize}
+
+      \item \texttt{repr} gives a single-line representation, which
+          would be suitable for inclusion in the representation of
+          another object (i.e., it is delimited by quotes, brackets,
+          braces, etc., when appropriate).  This representation should
+          contain only standard ASCII characters.  \texttt{repr}
+          should be defined for all classes.
+
+      \item \texttt{str} can optionally give a more human-readable
+          representation of an object.  This representation may span
+          multiple lines.
+    \end{itemize}
+
+\section{Guidelines}
+
+  The following guidelines are intended to help design string
+  representations for new nltk objects.  In these guidelines, the
+  string representation of an object is refered to as \texttt{s}.
+
+  \subsection{General Guidelines}
+    \begin{itemize}
+      \item All classes should implement \texttt{repr}.  When the
+        output of \texttt{repr} may be difficult to read, \texttt{str}
+        should be implemented.
+      \item If a field has no value (or the default value), it may be
+        ommited from the printed representation.  (E.g.,
+        \texttt{Location}s with no source don't display the source.
+      \item When \texttt{s} needs to contain the representation of an
+        embedded object, and the object's type is variable,
+        \texttt{repr} should always be used (not \texttt{str}).  No
+        special type-checking should be applied (e.g., to treat
+        strings specially).
+      \item It should always be possible to tell the type of an object
+          from its printed representation.
+    \end{itemize}
+
+  \subsection{Repr}
+    \begin{itemize}
+      \item \texttt{s} may not span multiple lines (i.e., it may not
+        contain newlines)
+    \end{itemize}
+
+  \subsection{Str}
+    \begin{itemize}
+      \item \texttt{s} may span multiple lines.
+      \item Multiline \texttt{str} representations shoud not contain any
+        trailing newlines.
+      \item \texttt{s} may use indentation to show internal structure.
+      \item \texttt{s} may be a simple table.
+      \item If \texttt{s} is a multiline representation, it should try 
+        very hard not to be more than 75 characters wide.
+      \item It should always be possible to distinguish the
+          \texttt{s} from the \texttt{str} for any built-in object
+          (except strings, which can have arbitrary representations);
+          or for any other class.
+      \item For multiline \texttt{str} representations, \texttt{s}
+        should begin with an unindented line, whose first word is the
+        name of the class.  All subsequent lines should be indented.
+    \end{itemize}
+
+  \subsection{Data-Oriented Classes}
+    \begin{itemize}
+      \item When practical, \texttt{s} should specify the complete
+          state of the object.  In particular, if it is possible to
+          give the complete state of a typical instance in less than
+          75 characters, then \texttt{s} should give the complete
+          state.  
+      \item When it is not practical to show the complete state
+          of a data-oriented instance, this should be indicated with
+          elipsis dots (``...'').
+    \end{itemize}
+
+  \subsection{Task-Oriented Classes}
+    \begin{itemize}
+      \item For repr, \texttt{s} should have the form:\\
+        \texttt{$<$\textit{class} \textit{info}$>$}\\
+        where \texttt{\textit{info}} is a description of the
+        parameters and the state of the class.
+    \end{itemize}
+
+
+%============= PP =============%
+\section{Pretty-Printing Methods}
+
+  Classes may provide pretty-printing methods.  These methods should
+  have the following signature:
+
+  \texttt{pp(self, left, right)}
+
+  Where \texttt{left} and \texttt{right} are left and right margins.
+  \texttt{pp} should assume that it is already at position
+  \texttt{left}.  E.g., a pp function to draw a vertical line, when
+  given \texttt{left}=5, would return:
+
+  \texttt{"|" + ("~~~~~|"*lineheight)}
+
+
+%============= EXAMPLES =============%
+\section{Examples}
+
+\subsection{Locations}
+
+  \texttt{str} and \texttt{repr} representations are identical.  Unit
+  \& Loc are not displayed if they are not specified.  End index is not
+  displayed if it has the default value (=start+1).
+
+{\tt
+\begin{tabbing}
+\emph{$>>>$ Location(1, 3)}\\
+@[1:3]\\
+\emph{$>>>$ Location(1, 2)}\\
+@[1]\\
+\emph{$>>>$ Location(1, 3, source='foo.txt')}\\
+@[1:3]@'foo.txt'\\
+\emph{$>>>$ Location(1, 3, unit='w')}\\
+@[1w:3w]\\
+\emph{$>>>$ Location(1, 2, unit='w', source='foo.txt')}\\
+@[1w]@'foo.txt'\\
+\emph{$>>>$ Location(1, 3, unit='w', source='foo.txt')}\\
+@[1w:3w]@'foo.txt'
+\end{tabbing}
+}
+
+\subsection{Tokens}
+
+  \texttt{str} and \texttt{repr} representations are identical.
+  Location is included using \texttt{repr}.  If location is
+  unspecified, it is displayed as \texttt{@[?]}.  (Note that this
+  would never be a valid location by itself.)
+
+{\tt
+\begin{tabbing}
+\emph{$>>>$ Token('x', Location(1, 3, unit='w', source='foo.txt')}\\
+'x'@[1w:3w]@'foo.txt'\\
+\emph{$>>>$ Token('x')}\\
+'x'@[?]
+\end{tabbing}
+}
+
+\subsection{Trees}
+
+  Lack of commas, and presence of ':', distinguises trees from tuples.
+
+{\tt
+\begin{tabbing}
+\emph{$>>>$ Tree('np', 'the', 'boy')}\\
+('np': 'the' 'boy') \\
+\emph{$>>>$ Tree('vp', 'likes', Tree('np', 'the', 'boy'))}\\
+('vp': 'likes' ('np': 'the' 'boy'))\\
+\emph{$>>>$ TreeToken('vp', Token('likes',1), TreeToken('np', Token('John',2)))}\\
+('vp': 'likes' ('np': 'John))@[1:3]\\
+\\
+\textrm{Trees have one-line repr representations, \& multiline str representations:}\\
+\emph{$>>>$ Tree('x', 'a'*40, Tree('b', 'c'*40, Tree('d', 'e'*40)))}\\
+('x': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ('b': 'cccccccccccccccccccccccc\\
+cccccccccccccccc' ('d': 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')))\\
+\emph{$>>>$ print Tree('x', 'a'*40, Tree('b', 'c'*40, Tree('d', 'e'*40)))}\\
+('x':\\
+\qquad  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\\
+\qquad  ('b':\\
+\qquad\qquad    'cccccccccccccccccccccccccccccccccccccccc'\\
+\qquad\qquad    ('d': 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')))
+\end{tabbing}
+}
+
+\subsection{SimpleFreqDists}
+
+
+{\tt
+\begin{tabbing}
+\emph{$>>>$ s = SimpleFreqDist(\ldots)}\\
+\{SimpleFreqDist $<$CFSample 1, '7'$>$:1, $<$CFSample 5, '2'$>$:1, $<$CFSample 3, '2'$>$\\
+:1, $<$CFSample 2, '7'$>$:1, $<$CFSample 7, '2'$>$:2, $<$CFSample 9, '7'$>$:2, $<$CFSampl\\
+e 6, '7'$>$:3, $<$CFSample 5, '7'$>$:1, $<$CFSample 3, '7'$>$:1, $<$CFSample 9, '9'$>$:2,\\
+ $<$CFSample 7, '9'$>$:3, $<$CFSample 8, '5'$>$:5\}\\
+\emph{$>>>$ print s}\\
+\{SimpleFreqDist\\
+\qquad $<$CFSample 1, '7'$>$: 1, $<$CFSample 5, '2'$>$: 1, $<$CFSample 3, '2'$>$: 1, \\
+\qquad $<$CFSample 2, '7'$>$: 1, $<$CFSample 7, '2'$>$: 2, $<$CFSample 9, '7'$>$: 2, \\
+\qquad $<$CFSample 6, '7'$>$: 3, $<$CFSample 5, '7'$>$: 1, $<$CFSample 3, '7'$>$: 1, \\
+\qquad $<$CFSample 9, '9'$>$: 2, $<$CFSample 7, '9'$>$: 3, $<$CFSample 8, '5'$>$: 5\}
+\end{tabbing}
+}
+
 
 %============= ISSUES =============%
 \section{Issues}
@@ -147,45 +443,6 @@ may not use the solutions discussed here.
   amount of redundant information.  It may make sense to display this
   information exactly once.  e.g., syntax trees: how to attatch
   locations?
-
-%============= PRINTING REPS =============%
-\section{Printing Representations}
-
-Here's a list of how I'm currently representing things:
-
-\newpage
-\begin{tabbing}
-\tt
-\hspace{3in}\=\\
-\textbf{$>>>$ print Location(1, 3)}\\
-@[1:3]\\
-\textbf{$>>>$ print Location(1, 2)}\\
-@[1]\\
-\textbf{$>>>$ print Location(1, 3, source='foo.txt')}\\
-@[1:3]@'foo.txt'\\
-\textbf{$>>>$ print Location(1, 3, unit='word')}\\
-@[word 1:word 3]\\
-\textbf{$>>>$ print Location(1, 2, unit='word', source='foo.txt')}\\
-@[word 1:word 2]\\
-\\
-\textbf{$>>>$ print Token('hi', Location(1, 2))}\\
-'hi'@[1]\\\
-\textbf{$>>>$ print Token('hi', Location(1, 3))}\\
-'hi'@[1:3]\\\
-\textbf{$>>>$ print Token('hi', Location(1, 3, unit='word', source='foo.txt'))}\\
-'hi'@[1:3] \>\textrm{Loc's unit and source are not shown}\\
-\textbf{$>>>$ }\\
-\\
-\textbf{$>>>$ print Tree('np', 'the', 'boy')}\\
-('np': 'the' 'boy') \>\textrm{No commas and presence of ':' distinguises from tuple}\\
-\textbf{$>>>$ print Tree('vp', 'likes', Tree('np', 'the', 'boy'))}\\
-('vp': 'likes' ('np': 'the' 'boy'))\\
-\textbf{$>>>$ print TreeToken('vp', Token('likes',1), Tree('np', Token('John',2)))}\\
-('vp': 'likes' ('np': 'John))@[1:3]\\
-
-
-\end{tabbing}
-
 
 %============= RANDOM NOTES =============%
 \section{Random Notes}
