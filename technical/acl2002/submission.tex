@@ -1,5 +1,5 @@
 \documentclass[11pt]{article}
-\usepackage{acl02sub,url}
+\usepackage{acl02sub,url,alltt,epsfig}
 \title{NLTK: The Natural Language Toolkit}
 \author{
 Edward Loper and Steven Bird\\
@@ -15,10 +15,12 @@ Students augment and replace existing components, learning
 structured programming by example, and manipulating sophisticated
 models from the outset.}
 \paperid{Pxxxx}
-\keywords{courseware, Python, corpora, keyword4?, keyword5?}
+\keywords{teaching, courseware, Python, corpora}
 \contact{Edward Loper}
 \conference{this paper has not been submitted to any other conferences}
 \date{\today}
+
+\newenvironment{sv}{\scriptsize\begin{alltt}}{\end{alltt}\normalsize}
 
 \begin{document}
 \makeidpage
@@ -329,30 +331,149 @@ NLTK currently includes the following modules.
       experiment with chart parsers.
 \end{description}
 
-\section{Basic modules}
+\section{Uses of NLTK}
 
-\subsection{Tree}
+\subsection{Assigments and projects}
 
-\subsection{Tagger}
+NLTK can be used for simple and advanced projects, as well as
+everything in between.  In the simplest assignments, students
+tweak an existing module to alter its behavior.  The variety of
+existing modules makes it easy to create simple assignments.
+A more challenging task is to develop a new module.  Here, NLTK provides
+some useful starting points: predefined interfaces and data structures, and
+existing modules that implement the same interface.  Advanced projects
+typically involve the development of entirely new functionality for a
+previously unsupported NLP task, or the development of a complete system
+out of existing and new modules.
 
-\subsection{Probability}
+Here we illustrate the use of NLTK in an assignment of moderate
+difficulty, for the case of chunk parsing.  This is a kind of parsing
+where we only identify the main constituents of a phrase, a technique
+with diverse applications.  The NLTK \texttt{chunk} module offers
+a variety of rule formats.  For example,
+\texttt{ChunkRule('<NN.*>')} builds chunks over consecutive noun tags;
+\texttt{ChinkRule('<VB.>')} excises verbs from existing chunks;
+\texttt{SplitRule('<NN>', '<DT>')} splits into two pieces any existing
+chunk that contains a noun followed by a determiner; and
+\texttt{MergeRule('<JJ>', '<JJ>')} combines two adjacent chunks
+where the first chunk ends and the second chunk starts with \texttt{JJ}.
+The goal of the assignment is to come up with a cascade of these rules,
+and to create a set of chunks that are as similar as possible to the test set.
 
-\section{Advanced modules}
+The chunking tutorial provides all the necessary code except for the
+chunk rules.  The provided code is responsible for loading the
+chunked, tagged text using an existing tokenizer, creating an
+unchunked version of the text, applying the chunk rules to the
+unchunked text, and scoring the result.  Students focus on the
+NLP task only -- providing a ruleset with the best coverage.
 
-\subsection{ChunkParser}
+In the remainder of this section we reproduce some of the cascades
+created by the students.  The first example illustrates a combination
+of several rule types:
 
-\subsection{ChartParser}
+\begin{sv}
+cascade = [
+  ChunkRule('<DT><NN.*><VB.><NN.*>'),
+  ChunkRule('<DT><VB.><NN.*>'),
+  ChunkRule('<.*>'),
+  UnChunkRule('<IN|VB.*|CC|MD|RB.*>'),
+  UnChunkRule("<,|\.|``|''>"),
+  MergeRule('<NN.*|DT|JJ.*|CD>', '<NN.*|DT|JJ.*|CD>'),
+  SplitRule('<NN.*>', '<DT|JJ>')
+]
+\end{sv}
 
-\subsection{FSA}
+This next example illustrates a brute-force approach.  All tags most
+commonly found inside of chunks are chunked, while other tags are excluded.
 
-\subsection{Classifier}
+\begin{sv}
+cascade = [
+  ChunkRule('<\$|CD|DT|EX|PDT
+             |PRP.*|WP.*|\#|FW
+             |JJ.*|NN.*|POS|RBS|WDT>*')
+]
+\end{sv}
 
+The third example involves putting everything in a single chunk,
+then excising elements that do not belong.
+
+\begin{sv}
+cascade = [
+  ChunkRule('<.*>+')
+  ChinkRule('<VB.*|IN|CC|R.*|MD|WRB|TO|.|,>+')
+]
+\end{sv}
+
+The main program which surrounds the student's work is moderately
+simple as well.  The line replaced by students is underlined.
+
+\begin{sv}
+from nltk.token import *
+from nltk.chunkparser import *
+from nltk.rechunkparser import *
+import os
+
+path = "/cis530/data/wsj/tagged/"
+
+sent_tok = RETokenizer('(=======+)?\\n\\n+', 0)
+sentences = []
+files = os.listdir(path)
+for file in files:
+    print 'Loading %s...' % file
+    text = open(path+file).read()
+    sentences += sent_tok.tokenize(text, source=file, unit='s')
+
+chunkscore = ChunkScore()
+
+\underline{cascade = [ ??? ]}
+chunkparser = REChunkParser(cascade)
+
+ctt = ChunkedTaggedTokenizer()
+for s in sentences:
+    correct = ctt.tokenize(s.type(), source=s.loc())
+    unchunked = unchunk(correct)
+    guess = chunkparser.parse(unchunked)
+    chunkscore.score(correct, guess)
+
+print chunkscore
+\end{sv}
+
+The score for each project is the precision, recall and F-measure.
+Figure~\ref{contest} shows the results; students with the best two scores
+were presented with prizes.
+
+\begin{figure}
+\centerline{\epsfig{figure=contest.ps,width=\linewidth}}
+\caption{Precision/Recall Graph for Chunking Competition}\label{contest}
+\vspace*{2ex}\hrule
+\end{figure}
+
+\subsection{Class demonstrations}
+
+[chart parsing example, including screenshot]
 
 \section{Evaluation}
 
-How we used NLTK at Penn (including the competition).
+About CIS-530: mixture of CS and linguistics students.
+Approx 40 hours of classes.  All class materials (slides,
+assignments) are posted on the course website
+\url{http://www.cis.upenn.edu/~cis530/}.
 
-Strengths and weaknesses
+The Language: Python was new to 95\% of students.  Some were initially
+bothered about its block structuring, which is sensitive to white
+space.  All quickly learnt the language, and reported that any initial
+reservations were unfounded.  Many students said that they enjoyed
+writing Python code.
+
+CD-ROM: put NLTK and data on CD-ROM and gave it out at the start of class.
+
+The toolkit: students liked being able to do interesting projects from
+the outset, liked all the documentation, liked being able to run
+everything on their machine at home, ...
+
+Problems: available corpus data, ...
+
+Other strengths / weaknesses
 
 \section{Other approaches}
 
@@ -363,6 +484,11 @@ Java: \cite{Hammond02}
 \section{Conclusion}
 
 Overview of the paper.
+
+NOTES: Many CL textbooks provide good exercises at the end of each
+chapter.  This isn't enough for many situations.  E.g. students spend
+lots of time writing interface code (e.g. to process a corpus).
+E.g. teachers spend lots of time creating do-able assignments...
 
 NLTK is an open source project, and we welcome any contributions.  We
 deliberately structured NLTK to facilitate parallel development.
