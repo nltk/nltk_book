@@ -218,6 +218,10 @@
         attributes: '(("width" "100%") ("class" "navbox") ("cellpadding" "1")
                       ("cellspacing" "0"))
      (make element gi: "tr"
+       (make element gi: "th"
+             attributes: '(("colspan" "6") ("class" "navtitle"))
+          (literal "Natural Language Toolkit")))
+     (make element gi: "tr"
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
