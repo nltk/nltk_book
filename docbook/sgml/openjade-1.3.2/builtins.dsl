@@ -374,7 +374,7 @@
 		    nl))
 
 ;; clause 10.2.5
-(define (attribute string nl)
+(define (attribute name nl)
   (node-list-map (lambda (snl)
 		   (named-node name (attributes snl)))
 		 nl))
