@@ -10,7 +10,10 @@
 
 \documentclass{article}
 \usepackage{fullpage}
-\usepackage{boxedminipage}
+\usepackage{parskip}
+\setlength{\parindent}{0ex}
+\setlength{\parskip}{1ex}
+
 
 \begin{document}
 \title{Conventions}
@@ -18,60 +21,195 @@
 \maketitle
 
 %################################################################
-%#  OVERVIEW
+%#  Overview
 %################################################################
 \section{Overview}
 
+This document lists design and coding conventions that are used
+throughout NLTK.  Whenever possible, these conventions should be
+followed.
 
+You should also look at the source code of existing NLTK modules, to
+get a feel for conventions that aren't explicitly documented here.
+
+%################################################################
+%#  Module Requirements
+%################################################################
+\section{Module Requirements}
+
+The following checklist lists requirements for a module to be added to
+NLTK.  (Some of these requirements may be fulfilled after the module
+is added to NLTK, but they should be fulfilled eventually.)
+
+\begin{itemize}
+\item Reference documentation
+  \begin{itemize}
+  \item The module is documented by a docstring, describing the
+    purpose of the module, and describing how the objects defined by
+    the class relate to that purpose.
+  \item Each interface is documented by a docstring, describing the
+    requirements imposed by the interface.
+  \item Each class is documented by a docstring, describing the class.
+  \item Each function or method is documented by a docstring,
+    including documentation for parameters, parameter types, return
+    value, and return value type.
+  \end{itemize}
+\item Tutorial documentation
+  \begin{itemize}
+  \item Provide motivation for the module's task.
+  \item Explain how to use the module to perform that task.
+  \item Explain how to create and manipulate any data structures
+    defined by the module.
+  \item Explain any algorithms used.
+  \end{itemize}
+
+\item Unit testing code
+  \begin{itemize}
+  \item Each function or method is tested
+  \end{itemize}
+\end{itemize}
+
+%################################################################
+%#  Mutability
+%################################################################
 \section{Immutable vs Mutable Variables}
 
-  Basic data types should generally be immutable.
+When possible, basic data types (such as \texttt{Token},
+\texttt{Tree}, and \texttt{CFGProduction}) should be immutable.  An
+\textit{immutable} object is one whose value cannot be changed, once
+the object is created.  In Python, integers and strings are immutable;
+but lists and dictionaries are mutable.
 
-\section{Nomenclature}
+Immutable objects have several useful properties, but for our
+purposes, the most important are:
 
-  \subsection{Variable Names}
+\begin{itemize}
+\item They can be used as types for tokens.
+\item They can be used as keys in dictionaries.
+\item They can be stored in Sets (\texttt{nltk.set.Set}).
+\end{itemize}
 
-    all lower case, with underscores
+The following guidelines should help you decide whether an object
+should be mutable or immutable:
 
-  \subsection{Class Names}
+\begin{itemize}
+\item Any class that represents a text type \textit{must} be
+  immutable.
+\item Classes that represent fixed values, such as CFG productions or
+  rules for chunking, should be immutable.
+\item Container classes (such as parsing charts) are usually mutable.
+\item If there's not a good reason to make a class mutable, then keep
+  it immutable.
+\end{itemize}
 
-    WordInitialCaps
+If you're unsure about whether a class should be mutable or immutable,
+contact \texttt{edloper@gradient.cis.upenn.edu}.
 
-  \subsection{Module Names}
+\subsection{Making a Class Immutable}
 
-    short, lower case names.
+To make a class immutable:
+\begin{itemize}
+\item Do not define any methods that modify its contents.
+\item Do not define any methods that return a reference to a mutable
+  instance variable.  (E.g., don't return a list that's used
+  internally; otherwise, the caller might modify it).  If you need to
+  return a mutable value, then copy it.  But you should also consider
+  using immutable structures (e.g. tuples) for your instance
+  variables.
+\item Define the special method \texttt{\_\_cmp\_\_}, and optionally
+  define the two special methods \texttt{\_\_eq\_\_} and \texttt{\_\_ne\_\_}.
+\item Define the special method \texttt{\_\_hash\_\_}.
+\end{itemize}
 
-\section{Packages and Modules}
+%################################################################
+%#  Naming Objects
+%################################################################
+\section{Naming Objects}
 
+Object names should be descriptive, but not overly long.
 
-\section{Data Classes}
+\subsection{Variable Names}
 
+Name variables with lower case names.  Use underscores to separate
+words in the variable name.  Some conventional names for common types
+are:
 
+\begin{tabular}{l|l}
+Type & Conventional Names \\
+\hline
+\texttt{Token} & \texttt{token}, \texttt{tok}\\
+\texttt{Type} & \texttt{type}, \texttt{typ}, \texttt{word}\\
+\texttt{FreqDist} & \texttt{freqdist}, \texttt{fdist}\\
+\texttt{ProbDistI} & \texttt{probdist}, \texttt{pdist}\\
+\texttt{ConditionalFreqDist} & \texttt{cfreqdist}, \texttt{cfdist}\\
+\texttt{ConditionalProbDistI} & \texttt{cprobdist}, \texttt{cpdist}\\
+\texttt{TreeToken} & \texttt{treetok}\\
+\texttt{Tree} & \texttt{tree}\\
+\texttt{CFGProduction} & \texttt{prod}\\
+\texttt{aggedType} & \texttt{ttype}\\
+\end{tabular}
+
+These names are often prefixed by a descriptor, such as
+``\texttt{context\_token}''.
+
+\subsection{Class Names}
+
+Name classes with WordInitialCaps.  Name interfaces with a trailing
+``I'' (e.g. \texttt{ProbDistI} or \texttt{ParserI}).
+
+\subsection{Module Names}
+
+Name modules with short lower-case names.  Modules that define data
+types are generally named after the primary data types they define
+(e.g., \texttt{nltk.cfg} and \texttt{nltk.token}).  Modules that
+define NLP tasks are generally named after the task that they define
+(e.g., \texttt{nltk.tagger} and  \texttt{nltk.parser}).
+
+%################################################################
+%#  Interfaces
+%################################################################
 \section{Interfaces}
 
-  use AssertionError for methods that must be implemented.
+An \textit{interface} is a special type of base class that specifies a
+set of methods that must be supported.  Each subclass of an interface
+provides an implementation for the methods defined by the interface.
 
-  use NotImplementedError for optional methods.
+Interfaces are implemented as classes, all of whose methods raise
+exceptions.  Required methods should raise \texttt{AssertionError}s;
+and optional methods should raise \texttt{NotImplementedError}s.  Each
+interface method defines a docstring that describes the behavior of
+that method.  See existing interfaces for examples.
 
+%################################################################
+%#  String Representations
+%################################################################
 \section{String Representations}
 
-  str is for multiline; repr is single-line, embeddable.  e.g., str
-  for production is something like ``A -> B C'' but for embeddable
-  (repr), it's more like ``[production: A -> B C]''..  etc.
+\begin{itemize}
+\item \texttt{repr} should return a single-line description of an
+  object, suitable for embedding in other descriptions.
+  
+\item \texttt{str} should produce a description that is suitable for
+  the output of \texttt{print}.  The \texttt{str} description may span
+  multiple lines, and does not need to have clear delimiters.
+\end{itemize}
 
-\section{Task Interfaces & Classes}
+%################################################################
+%#  Task Interfaces
+%################################################################
+\section{Task Interfaces \& Classes}
 
-  \subsection{Multiple Return Values}
+\subsection{Multiple Return Values}
 
-  \subsection{Trace Output}
+\subsection{Trace Output}
 
-    trace output is controlled by a single ``trace level'' instance
-    variable.
+trace output is controlled by a single ``trace level'' instance
+variable.
 
-    trace values: 0: no output; 1: less than a page for a typical
-    run; 2 or higher: more verbose.
+trace values: 0: no output; 1: less than a page for a typical run; 2
+or higher: more verbose.
 
-    setting trace output:
+setting trace output:
       - by default, trace=0
       - constructor takes a trace keyword argument
       - trace(n) method sets trace level; use default value for n.
