@@ -8,7 +8,7 @@
 # $Id$
 
 # Get the current version of NLTK
-NLTK_VERSION=$(shell export PYTHONPATH=src; \
+NLTK_VERSION=$(shell export PYTHONPATH=../src; \
 	       python -c 'import nltk; print nltk.__version__')
 
 # Where is the web page hosted on the web?
@@ -82,6 +82,7 @@ help:
 	@echo "    make xfer      -- Build the web page and upload it"\
 	                            "to $(WEBHOST_NAME)"
 	@echo
+	@echo $(NLTK_VERSION)
 
 clean:
 	$(MAKE) -C tutorial clean
