@@ -33,7 +33,251 @@
 
   </section> <!-- Introduction -->
 
-  <section> <title> Encoding Syntax Tree </title>
+  <section> <title> Grammars and Lexicons </title>
+
+    <para>A <glossterm>grammar</glossterm> is a formal specification
+    for the structure of well-formed
+    sentences in some language.  At present, only context-free grammars (CFGs) can be
+    represented in NLTK.  A CFG consists of a set of context-free rules.  Context-free
+    rules have the form <literal>X -&gt; Y</literal> where <literal>X</literal> is
+    a non-terminal, and <literal>Y</literal> is a list of terminals and non-terminals.
+    <literal>X</literal> and <literal>Y</literal> are known as the left-hand side and
+    right-hand side respectively.
+    </para>
+
+    <para>
+    In the simplest case, non-terminals and terminals are just Python
+    strings.  However, it is possible to use any immutable Python object as a
+    non-terminal or terminal.
+    </para>
+
+    <note><para>The NLTK chart parser makes two additional assumptions about rules.
+    First, if a terminal symbol occurs on the right hand side of a rule, it must
+    be the only element on the right hand side.  Second, terminal symbols must
+    be Python strings, for they are matched against the <literal>type</literal>
+    attribute of a token.  Thus, the form of "lexical rules" must be
+    <literal>N -&gt; 'cat'</literal>.  Using rules like
+    <literal>NP -&gt; 'the' N</literal> will produce unintended results
+    (either <literal>the</literal> will be treated as the name of a non-terminal,
+    of <literal>N</literal> will be ignored).  In general, this limitation on the
+    form of lexical rules does not pose any problems.
+    </para></note>
+
+    <para>A grammar can be represented as a tuple of rules, while a lexicon
+    can be represented as a tuple of lexical rules.  The only class we need
+    to define then is <literal>Rule</literal>.
+
+    </para>
+
+    <section> <title> Rules </title>
+
+      <para>The <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.html">
+      <literal>nltk.rule</literal></ulink> module defines the
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html">
+      <literal>Rule</literal></ulink> class, which is used to represent
+      context free rules.  A <literal>Rule</literal> consists of a
+      left-hand side and a right-hand side.</para>
+
+      <itemizedlist>
+        <listitem><para>The left-hand side is a single non-terminal, which
+        may be any Python object.  In the simplest case it is just a string
+        (e.g. "NP" or "VP").
+        </para></listitem>
+
+        <listitem><para>The right-hand side is a tuple of non-terminals and
+        terminals, which may be any Python object.  In the simplest case
+        these are strings (e.g. "Det", "the").
+        </para></listitem>
+      </itemizedlist>
+
+      <note><para>For the NLTK chart parser, the right-hand side of a rule must
+      be either a tuple of non-terminals, or a tuple consisting of exactly one
+      terminal (e.g. ("the",))</para></note>
+
+      <para><literal>Rule</literal>s are created with the
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#__init__">
+      <literal>Rule constructor</literal></ulink>, which takes a left-hand side
+      and a right-hand side:</para>
+
+<programlisting>
+<emphasis># A typical grammar rule S -&gt; NP VP:</emphasis>
+&prompt;<command> rule1 = Rule('S', ('NP', 'VP'))</command>
+S -> NP VP
+
+<emphasis># A typical lexical rule Det -&gt; 'the':</emphasis>
+&prompt;<command> rule2 = Rule('Det', ('the',))</command>
+Det -> the
+</programlisting>
+
+      <para>A <literal>Rule</literal>'s left-hand side and right-hand
+      side are accessed with
+      the <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#lhs">
+      <literal>lhs</literal></ulink>
+      and <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#rhs">
+      <literal>rhs</literal></ulink> methods:
+      </para>
+
+<programlisting>
+&prompt;<command> rule1.lhs()</command>
+'S'
+
+&prompt;<command> rule2.rhs()</command>
+('the',)
+</programlisting>
+
+      <para> A <literal>Rule</literal>'s right-hand side can also be accessed with
+      standard sequence operators: </para>
+
+<programlisting>
+&prompt;<command> rule1[0]</command>
+'NP'
+
+&prompt;<command> rule2[1]</command>
+IndexError: tuple index out of range
+
+&prompt;<command> len(rule1)</command>
+2
+
+&prompt;<command> 'the' in rule2</command>
+1
+
+&prompt;<command> for cat in rule1: </command>
+&prompt2;<command>     print cat</command>
+NP
+VP
+</programlisting>
+
+    </section> <!-- Rules -->
+
+    <section> <title> Building Grammars and Lexicons from Rules </title>
+
+    <para>Grammars and Lexicons can easily be built up from
+    <literal>Rule</literal>s as shown in the following examples:</para>
+
+<programlisting>
+<emphasis># A simple grammar:</emphasis>
+<command>
+grammar = (
+    Rule('S',('NP','VP')),
+    Rule('NP',('Det','N')),
+    Rule('NP',('Det','N', 'PP')),
+    Rule('VP',('V','NP')),
+    Rule('VP',('V','PP')),
+    Rule('VP',('V','NP', 'PP')),
+    Rule('VP',('V','NP', 'PP', 'PP')),
+    Rule('PP',('P','NP'))
+)
+</command>
+
+<emphasis># A simple lexicon:</emphasis>
+<command>
+lexicon = (
+    Rule('NP',('I',)),
+    Rule('Det',('the',)),
+    Rule('Det',('a',)),
+    Rule('N',('man',)),
+    Rule('V',('saw',)),
+    Rule('P',('in',)),
+    Rule('P',('with',)),
+    Rule('N',('park',)),
+    Rule('N',('telescope',))
+)
+</command>
+</programlisting>
+
+    </section> <!-- Building Grammars and Lexicons from Rules -->
+
+    <section> <title> Dotted Rules </title>
+
+      <para>The <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.html">
+      <literal>nltk.rule</literal></ulink> module defines the
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html">
+      <literal>DottedRule</literal></ulink> class, which is used to represent
+      the dotted rules used by a chart parser.  A <literal>DottedRule</literal>
+      consists of a left-hand side, a right-hand side, and the dot position.</para>
+
+      <para><literal>DottedRule</literal>s are created with the
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#__init__">
+      <literal>DottedRule constructor</literal></ulink>, which takes a left-hand side,
+      a right-hand side, and a position:</para>
+
+<programlisting>
+<emphasis># A dotted rule with position 0 (default value omitted):</emphasis>
+&prompt;<command> dr1 = DottedRule('S', ('NP', 'VP'))</command>
+S -> * NP VP
+
+<emphasis># A dotted rule with position 0 (default value supplied):</emphasis>
+&prompt;<command> dr1 = DottedRule('S', ('NP', 'VP'), 0)</command>
+S -> * NP VP
+
+<emphasis># A dotted rule with position 1:</emphasis>
+&prompt;<command> dr2 = DottedRule('S', ('NP', 'VP'), 1)</command>
+S -> NP * VP
+
+<emphasis># A dotted rule with position 2:</emphasis>
+&prompt;<command> dr3 = DottedRule('S', ('NP', 'VP'), 2)</command>
+S -> NP VP *
+</programlisting>
+
+    <para>Another way to construct a <literal>DottedRule</literal> is from
+    a <literal>Rule</literal>.  The <literal>Rule</literal> class has a
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#dotted">
+    <literal>dotted</literal></ulink> member function which returns the
+    dotted version of the rule (with position 0).
+    </para>
+
+<programlisting>
+&prompt;<command> rule1 = Rule('S', ('NP', 'VP'))</command>
+&prompt;<command> rule1.dotted()</command>
+S ->  * NP VP
+</programlisting>
+
+    <para><literal>DottedRule</literal> inherits the member functions of
+    <literal>Rule</literal>.  In addition, it defines
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#pos">
+    <literal>pos</literal></ulink> which returns the dot position,
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#next">
+    <literal>next</literal></ulink> which returns the next right-hand side
+    element following the dot, and
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#shift">
+    <literal>shift</literal></ulink>
+    which returns a new rule with the dot shifted one position to the right.
+    </para>
+
+<programlisting>
+&prompt;<command> dr1.pos()</command>
+0
+
+&prompt;<command> dr1.next()</command>
+'NP'
+
+&prompt;<command> dr1.shift()</command>
+S -> NP * VP
+
+&prompt;<command> dr3.shift()</command>
+IndexError: Attempt to move dot position past end of rule
+
+</programlisting>
+
+    <para><literal>DottedRule</literal> defines a function
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#complete">
+    <literal>complete</literal></ulink> which tests to see if the dotted rule
+    is complete (i.e. the dot is in the rightmost position).</para>
+
+<programlisting>
+&prompt;<command> dr1.complete()</command>
+0
+
+&prompt;<command> dr3.complete()</command>
+0
+</programlisting>
+
+
+    </section>
+
+  </section> <!-- Grammars -->
+
+  <section> <title> Encoding Syntax Trees </title>
 
     <para> Introductory paragraph(s)... </para>
 
@@ -46,10 +290,9 @@
 
     <section> <title> Trees </title>
 
-      <para>The <ulink
-      url="http://nltk.sourceforge.net/ref/nltk.tree.html">
-      <literal>nltk.tree</literal></ulink> module defines the <ulink
-      url="http://nltk.sourceforge.net/ref/nltk.tree.Tree.html">
+      <para>The <ulink url="http://nltk.sourceforge.net/ref/nltk.tree.html">
+      <literal>nltk.tree</literal></ulink> module defines the
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.tree.Tree.html">
       <literal>Tree</literal></ulink> class, which is used to
       represent syntax trees.  A <literal>Tree</literal> consists of a
       <glossterm>node value</glossterm>, and one or more
@@ -71,7 +314,7 @@
         used for encoding syntax trees, it can be used to encode
         <emphasis>any</emphasis> homogenous hierarchical structure
         that spans a text (such as morphological structure or
-        discourse structure).  In the general case, leafs and node
+        discourse structure).  In the general case, leaves and node
         values do not have to be strings. </para>
       </note>
 
@@ -90,7 +333,7 @@
       value and zero or more children: </para>
 
 <programlisting>
-    <emphasis># A tree with on child, a leaf:</emphasis>
+    <emphasis># A tree with one child, a leaf:</emphasis>
     &prompt;<command> tree1 = Tree('NP', 'John')</command>
     ('NP': 'John')
 
@@ -104,12 +347,11 @@
 </programlisting>
 
       <para> A <literal>Tree</literal>'s node value is accessed with
-      the <ulink
-      url="http://nltk.sourceforge.net/ref/nltk.tree.Tree.html#node">
+      the <ulink url="http://nltk.sourceforge.net/ref/nltk.tree.Tree.html#node">
       <literal>node</literal></ulink> method: </para>
 
 <programlisting>
-    &prompt;<command> tree1.node()
+    &prompt;<command> tree1.node()</command>
     'NP'
 </programlisting>
 
@@ -183,6 +425,7 @@
       <literal>TreeToken</literal>s behave very much like
       <literal>Tree</literal>s, except that the leaves of a
       <literal>TreeToken</literal> are word tokens, not word types.  
+      </para>
 
     </section> <!-- TreeTokens -->
 
