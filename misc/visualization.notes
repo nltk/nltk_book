@@ -1,0 +1,163 @@
+
+> Overview
+I'm re-working a lot of the visulaization code, and am interested in
+putting it in a fairly general and flexible framework.  This is
+partially inspired by CLIG <http://www.ags.uni-sb.de/~konrad/clig.html>, 
+and partially by some of the work we've already done.  
+
+>> Goals
+- Simple object-oriented framework for displaying linguistics objects
+- Simple ways of setting up interaction
+- Flexible
+
+So, one nice thing about clig is that it can be very simple to use.
+E.g., you say::
+# clig {tree s {tree np the dog} {tree vp saw the man}}
+or something like that, and it figures out positioning etc.
+
+We want objects that we can interact with.
+
+One interesting issue is positioning and sizing..  To some extent, we
+want object positions to be fixed relative to one another.  But in
+other ways, they need to be settable in an absolute way.  Case
+studies:
+  - if we put text in a box, the position of the text should be
+    defined relative to the position of the box.  i.e., if we move the
+    box, the text should move.  Going the other way, the size of the
+    box is determined by the contents of the text.
+  - if we connect to objects with an edge of some sort, then the
+    position of the edge is determined by the position of the objects.
+  - there may be multiple points on an object that we want to attatch
+    things to.  e.g., for drawing circuit diagrams, an and gate might
+    have 3 "ports". 
+  - some "ports" aren't fixed locations.  e.g., if we want to draw an
+    arrow that points at a circle.
+
+> Canvas widgets
+
+So I'll define a canvas widget, which is the base class for things
+that we display on the canvas.  Each canvas widget keeps track of
+tags, etc.  What are some properties of canvas widgets?
+  - bounding box
+  - bounding box list (more precise -- can just be [bbox])
+  - location (one anchor?  multiple anchors?)
+  - tags
+  - attributes (color, etc)
+
+Operations include:
+  - show
+  - hide
+  - connect?
+  - move??
+  - redraw??
+
+How about this..  Each cwidget's position is defined by one or more
+anchors.  E.g., for a node it's the center; for a tree, the top and
+the leafs?  You can "connect" anchors -- make them equal to each
+other.  Bidirectional.  Avoid loops?
+
+Ok, what about hierarchical containership?  That's the main model used
+by clig.  Each object contains others.  Box, tree, etc.
+
+Each canvas widget MAY have a location.  That's affected by move.
+Each canvas widget also has anchors.
+
+Hrm.  So there's several different things going on here:
+  - object containership: bbox of obj1 contains bbox of obj2
+    (e.g. box-text, tree-subtree)
+  - object dependence: the position of obj2 depends on obj1
+    (e.g., node-arc, tree-subtree)
+
+And what's worse, sometimes we want pos dependence but sometimes we
+don't.  E.g., for subtrees, sometimes we want the subtree to move with
+the tree; other times, we want to be able to manually place the
+subtree.  So something like:
+  - \exists anchors
+  - position of each object is defined by anchors
+  - anchors can have abs positions
+  - anchors can depend on objects for their positions
+
+But that's not enough, because the container needs to be able to know
+the size of the child to know where to put the child's anchor.  Whee.
+Also, how does the container position the containee?  It needs to be
+able to say where to put the containee, but anchors can relate to
+bounding boxes in random arbitrary ways.  what's more, what do we do
+with things like a tree containing an edge as a child??  it seems like
+we have different kinds of objects here.
+  - single-anchor objects: can be contained
+  - multi-anchor objects: can be contained, sorta.  but not really
+    directly.  e.g., a graph contains edges, and the edges are
+    connected to nodes.  but to deal with them, the graph really needs
+    to know that they're edges, and that their bounding boxes can
+    overlap other things, etc etc.
+
+btw, does it make sense to say at least that the anchor should be in
+the bbox somewhere??
+
+So..
+  1. container needs to know containee size, to position it (how?).
+  2. containee can calculate its size
+  3. containee needs to get positioned by the container (moved?)
+    - how do we move the containee?
+
+> Hierarchical Objects
+So, one fairly simple approach is:
+  1. each object's location is defined as the upper-left corner of its
+     bounding box.
+  2. each object can contain 1 or more children
+  3. each object draws children, figures out their sizes, moves them
+     appropriately, adds any new graphics, and calcs bbox size
+
+A slight extension: replace bbox with list of bbox's.  or rather
+augment with.  so the parent can put things closer.  In particular,
+trees can be denser.
+
+Another extension: anchors??  E.g., a tree wants to know where to
+connect to.  Hrm.  
+>> Anchors
+  - Each object has a single anchor.
+  - create object
+  - check bbox
+  - move appropriately
+  - adjust anchor.
+
+So eg for trees:
+  1. create each child
+  2. position each child in turn: move by a dx/dy to put the bbox in the
+     right place.
+  3. draw lines to anchors
+  4. 
+
+move vs moveto??
+
+> Interactions
+  - dragging
+  - clicking
+  - menus?
+  - "connecting" (dragging on top of)
+
+> Connecting
+  - how do we want to connect objs to widgets
+    - no ptr between objs and widgets
+    - apps maintain their own mappings
+
+> Foo
+So let's try:
+
+# TreeWidget(canvas, anchor, node, *children)
+
+Will create a new tree widget on canvas at anchor.  node and *children
+are CanvasWidgets.  So eg:
+
+# TreeWidget(c,Anchor(20,30),TextWidget('hi'),TextWidget('child'))
+
+and anchors can have unspecified positions.  TreeWidget will check if
+its children anchors are specified.  If not, it'll position them for
+them.  Hrm.  2 kinds of anchors?
+  - AbsoluteAnchor: sets position
+  - RelativeAnchor: inherits position
+
+So treewidget:
+  1. checks anchor of node & children; if they're relative, it moves
+     them.  what if some are???  ark!!
+
