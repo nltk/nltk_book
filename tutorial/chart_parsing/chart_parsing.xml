@@ -92,11 +92,12 @@ X.5 implementation
     <para> These completeness and efficiency problems can be addressed
     by employing a technique called <glossterm>dynamic
     programming</glossterm>, which stores intermediate results, and
-    re-uses them when appropriate.  For parsing </para>
+    re-uses them when appropriate.</para>
 
     <para>In general, a parser hypothesizes constituents based on the
     grammar and on the current state of its knowledge about the
-    constituents which are already attested.  Any given constituent
+    tokens it has seen, and the constituents it has already found.
+    Any given constituent
     may be proposed during the search of a blind alley; there is no
     way of knowing at the time whether the constituent will be used in
     any of the final parses which are reported.  Locally, what we know
@@ -108,16 +109,40 @@ X.5 implementation
     these three things: rule, subtree and location, are stored in a
     special structure called an edge.</para>
 
-    <section id="edges"> <title> Edges </title>
+    <para> Consider a sequence of word tokens, e.g. <emphasis>the park</emphasis>.
+    The space character between the two tokens is a shared boundary.  There are
+    further token boundaries at the start and end of the sequence.  We can
+    make these boundaries explicit like this:
+    <emphasis>&bull; the &bull; park &bull; </emphasis>.
+    Now think of these bullets as nodes in a graph.  Each word can be thought
+    of as an <glossterm>edge</glossterm> connecting two nodes.
+    Since each of these edges corresponds to exactly one token,
+    we call them <emphasis>token edges</emphasis>.  These are the simplest
+    type of edge.  However, we can generalize
+    the notion of an edge to edges that span more than one token.  Consider again
+    our words and boundary markers:
+    <emphasis>&bull; the &bull; park &bull; </emphasis>.  In addition to
+    the two token edges, we can have a third edge which connects
+    the initial and final boundaries, spanning two tokens.  This edge could
+    represent a noun phrase constituent.  We call these
+    <emphasis>production edges</emphasis>.</para>
 
-      <para> Consider a sequence of word tokens, e.g. <emphasis>the park</emphasis>.
-      The space character between the two tokens is a shared boundary.  There are
-      further token boundaries at the start and end of the sequence.  We can
-      make these boundaries explicit like this:
-      <emphasis>&bull; the &bull; park &bull; </emphasis>.
-      Now think of these bullets as nodes in a graph.  Each word can be thought
-      of as an edge connecting two nodes.  In NLTK we can create edges from tokens
-      as follows:</para>
+    <para> A chart is a collection of edges, each representing a token or
+    a hypothesis about a syntactic constituent.  A chart parser explores the
+    search space which is licensed by the grammar and constrained by the input
+    sentence, all the time inserting additional edges into the chart.
+    The chart parsing strategy (e.g. top down or bottom up) controls the
+    way in which the parser operates with its three sources of information:
+    the grammar, the input sentence, and the chart.</para>
+
+   </section> <!-- Introduction -->
+
+   <section id="nltk"> <title> Implementation in NLTK </title>
+
+    <section id="nltk.edges"> <title> Edges </title>
+
+      <para>In NLTK we can create token edges from tokens as follows,
+      using the <literal>TokenEdge</literal> class:</para>
 
 <programlisting>
     <emphasis># import chart parser module: </emphasis>
@@ -143,15 +168,11 @@ X.5 implementation
       (e.g. <literal>'the'</literal>).
       </para>
 
-      <para>Since each of these edges corresponds to exactly one token,
-      we call them <literal>TokenEdge</literal>s.  These are the simplest
-      type of edge.  However, we can generalize
-      the notion of an edge to edges that span more than one token.  Consider again
-      our words and boundary markers:
-      <emphasis>&bull; the &bull; park &bull; </emphasis>.  In addition to
-      the two token edges discussed above, we can have a third edge which connects
-      the initial and final boundaries, spanning two tokens.  This edge could
-      represent a noun phrase constituent.  The next example illustrates:</para>
+      <para>Production edges are created using the
+      <literal>ProductionEdge</literal> class.  Production edges
+      are more complex than token edges, since they require a
+      <literal>TreeToken</literal> and a <literal>CFGProduction</literal>.
+      </para>
 
 <programlisting>
     <emphasis># create a treetoken using the tokens: </emphasis>
@@ -257,7 +278,7 @@ X.5 implementation
 
     </section> <!-- Edges -->
 
-    <section id="charts"> <title> Charts </title>
+    <section id="nltk.charts"> <title> Charts </title>
 
       <para>A chart is little more than a set of edges.  The edge set represents
       the state of a chart parser during processing, and new edges can be inserted
@@ -347,7 +368,7 @@ X.5 implementation
 
     </section> <!-- Charts -->
 
-    <section id="rules"> <title> Chart Rules </title>
+    <section id="nltk.rules"> <title> Chart Rules </title>
 
       <para> A chart parser is controlled by a rule-invocation strategy, which determines
       the order in which edges are added to the chart.  In this section we consider the
@@ -358,7 +379,7 @@ X.5 implementation
       edge-addition method described in the last section).  This work is done
       when the chart parser is created.</para>
 
-    <section id="rules.bu"> <title> Bottom Up Rule </title>
+    <section id="nltk.rules.bu"> <title> Bottom Up Rule </title>
 
       <para>A bottom up parser builds syntactic structure starting
       from the words in the input.  For each constituent constructed
@@ -442,7 +463,7 @@ X.5 implementation
 
     </section> <!-- Bottom Up Rule -->
 
-    <section id="rules.td"> <title> Top Down Initialization </title>
+    <section id="nltk.rules.td"> <title> Top Down Initialization </title>
 
       <para>Top down parsing is initialized by creating zero-width
       edges at the leftmost position in the chart.
@@ -482,7 +503,7 @@ X.5 implementation
 
     </section> <!-- Top Down Initialization -->
 
-    <section id="rules.td2"> <title> Top Down Rule </title>
+    <section id="nltk.rules.td2"> <title> Top Down Rule </title>
 
       <para>Whenever a chart contains an incomplete edge, with an incomplete
       rule having <replaceable>X</replaceable> as the next symbol (to the right
@@ -531,7 +552,7 @@ X.5 implementation
 
     </section> <!-- The Top Down Edge-Triggered Rule -->
 
-      <section id="rules.fr"> <title> Fundamental Rule </title>
+      <section id="nltk.rules.fr"> <title> Fundamental Rule </title>
 
       <para>In the last section we encountered a rule which combines the
       information from two edges and creates a new edge.
@@ -561,7 +582,7 @@ X.5 implementation
 
     </section> <!-- Chart Rules -->
 
-    <section id="strategies"> <title> Chart Parser Strategies </title>
+    <section id="nltk.strategies"> <title> Chart Parser Strategies </title>
 
       <para>Chart parsers use the various rules described above in order
       to emulate top down, bottom up or hybrid parsers.  A policy about
@@ -585,7 +606,7 @@ X.5 implementation
 
     </section> <!-- Parsing Strategies -->
 
-    <section id="using"> <title> Chart Parsers </title>
+    <section id="nltk.parsers"> <title> Chart Parsers </title>
 
       <para>Given these complete strategies, we can now parse the
       input sentence and generate parse trees.  The parser finds
@@ -616,10 +637,8 @@ X.5 implementation
     ]
 </programlisting>
 
-      <para>----OLD CONTENT FOLLOWS----</para>
-
       <para>To see the corresponding chart, use the function
-      <literal>Chart.chart().draw()</literal>.</para>
+      <literal>Chart.chart().draw()</literal>.  [working?]</para>
 
       <note><para>Note that some edges
       are duplicated because they contain different trees.  In order
@@ -629,15 +648,16 @@ X.5 implementation
 
     </section> <!-- Creating and Using Chart Parsers -->
 
-    <section id="demo"> <title> The Tk Interface </title>
+    <section id="nltk.demo"> <title> Demonstrations </title>
 
-      <note><para>To be written.</para></note>
+      <para>Interactive demonstrations of chart parsers are
+        available in NLTK.  For a text-based demonstration, use
+        <literal>python nltk/src/nltk/parser/chart.py</literal>.
+        For a graphical demonstration, use
+        <literal>python nltk/src/nltk/draw/chart.py</literal>.
+</para>
 
-      <para>Please see the
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.draw.chart.html">nltk.draw.chart</ulink>
-      module.</para>
-
-    </section> <!-- The Tk Interface -->
+    </section> <!-- Demonstrations -->
 
 </section> <!-- Intro -->
 <!-- </section>  Chart Parsing in NLTK -->
