@@ -133,18 +133,25 @@ X.5 implementation
     &prompt;<command> chart.insert(edge0) </command>
     &prompt;<command> chart.insert(edge1) </command>
     &prompt;<command> print chart.pp() </command>
-    |[--]  .| 'the'@[0] -> * 
-    |.  [--]| 'park'@[1] -> * 
+    |[--]  .| 'the'.
+    |.  [--]| 'park'.
 </programlisting>
 
-      <para>These edges are <literal>TokenEdge</literal>s since each edge
-      correspond to exactly one token.  However, we can generalize
-      the notion of an edge to span more than one token.  Consider again
+      <para>The <literal>Chart.pp()</literal> method produces one line of output
+      for each edge.  The <literal>[--]</literal> shows the span (or location) of
+      the edge, while the rest of the line shows the token
+      (e.g. <literal>'the'</literal>).
+      </para>
+
+      <para>Since each of these edges corresponds to exactly one token,
+      we call them <literal>TokenEdge</literal>s.  These are the simplest
+      type of edge.  However, we can generalize
+      the notion of an edge to edges that span more than one token.  Consider again
       our words and boundary markers:
       <emphasis>&bull; the &bull; park &bull; </emphasis>.  In addition to
       the two token edges discussed above, we can have a third edge which connects
       the initial and final boundaries, spanning two tokens.  This edge could
-      represent a noun phrase constituent.</para>
+      represent a noun phrase constituent.  The next example illustrates:</para>
 
 <programlisting>
     <emphasis># create a treetoken using the tokens: </emphasis>
@@ -163,145 +170,374 @@ X.5 implementation
     &prompt;<command> edge2 = ProductionEdge(prod, tree, loc, 2) </command>
     &prompt;<command> chart.insert(edge2) </command>
     &prompt;<command> print chart.pp() </command>
-    |[--]  .| 'the'@[0] -> * 
-    |.  [--]| 'park'@[1] -> * 
+    |[--]  .| 'the'.
+    |.  [--]| 'park'.
     |[=====]| NP -> 'the' 'park' 
 </programlisting>
 
-    <warning>
-      <para> The rest of this tutorial is out of date; for an up-to-date
-      explanation of chart parsing, see the reference documentation
-      for the <ulink url="&refdoc;/nltk.parser.chart-module.html"
-      ><literal>nltk.parser.chart</literal></ulink> module, which
-      defines the chart parser. </para>
-
-      <para> You may also want to explore the chart parser graphical
-      demonstration tool, which supports interactive application of
-      rules and strategies to a chart parser.  The chart parser demo
-      can be invoked from within Python with the following commands:
-      </para>
+      <para>Here, the <literal>ProductionEdge</literal> spans both tokens.
+      This edge corresponds to the <literal>NP</literal> non-terminal.  In fact,
+      it even has a tree structure associated with it:</para>
 
 <programlisting>
-&prompt; <command> import nltk.draw.chart</command>
-&prompt; <command> nltk.draw.chart.demo()</command>
+    &prompt;<command> edge2.structure() </command>
+    ('NP': 'the' 'park')@[0:2]
 </programlisting>
-      
-    </warning>
 
       <para>The purpose of an edge is to store a <emphasis>hypothesis</emphasis>
       about the syntactic structure of the sentence.  Such hypotheses may be
-      either complete or partial.  A complete hypothesis is represented as an
-      edge decorated with a <literal>DottedRule</literal> where the dot position is
-      on the right edge of the rule.  This means that the entire right-hand side
-      has been processed and that the associated <literal>TreeToken</literal> is
-      complete.  A partial hypothesis is represented as an edge decorated with
-      a rule where the dot position is in an internal position, e.g.
-      <literal>NP -&gt; Det * N</literal>.  This means that only part of the
-      right-hand side has been processed and that the associated tree is
-      incomplete.  The symbol immediately to the right of the
-      dot position is the next symbol (terminal or non-terminal) to be processed for
-      this edge.</para>
+      either <emphasis>complete</emphasis> or <emphasis>partial</emphasis>.
+      In a <glossterm>complete edge</glossterm>, each terminal or non-terminal
+      on the right-hand side of the production has been satisfied; supporting
+      evidence for each one exists in the chart.  The above example contains
+      a complete edge, represented as <literal>[-----]</literal> or
+      <literal>[=====]</literal> (the latter is for complete edges that span the
+      entire chart).  The right-hand
+      side of its production consists of two terminals, and for each of them there
+      is a corresponding edge in the chart.</para>
 
-      <para>There is a special case where edges have zero width.  Such an edge is
-      actually a self-loop, starting and ending at the same index position.
+      <para>In a <glossterm>partial edge</glossterm>, the right-hand
+      side of the production is not yet fully satisfied.  An asterisk
+      is used to indicate how much of the production has been
+      satisfied.  For example, in the partially matched production
+      <literal>NP -> 'the' * 'park'</literal>, only the material to
+      the left of the asterisk, the word <literal>the</literal>, has
+      been matched.  The symbol immediately to the right of the
+      asterisk is the next symbol (terminal or non-terminal) to be
+      processed for this edge.</para>
+
+<programlisting>
+    &prompt;<command> edge2 = ProductionEdge(prod, tree, tree[0].loc(), 1) </command>
+    &prompt;<command> chart.insert(edge2) </command>
+    &prompt;<command> print chart.pp() </command>
+    |[--]  .| 'the'.
+    |.  [--]| 'park'.
+    |[-->  .| NP -> 'the' * 'park' 
+</programlisting>
+
+      <para>The span of the edge, depicted as <literal>[--></literal>
+      only corresponds to the material which has been matched.  The
+      greater-than symbol indicates that the edge is incomplete.  Note
+      that an incomplete edge stores a complete tree corresponding
+      to the production; this is the hypothesis it is attempting to verify.
+      Observe that the last argument to the <literal>ProductionEdge</literal>
+      constructor specifies the position of the asterisk.
+      </para>
+
+      <note><para>The reader might expect a complete edge to be displayed
+      with the asterisk at the very end, e.g. <literal>NP -> 'the' 'park' *</literal>.
+      By convention we omit this final asterisk.</para></note>
+
+      <para> The only remaining logical
+      possibility is for the asterisk to be at the start, e.g.
+      <literal>NP -> * 'the' 'park'</literal>.  This is a special case of
+      an incomplete edge having zero width (i.e. a self-loop which begins and
+      ends at the same node).
       Zero-width edges represent the hypothesis that a syntactic constituent
-      <emphasis>begins</emphasis> at this location.</para>
+      <emphasis>begins</emphasis> at this location, however no evidence
+      for the right-hand side of the production has yet been found.</para>
+
+<programlisting>
+    &prompt;<command> edge2 = ProductionEdge(prod, tree, Location(0,0), 0) </command>
+    &prompt;<command> chart.insert(edge2) </command>
+    &prompt;<command> print chart.pp() </command>
+    |[--]  .| 'the'.
+    |.  [--]| 'park'.
+    |>  .  .| NP -> * 'the' 'park' 
+</programlisting>
+
+      <note><para>Note that a <literal>TokenEdge</literal> is a complete edge.
+      It has a trivial production, tree and location which are predictable from
+      the token itself, hence the simpler constructor.</para></note>
 
       <para>In the process of chart parsing, edges are combined with other edges to
-      form new edges which are then added to the chart.  Note that nothing is ever
-      removed from the chart, and nothing is ever modified once it is in the chart.
+      form new edges which are then added to the chart.  Nothing is ever
+      removed from the chart; nothing is modified once it entered in the chart.
       </para>
 
     </section> <!-- Edges -->
 
     <section id="charts"> <title> Charts </title>
 
-      <para>A chart is a set of edges and a location.  The edge set represents
+      <para>A chart is little more than a set of edges.  The edge set represents
       the state of a chart parser during processing, and new edges can be inserted
       into the set at any time.  Once entered, an edge cannot be modified or
-      removed.  The chart also stores a location.  This represents the combined
-      span of the list of input tokens.  The chart uses this information
-      in order to return edges which span the entire sentence.</para>
+      removed.  The method for adding a new edge is <literal>insert()</literal>.
+      Methods for accessing the edges are
+      <literal>edgeset()</literal> (returns a <literal>Set</literal>),
+      <literal>edges()</literal> (returns a <literal>list</literal>),
+      <literal>complete_edges()</literal>,
+      <literal>incomplete_edges()</literal>.  The <literal>Chart</literal>
+      class supports the <literal>in</literal> operator and the
+      <literal>len()</literal> function.</para>
 
-      <para>In NLTK, a chart is implemented by the
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.Chart.html">Chart</ulink>
-      class.  Full details of the methods are available online.  The key
-      methods to note are <literal>insert</literal> and <literal>parses</literal>.
-      </para>
+      <para>The chart also stores a location.  This represents the
+      combined span of the list of input tokens, and is supplied when
+      the chart is initialized.  The chart uses this information in
+      order to identify those edges which span the entire
+      sentence.  When such an edge exists, and also has the required non-terminal,
+      its associated tree is a parse tree for the sentence.  We can access
+      all such parses with the <literal>parses()</literal> method:</para>
+
+<programlisting>
+    &prompt;<command> chart.parses(Nonterminal('S')) </command>
+    []
+    &prompt;<command> chart.parses(Nonterminal('NP')) </command>
+    [('NP': 'the' 'park')@[0:2]]
+</programlisting>
+
+      <para>There are three ways in which edges are added to a chart during
+      the parsing process.  The first is to add a <literal>TokenEdge</literal>
+      for every token:</para>
+
+<programlisting>
+    &prompt;<command> for token in tokens: </command>
+    &prompt2;<command>     chart.insert(TokenEdge(token)) </command>
+</programlisting>
+
+      <para>The second way in which edges are added requires a production
+      and a chart node.  This function, called <literal>self_loop_edge()</literal>
+      creates a zero-width edge at the specified location.  It also
+      puts an asterisk at the start of the production's right-hand side.</para>
+
+      <para>The third way of adding edges is more complicated.  It takes a
+      pair of adjacent edges and creates a new edge spanning them both.
+      It only does this if: (i) the left edge is incomplete; (ii) the right
+      edge is complete; and (iii) the next
+      symbol after the asterisk on the right-hand side of the left edge's production
+      matches the symbol on the left-hand side of the right edge's production.
+      The function which does this work is called <literal>fr_edge()</literal>.
+      This operation is best illustrated by example:</para>
+
+<programlisting>
+    <emphasis># get some tokens and create a TokenEdge: </emphasis>
+    &prompt;<command> tokens = [Token('the', Location(0)), Token('park', Location(1))] </command>
+    &prompt;<command> edge1 = TokenEdge(tokens[1]) </command>
+
+    <emphasis># create a chart and insert the TokenEdge</emphasis>
+    &prompt;<command> chart = Chart(Location(0,2)) </command>
+    &prompt;<command> chart.insert(edge1) </command>
+    &prompt;<command> chart.pp() </command>
+    |.  [--]| 'park'. 
+
+    <emphasis># create an incomplete edge and insert</emphasis>
+    &prompt;<command> tree = TreeToken('NP', tokens[0]) </command>
+    &prompt;<command> prod = CFGProduction(Nonterminal('NP'), 'the', 'park') </command>
+    &prompt;<command> edge2 = ProductionEdge(prod, tree, tree[0].loc(), 1) </command>
+    &prompt;<command> chart.insert(edge2) </command>
+    &prompt;<command> chart.pp() </command>
+    |.  [--]| 'park'. 
+    |[-->  .| NP -> 'the' * 'park'
+
+    <emphasis># now use these two edges to create a new one:</emphasis>
+    &prompt;<command> edge3 = fr_edge(edge2, edge1) </command>
+    &prompt;<command> chart.insert(edge3) </command>
+    &prompt;<command> chart.pp() </command>
+    |.  [--]| 'park'. 
+    |[-->  .| NP -> 'the' * 'park' 
+    |[=====]| NP -> 'the' 'park' 
+</programlisting>
+
+      <para>Observe that the two original edges meet the three requirements:
+      (i) the left edge (<literal>edge2</literal>) is incomplete;
+      (ii) the right edge (<literal>edge1</literal>) is complete; and
+      (iii) the next symbol after the asterisk on the left edge
+      (<literal>park</literal>) matches the symbol on the left of
+      the right edge's production.</para>
 
     </section> <!-- Charts -->
 
-    <section id="rules"> <title> Chart Rules and Parsing Strategies </title>
+    <section id="rules"> <title> Chart Rules </title>
 
-      <para>The
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.ChartParserStrategy.html">ChartParserStrategy</ulink>
-      class encodes the list of rules used by a chart parser to specify the
-      conditions under which new edges should be added to the chart.
-      There are two kinds of chart rules:</para>
+      <para> A chart parser is controlled by a rule-invocation strategy, which determines
+      the order in which edges are added to the chart.  In this section we consider the
+      various kinds of chart rules which make up these strategies.  Each rule examines
+      the productions in the grammar and the current edges in the chart, and adds
+      more edges.  All strategies begin by loading the tokens into the chart,
+      creating a <literal>TokenEdge</literal> for every token (using the first
+      edge-addition method described in the last section).  This work is done
+      when the chart parser is created.</para>
 
-      <itemizedlist>
-        <listitem><para>Static Rules: these search the chart for specific contexts
-          where edges should be added.  The parse method will
-          repeatedly invoke each static rule, until it produces no
-          new edges.</para></listitem>
-        <listitem><para>Edge Triggered Rules: these add new edges
-          to the chart whenever certain kinds of edges are added by any chart rule.
-        </para></listitem>
-      </itemizedlist>
+    <section id="rules.bu"> <title> Bottom Up Rule </title>
 
-      <para>A <literal>ChartParserStrategy</literal> consists of a list of
-      static rules and a list of edge triggered rules.</para>
-          
-      <para>Chart rules are defined using functions, which return a list of
-      new edges to add to a chart.  These functions should <emphasis>not</emphasis>
-      directly modify the chart (e.g., do not add the edges to the chart
-      yourself; C{ChartParser} will add them for you).  Static rules
-      are defined with functions of the form:</para>
-
-<programlisting>
-def static_rule(chart, grammar, basecat):
-    # Decide which edges to add (if any)
-    return edges
-</programlisting>
-
-      <para>where <literal>chart</literal> is the chart that the static rule should act
-      upon; <literal>grammar</literal> is the grammar used by the chart parser; and
-      <literal>basecat</literal> is the top-level category of the grammar (e.g. 'S').
-      The function should return a list of edges.  These edges
-      will be added to the chart by the chart parser.</para>
-            
-      <para>Edge triggered rules are defined with functions of the form:</para>
+      <para>A bottom up parser builds syntactic structure starting
+      from the words in the input.  For each constituent constructed
+      so far, it must consider which grammar rules could be applied.
+      For each complete edge, it gets the symbol on the left-hand side
+      of that edge's production, then finds all productions in the
+      grammar where that symbol appears as the first symbol on the right.
+      For example, if there is an existing complete edge with the
+      production <literal>VP -> V NP</literal> then it identifies the
+      left-hand side (<literal>VP</literal>) then searches for productions
+      in the grammar of the form <literal>X -> VP ...</literal>.  All
+      such productions are then inserted into the chart as zero-width
+      edges.</para>
 
 <programlisting>
-def edge_triggered_rule(chart, grammar, basecat, edge):
-    # Decide which edges to add (if any)
-    return edges
+    <emphasis># For each complete edge:</emphasis>
+    &prompt;<command> for edge in chart.complete_edges():</command>
+
+    <emphasis>        # For each production in the grammar: </emphasis>
+    &prompt2;<command>     for production in grammar.productions(): </command>
+    <emphasis>            # Does the edge LHS match the production RHS? </emphasis>
+    &prompt2;<command>         if edge.lhs() == production.rhs()[0]: </command>
+    &prompt2;<command>             loc = edge.loc().start_loc() </command>
+    &prompt2;<command>             chart.insert(self_loop_edge(production, loc))</command>
 </programlisting>
 
-      <para>
-      Where the arguments are as before, and where <literal>edge</literal> is
-      the edge that triggered this rule.  As before, the function
-      should return a list of edges, and these will be added to
-      the chart by the chart parser.</para>
+      <para>Now we consider the action of this rule in the context of
+      a simple grammar.  We initialize the chart with the tokens then,
+      for each <literal>TokenEdge</literal>, find a production in the grammar and add
+      a zero-width <literal>ProductionEdge</literal>.</para>
 
-      <para>The main kinds of chart rules are enumerated and discussed below:</para>
+<programlisting>
+    &prompt;<command> from nltk.parser.chart import * </command>
+    &prompt;<command> from nltk.tokenizer import * </command>
+    &prompt;<command> from nltk.cfg import * </command>
 
-      <section id="rules.init"> <title> Chart Initialization </title>
+    <emphasis># Define a grammar</emphasis>
+    &prompt;<command> S, VP, NP, PP = nonterminals('S, VP, NP, PP') </command>
+    &prompt;<command> V, N, P, Name, Det = nonterminals('V, N, P, Name, Det') </command>
 
-        <para>The first step in parsing a tokenized sentence is to initialize
-        the chart with word edges.  For each lexical rule which expands to a given
-        word, a corresponding edge is created.  This edge hosts a complete
-        dotted rule (e.g. <literal>Det -&gt; 'the' *</literal>), a simple treetoken
-        containing the syntactic structure, and a location equal to the location
-        of the original token.</para>
+    &prompt;<command> productions = [ </command>
+    &prompt2;<command>     CFGProduction(NP, 'I'),    CFGProduction(V, 'saw'), </command>
+    &prompt2;<command>     CFGProduction(Det, 'the'), CFGProduction(Det, 'my'), </command>
+    &prompt2;<command>     CFGProduction(N, 'dog'),   CFGProduction(N, 'cookie'), </command>
+    &prompt2;<command>     CFGProduction(P, 'with'), </command>
+    &prompt2;<command>     CFGProduction(S, NP, VP),  CFGProduction(PP, P, NP), </command>
+    &prompt2;<command>     CFGProduction(NP, Det, N), CFGProduction(NP, NP, PP), </command>
+    &prompt2;<command>     CFGProduction(VP, VP, PP), CFGProduction(VP, V, NP), </command>
+    &prompt2;<command>     CFGProduction(VP, V), </command>
+    &prompt2;<command>     ] </command>
+    &prompt;<command> grammar = CFG(S, productions) </command>
 
-      </section> <!-- Chart Initialization -->
+    <emphasis># Tokenize a sentence</emphasis>
+    &prompt;<command> sentence = 'I saw the dog with my cookie' </command>
+    &prompt;<command> from nltk.tokenizer import WSTokenizer </command>
+    &prompt;<command> tokens = WSTokenizer().tokenize(sentence) </command>
+
+    <emphasis># Create a chart parser which only has the bottom-up rule</emphasis>
+    &prompt;<command> cp = ChartParser(grammar, [BottomUpRule()], trace=2) </command>
+    &prompt;<command> parses = cp.parse_n(tokens) </command>
+    Lexical Insertion    |[--]  .  .  .  .  .  .| 'I'. 
+    Lexical Insertion    |.  [--]  .  .  .  .  .| 'saw'. 
+    Lexical Insertion    |.  .  [--]  .  .  .  .| 'the'. 
+    Lexical Insertion    |.  .  .  [--]  .  .  .| 'dog'. 
+    Lexical Insertion    |.  .  .  .  [--]  .  .| 'with'. 
+    Lexical Insertion    |.  .  .  .  .  [--]  .| 'my'. 
+    Lexical Insertion    |.  .  .  .  .  .  [--]| 'cookie'. 
+    Bottom Up Rule       |.  .  .  .  .  .  >  .| N -> * 'cookie' 
+    Bottom Up Rule       |.  .  .  .  .  >  .  .| Det -> * 'my' 
+    Bottom Up Rule       |.  .  .  .  >  .  .  .| P -> * 'with' 
+    Bottom Up Rule       |.  .  .  >  .  .  .  .| N -> * 'dog' 
+    Bottom Up Rule       |.  .  >  .  .  .  .  .| Det -> * 'the' 
+    Bottom Up Rule       |.  >  .  .  .  .  .  .| V -> * 'saw' 
+    Bottom Up Rule       |>  .  .  .  .  .  .  .| NP -> * 'I' 
+    Found 0 parses with 14 edges
+</programlisting>
+
+    <para>Observe that the new zero-width edges have productions with
+    an initial asterisk.  This is as far as the bottom-up rule can go
+    without the help of the fundamental rule, discussed below.</para>
+
+    </section> <!-- Bottom Up Rule -->
+
+    <section id="rules.td"> <title> Top Down Initialization </title>
+
+      <para>Top down parsing is initialized by creating zero-width
+      edges at the leftmost position in the chart.
+      For every grammar rule whose left-hand side is the base category
+      of the grammar, we create the corresponding dotted rule with the
+      dot position at the start of the right-hand side.</para>
+
+<programlisting>
+    <emphasis># for each production in the grammar: </emphasis>
+    &prompt;<command> for production in grammar.productions(): </command>
+    <emphasis>    # does the production expand the start-symbol of the grammar? </emphasis>
+    &prompt2;<command>     if production.lhs() == grammar.start():</command>
+    &prompt2;<command>         loc = chart.loc().start_loc()</command>
+    &prompt2;<command>         chart.insert(self_loop_edge(production, loc))</command>
+</programlisting>
+      
+    <para>We can apply this rule to the above example.  The start symbol
+    of the grammar is <literal>S</literal> and there is only one production
+    having <literal>S</literal> on its left-hand side, namely
+    <literal>S -> NP VP</literal>.  The <literal>TopDownInitRule()</literal>
+    inserts a zero-width edge with this production, at the very left of
+    the chart:</para>
+
+<programlisting>
+    &prompt;<command>cp = ChartParser(grammar, [TopDownInitRule()], trace=2)</command>
+    &prompt;<command>parses = cp.parse_n(tokens)</command>
+    Lexical Insertion    |[--]  .  .  .  .  .  .| 'I'. 
+    Lexical Insertion    |.  [--]  .  .  .  .  .| 'saw'. 
+    Lexical Insertion    |.  .  [--]  .  .  .  .| 'the'. 
+    Lexical Insertion    |.  .  .  [--]  .  .  .| 'dog'. 
+    Lexical Insertion    |.  .  .  .  [--]  .  .| 'with'. 
+    Lexical Insertion    |.  .  .  .  .  [--]  .| 'my'. 
+    Lexical Insertion    |.  .  .  .  .  .  [--]| 'cookie'. 
+    Top Down Init Rule   |>  .  .  .  .  .  .  .| S -> * NP VP 
+    Found 0 parses with 8 edges
+</programlisting>
+
+    </section> <!-- Top Down Initialization -->
+
+    <section id="rules.td2"> <title> Top Down Rule </title>
+
+      <para>Whenever a chart contains an incomplete edge, with an incomplete
+      rule having <replaceable>X</replaceable> as the next symbol (to the right
+      of the asterisk), we know that
+      the parser is expecting to find an <replaceable>X</replaceable>
+      constituent immediately to the right.  The top-down 
+      rule looks for all incomplete edges expecting an
+      <replaceable>X</replaceable> and, for each production having
+      <replaceable>X</replaceable> on its left-hand side, creates a zero-width
+      edge containing this production on the right of the incomplete edge.
+      This expresses the top-down prediction that the hypothesized constituent
+      exists, and evidence for it should be sought immediately to the right.
+      </para>
+
+<programlisting>
+    <emphasis># for each production in the grammar: </emphasis>
+    &prompt;<command> for production in grammar.productions(): </command>
+    <emphasis>    # for each incomplete edge in the chart: </emphasis>
+    &prompt2;<command>     for edge in chart.incomplete_edges():</command>
+    <emphasis>        # does the expected constituent match the production? </emphasis>
+    &prompt2;<command>         if edge.next() == production.lhs():</command>
+    &prompt2;<command>             loc = edge.loc().end_loc()</command>
+    &prompt2;<command>             chart.insert(self_loop_edge(production, loc))</command>
+</programlisting>
+
+    <para>As before, we apply this rule to our running example:</para>
+
+<programlisting>
+    &prompt;<command>cp = ChartParser(grammar, [TopDownInitRule(),TopDownRule()], trace=2)</command>
+    &prompt;<command>parses = cp.parse_n(tokens)</command>
+    Lexical Insertion    |[--]  .  .  .  .  .  .| 'I'. 
+    Lexical Insertion    |.  [--]  .  .  .  .  .| 'saw'. 
+    Lexical Insertion    |.  .  [--]  .  .  .  .| 'the'. 
+    Lexical Insertion    |.  .  .  [--]  .  .  .| 'dog'. 
+    Lexical Insertion    |.  .  .  .  [--]  .  .| 'with'. 
+    Lexical Insertion    |.  .  .  .  .  [--]  .| 'my'. 
+    Lexical Insertion    |.  .  .  .  .  .  [--]| 'cookie'. 
+    Top Down Init Rule   |>  .  .  .  .  .  .  .| S -> * NP VP 
+    Top Down Rule        |>  .  .  .  .  .  .  .| NP -> * 'I' 
+    Top Down Rule        |>  .  .  .  .  .  .  .| NP -> * Det N 
+    Top Down Rule        |>  .  .  .  .  .  .  .| NP -> * NP PP 
+    Top Down Rule        |>  .  .  .  .  .  .  .| Det -> * 'the' 
+    Top Down Rule        |>  .  .  .  .  .  .  .| Det -> * 'my' 
+    Found 0 parses with 13 edges
+</programlisting>
+
+    </section> <!-- The Top Down Edge-Triggered Rule -->
 
       <section id="rules.fr"> <title> Fundamental Rule </title>
 
-        <para>
-        The most important way that edges are combined is known as the
-        <emphasis>Fundamental Rule</emphasis>.  Suppose that an edge
+      <para>In the last section we encountered a rule which combines the
+      information from two edges and creates a new edge.
+      This method of combining edges is known as the
+      <emphasis>Fundamental Rule</emphasis>.  It is so important that we
+      repeat the definition, using more formal notation.  Suppose that an edge
         <replaceable>e<subscript>1</subscript></replaceable> has a dotted
         rule whose next symbol is <replaceable>X</replaceable>.  Suppose that
         a second edge <replaceable>e<subscript>2</subscript></replaceable>,
@@ -317,212 +553,70 @@ def edge_triggered_rule(chart, grammar, basecat, edge):
         an <replaceable>X</replaceable> to its right, which it found on
         <replaceable>e<subscript>2</subscript></replaceable>, and we record
         this fact on <replaceable>e<subscript>3</subscript></replaceable>.
+        This rule is applied as many times as possible -- to all pairs of
+        adjacent edges which match the above criteria.
         </para>
-
-        <para>The <literal>Edge</literal> class has a
-        <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.Edge.html#FR"
-        ><literal>FR</literal></ulink> method which applies the fundamental
-        rule to a pair of edges.  The operation of the rule is
-        accomplished in four lines:</para>
-
-<programlisting>
-def FR(self, edge):
-    loc = self._loc.union(edge.loc())
-    dr = self._drule.shift()
-    tree = TreeToken(self._tree.node(), *(self._tree.children() + (edge.tree(),)))
-    return Edge(dr, tree, loc)                                                       
-</programlisting>
-
-        <para>First we create a new location which is the union of the locations
-        of the two existing edges.  Next we create a new dotted rule, just the same
-        as the existing one but with the dot position shifted one to the right.
-        Next we take the existing tree <literal>self._tree</literal>, break it
-        apart, and incorporate the tree from the other edge.  Finally, we construct
-        a new edge from the new dotted rule, new tree, and new location.</para>
-
-        <para>This rule is called many times by
-        <literal>chartparser.FR()</literal>, as it considers all pairs of
-        adjacent edges and all grammar rules.</para>
-
-<programlisting>
-def FR(chart, grammar, basecat):
-    added = []
-    for edge in chart.edges(): # try every edge
-        if not edge.complete(): # only do incomplete ones
-            for edge2 in chart.complete_edges(): # next edge complete?
-                if (edge.drule().next() == edge2.drule().lhs() and
-                    edge.end() == edge2.start()):
-                    new_edge = edge.FR(edge2)
-                    added += [new_edge]
-    return added
-</programlisting>
 
     </section> <!-- Fundamental Rule -->
 
-    <section id="rules.td"> <title> Top Down Initialization </title>
+    </section> <!-- Chart Rules -->
 
-      <para>Top down parsing is initialized by creating a zero-width
-      (or self-loop) edges at the leftmost position in the chart.
-      For every grammar rule whose left-hand side is the base category
-      of the grammar, we create the corresponding dotted rule with the
-      dot position at the start of the right-hand side.</para>
-
-<programlisting>
-def TD_init(chart, grammar, basecat):
-    added = []
-    loc = chart.loc().start_loc()
-    for rule in grammar:
-        if rule.lhs() == basecat:
-            drule = rule.drule()
-            new_edge = Edge(drule, TreeToken(drule.lhs()), loc)
-            added += [new_edge]
-    return added
-</programlisting>
-      
-
-    </section> <!-- Top Down Initialization -->
-
-    <section id="rules.td2"> <title> The Top Down Edge-Triggered Rule </title>
-
-      <para>Whenever a chart contains an incomplete edge, with an incomplete
-      rule having <replaceable>X</replaceable> as the next symbol (to the right
-      of the dot), we know that
-      the parser is expecting to find an <replaceable>X</replaceable>
-      constituent immediately to the right.  The top-down edge-triggered
-      rule looks for all incompleted edges expecting an
-      <replaceable>X</replaceable> and, for each grammar rule having
-      <replaceable>X</replaceable> on its left-hand side, creates a zero-width
-      edge containing this rule.
-      </para>
-
-<programlisting>
-def TD_edge(chart, grammar, basecat, edge):
-    "Top-down init (edge triggered rule)"
-    added = []
-    for rule in grammar:
-        if not edge.complete() and rule.lhs() == edge.drule().next():
-            new_edge = edge.self_loop_end(rule)
-            added += [new_edge]
-    return added
-</programlisting>
-
-    </section> <!-- The Top Down Edge-Triggered Rule -->
-
-    <section id="rules.bu"> <title> Bottom Up Initialization </title>
-
-      <para>A bottom up parser builds syntactic structure starting from the
-      words in the input.  For each word, it must consider which grammar rules
-      apply.  The bottom up initialization step involves inserting zero-width
-      edges for all words which could be at the left corner of a phrase.</para>
-
-<programlisting>
-def BU_init(chart, grammar, basecat):
-    added = []
-    for edge in chart.edges():
-        for rule in grammar:
-            if edge.drule().lhs() == rule[0]:
-                new_edge = edge.self_loop_start(rule)
-                added += [new_edge]
-    return added
-</programlisting>
-
-    </section> <!-- Bottom Up Initialization -->
-
-    <section id="rules.strategies"> <title> Chart Parser Strategies </title>
+    <section id="strategies"> <title> Chart Parser Strategies </title>
 
       <para>Chart parsers use the various rules described above in order
       to emulate top down, bottom up or hybrid parsers.  A policy about
-      what chart rule to apply when is called a
-      <emphasis>rule-invocation stratagy</emphasis>.  (Note that the rules
-      being invoked here are chart rules, not grammar rules.)</para>
-
-      <para>NLTK defines basic stratagies using instances of the
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.ChartParserStrategy.html">ChartParserStrategy</ulink>
-      class.  Chart rules, whether static or edge-triggered, are defined as
-      functions (some are listed above), and then these are passed to the
-      <literal>ChartParserStrategy</literal> class.  The initializer takes
-      two arguments: a list of static rules and a list of edge-triggered rules.
-      Here are the definitions of the top down and bottom up strategies:</para>
+      what chart rule should be applied under what circumstances is called a
+      <emphasis>rule-invocation stratagy</emphasis>.  Here are the definitions
+      of the two most common strategies:</para>
 
 <programlisting>
-TD_STRATEGY = ChartParserStrategy([TD_init, FR], [TD_edge])
-BU_STRATEGY = ChartParserStrategy([BU_init, FR], [])
+    &prompt;<command> TD_STRATEGY = [TopDownRule(), FundamentalRule(), TopDownInitRule()]</command>
+    &prompt;<command> BU_STRATEGY = [BottomUpRule(), FundamentalRule()]</command>
 </programlisting>
+
+      <para>A chart parser is initialized with a parsing strategy.
+      During the parsing process, it repeatedly applies the rules of
+      the strategy until no new edges are added.</para>
+
+      <note><para>It may seem strange that we have created complex chart
+      parsing machinery only to redefine the top-down and bottom-up parsers.
+      However, these versions are much more efficient, since they cache
+      intermediate parse results in the chart.</para></note>
 
     </section> <!-- Parsing Strategies -->
 
-    <section id="using"> <title> Creating and Using Chart Parsers </title>
+    <section id="using"> <title> Chart Parsers </title>
 
-      <para>Here is a simple chart parser, which makes use of
-      <literal>grammar</literal> and <literal>lexicon</literal>
-      as defined earlier in this tutorial.</para>
-
-<programlisting>
-cp = ChartParser(grammar, lexicon, 'S', strategy = BU_STRATEGY)
-cp.parse(WSTokenizer().tokenize(sent))
-for parse in cp.parses():
-    print parse.pp()
-</programlisting>
-
-      <para>The result of running this parser on the sentence
-      <emphasis>I saw a man in the park with a telescope</emphasis>
-      is the following set of trees:</para>
+      <para>Given these complete strategies, we can now parse the
+      input sentence and generate parse trees.  The parser finds
+      two trees, owing to the syntactic ambiguity in the prepositional
+      phrase attachment.</para>
 
 <programlisting>
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP':
-      ('Det': 'a')
-      ('N': 'man')
-      ('PP':
-        ('P': 'in')
-        ('NP': ('Det': 'the') ('N': 'park'))))
-    ('PP':
-      ('P': 'with')
-      ('NP': ('Det': 'a') ('N': 'telescope')))))@[0w:10w]
-
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP': ('Det': 'a') ('N': 'man'))
-    ('PP':
-      ('P': 'in')
-      ('NP':
-        ('Det': 'the')
-        ('N': 'park')
-        ('PP':
-          ('P': 'with')
-          ('NP': ('Det': 'a') ('N': 'telescope')))))))@[0w:10w]
-
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP': ('Det': 'a') ('N': 'man'))
-    ('PP': ('P': 'in') ('NP': ('Det': 'the') ('N': 'park')))
-    ('PP':
-      ('P': 'with')
-      ('NP': ('Det': 'a') ('N': 'telescope')))))@[0w:10w]
-
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP':
-      ('Det': 'a')
-      ('N': 'man')
-      ('PP':
-        ('P': 'in')
-        ('NP':
-          ('Det': 'the')
-          ('N': 'park')
-          ('PP':
-            ('P': 'with')
-            ('NP': ('Det': 'a') ('N': 'telescope'))))))))@[0w:10w]
+    &prompt;<command> ChartParser(grammar, TD_STRATEGY).parse_n(tokens) </command>
+    [
+        ('S':
+            ('NP': 'I')
+            ('VP':
+                ('VP':
+                    ('V': 'saw')
+                    ('NP': ('Det': 'the') ('N': 'dog')))
+                ('PP':
+                    ('P': 'with')
+                    ('NP': ('Det': 'my') ('N': 'cookie')))))@[0w:7w],
+        ('S':
+            ('NP': 'I')
+            ('VP':
+                ('V': 'saw')
+                ('NP':
+                    ('NP': ('Det': 'the') ('N': 'dog'))
+                    ('PP': 
+                        ('P': 'with')
+                        ('NP': ('Det': 'my') ('N': 'cookie'))))))@[0w:7w]
+    ]
 </programlisting>
+
+      <para>----OLD CONTENT FOLLOWS----</para>
 
       <para>To see the corresponding chart, use the function
       <literal>Chart.chart().draw()</literal>.</para>
@@ -545,7 +639,6 @@ for parse in cp.parses():
 
     </section> <!-- The Tk Interface -->
 
-  </section> <!-- Chart Parsing -->
 </section> <!-- Intro -->
 <!-- </section>  Chart Parsing in NLTK -->
 
