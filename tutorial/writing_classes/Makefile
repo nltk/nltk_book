@@ -8,33 +8,101 @@
 # $Id$
 
 ##############################################
-##  The name of the report
+##  The name of the report (without the .xml extension)
 REPORT = writing_classes
+
+##############################################
+##  The name of the html index file.  If the main element
+##  has an id, then it's based on that; otherwise, it's t1.html
+##  for articles, and book1.html for books.
+HTMLINDEX = t1.html
+
+##############################################
+##  Programs and DSSSLs; change these if necessary.
+
+JADE = jade
+PDFJADETEX = pdfjadetex
+PERL = perl
+
+COLLATEINDEX = /usr/bin/collateindex.pl
+XML_DECL = /usr/share/sgml/xml.dcl
+HTML_DSSSL = "../../docbook/docbook-utils.dsl\#html"
+PRINT_DSSSL = "../../docbook/docbook-utils.dsl\#print"
 
 ##############################################
 ##  You shouldn't have to change anything below here.
 
+# Input file
 DOCBOOK = $(REPORT).xml
-HTMLDIR = $(REPORT)
-INDEX = $(HTMLDIR)/t1.html
-HTMLNOCHUNKS = $(HTMLDIR)/nochunks.html
-PDF = $(REPORT).pdf
 
-all: html pdf
-html: $(INDEX) $(HTMLNOCHUNKS)
+# Output directory
+HTMLDIR = $(REPORT)
+
+# Output files.
+HTMLNOCHUNKS = $(HTMLDIR)/nochunks.html
+HTMLCHUNKS = $(HTMLDIR)/$(HTMLINDEX)
+PDF = $(REPORT).pdf
+TEX = $(REPORT).tex
+
+# Intermediate files.
+LOG = $(REPORT).log
+AUX = $(REPORT).aux
+TEMP = $(REPORT).temp
+
+# Notes on the makefile:
+#
+# Unfortunately, (open)jade doesn't let us specify an output directory
+# for the html stylesheets; so we have to do some acrobatics: change
+# directory into the desired directory; then use ../ to fix up the
+# relative paths.
+#
+# I also use '||' do clean up in some places.  "A||B" means "do A; and
+# if that fails, then do B.  This is important, e.g., to keep
+# index.xml from thinking that it succeeded if only the first call to
+# collateindex succeeded.
+
+all: $(HTMLDIR) index.xml html pdf
+html: $(HTMLCHUNKS) $(HTMLNOCHUNKS)
 pdf: $(PDF)
+
+index.xml: $(DOCBOOK)
+	$(PERL) $(COLLATEINDEX) -o index.xml -N
+	(cd $(HTMLDIR) && \
+	$(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
+	      $(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
+	$(PERL) $(COLLATEINDEX) -o index.xml $(HTMLDIR)/HTML.index
+	rm $(HTMLDIR)/HTML.index
 
 $(HTMLDIR):
 	mkdir $(HTMLDIR) 2>/dev/null || true
 
-$(INDEX): $(DOCBOOK) $(HTMLDIR)
-	jw -f docbook -b html -o $(HTMLDIR) $(DOCBOOK)
+$(HTMLCHUNKS): index.xml
+	(cd $(HTMLDIR) && \
+	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
+	      $(XML_DECL) ../$(DOCBOOK))
 
-$(HTMLNOCHUNKS): $(DOCBOOK) $(HTMLDIR)
-	jw -f docbook -b html -u $(DOCBOOK) >$(HTMLNOCHUNKS)
+$(HTMLNOCHUNKS): $(DOCBOOK) index.xml
+	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
+	     $(XML_DECL) $(DOCBOOK) \
+	     > $(HTMLNOCHUNKS)
 
-$(PDF): $(DOCBOOK)
-	jw -f docbook -b pdf $(DOCBOOK)
+$(TEX): $(DOCBOOK) index.xml
+	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
+	     $(XML_DECL) $(DOCBOOK)
+
+$(PDF): $(TEX)
+	$(PDFJADETEX) $(TEX) > $(TEMP) || \
+	        (cat $(TEMP); rm $(TEMP); false)
+	rm $(TEMP)
+	$(PDFJADETEX) $(TEX) >/dev/null
+	$(PDFJADETEX) $(TEX) >/dev/null
+	rm $(LOG) $(AUX)
 
 clean:
-	rm -rf $(HTMLDIR) $(PDF)
+	rm -rf $(HTMLDIR) $(PDF) index.xml
+
+usage: help
+help:
+	@echo "Usage:"
+	@echo "     make [all | html | pdf]"
+

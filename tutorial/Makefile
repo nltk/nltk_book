@@ -46,3 +46,9 @@ html: $(HTML)
 
 %.html: %
 	$(MAKE) -C $< html
+
+usage: help
+help:
+	@echo "Usage:"
+	@echo "     make [all | html | pdf | clean]"
+
