@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1//EN" 
-"../../docbook/sgml/docbook/xml-dtd-4.1/docbookx.dtd" [
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" 
+"../../docbook/sgml/docbook/xml-dtd-4.2/docbookx.dtd" [
 <!-- Base URL for the reference & tutorial documentation -->
 <!ENTITY refdoc "http://nltk.sourceforge.net/ref">
 <!ENTITY tutdoc "http://nltk.sourceforge.net/tutorial">
@@ -31,8 +31,9 @@ that something is a word, what linguistic
 just say that a word is a string of characters which has white space
 before and after it?  However, it turns out that things are quite a bit
 more complex. To get a flavour of the problems, consider the following text.
-<blockquote><attribution>wsj_0034
-</attribution>
+<example id="wsj_0034">
+	<title>Paragraph 12 from <filename>wsj_0034</filename></title>
+	<blockquote>
 <para>It's probably worth paying a premium for funds that invest in markets
 that are partially closed to foreign investors, such as South Korea,
 some specialists say.  But some European funds recently have
@@ -41,27 +42,30 @@ been targeted by Japanese investors as a good long-term play tied to
 1992's European economic integration.  And several new funds that aren't
 even fully invested yet have jumped to trade at big premiums.
 </para>
+<para>"I'm very alarmed to see these rich valuations," says Smith Barney's
+Mr. Porter.
+</para>
 </blockquote>
+</example>
 
-<!-- We note that a string such as <literal
+<!-- We note that a string  such as <literal
 lang="en">doesn't</literal>. First, a very picky point: if this had
 occurred as the first word in the first sentence of the text, then it
 would not be preceded by white space! -->
 
-Let's start with <literal>aren't</literal> Should we treat it
+Let's start with the string <literal>aren't</literal>. Should we treat it
 as one word or two? We could imagine a situation, for example, where we
 wanted to check whether all the words in our text occurred in a
 dictionary, and our dictionary had entries for <literal
 lang="en">are</literal> and <literal lang="en">not</literal>, but not
 for <literal lang="en">aren't</literal>.  We can make a similar point
-about<literal>1992's</literal>, except in this case, we would not expect
-to find<literal>1992</literal> in a dictionary.
+about <literal>1992's</literal>, except in this case, we would not expect
+to find <literal>1992</literal> in a dictionary.
 
-Conversely, we might want to
-look up names of places in a gazeteer (a list of places together with
-their associated geographic location), and in this case, we would
-probably want to treat <literal lang="en">South Korea</literal> as single words.
-
+Conversely, we might want to look up names of places in a gazeteer (a
+list of places together with their associated geographic location), and
+in this case, we would probably want to treat <literal lang="en">South
+Korea</literal> as a single <quote>word</quote>.
 </para>
 
 <para>
@@ -79,9 +83,10 @@ A slightly different challenge is raised by examples such as the following:
 </orderedlist>
 
 In these cases, we encounter terms which are unlikely to be found in any
-general purpose English lexicon. We will have no success in trying to
-parse them using a standard grammar. For some applications, we would
-want to<quote>bundle up</quote> expressions such as
+general purpose English lexicon. Moreover, we will have no success in
+trying to syntactically analyse these strings using a standard grammar
+of English. Now for some applications, we would like to<quote>bundle
+up</quote> expressions such as
 <literal>alpha-galactosyl-1,4-beta-galactosyl-specific adhesin</literal>
 and <literal>4.53 +/- 0.15%</literal> so that they are presented as
 unanalysable atoms to the parser. That is, we want to treat them as
@@ -104,45 +109,42 @@ in Chinese text.
 
 </para>
 
-
-
-  </section><!-- Introduction -->
-
-
-    <section> <title> Linguistic Overview </title>
-<!-- 
-X.2 linguistic overview (for non-linguist readers)
-    - how have linguists addressed the problem?
-    - what are the shortcomings of the non-computational approach?
+<!--
+<section>
+      <title>Type and Tokens</title>
 -->
-
 <para>
-
+Let's look in more detail at the words in the text <xref linkend="wsj_0034"/>.
+Suppose we use white space as the delimiter for words, and then list all
+the words; we would expect to get something like the following:
+<informalexample>
 <programlisting>
-% tr -sc 'A-Za-z0-9' '\012' &lt; wsj_0034 | sort 
-120
-1992
-And
-Barney
-But
-European
-European
-Fund
-I
-It
-It
-Japanese
-Korea
-Mr
-Porter
+ 120
+ 1992
+ And
+ Barney
+ But
+ European
+ European
+ Fund
+ I
+ It
+ It
+ Japanese
+ Korea
+ Mr
+ Porter
 Smith
-South
-Spain
-a
-a
+ South
+ Spain
+ a
+ a
 ...
 </programlisting>
+</informalexample>
 
+<!--
+We could also be slightly more clever, and produce a listing which 
 <programlisting>
 % tr -sc 'A-Za-z0-9' '\012' &lt; wsj_0034 | sort | uniq -c
       1 120
@@ -173,73 +175,149 @@ Words according to the Unix <command>wc</command>:
 wc -w wsj_0034_pars12-13
     90 wsj_0034_pars12-13
 </programlisting>
+-->
 
+Now, it seems that we can make two different sorts of observations about
+words in the text:
 <itemizedlist>
-<listitem><para>There are 90 words in the text
-<filename>wsj_0034_pars12-13</filename>.</para></listitem> 
-<listitem><para>the word `European' occurs twice in
-<filename>wsj_0034_pars12-13</filename>.</para></listitem> 
-</itemizedlist>
+	  <listitem>
+	    <para>There are 90 words in <xref linkend="wsj_0034"/>.</para>
+	  </listitem> 
 
+	  <listitem>
+	    <para>the word `European' occurs twice in <xref
+		linkend="wsj_0034"/> </para></listitem>  
+</itemizedlist>
+A little reflection will show that we are using <quote>word</quote> in
+two different senses, sometimes referred to as word
+<emphasis>token</emphasis> versus word <emphasis>type</emphasis>:
+      <indexterm><primary>word token</primary></indexterm>
+      <indexterm><primary>word type</primary></indexterm>
 <variablelist>
 <varlistentry><term>Word token</term>
   <listitem><para>an occurrence of a word at a particular
   spatio-temporal location (e.g. a sequential position in a text</para></listitem>
 </varlistentry>
-<varlistentry><term>Word type</term>
-  <listitem><para>a more abstract notion, also termed
+<varlistentry><term>Word type</term> <listitem><para>a more abstract
+notion, also termed <glossterm>lexeme</glossterm>
 <indexterm><primary>lexeme</primary></indexterm>&mdash;we speak of two
-tokens belonging to the same type.</para></listitem> 
+tokens belonging to the same type.</para></listitem>
 </varlistentry>
 </variablelist>
-
-
-
-
+More specifically, we want to say that there are 90 word tokens in <xref
+linkend="wsj_0034"/>, but only 76 word types. For example, there are
+   five tokens of the type <literal>to</literal>. This distinction
+between types and tokens is fundamental, and we will see it being used
+many times again.
 </para>
 
-
-
-<para>
-
-
-      <indexterm><primary>word token</primary></indexterm>
-      <indexterm><primary>word type</primary></indexterm>
-      
-The term "word" can actually be used in two different
-      ways: to refer to an individual occurrence of a word; or to
-      refer to an abstract vocabulary item.  For example, the phrase
-      "my dog likes his dog" contains five occurrences of words, but
-      only four vocabulary items (since the vocabulary item "dog"
-      appears twice).  In order to make this distinction clear, we
-      will use the term <glossterm>word token</glossterm> to refer to
-      occurrences of words, and the term <glossterm>word
-      type</glossterm> to refer to vocabulary items. </para>
+<!-- <para> The term "word" can actually be used in two different ways: to refer
+to an individual occurrence of a word; or to refer to an abstract
+vocabulary item.  For example, the phrase "my dog likes his dog"
+contains five occurrences of words, but only four vocabulary items
+(since the vocabulary item "dog" appears twice).  In order to make this
+distinction clear, we will use the term <glossterm>word
+token</glossterm> to refer to occurrences of words, and the term
+<glossterm>word type</glossterm> to refer to vocabulary
+items. </para> -->
 
       <indexterm><primary>token</primary></indexterm>
       <indexterm><primary>type</primary></indexterm>
       <indexterm><primary>sentence token</primary></indexterm>
       <indexterm><primary>sentence type</primary></indexterm>
-      <para> The terms <glossterm>token</glossterm> and
-      <glossterm>type</glossterm> can also be applied in other
-      domains.  For example, a <glossterm>sentence token</glossterm>
-      is an individual occurrence of a sentence; but a
-      <glossterm>sentence type</glossterm> is an abstract sentence,
-      without context.  If someone repeats a sentence twice, they have
-      uttered two sentence tokens, but only one sentence type.  When
-      the kind of token or type is obvious from context, we will
-      simply use the terms <glossterm>token</glossterm> and
-      <glossterm>type</glossterm>. </para>
+      
+<para> The terms <glossterm>token</glossterm> and
+   <glossterm>type</glossterm> can also be applied in other
+   domains.  For example, a <glossterm>sentence token</glossterm>
+   is an individual occurrence of a sentence; but a
+   <glossterm>sentence type</glossterm> is an abstract sentence,
+   without context.  If someone repeats a sentence twice, they have
+   uttered two sentence tokens,
+   but only one sentence type.  When
+   the kind of token or type is obvious from context, we will
+   simply use the terms <glossterm>token</glossterm> and
+   <glossterm>type</glossterm>.
+  </para>
 
-    <para>There is a long tradition within linguistics of classifying
-      words into different categories.</para>
+    
+</section><!-- Introduction -->
 
 <section><title>Parts of speech / word classes (English-oriented)</title>
+<!-- 
+X.2 linguistic overview (for non-linguist readers)
+- how have linguists addressed the problem?
+- what are the shortcomings of the non-computational approach?
+
+% tr -sc 'A-Za-z0-9' '\012' &lt; wsj_0034 | sort 
+-->
+<para>There is a long tradition within linguistics of classifying
+    words into different categories. These categories are also called
+    <firstterm>parts of speech</firstterm>. Familiar examples are
+    <type>noun</type>, <type>verb</type>, <type>preposition</type>,
+    <type>adjective</type> and <type>adverb</type>. How do we know what
+    category a word should belong to? In general, linguists invoke three
+    kinds of criteria for making the decision:
+    <itemizedlist>
+     <listitem>
+      <para>formal;</para>
+     </listitem>
+     <listitem>
+      <para>syntactic (or distributional);</para>
+     </listitem>
+     <listitem>
+      <para>notional (or semantic).</para>
+     </listitem>
+    </itemizedlist>
+
+A <firstterm>formal</firstterm> criterion is one which looks at the
+internal structure of a word. For example, <literal>-ness</literal> is a
+suffix which combines with an adjective to produce a noun. Examples are
+<literal>happy</literal> &gt; <literal>happiness</literal>,
+<literal>ill</literal> &gt; <literal>illness</literal>. So if we
+encounter a word which ends in <literal>-ness</literal>, this is very
+likely to be a noun.
+</para>
 
 <para>
+A <firstterm>syntactic</firstterm> criterion refers to the syntactic
+contexts in which a word can occur. For example, assume that we have
+already determined the category of nouns. Then  we might say that a
+syntactic criterion for an adjective in English is that it can occur
+immediately before a noun, or immediately following the words
+<literal>be</literal> or <literal>very</literal>. According to these
+tests, <literal>near</literal> should be categorized as an adjective:
+<orderedlist>
+<listitem>
+<para>the near window</para>
+</listitem>
+<listitem>
+<para>The end is (very) near.</para>
+</listitem>
+</orderedlist>
 </para>
+
+<para>A familier example of a <firstterm>notional</firstterm> criterion is
+that a noun is <quote>the name of a person, place or thing</quote>.
+Within modern linguistics, notional criteria for
+word classes have be viewed with considerable suspicion, mainly because
+they are hard to formalize. Nevertheless, notional criteria underpin
+many of our intuitions about word classes, and enable us to make a good
+guess about the categorization of words in languages that we are
+unfamiliar with; that is, if we all we know about the Dutch
+<literal>verjaardag</literal> is that it means the same as the English
+word <literal>birthday</literal>, then we can guess that
+<literal>verjaardag</literal> is a noun in Dutch. However, some care is
+needed: although we might translate <literal>zij is van dag
+jarig</literal> as <literal>it's her birthday today</literal>, the word
+<literal>jarig</literal> is in fact an adjective in Dutch, and has no
+exact equivalent in English.</para>
+
 </section>
-    </section><!-- Linguistic Overview -->
+
+
+
+
+
 
   <section id="regex"> 
     <title>Regular Expressions</title>
@@ -250,10 +328,11 @@ The term "word" can actually be used in two different
 
     <para> This section provides a gentle introduction to
     regular expressions illustrated with examples from language
-    processing.  For a more concise introduction please see the
-    Python documentation
+    processing.
+    <footnote>
+     <para>For a more concise introduction please see the Python documentation
     <ulink url="http://www.python.org/doc/current/lib/module-re.html">
-    re -- Regular expression operations</ulink>.
+    re -- Regular expression operations</ulink>.</para></footnote>
     </para>
 
     <para> When written language is stored in a machine it is normally
@@ -261,10 +340,10 @@ The term "word" can actually be used in two different
     characters.  Individual words are strings.  A list of words is a
     string.  Entire texts are also strings, including special
     characters for space and newline.  Strings are sometimes
-    formatted, such as a "date string" like
+    formatted, such as a <quote>date string</quote> like
     <literal>2002-06-23</literal>.  Whole texts may be formatted, such
     as an email message with header fields followed by the message
-    body.  Texts may contain "markup", such as
+    body.  Texts may contain <quote>markup</quote>, such as
     <literal>&lt;abbrev&gt;Phila&lt;/abbrev&gt;</literal>, which
     provides information about the interpretation or presentation of
     some piece of text.  Thus in language processing, strings are
@@ -278,14 +357,14 @@ The term "word" can actually be used in two different
     most familiar example of such processing.  In completing a
     crossword we may want to know which 3-letter English words end
     with the letter <literal>c</literal>
-    (e.g. "arc").  We might want to know how many
+    (e.g. <literal>arc</literal>).  We might want to know how many
     words can be formed from the letters: <literal>a</literal>,
     <literal>c</literal>, <literal>e</literal>, <literal>o</literal>,
-    and <literal>n</literal> (e.g. "ocean").  We may
+    and <literal>n</literal> (e.g. <literal>ocean</literal>).  We may
     want to find out which unique English word contains the substring
     <literal>gnt</literal> (left as an exercise for the reader).  In
-    all these examples, we are considering which word - drawn from a
-    large set of candidates - matches a given pattern.  There are many
+    all these examples, we are considering which word &mdash; drawn from a
+    large set of candidates &mdash; matches a given pattern.  There are many
     more serious uses of this so-called <glossterm>pattern
     matching</glossterm>.  We may want to break a text into its
     component words, a process known as
@@ -322,13 +401,15 @@ The term "word" can actually be used in two different
     space).  We may want to find all date strings and extract the
     year.  We may want to extract all words contained inside the
     <literal>&lt;abbrev&gt;&lt;/abbrev&gt;</literal> markup in order
-    to construct a list of abbreviations.
+    to construct a list of abbreviations.<sgmltag
+     class="starttag">abbrev</sgmltag>
+<sgmltag class="endtag">abbrev</sgmltag>
     </para>
 
     <para> Processing the content, format and markup of strings is a
     central task in most kinds of NLP.  The most widespread method for
     string processing uses <glossterm>regular expressions</glossterm>,
-    the topic of this tutorial.
+    the topic of this section.
     </para>
 
   </section> <!-- Overview -->
@@ -344,7 +425,8 @@ The term "word" can actually be used in two different
     <section id="dot">
       <title>The Wildcard</title>
 
-      <para> The "<literal>.</literal>" symbol matches any character.
+    <para> The "<literal>.</literal>" symbol is called a
+     <firstterm>wildcard</firstterm>: it matches any character.
       For example, the regular expression <literal>s.ng</literal>
       matches the following English words:
         <literal>sang</literal>,
@@ -353,7 +435,7 @@ The term "word" can actually be used in two different
         <literal>sung</literal>.
       </para>
 
-      <para> We can also use this symbol for counting characters.
+      <para> We can also use the wildcard symbol for counting characters.
       For instance <literal>....zy</literal> matches six-letter words
       that end in <literal>zy</literal>.  The pattern
       <literal>....berry</literal> finds words like <literal>cranberry</literal>.
@@ -2554,11 +2636,11 @@ sgml-namecase-general:nil
 sgml-general-insert-case:lower
 sgml-minimize-attributes:nil
 sgml-always-quote-attributes:t
-sgml-indent-step:2
-sgml-indent-data:t
+sgml-indent-step:0
+sgml-indent-data:nil
 sgml-parent-document:nil
 sgml-exposed-tags:nil
-sgml-local-catalogs:("/home/ewan/cvstree/nltk/doc/docbook/catalog")
+sgml-local-catalogs:nil
 sgml-local-ecat-files:nil
 sgml-default-dtd-file:"/home/ewan/cvstree/nltk/doc/docbook/xml.ced"
 End:
