@@ -474,28 +474,20 @@
 
   </section> <!-- Tokenization -->
 
-  <section> <title> Processing Tokenized Text: Zipf's Law </title>
+  <section> <title> Processing Tokenized Text </title>
 
     <para> In this section, we show how you can use the toolkit to
-    demonstrate Zipf's Law.  This is meant to be a simple example of
-    how the tools we have introduced can be used to solve a simple NLP
-    problem.  Zipf's Law relates a word type's frequency to its rank
-    (the <glossterm>rank</glossterm> of the
-    <replaceable>r</replaceable> most common word type is
-    <replaceable>r</replaceable>).  In particular, it states that the
-    frequency <replaceable>f</replaceable> of a word type is inversely
-    proportional to its rank <replaceable>r</replaceable>.  In other
-    words,
-    <replaceable>f</replaceable>*<replaceable>r</replaceable>=<replaceable>k</replaceable>,
-    for some constant k.  For example, the 50th most common word type
-    should occur three times as frequently as the 150th most common
-    word type.  See <citetitle>Foundations of Statistical Natural
-    Language Processing</citetitle>
-    (<author><surname>Manning</surname></author> &
-    <author><surname>Schutze</surname></author>), pp. 23-24, for more
-    information on Zipf's Law. </para>
+    examine the distribution of word lengths in a document.  This is
+    meant to be a simple example of how the tools we have introduced
+    can be used to solve a simple NLP problem.  The distribution of
+    word lengths in a document can give clues to other properties,
+    such as the document's style, or the document's language. </para>
 
-    <section> <title> Demonstring Zipf's Law 1: using a dictionary </title>
+    <para> We present three different approaches to solving this
+    problem; each one illustrates different techniques, which might be
+    useful for other problems. </para>
+
+    <section> <title> Word Length Distributions 1: Using a List </title>
 
       <para> To begin with, we'll need to extract the words from a
       corpus that we wish to test.  We'll use the
@@ -507,102 +499,153 @@
 </screen>
 </para>
 
-      <para> Now, we need to count up the frequencies of each word
-      type.  We can do this by constructing a dictionary that maps
-      each word type to the number of times it occurs:
+      <para> Now, we will construct a list
+      <literal>wordlen_count_list</literal>, which gives the number of
+      words that have a given length.  In particular,
+      <literal>wordlen_count_list[<replaceable>i</replaceable>]</literal>
+      is the number of words whose length is
+      <replaceable>i</replaceable>. </para>
+
+      <para> When constructing this list, we must be careful not to
+      try to add a value past the end of the list.  Therefore,
+      whenever we encounter a word that is longer than any previous
+      words, we will add enough zeros to
+      <literal>wordlen_count_list</literal> that we can store the
+      occurance of the new word:
 
 <screen>
-    &prompt;<command> freq_dict = {}</command>
+    &prompt;<command> wordlen_count_list = []</command>
     &prompt;<command> for token in tokens:</command>
-    &prompt2;<command>     if freq_dict.has_key(token.type()):</command>
-    &prompt2;<command>         freq_dict[token.type()] += 1</command>
-    &prompt2;<command>     else:</command>
-    &prompt2;<command>         freq_dict[token.type()] = 1</command>
+    &prompt2;<command>     wordlen = len(token.type())</command>
+    &prompt2;     <emphasis># Add zeros until wordlen_count_list is long enough</emphasis>
+    &prompt2;<command>     while wordlen >= len(wordlen_count_list):</command>
+    &prompt2;<command>         wordlen_count_list.append(0)</command>
+    &prompt2;     <emphasis># Incrememnt the count for this word length</emphasis>
+    &prompt2;<command>     wordlen_count_list[wordlen] += 1</command>
 </screen>
 </para>
 
-      <para> We are interested in the list of word type frequencies;
-      this is simply the values of our dictionary.  We can extract
-      this list, and sort it in descending order, with the following
-      code:
+      <para> In order to plot the results, we must create a list of
+      points.  These points are simply (wordlen, count) pairs.  We can
+      construct this list with:
 
 <screen>
-    &prompt;<command> freq_list = freq_dict.values()</command>
-    &prompt;<command> freq_list.sort()</command>
-    &prompt;<command> freq_list.reverse()</command>
+    &prompt;<command> points = [(i, wordlen_count_list[i]) </command>
+    &prompt2;<command>           for i in range(len(wordlen_count_list))]</command>
 </screen>
-</para>
-
-      <para> In order to plot the results, we need to construct a list
-      of (rank, frequency) pairs:
-
-<screen>
-    &prompt;<command> points = [(i+1, freq_list[i]) for i in range(len(freq_list))]</command>
-</screen>
-
 
       (For more information on list comprehensions, see the "Advanced
       Python Features" tutorial.)</para>
 
-    <para> Finally, we can plot the results, using the
-    <literal>nltk.draw.plot_graph</literal> module:
+      <para> Finally, we can plot the results, using the
+      <literal>nltk.draw.plot_graph</literal> module:
 
 <screen>
-    &prompt;<command> plot(Line(points))</command>
+    &prompt;<command> plot(Marker(points))</command>
 </screen>
 </para>
 
-      <para> The complete code, including necessary
+      <para> The complete code for this example, including necessary
       <literal>import</literal> statements, is:
 
 <screen>
 from nltk.token import WSTokenizer
-from nltk.draw.plot_graph import plot, Line
+from nltk.draw.plot_graph import plot, Marker
 
-<emphasis># Exctract a list of words from the corpus</emphasis>
-corpus = open('corpus.txt').read()
-tokens = WSTokenizer().tokenize(corpus)
+<emphasis># Extract a list of words from the corpus</emphasis>
+corpus = open('corpus.txt').read() 
+tokens = WSTokenizer().tokenize(corpus) 
 
-<emphasis># Count up the frequencies of each word type</emphasis>
-freq_dict = {}
+<emphasis># Count up how many times each word length occurs</emphasis>
+wordlen_count_list = []
 for token in tokens:
-    if freq_dict.has_key(token.type()):
-        freq_dict[token.type()] += 1
-    else:
-        freq_dict[token.type()] = 1
+     wordlen = len(token.type())
+     <emphasis># Add zeros until wordlen_count_list is long enough</emphasis>
+     while wordlen >= len(wordlen_count_list):
+         wordlen_count_list.append(0)
+     <emphasis># Incrememnt the count for this word length</emphasis>
+     wordlen_count_list[wordlen] += 1
 
-<emphasis># Extract the list of word type frequencies</emphasis>
-freq_list = freq_dict.values()
-
-<emphasis># Sort this list in descending order</emphasis>
-freq_list.sort()
-freq_list.reverse()
-
-<emphasis># Construct a list of (rank, frequency pairs) and plot the results.</emphasis>
-points = [(i+1, freq_list[i]) for i in range(len(freq_list))]
-plot(Line(points))
+<emphasis># Construct a list of (wordlen, count) and plot the results.</emphasis>
+points = [(i, wordlen_count_list[i]) 
+           for i in range(len(wordlen_count_list))]
+plot(Marker(points))
 </screen>
 </para>
-    </section> <!-- Zipf's Law with dictionaries -->
+      
+    </section> <!-- Word length distributions: list -->
 
-    <section> <title> Demonstring Zipf's Law 2: using a frequency distribution </title>
+    <section> <title> Word Length Distributions 2: Using a Dictionary </title>
+
+      <para> We have been examining the function from word lengths to
+      token counts.  In this example, the range of the function (i.e.,
+      the set of word lengths) is ordered and relatively small.
+      However, we often wish to examine functions whose ranges are not
+      so well behaved.  In such cases, dictionaries can be a powerful
+      tool.  The following code uses a dictionary to count up the
+      number of times each word length occurs: 
+
+<screen>
+    &prompt;<command> wordlen_count_dict = {}</command>
+    &prompt;<command> for token in tokens:</command>
+    &prompt2;<command>     word_length = len(token.type())</command>
+    &prompt2;<command>     if wordlen_count_dict.has_key(word_length):</command>
+    &prompt2;<command>         wordlen_count_dict[word_length] += 1</command>
+    &prompt2;<command>     else:</command>
+    &prompt2;<command>         wordlen_count_dict[word_length] = 1</command>
+</screen>
+</para>
+
+      <para> To plot the results, we need a list of (wordlen, count)
+      pairs.  This is simply the <literal>items</literal> of the
+      dictionary:
+
+<screen>
+    &prompt;<command> points = wordlen_count_dict.items() </command>
+    &prompt;<command> plot(Marker(points))</command>
+</screen>
+</para>
+
+      <para> The complete code for this example, including necessary
+      <literal>import</literal> statements, is:
+
+<screen>
+from nltk.token import WSTokenizer
+from nltk.draw.plot_graph import plot, Marker
+
+<emphasis># Extract a list of words from the corpus</emphasis>
+corpus = open('corpus.txt').read() 
+tokens = WSTokenizer().tokenize(corpus) 
+
+<emphasis># Construct a dictionary mapping word lengths to token counts</emphasis>
+wordlen_count_dict = {}
+for token in tokens:
+    word_length = len(token.type())
+    if wordlen_count_dict.has_key(word_length):
+        wordlen_count_dict[word_length] += 1
+    else:
+        wordlen_count_dict[word_length] = 1
+
+<emphasis># Construct a list of (wordlen, count) and plot the results.</emphasis>
+points = wordlen_count_dict.items() 
+plot(Marker(points))
+</screen>
+</para>
+
+    </section> <!-- Word length distributions: dictionary -->
+
+    <section> <title> Word Length Distributions 3: Using a Frequency Distribution </title>
 
       <para> The <literal>nltk.probability</literal> module defines
       two interfaces, <literal>FreqDistI</literal> and
       <literal>ProbDistI</literal>, for modelling frequency
-      distributions and probability distributions, respectively.  We
-      can simplify the code for demonstrating Zipf's Law by using a
-      frequency distribution to find the frequencies of each word
-      type.  As before, we begin by tokenizing the corpus:
+      distributions and probability distributions, respectively.  In
+      this example, we use a frequency distribution to find the
+      relationship between word lengths and token counts. </para>
 
-<screen>
-    &prompt;<command> corpus = open('corpus.txt').read() </command>
-    &prompt;<command> tokens = WSTokenizer().tokenize(corpus) </command>
-</screen>
-</para>
-
-      <para> Now, we can use a <literal>SimpleFreqDist</literal> to
-      find the frequency of each word type.  For the current example,
+      <para> We will use a <literal>SimpleFreqDist</literal>, which is
+      a simple (but sometimes inefficient) implementation of the
+      <literal>FreqDistI</literal> interface.  For this example,
       three methods of <literal>SimpleFreqDist</literal> are
       relevant:</para>
 
@@ -613,62 +656,68 @@ plot(Line(points))
           <listitem><para><literal>samples()</literal> returns a list of
           the samples covered by a frequency distribution.</para>
           </listitem>
-          <listitem><para><literal>freq(<replaceable>sample</replaceable>)</literal>
-          returns the frequency of a given sample.</para>
+          <listitem><para><literal>count(<replaceable>sample</replaceable>)</literal>
+          returns the number of times a given sample occured.</para>
           </listitem>
         </itemizedlist>
 
-      <para>First, we construct the frequency distribution for the
-      word types:
+      <para> First, we construct the frequency distribution for the
+      word lengths:
 
 <screen>
-    &prompt;<command> freqs = SimpleFreqDist()</command>
+    &prompt;<command> wordlen_freqs = SimpleFreqDist()</command>
     &prompt;<command> for token in tokens:</command>
-    &prompt2;<command>     freqs.inc(token.type())</command>
+    &prompt2;<command>     wordlen_freqs.inc(len(token.type()))</command>
 </screen>
 </para>
 
-      <para> Next, we extract a list of the frequencies, and sort them
-      in descending order:
+      <para> Next, we extract the set of word lengths that were found
+      in the corpus: 
 
 <screen>
-    &prompt;<command> freqlist = [freqs.freq(wtype) for wtype in freqs.samples()]</command>
-    &prompt;<command> freqlist.sort()</command>
-    &prompt;<command> freqlist.reverse()</command>
+    &prompt;<command> wordlens = wordlen_freqs.samples()</command>
 </screen>
 </para>
 
-      <para> The remaining code remains unchanged.  The complete code,
-      including necessary import statements, is:
+      <para> Finally, we construct a list of (wordlen, count) pairs,
+      and plot it: 
+
+<screen>
+    &prompt;<command> points = [(wordlen, wordlen_freqs.count(wordlen))</command>
+    &prompt2;<command>           for wordlen in wordlens]</command>
+    &prompt;<command> plot(Marker(points))</command>
+</screen>
+</para>
+
+      <para> The complete code for this example, including necessary
+      <literal>import</literal> statements, is:
 
 <screen>
 from nltk.token import WSTokenizer
+from nltk.draw.plot_graph import plot, Marker
 from nltk.probability import SimpleFreqDist
-from nltk.draw.plot_graph import plot, Line
 
-<emphasis># Exctract a list of words from the corpus</emphasis>
-corpus = open('corpus.txt').read()
-tokens = WSTokenizer().tokenize(corpus)
+<emphasis># Extract a list of words from the corpus</emphasis>
+corpus = open('corpus.txt').read() 
+tokens = WSTokenizer().tokenize(corpus) 
 
-<emphasis># Use a frequency distribution to count up the word types.</emphasis>
-freqs = SimpleFreqDist()
+<emphasis># Construct a frequency distribution of word lengths</emphasis>
+wordlen_freqs = SimpleFreqDist()
 for token in tokens:
-    freqs.inc(token.type())
+    wordlen_freqs.inc(len(token.type()))
 
-<emphasis># Extract the list of word type frequencies</emphasis>
-freqlist = [freqs.freq(wtype) for wtype in freqs.samples()]
-
-<emphasis># Sort this list in descending order</emphasis>
-freqlist.sort()
-freqlist.reverse()
-
-<emphasis># Construct a list of (rank, frequency) pairs, and plot them.</emphasis>
-points = [(i+1, freqlist[i]) for i in range(len(freqlist))]
-plot(Line(points))
+<emphasis># Construct a list of (wordlen, count) and plot the results.</emphasis>
+points = [(wordlen, wordlen_freqs.count(wordlen))
+          for wordlen in wordlens]
+plot(Marker(points))
 </screen>
 </para>
+      
+      <para> For more information about frequency distributions, see
+      the Probability Tutorial.</para>
 
-    </section> <!-- Zipf's law with frequency distributions -->
-  </section> <!-- Zipf's law example -->
+    </section> <!-- Word length distributions: freqdist -->
+  </section> <!-- Word length distributions example -->
 </article>
+
 
