@@ -350,10 +350,10 @@
 		    (list-ref navlist 3))))
       (default-header-navigation elemnode prev next prevsib nextsib)))
 
-;; For some reason, <literal>...</literal> is now getting rendered as
-;; italics, which is not how we were using it.  Render it as
-;; monospace instead.  (But maybe we should be using a different
-;; docbook tag in our tutorials?)
+;; For some reason, "literal" is now getting rendered as italics,
+;; which is not how we were using it.  Render it as monospace instead.
+;; (But maybe we should be using a different docbook tag in our
+;; tutorials?)
 (element literal ($code-seq$))
 
 ;; End HTML Parameters
