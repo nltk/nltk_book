@@ -16,9 +16,218 @@
 \author{Edward Loper}
 \maketitle
 
+% One thing that guides peoples intuitions about what an object is is
+% how it looks when it prints. If two things look the same when you
+% print them, then intuitively they should be the same. I think this may
+% have been a source of confusion in the first problem set, where Tokens
+% look just like strings when you print them, so users will be tempted
+% to do things like use == to test whether a TokenType is equal to a
+% string.
+
 %============= INTRODUCTION =============%
 \section{Introduction}
 
+  The printed representations of an object guides users' intuitions
+  about the content, function, and purpose of the object.  Often, a
+  user's first encounter with an object is with its printed
+  representation.  Users rely on this representation to let them know
+  what type of object it is, and what its important features are.  The
+  printed representations of each type of object defined by the NLP
+  toolkit must be carefully considered.
+
+%============= GOALS =============%
+\section{Goals}
+
+  The following goals guide the design of printed representations.
+
+  \begin{description}
+
+    \item[Compactness] Printed representations should be simple and
+    compact.  Simpler representations are easier to read and easier to
+    understand, especially when the object is included in the
+    representation of a larger data structure, such as a list of
+    objects.
+
+    \item[Consistancy] The printed representation of an object should
+    be consistant between different environments.  Inconsistant
+    representations can produce confusion about object values and
+    object types.
+
+    \item[Composition] The representation of an object should indicate
+    what data fields it abstractly contains.  In particular, for each
+    data field abstractly contained by an object, its representation
+    should include some indication that the field is contained within
+    it.
+
+    \item[Type Indication] The representation should give some direct
+    or indirect indication of its type.  In particular, it should be
+    easy to tell the type of an object from its printed
+    representation.
+
+    \item[Value Indication] If two objects have the same value, they
+    should have the same printed representations; if two objects have
+    different values, then they should have different printed
+    representations.
+
+    \item[Intuitiveness] Representations should rely on the
+    conventional meanings of formats and symbols (e.g., the use of
+    ``@'' to denote ``at'').  This will make it easier for users to
+    understand what the representations stand for.
+
+    \item[Standard Representations] When possible, established
+    standard representations (such as ``dog/NP'' for tagging) should
+    be used.
+
+  \end{description}
+
+%============= ISSUES =============%
+\section{Issues}
+
+The representations are still under development.  This section
+describes some of the issues involved in designing representations.  I
+may not use the solutions discussed here.
+
+\subsection{Context-Dependant Representations}
+
+  Representations that show the complete state of an object are useful
+  for certain tasks, but they can be overly verbose for complex
+  objects, or for lists of objects, making it hard to understand the
+  structures shown by the printed representations.  In particular,
+  complete representations of complex objects are not \emph{compact}.
+
+  The principle of \emph{composition} requires that the representation
+  display each field of an object; but it may be useful to display a
+  ``summary'' of some of the fields, instead of a complete
+  representation.  For example, a \texttt{Location} whose unit is
+  \texttt{"token"} and whose source is \texttt{"foo.txt"} might
+  normally be represented as:
+
+  \begin{quote}
+    \texttt{@[token 1:token 3]@foo.txt}
+  \end{quote}
+
+  But if a large list of tokens is displayed, each with a location,
+  then this representation may be overly verbose.  A ``summary'' of
+  this location might be:
+
+  \begin{quote}
+    \texttt{@[1:3]}
+  \end{quote}
+
+  Note that this solution is somewhat contrary to \emph{consistancy}:
+  we are using different representations for the same object in
+  different environments.  However, if summary representations are
+  chosen carefully enough, I don't believe that this will be a
+  problem.
+
+\subsubsection{\texttt{str} and \texttt{repr}}
+
+  The \texttt{str} and \texttt{repr} functions could be used to
+  implement the difference between full representations and summary
+  representations.  Officially, \texttt{str} gives the ``informal
+  representation'' of an object and \texttt{repr} gives its ``formal
+  representation.''  However, one of the main differences between them
+  in practice is that \texttt{str} is used when a single object is
+  printed, but \texttt{repr} is used when an object is printed as part
+  of a list, tuple, or dictionary.  
+
+  We could extend this distinction to the toolkit's objects, using
+  \texttt{str} to encode an object's top-level representation, and
+  \texttt{repr} to encode its summary.  The advantage of this approach
+  is that it guarantees that each object has exactly one summary
+  representation and one full representation.  For some objects, these
+  may be the same representation.
+
+\subsection{Refactoring Information}
+
+  Unfortunately, summary representations don't always seem like the
+  right tool to make representations more compact.  In a number of
+  cases, the representation of a complex object may contain a large
+  amount of redundant information.  It may make sense to display this
+  information exactly once.  e.g., syntax trees: how to attatch
+  locations?
+
+%============= PRINTING REPS =============%
+\section{Printing Representations}
+
+Here's a list of how I'm currently representing things:
+
+\newpage
+\begin{tabbing}
+\tt
+\hspace{3in}\=\\
+\textbf{$>>>$ print Location(1, 3)}\\
+@[1:3]\\
+\textbf{$>>>$ print Location(1, 2)}\\
+@[1]\\
+\textbf{$>>>$ print Location(1, 3, source='foo.txt')}\\
+@[1:3]@'foo.txt'\\
+\textbf{$>>>$ print Location(1, 3, unit='word')}\\
+@[word 1:word 3]\\
+\textbf{$>>>$ print Location(1, 2, unit='word', source='foo.txt')}\\
+@[word 1:word 2]\\
+\\
+\textbf{$>>>$ print Token('hi', Location(1, 2))}\\
+'hi'@[1]\\\
+\textbf{$>>>$ print Token('hi', Location(1, 3))}\\
+'hi'@[1:3]\\\
+\textbf{$>>>$ print Token('hi', Location(1, 3, unit='word', source='foo.txt'))}\\
+'hi'@[1:3] \>\textrm{Loc's unit and source are not shown}\\
+\textbf{$>>>$ }\\
+\\
+\textbf{$>>>$ print Tree('np', 'the', 'boy')}\\
+('np': 'the' 'boy') \>\textrm{No commas and presence of ':' distinguises from tuple}\\
+\textbf{$>>>$ print Tree('vp', 'likes', Tree('np', 'the', 'boy'))}\\
+('vp': 'likes' ('np': 'the' 'boy'))\\
+\textbf{$>>>$ print TreeToken('vp', Token('likes',1), Tree('np', Token('John',2)))}\\
+('vp': 'likes' ('np': 'John))@[1:3]\\
+
+
+\end{tabbing}
+
+
+%============= RANDOM NOTES =============%
+\section{Random Notes}
+
+\subsection{Issues}
+
+There are a number of considerations when deciding how to represent
+objects:
+
+\begin{itemize}
+
+  \item Users should be able to tell what type of object something is
+    by printing it.  In particular:
+    \begin{itemize}
+      \item It should be possible to distinguish an object from any
+        built-in type (string, list, etc)
+      \item It should be possible to distinguish each of the different
+        classes defined by the toolkit from each other.
+    \end{itemize}
+
+    Of course, this is within reason -- a string can look like any
+    object, for example.
+
+  \item How much to display?  Representations that show the complete
+  state of an object can be useful, but they can be overly verbose for
+  large objects, or for lists of objects, making it hard to understand
+  the structures shown by the printed representations.
+
+  \item One rep per object, or not?  In particular, should there be a
+  different embedded representation?  Difference between str and repr
+  as embedding.
+
+  \item Representations should be intuitive
+
+  \item Representations should be simple
+
+  \item Should representations be readable?
+
+  \item Should standard reps be used (eg, treebank)
+
+  \item Should some classes be treated specially (eg, quote strings)
+
+\end{itemize}
 
 \end{document}
 
