@@ -203,43 +203,44 @@
     (element-title-sosofo (node-list-first info))))
 
 ;; Use the NLTK stylesheet
-(define %stylesheet% "../../nltk.css")
+(define %stylesheet% "../../tutorial.css")
 
 ;; Add the standard navbar at the top of tutorials
 (define %nltk-navbar%
-  (make element gi: "table"
-    attributes: '(("width" "100%") ("class" "navbox") ("cellpadding" "1")
-                  ("cellspacing" "0"))
-    (make element gi: "tr"
+ (make sequence
+   (make element gi: "table"
+        attributes: '(("width" "100%") ("class" "navbox") ("cellpadding" "1")
+                      ("cellspacing" "0"))
+     (make element gi: "tr"
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
              (make element gi: "a"
-                   attributes: '(("class" "nav") ("href" "index.html"))
+                   attributes: '(("class" "nav") ("href" "../../index.html"))
                    (literal "Home")))
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
              (make element gi: "a"
-                   attributes: '(("class" "nav") ("href" "install.html"))
+                   attributes: '(("class" "nav") ("href" "../../install.html"))
                    (literal "Installation")))
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
              (make element gi: "a"
-                   attributes: '(("class" "nav") ("href" "docs.html"))
+                   attributes: '(("class" "nav") ("href" "../../docs.html"))
                    (literal "Documentation")))
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
              (make element gi: "a"
-                   attributes: '(("class" "nav") ("href" "teach.html"))
+                   attributes: '(("class" "nav") ("href" "../../teach.html"))
                    (literal "Teaching")))
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
                            ("class" "navbutton"))
              (make element gi: "a"
-                   attributes: '(("class" "nav") ("href" "contrib.html"))
+                   attributes: '(("class" "nav") ("href" "../../contrib.html"))
                    (literal "Contributing")))
        (make element gi: "td"
              attributes: '(("align" "center") ("width" "16.6%")
@@ -250,7 +251,9 @@
 		       attributes: '(("src" "../../sflogo.png")
 				     ("width" "88") ("height" "26")
 				     ("border" "0") ("alt" "SourceForge")
-				     ("align" "top"))))))))
+				     ("align" "top")))))))
+   (make empty-element gi: "br")))
+
 (define (nav-banner elemnode) %nltk-navbar%)
 (define (nav-banner? elemnode) #t)
 
