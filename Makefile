@@ -158,7 +158,7 @@ _copy_reference:
 	@echo "[Copying reference documentation]"
 	@cp -R $(REFDOC_DIR)/* $(WEBPAGE_REF_DIR)
 	@cp -R $(CONTRIB_REFDOC_DIR)/* $(WEBPAGE_CONTRIB_REF_DIR)
-	@ln -s api-$(NLTK_VERSION) $(WEBPAGE_DIR)/api-devel
+	@ln -s api-$(NLTK_VERSION) $(WEBPAGE_DIR)/api
 
 _copy_psets:
 	@echo "[Copying problem sets]"
