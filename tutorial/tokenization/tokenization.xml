@@ -284,7 +284,7 @@ context, we will simply use the terms <glossterm>token</glossterm> and
 
 
 <!-- ********************** Tokenization *************************** -->
-<section id="token"> 
+<section id="tokenization"> 
 <title>Tokenization</title>
 
 <!-- SUBSECTION: Strings -->
@@ -298,6 +298,7 @@ represented as a sequence (or <glossterm>string</glossterm>) of
 characters.  Individual words are strings.  A list of words is a string.
 Entire texts are also strings. Strings can include special characters
 which represent space, tab and newline.</para>
+<indexterm><primary>tokenization</primary></indexterm>
 
 <para> Most computational processing is performed above the level of
 characters.  In compiling a programming language, for example, the
@@ -658,7 +659,7 @@ consisting only of consonants (e.g. <literal>pygmy</literal>).
 <section id="complementation"> <title> Complementation </title>
 
 <para>
-     We just saw that the character class
+We just saw that the character class
 &ulcorn;<literal>[b-df-hj-np-tv-z]</literal>&drcorn; allows us to match
 consonants. However, this expression is quite cumbersome. A better
 alternative is to say: let's match anything which isn't a vowel. To do
@@ -666,22 +667,22 @@ this, we need a way of expressing
 <firstterm>complementation</firstterm>. 
 
 <footnote>
-<para>Complementation is a notion drawn from set theory. Let's assume
-that our domain of all objects is the set <varname>U</varname> =
-&lcub;a, b, c, d, e&rcub;, and let V be the set &lcub;a, e&rcub;. Then
-the complement of <varname>V</varname>, often written
-<varname>V</varname>&apos; is the result of <quote>subtracting</quote>
-<varname>V</varname> from <varname>U</varname>; i.e., the set
-<varname>V</varname>&apos; = &lcub;b, c, d &rcub;.</para> </footnote> 
-
-We do this using the symbol <quote><literal>^</literal></quote> as the
-first character within the class expression <literal>[]</literal>. Let's
-look at an example.  &ulcorn;<literal>[^aeiou]</literal>&drcorn; is just
-like our earlier character class, except now the set of vowels is
-preceded by <literal>^</literal>. The expression as a whole is
-interpreted as matching anything which <emphasis>fails</emphasis> to
-match &ulcorn;<literal>[aeiou]</literal>&drcorn;. In other words, it
-matches all consonants.</para>
+<para>Complementation is a notion drawn from set theory.
+Let's assume that our domain of all objects is the set
+<varname>U</varname> = &lcub;a, b, c, d, e&rcub;, and let
+<varname>V</varname> be the set &lcub;a, e&rcub;. Then the complement of
+<varname>V</varname>, often written <varname>V</varname>&apos; is the
+result of <quote>subtracting</quote> <varname>V</varname> from
+<varname>U</varname>; i.e., the set <varname>V</varname>&apos; =
+&lcub;b, c, d &rcub;.</para> </footnote> We do this using the symbol
+<quote><literal>^</literal></quote> as the first character within the
+class expression <literal>[]</literal>. Let's look at an example.
+&ulcorn;<literal>[^aeiou]</literal>&drcorn; is just like our earlier
+character class, except now the set of vowels is preceded by
+<literal>^</literal>. The expression as a whole is interpreted as
+matching anything which <emphasis>fails</emphasis> to match
+&ulcorn;<literal>[aeiou]</literal>&drcorn;. In other words, it matches
+all consonants.</para>
 
 <para>As another example, suppose we want to match any string which is
 enclosed by the HTML tags for boldface, namely <sgmltag class="starttag">B</sgmltag> and
@@ -804,16 +805,20 @@ The Python <application>re</application> module provides a convenient
 interface to an underlying regular expression engine. The module allows a
 regular expression pattern to be compiled into a object whose methods
 can then be called.
-
 </para>
 
+<para>In the next example, we assume that we have  a local copy
+(i.e., <literal>words</literal>) of the Unix dictionary, usually found
+in <file>/usr/dict/words</file> or
+<literal>/usr/share/dict/words</literal>/
+</para>
 
 <programlisting>
 <emphasis># Load the regular expression module:</emphasis> 
 &prompt;<command>from re import *</command> 
 
 <emphasis># Read a big list of words:</emphasis>
-&prompt; <command>words = open('/home/sb/nltk/data/words','r').read()</command> 
+&prompt; <command>words = open('/home/sb/nltk/data/words').read()</command> 
 
 <emphasis># How many words are there?</emphasis>
 &prompt; <command>len(words)</command> 409093 
@@ -827,20 +832,85 @@ can then be called.
 'Waals']
 </programlisting>
 
+<para>Suppose now that we want to find all three-letter words ending in
+the letter <quote><literal>c</literal></quote>. Our first attempt might
+be as follows:
+</para>
 <programlisting>
-<emphasis># Compile a regexp for 3-letter words ending in c</emphasis>
-&prompt; <command>r = compile('.*$')</command> 
+<emphasis># Try to compile a regexp for 3-letter words ending in c</emphasis>
+&prompt; <command>r1 = compile('..c')</command> 
 
 <emphasis># Find all matches</emphasis> 
-&prompt; <command>print
-r.findall(words)</command> ['arc', 'Doc', 'Lac', 'Mac', 'Vic']
+&prompt; <command>print r1.findall(words)</command> 
+['bac', 'duc', 'duc', 'duc', 'duc', 'duc', 'duc', 'duc', 'anc', 'jec',
+'jec', 'jec', 'jec', 'jec', 'eac', 'eac', 'bsc', 'bsc', 'bsc', 'bsc',
+'bsc', 'bsc', 'bsc', 'bsc', 'bsc', 'enc', 'enc', 'enc', 'enc', 'rac',
+'rac', 'rac', 'rac', 'rac', 'rac', 'rac', 'rac', 'rac', 'rac', 'rac',
+'rac', 'anc', 'cac', 'mic', 'mic', ...
 </programlisting>
+<para>The problem is that we have matched three-letter sequences which
+occur <emphasis>anywhere within a word</emphasis>. For example, the
+pattern will match <quote><literal>c</literal></quote> in words like
+<literal>aback</literal>, <literal>Aerobacter</literal> and
+<literal>albacore</literal>. Inspection of the file
+<filename>words</filename> reveals that words are listed one to a
+line. So we might want to revise our pattern so that the match string is
+anchored to the beginning and ends of the line: 
+&ulcorn;<literal>^...$</literal>&drcorn;. However, the
+<filename>words</filename> is read into Python as a single string
+(containing line breaks), and the Python 
+<application>re</application> module interprets
+&ulcorn;<literal>^</literal>&drcorn; as matching only only at the
+beginning of the string as a whole; i.e., in this case, the pattern
+would only try to match against the first word of the file. To deal with
+this, we use the <firstterm>compilation flag</firstterm>
+<literal>MULTILINE</literal> which makes
+&ulcorn;<literal>^</literal>&drcorn; also match at the beginning of each
+line with a string:
+</para>
+<programlisting>
+<emphasis># Compile the regexp so that it is anchored at the beginning
+of lines</emphasis> 
+&prompt;<command>r2 = compile('^..c$',MULTILINE)</command>
+
+&prompt;<command>print r2.findall(words)</command>
+['arc', 'Doc', 'Lac', 'Mac', 'Vic']
+</programlisting>
+
+
+<para>
+In Section <xref linkend="complementation"/>, we briefly looked at the
+task of matching strings which were enclosed by HTML markup. Our first
+attempt is illustrated in  the following code example, where we
+incorrectly match the whole string, rather than just the substring
+<quote><literal><B>important</B></literal></quote>.
+</para>
 
 <programlisting>
-<emphasis># Load the regular expression module:</emphasis>
-
-&prompt;<command></command>
+&prompt;<command>html = '<B>important</B> and <B>urgent</B>'</command>
+&prompt;<command>r2 = compile('<B>.*</B>')</command>
+&prompt;<command>print r3.findall(html)</command>
+['<B>important</B> and <B>urgent</B>']
 </programlisting>
+
+<para>
+As we pointed out, one solution is to use a character class which
+matches with the complement of <quote><literal><</literal></quote>:
+</para>
+<programlisting>
+&prompt;<command>r4 = compile('<B>[^<]*</B>')</command>
+&prompt;<command>print r4.findall(html)</command>
+['<B>important</B>', '<B>urgent</B>']
+</programlisting>
+
+<para>However, there is another way of approaching this problem.
+&ulcorn;<literal>&lt;B&gt;.*&lt;/B&gt;</literal>&drcorn; gets the wrong
+results because the &ulcorn;<literal>*</literal>&drcorn; operator tries
+to consume as much input as possible. That is, the matching is said to
+be <firstterm>greedy</firstterm>. In the current case,
+&ulcorn;<literal>*</literal>&drcorn; matches everything after 
+
+</para>
 
 </section> <!--Python Interface-->
 
@@ -852,9 +922,9 @@ r.findall(words)</command> ['arc', 'Doc', 'Lac', 'Mac', 'Vic']
 <title>Words</title>
 
 <para> There are a number of reasonable ways to represent words in
-    Python.  Perhaps the simplest is as string values, such as
-    <literal>'dog'</literal>; this is how words are typically
-    represented when using NLTK. </para>
+Python.  Perhaps the simplest is as string values, such as
+<literal>'dog'</literal>; this is how words (or more correctly, word
+types) are typically represented when using NLTK. </para>
 
 <programlisting>
     &prompt;<command> words = ['the', 'cat', 'climbed', 'the', 'tree']</command>
@@ -862,8 +932,8 @@ r.findall(words)</command> ['arc', 'Doc', 'Lac', 'Mac', 'Vic']
 </programlisting>
 
 <para> However, NLTK also allows for other representations.  For
-    example, you could store words as integers, with some mapping
-    between integers and words. </para>
+example, you could store words as integers, with some mapping between
+integers and words. </para>
 </section>
 <section> <title> Types and Tokens in NLTK</title>
 <!--
@@ -895,14 +965,18 @@ simply use the terms <glossterm>token</glossterm> and
 <glossterm>type</glossterm>. </para>
 -->
 
-<para> In NLTK, <ulink url="&refdoc;/nltk.token.Token.html"
-      ><literal>Token</literal>s</ulink> are constructed from their
-      types, using the <ulink
-      url="&refdoc;/nltk.token.Token.html#__init__"
-      ><literal>Token</literal> constructor</ulink>, which is defined
-      in the <ulink url="&refdoc;/nltk.token.html"
-      ><literal>nltk.token</literal></ulink> module:</para>
-
+<para> In NLTK, <ulink url="&refdoc;/nltk.token.Token.html">
+<literal>Token</literal>s</ulink> are constructed from their
+corresponding types,
+using the <ulink url="&refdoc;/nltk.token.Token.html#__init__">
+<literal>Token</literal> constructor</ulink>, which is defined in the
+<ulink
+url="&refdoc;/nltk.token.html"><literal>nltk.token</literal></ulink>
+module. The key idea is that a token of, say, a word type in a given text is an
+occurrence of the type at a particular location in the text. In the next
+section, we will explain how text locations are represented in NLTK.
+</para>
+<!--
 <programlisting>
     &prompt;<command> from nltk.token import * </command>
     &prompt;<command> my_word_type = 'dog' </command>
@@ -913,6 +987,7 @@ simply use the terms <glossterm>token</glossterm> and
 
 <para> The reason that the token is displayed this way will be
       explained in the next two sections. </para>
+-->
 
 </section> <!-- Tokens and Types -->
 
@@ -930,9 +1005,9 @@ simply use the terms <glossterm>token</glossterm> and
       and specifies the region of the text beginning at
       <replaceable>s</replaceable>, and including everything up to
       (but not including) the text at <replaceable>e</replaceable>.
-      <ulink url="refdoc;/nltk.token.Location.html"
+      <ulink url="&refdoc;/nltk.token.Location.html"
       ><literal>Locations</literal></ulink> are created using the
-      <ulink url="refdoc;/nltk.token.Location.html#__init__"
+      <ulink url="&refdoc;/nltk.token.Location.html#__init__"
       ><literal>Location</literal> constructor</ulink>, which is
       defined in the <ulink url="&refdoc;/nltk.token.html"
       ><literal>nltk.token</literal></ulink> module:</para>
@@ -948,26 +1023,25 @@ simply use the terms <glossterm>token</glossterm> and
 </programlisting>
 
 <para> Note that a text location does <emphasis>not</emphasis> include
-      the text at its end location.  This convention may seem
-      unintuitive at first, but it has a number of advantages.  It is
-      consistent with Python's slice notation (e.g.,
-      <literal>x[1:3]</literal> specifies elements 1 and 2 of x).
+the text at its end location.  This convention may seem unintuitive at
+first, but it has a number of advantages.  It is consistent with
+Python's slice notation (e.g., <literal>x[1:3]</literal> specifies
+elements 1 and 2 of <literal>x</literal>).
 
-        <footnote><para>But unlike Python slices, text locations do
-        <emphasis>not</emphasis> support negative indexes.</para></footnote>
+<footnote><para>But unlike Python slices, text locations do
+<emphasis>not</emphasis> support negative indexes.</para></footnote> 
 
-      It allows text locations to specify points between tokens,
-      instead of just ranges; for example,
-      <literal>Location(3,3)</literal> specifies the point just before
-      the text at index 3.  And it simplifies arithmetic on indices;
-      for example, the length of <literal>Location(5,10)</literal> is
-      <literal>10-5</literal>, and two locations are contiguous if the
-      start of one equals the end of the other. </para>
+It allows text locations to specify points between tokens, instead of
+just ranges; for example, <literal>Location(3,3)</literal> specifies the
+point just before the text at index 3.  And it simplifies arithmetic on
+indices; for example, the length of <literal>Location(5,10)</literal> is
+<literal>10-5</literal>, and two locations are contiguous if the start
+of one equals the end of the other. </para>
 
-<para> To create a text location specifying the text at a single
-      index, you can use the <literal>Location</literal> constructor
-      with a single argument.  For example, the fourth word in a text
-      could be specified with <literal>loc1</literal>: </para>
+<para> To create a text location specifying the text at a single index,
+you can use the <literal>Location</literal> constructor with a single
+argument.  For example, the fourth word in a text could be specified
+with <literal>loc1</literal>: </para>
 
 <programlisting>
     &prompt;<command> loc1 = Location(4) </command>     <emphasis># location width = 1</emphasis>
@@ -1185,7 +1259,7 @@ simply use the terms <glossterm>token</glossterm> and
       ><literal>nltk.token</literal></ulink> module. </para>
 
 </section>  <!-- Tokens and Locations -->
-</section>  <!-- Words -->
+
 
 <section> <title> Texts </title>
 
@@ -1225,28 +1299,33 @@ simply use the terms <glossterm>token</glossterm> and
      'is'@[3w], 'file.'@[6w], 'test'@[5w]}
 </programlisting>
 
-<note> <para> For example, this representation might be convenient
-    for a search engine which is trying to find all documents
-    containing some keyword. (For more information on why a
-    "<literal>*</literal>" is used in the call to the Set constructor,
-    see the Set tutorial.)  <!-- WRITE THE SET TUTORIAL!! -->
+<note> <para> For example, this representation might be convenient for a
+search engine which is trying to find all documents containing some
+keyword. (For more information on why a "<literal>*</literal>" is used
+in the call to the Set constructor, see the Set tutorial.)  <!-- WRITE
+THE SET TUTORIAL!! -->
 </para> </note>
 
 </section> <!-- Texts -->
 
-<section> <title> Tokenization </title>
+<section> <title>NLTK Tokenizers </title>
 
-<indexterm><primary>tokenization</primary></indexterm>
-<para> As mentioned in the previous section, it is often useful to
-    represent a text as a list of tokens.  The process of breaking a
-    text up into its constituent tokens is known as
-    <glossterm>tokenization</glossterm>.  Tokenization can occur at a
-    number of different levels: a text could be broken up into
-    paragraphs, sentences, words, syllables, or phonemes.  And for any
-    given level of tokenization, there are many different algorithms
-    for breaking up the text.  For example, at the word level, it is
-    not immediately clear how to treat such strings as "can't,"
-    "$22.50," "New York," and "so-called." </para>
+<!-- As mentioned in the previous section, it is often useful to
+represent a text as a list of tokens.  The process of breaking a text up
+into its constituent tokens is known as
+<glossterm>tokenization</glossterm> -->
+
+<para> As we saw in Section <xref
+	linkend="tokenization"/>, tokenization involves breaking a text
+up into its constituent tokens prior to further processing. Tokenization
+in NLTK can occur at a number of different levels: a text could be
+broken up into paragraphs, sentences, words, syllables, or phonemes. And
+for any given level of tokenization, there are many different algorithms
+for breaking up the text.  For example, at the word level, it is not
+immediately clear how to treat such strings as <literal>can't</literal>
+<literal>$22.50</literal> <literal>New York</literal> and
+<literal>so-called</literal>.
+</para>
 
 <para> NLTK defines a general interface for tokenizing texts, the
     <ulink url="&refdoc;/nltk.token.TokenizerI.html"
@@ -1629,7 +1708,7 @@ Plot(points)
 </section> <!-- Word length distributions: freqdist -->
 </section> <!-- Word length distributions example -->
 
-
+</section>  <!-- Tokenization in NLTK -->
 
 &index;
 </article>
@@ -1639,6 +1718,7 @@ Plot(points)
 <!-- Keep this comment at the end of the file
 Local variables:
 mode: xml
+adaptive-fill-mode:nil
 sgml-omittag:nil
 sgml-shorttag:nil
 sgml-namecase-general:nil
