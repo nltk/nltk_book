@@ -222,7 +222,7 @@ to read (each top-level section is a single web-page). -->
     &prompt; <command>chunk_structs = []</command>
     &prompt; <command>for sent in sentences:</command>
     &prompt2; <command>    tokenizer.tokenize(sent)</command>
-    &prompt2; <command>    chunk_structs += TreeToken(NODE='S', CHILDREN=sent['SUBTOKENS'])</command>
+    &prompt2; <command>    chunk_structs.append(TreeToken(NODE='S', CHILDREN=sent['SUBTOKENS']))</command>
     &prompt; <command>print chunk_structs</command>
     [(S: (NP: &lt;Pierre/NNP> &lt;Vinken/NNP>) &lt;,/,> (NP: &lt;61/CD> &lt;years/NNS>) &lt;old/JJ> &lt;,/,>
     &lt;will/MD> &lt;join/VB> (NP: &lt;the/DT> &lt;board/NN>) &lt;as/IN> (NP: &lt;a/DT> &lt;nonexecutive/JJ>
@@ -1139,44 +1139,46 @@ concern NN I-NP
       from the Wall Street Journal tagged files. </para>
 
 <programlisting>
-<emphasis># Import the relevant modules, classes, and functions.</emphasis>
-from nltk.tokenizer import RETokenizer
-from nltk.parser.chunk import *
-from nltk.corpus import treebank
-from nltk.tree import TreeToken
+    <emphasis># Import the relevant modules, classes, and functions.</emphasis>
+    from nltk.tokenizer import RegexpTokenizer
+    from nltk.parser.chunk import *
+    from nltk.corpus import treebank
+    from nltk.tree import TreeToken
 
-<emphasis># Create a sentence tokenizer. </emphasis>
-sent_tokenizer = RETokenizer('(=======+)?\n\n+', negative=1)
+    <emphasis># Create a sentence tokenizer. </emphasis>
+    sent_tokenizer = RegexpTokenizer('(=======+)?\n\n+', negative=1)
         
-<emphasis># Create the chunk parser that we wish to test.</emphasis>
-rule1 = ChunkRule('&lt;DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-chunkparser = REChunkParser([rule1], 'NP', 'S')
+    <emphasis># Create the chunk parser that we wish to test.</emphasis>
+    rule1 = ChunkRule('&lt;DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
+    chunkparser = REChunkParser([rule1], chunk_node='NP', top_node='S')
 
-<emphasis># Read the treebank corpus, and tokenize it into sentences.</emphasis>
-sentences = []
-for item in treebank.items('tagged'): 
-    sentences += treebank.tokenize(item, tokenizer=sent_tokenizer) 
+    <emphasis># Read the treebank corpus, and tokenize it into sentences.</emphasis>
+    sentences = []
+    for item in treebank.items('tagged'): 
+        sentence = treebank.tokenize(item, tokenizer=sent_tokenizer) 
+        sentences += sentence['SUBTOKENS']
 
-<emphasis># Convert each sentence into a chunk structure. </emphasis>
-chunk_structs = []
-chunk_tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')
-for sent in sentences:
-    chunks = chunk_tokenizer.tokenize(sent.type(), source=sent.loc())
-    chunk_structs.append(TreeToken('S', *chunks))
+    <emphasis># Convert each sentence into a chunk structure. </emphasis>
+    chunk_structs = []
+    chunk_tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')
+    for sent in sentences:
+        chunk_tokenizer.tokenize(sent)
+        chunk_structs.append(TreeToken(NODE='S', CHILDREN=sent['SUBTOKENS']))
 
-<emphasis># Create a new ChunkScore utility class</emphasis>
-chunkscore = ChunkScore()
+    <emphasis># Create a new ChunkScore utility class</emphasis>
+    chunkscore = ChunkScore()
 
-<emphasis># Test the chunk parser.</emphasis>
-for chunk_struct in chunk_structs:
-    unchunked = chunk_struct.leaves()
-    guess = chunkparser.parse(unchunked)
-    chunkscore.score(chunk_struct, guess)
+    <emphasis># Test the chunk parser.</emphasis>
+    for chunk_struct in chunk_structs:
+        test = Token(SUBTOKENS=chunk_struct.leaves())
+        chunkparser.parse(test)
+        chunkscore.score(chunk_struct, test['TREE'])
 
-<emphasis># Print the results</emphasis>
-print chunkscore
+    <emphasis># Print the results</emphasis>
+    print chunkscore
 </programlisting>
 
+<!--
     <para>Here's another example of chunking code,
     this time for the CoNLL chunking data.</para>
 
@@ -1217,6 +1219,7 @@ for c_sent in c_sents:
 <emphasis># Print the results</emphasis>
 print chunkscore
 </programlisting>
+-->
 
       <para> The overall results of the evaluation can be viewed by
       printing the <literal>ChunkScore</literal>.  Each evaluation
@@ -1621,8 +1624,8 @@ AbstractChunkRule(r'(&lt;DT>&lt;JJ>*&lt;NN>)', r'{\1}', doc="chunking &lt;DT>&lt
         nouns, then move the left delimiter leftwards:</para>
 
 <programlisting>
-AbstractChunkRule(r'(&lt;NN.*>)', r'{\1}', doc="chunking NN")
-AbstractChunkRule(r'(&lt;DT|JJ>){', r'{\1', right=r'&lt;JJ|NN.*>', doc="shifting delimiter left"
+    AbstractChunkRule(r'(&lt;NN.*>)', r'{\1}', doc="chunking NN")
+    AbstractChunkRule(r'(&lt;DT|JJ>){', r'{\1', right=r'&lt;JJ|NN.*>', doc="shifting delimiter left"
 </programlisting>
 
         <note><para>The second rule is unable to apply to its own output.
@@ -1632,10 +1635,10 @@ AbstractChunkRule(r'(&lt;DT|JJ>){', r'{\1', right=r'&lt;JJ|NN.*>', doc="shifting
         putting everything into its own chunk, then removing chunk boundaries:</para>
 
 <programlisting>
-AbstractChunkRule(r'(&lt;.*>)', r'{\1}', doc="chunking every tag")
-DT_JJ_NNX = r'&lt;DT|JJ|NN.*>'
-AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
-                  doc="chunk any groups of &lt;DT> &lt;JJ> and &lt;NNX>")
+    AbstractChunkRule(r'(&lt;.*>)', r'{\1}', doc="chunking every tag")
+    DT_JJ_NNX = r'&lt;DT|JJ|NN.*>'
+    AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
+                      doc="chunk any groups of &lt;DT> &lt;JJ> and &lt;NNX>")
 </programlisting>
 
     </section> <<<<< Static vs Iterative Chunking >>>>>
@@ -1654,8 +1657,8 @@ AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
       chink the verbs using the following rules:</para>
 
 <programlisting>
-AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
-AbstractChunkRule(r'(&lt;VB.*>)', r'}\1{', doc='chink the verbs')
+    AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
+    AbstractChunkRule(r'(&lt;VB.*>)', r'}\1{', doc='chink the verbs')
 </programlisting>
 
       <para>Note the directionality of the braces in the second argument
