@@ -101,73 +101,6 @@ TO DO:
   <section id="probparse"> 
     <title> Probabilistic Parsers </title>
 
-    <para> NLTK uses <literal>ProbabilisticParserI</literal> to define
-    a general interface for probabilistic parsers.  This interface uses
-    the <literal>ProbabilisticTreeToken</literal> class to associate
-    probabilities with the parses for a text. </para>
-
-    <section id="probparse.probtreetok"> 
-      <title> ProbabilisticTreeTokens </title>
-
-      <para><literal>ProbabilisticTreeToken</literal> is a subclass of
-      <literal>TreeToken</literal> that associates a probability with
-      a tree token.  New <literal>ProbabilisticTreeToken</literal>s are
-      created using the
-      <ulink
-      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#__init__"
-      ><literal>ProbabilisticTreeToken</literal> constructor</ulink>,
-      which takes a probability, a node value, and zero or more
-      children: </para>
-
-<programlisting>
-&prompt; <command>from nltk.token import WSTokenizer</command>
-&prompt; <command>from nltk.tree import *</command>
-          
-<emphasis># Define some text tokens:</emphasis>
-&prompt; <command>words = WSTokenizer().tokenize('He ate my cookie')</command>
-['He'@[0w], 'ate'@[1w], 'my'@[2w], 'cookie'@[3w]]
-
-<emphasis># Define some probabilistic tree tokens: </emphasis>
-&prompt; <command>tree1 = ProbabilisticTreeToken(0.3, 'NP', words[0])</command>
-('NP': 'He')@[0w] (p=0.3)
-&prompt; <command>tree2 = ProbabilisticTreeToken(0.02, 'NP', words[2], words[3])</command>
-('NP': 'my' 'cookie')@[2w:4w] (p=0.02)
-&prompt; <command>tree3 = ProbabilisticTreeToken(0.045, 'VP', words[1], tree2)</command>
-('VP': 'ate' ('NP': 'my' 'cookie'))@[1w:4w] (p=0.045)
-</programlisting>
-
-      <para> The probability associated with a
-      <literal>ProbabilisticTreeToken</literal> is returned by the
-      <ulink url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#p"
-      ><literal>prob</literal></ulink> method:</para>
-
-<programlisting>
-&prompt; <command>print tree1.prob(), tree2.prob(), tree3.prob() </command>
-0.3 0.02 0.045
-</programlisting>
-
-      <para> The <literal>ProbabilisticTreeToken</literal>'s nodes and
-      children can be accessed using the same methods that are used
-      with <literal>TreeToken</literal>s: </para>
-
-<programlisting>
-&prompt; <command>tree1.node()</command>
-'NP'
-&prompt; <command>tree1.children()</command>
-('He'@[0w],)
-&prompt; <command>tree3.leaves()</command>
-('ate'@[1w], 'my'@[2w], 'cookie'@[3w])
-</programlisting>
-
-      <para> See the <ulink url="&tutdoc;/parsing/index.html">parsing
-      tutorial</ulink> or the <ulink
-      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html"
-      ><literal>ProbabilisticTreeToken</literal></ulink> reference
-      documentation for more information on the methods
-      defined by <literal>TreeToken</literal>. </para>
-
-    </section> <!-- ProbabilisticTreeToken -->
-
     <section id="probparse.interface"> 
       <title> The Probabilistic Parser Interface </title>
 
@@ -181,22 +114,18 @@ TO DO:
       url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse"
       ><literal>parse</literal></ulink> and <ulink
       url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse_n"
-      ><literal>parse_n</literal></ulink> are represented with
-      <literal>ProbabilisticTreeToken</literal>s, instead of
-      <literal>TreeToken</literal>s.  The
-      <literal>ProbabilisticTreeToken</literal>s' <literal>prob</literal>
-      method can be used to access the probabilities associated with
-      each parse. </para>
+      ><literal>parse_n</literal></ulink> must define the
+      <literal>PROB</literal> property, specifying each tree's
+      probability. </para>
 
 <programlisting>
 &prompt; <command>pcfg_parser = ViterbiPCFGParser(grammar) </command>
-&prompt; <command>parse = pcfg_parser.parse(words)</command>
-('S': ('NP': 'He') 
-      ('VP': ('V': 'saw') 
-             ('NP': ('Det': my) 
-                    ('N': 'cookie'))))@[0w:4w] (p=0.000282)
-&prompt; <command>parse.prob()</command>
-p=0.000282
+&prompt; <command>pcfg_parser.parse(sent)</command>
+&prompt; <command>print sent['TREE']</command>
+(S: (NP: &lt;John&gt;)
+    (VP: (V: &lt;baked&gt;) (NP: (Det: &lt;some&gt;) (N: &lt;cookies&gt;))
+&prompt; <command>print sent['TREE']['PROB']</command>
+0.000282
 </programlisting>
 
       <para> Second, <literal>ProbabilisticParser</literal>s are
@@ -210,6 +139,9 @@ p=0.000282
 &prompt; <command>pdist = pcfg_parser.parse_dist(words)</command>
 &lt;ProbDist with 1 sample&gt;
 &prompt; <command>pdist.prob(pdist.samples()[0])</command>
+(S: (NP: &lt;John&gt;)
+    (VP: (V: &lt;baked&gt;) (NP: (Det: &lt;some&gt;) (N: &lt;cookies&gt;))
+&prompt; <command>pdist.prob(pdist.samples()[0]['PROB'])</command>
 0.000282
 </programlisting>
 
@@ -630,25 +562,41 @@ CFG with 6 productions (start state = S)
 <programlisting>
 &prompt; <command>from nltk.parser.probabilistic import *</command>
       
-&prompt; <command>text1 = WSTokenizer().tokenize('the dog ate my cookie')</command>
-&prompt; <command>text2 = WSTokenizer().tokenize('I saw John with my cookie')</command>
-
-&prompt; <command>viterbi_parser.parse(text1)</command>
-('S':
-  ('NP': ('Det': 'the') ('N': 'dog'))
-  ('VP': ('V': 'ate') ('NP': ('Det': 'my') 
-                             ('N': 'cookie'))))@[0w:5w] (p=0.00175)
-&prompt; <command>for parse in viterbi_parser.parse_n(text2):</command>
+&prompt; <command>sent1 = Token(sent1='the dog ate my cookie')</command>
+&prompt; <command>WSTokenizer().tokenize(sent1)</command>
+&prompt; <command>viterbi_parser.parse(sent1)</command>
+&prompt; <command>print sent1['TREE'], sent1['TREE']['PROB']</command>
+(S:
+  (NP: (Det: &lt;the&gt;) (N: &lt;dog&gt;))
+  (VP: (V: &lt;ate&gt;) (NP: (Det: &lt;my&gt;) 
+                             (N: &lt;cookie&gt;)))) 0.00175
+      
+&prompt; <command>sent1 = Token(sent1='I saw John with my cookie')</command>
+&prompt; <command>WSTokenizer().tokenize(sent1)</command>
+&prompt; <command>viterbi_parser.parse_n(sent2)</command>
+&prompt; <command>for parse in sent2['TREES']:</command>
+&prompt2; <command>    print parse['PROB']</command>
 &prompt2; <command>    print parse</command>
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP':
-      ('NP': 'John')
-      ('PP':
-        ('P': 'with')
-        ('NP': ('Det': 'my') ('N': 'cookie'))))))@[0w:6w] (p=5.2040625e-05)
+5.2040625e-05      
+(S:
+  (NP: &lt;I&gt;)
+  (VP:
+    (V: &lt;saw&gt;)
+    (NP:
+      (NP: &lt;John&gt;)
+      (PP:
+        (P: &lt;with&gt;)
+        (NP: (Det: &lt;my&gt;) (N: &lt;cookie&gt;))))))
+3.82192874e-08
+(S:
+  (NP: &lt;I&gt;)
+  (VP:
+    (VP:
+      (V: &lt;saw&gt;)
+      (NP: &lt;John&gt;))
+    (PP:
+      (P: &lt;with&gt;)
+      (NP: (Det: &lt;my&gt;) (N: &lt;cookie&gt;)))))
 </programlisting>
 
     <para> The <ulink
@@ -694,14 +642,6 @@ CFG with 6 productions (start state = S)
   Discard: |. [=|=======]| VP -&gt; V NP (p=0.5)       0.0002478
 <emphasis>Finding the most likely constituents spanning 6 text elements...</emphasis>
    Insert: |[=|=========]| S -&gt; NP VP (p=1.0)       0.0000594
-
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('VP': ('V': 'saw') ('NP': 'John'))
-    ('PP':
-      ('P': 'with')
-      ('NP': ('Det': 'my') ('N': 'cookie')))))@[0w:6w] (p=5.9475e-05)
 </programlisting>
 
     <para> The level of tracing output can also be set with an
@@ -1109,32 +1049,43 @@ CFG with 6 productions (start state = S)
 
 <!-- ==== ADD A PARSE_DIST EXAMPLE ==== -->
 <programlisting>
-&prompt; <command>text1 = WSTokenizer().tokenize('the dog ate my cookie')</command>
-&prompt; <command>text2 = WSTokenizer().tokenize('I saw John with my cookie')</command>
-
-&prompt; <command>inside_parser.parse(text1)</command>
-('S':
-  ('NP': ('Det': 'the') ('N': 'dog'))
-  ('VP': ('V': 'ate') ('NP': ('Det': 'my') 
-                             ('N': 'cookie'))))@[0w:5w] (p=0.00175)
-&prompt; <command>for parse in inside_parser.parse_n(text2):</command>
+&prompt; <command>from nltk.parser.probabilistic import *</command>
+      
+&prompt; <command>sent1 = Token(sent1='the dog ate my cookie')</command>
+&prompt; <command>WSTokenizer().tokenize(sent1)</command>
+&prompt; <command>inside_parser.parse(sent1)</command>
+&prompt; <command>print sent1['TREE'], sent1['TREE']['PROB']</command>
+(S:
+  (NP: (Det: &lt;the&gt;) (N: &lt;dog&gt;))
+  (VP: (V: &lt;ate&gt;) (NP: (Det: &lt;my&gt;) 
+                             (N: &lt;cookie&gt;)))) 0.00175
+      
+&prompt; <command>sent1 = Token(sent1='I saw John with my cookie')</command>
+&prompt; <command>WSTokenizer().tokenize(sent1)</command>
+&prompt; <command>inside_parser.parse_n(sent2)</command>
+&prompt; <command>for parse in sent2['TREES']:</command>
+&prompt2; <command>    print parse['PROB']</command>
 &prompt2; <command>    print parse</command>
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('V': 'saw')
-    ('NP':
-      ('NP': 'John')
-      ('PP':
-        ('P': 'with')
-        ('NP': ('Det': 'my') ('N': 'cookie'))))))@[0w:6w] (p=5.2040625e-05)
-('S':
-  ('NP': 'I')
-  ('VP':
-    ('VP': ('V': 'saw') ('NP': 'John'))
-    ('PP':
-      ('P': 'with')
-      ('NP': ('Det': 'my') ('N': 'cookie')))))@[0w:6w] (p=2.081625e-05)
+5.2040625e-05      
+(S:
+  (NP: &lt;I&gt;)
+  (VP:
+    (V: &lt;saw&gt;)
+    (NP:
+      (NP: &lt;John&gt;)
+      (PP:
+        (P: &lt;with&gt;)
+        (NP: (Det: &lt;my&gt;) (N: &lt;cookie&gt;))))))
+3.82192874e-06
+(S:
+  (NP: &lt;I&gt;)
+  (VP:
+    (VP:
+      (V: &lt;saw&gt;)
+      (NP: &lt;John&gt;))
+    (PP:
+      (P: &lt;with&gt;)
+      (NP: (Det: &lt;my&gt;) (N: &lt;cookie&gt;)))))
 </programlisting>
 
     <para> The <ulink
