@@ -9,4 +9,5 @@ pdf:
 ps:
 dvi:
 clean:
+html:
 

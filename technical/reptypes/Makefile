@@ -13,8 +13,6 @@ reptypes.dvi: tree.eps treetoken.eps badtree.eps
 reptypes.dvi: tree-impl.eps treetoken-impl.eps
 reptypes.dvi: containership.eps dependencies.eps
 
-
-
 ##############################################
 ##  You shouldn't have to change anything below here.
 
@@ -28,7 +26,7 @@ dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
 clean:
-	rm -f *.eps *.log *.aux *.dvi *.ps *.toc
+	rm -f *.eps *.log *.aux *.dvi *.ps *.toc *.pdf
 
 # General rules
 %.dvi: %.tex

@@ -16,12 +16,14 @@ DVI := $(REPORTS:=.dvi)
 PS := $(REPORTS:=.ps)
 PDF := $(REPORTS:=.pdf)
 CLEAN := $(REPORTS:=.clean)
+HTML := $(REPORTS:=.html)
 
 all: dvi
 dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
 clean: $(CLEAN)
+html: $(HTML)
 
 %.pdf: %
 	$(MAKE) -C $< pdf
@@ -33,6 +35,7 @@ clean: $(CLEAN)
 	$(MAKE) -C $< dvi
 
 %.clean: %
-	echo $(CLEAN)
 	$(MAKE) -C $< clean
 
+%.html: %
+	$(MAKE) -C $< html

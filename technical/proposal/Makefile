@@ -25,7 +25,7 @@ dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
 clean:
-	rm -f *.eps *.log *.aux *.dvi *.ps *.toc
+	rm -f *.eps *.log *.aux *.dvi *.ps *.toc *.pdf
 
 # General rules
 %.dvi: %.tex
