@@ -115,8 +115,7 @@ $(PDF): $(DOCBOOK) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
 	     -c $(DOCBOOK_CATALOG) \
 	     $(XML_DECL) $(DOCBOOK)
-	$(PDFJADETEX)|
-	      ../$(XML_DECL) ../$(DOCBOOK)) | $(TEX) > $(TEMP) || \
+	$(PDFJADETEX) $(TEX) > $(TEMP) || \
 	        (cat $(TEMP); rm $(TEMP); false)
 	rm $(TEMP)
 	$(PDFJADETEX) $(TEX) >/dev/null
