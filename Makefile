@@ -20,9 +20,9 @@ WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 REFDOC_DIR = reference
 CONTRIB_REFDOC_DIR = contrib_ref
 
-# Options for epydoc.  Consider switching to --inheritance=included
-# later.
-EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL)
+# Options for epydoc.
+EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL) \
+               --inheritance=included
 EPYDOC_CONTRIB_OPTS = -n nltk_contrib -u $(NLTK_URL) \
                       --navlink "nltk $(NLTK_VERSION): Contributions"
 
@@ -41,9 +41,10 @@ WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
 # Python script to generate webpage indices
 INDEXGEN = ../src/webpage_index.py
 
-# Python executable and Epydoc executables.
-PYTHON = python
-EPYDOC = epydoc
+# Python and Epydoc executables.
+# Make sure we use python2.3 for both.
+PYTHON = python2.3
+EPYDOC = python2.3 `which epydoc`
 
 ############################################################
 ##  You shouldn't have to change anything below here.
