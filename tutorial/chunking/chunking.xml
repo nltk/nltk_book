@@ -21,10 +21,10 @@ section hierarchy.  I think this may make the web version easier
 to read (each top-level section is a single web-page). -->
 <article>
   <articleinfo>
-    <author><firstname>Edward</firstname><surname>Loper</surname></author>
-    <authorinitials>edl</authorinitials>
     <author><firstname>Steven</firstname><surname>Bird</surname></author>
     <authorinitials>sb</authorinitials>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
     <title>NLTK Tutorial: Chunking</title>
     &copyright;
   </articleinfo>
@@ -51,10 +51,9 @@ to read (each top-level section is a single web-page). -->
     <glossterm>partial parsing</glossterm>, or <glossterm>light parsing</glossterm>.
     </para>
 
-<figure id="segmentation"><title>Segmentation and Labelling at both the
+<figure id="segmentation" float="1"><title>Segmentation and Labelling at both the
 Token and Chunk Levels</title>
-<informaltable>
-<tgroup cols="1"><tbody><row><entry>
+<informaltable><tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/segmentation" scale="30"/>
 </entry></row></tbody></tgroup></informaltable>
 </figure>
@@ -159,7 +158,7 @@ gave NP to NP
     example of this scheme is shown in <xref linkend="tagrep"></xref>.
     </para>
 
-<figure id="tagrep"><title>Tag Representation of Chunk Structures</title>
+<figure id="tagrep" float="1"><title>Tag Representation of Chunk Structures</title>
 <informaltable>
 <tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/tagrep" scale="30"/>
@@ -173,7 +172,7 @@ gave NP to NP
     representation of chunks.
     </para>
 
-<figure id="treerep"><title>Tree Representation of Chunk Structures</title>
+<figure id="treerep" float="1"><title>Tree Representation of Chunk Structures</title>
 <informaltable>
 <tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/treerep" scale="30"/>
@@ -231,6 +230,9 @@ gave NP to NP
   (NP: <the/DT> <mat/NN>))
 ]]></programlisting>
     
+  <section>
+    <title>Reading chunk structures from bracketed text</title>
+
       <para> We can obtain a larger quantity of chunked text from
       the tagged Wall Street Journal in the Penn Treebank corpus.
       NLTK includes a sample of this corpus, and it can be accessed
@@ -280,13 +282,17 @@ gave NP to NP
 >>> tree.draw()
 ]]></programlisting>
 
+  </section>
 
-    <section id="ConllChunkedTokenizer">
-      <title> The CoNLL Chunking Tokenizer </title>
+    <section id="BIO">
+      <title> Reading chunked text from BIO-tagged data </title>
 
-    <para> Using the <literal>nltk.corpus</literal> module we can load the
-    CoNLL chunking data and tokenize it into sentences.  Each sentence is
-    a multiline string such as the following:
+    <para> Using the <literal>nltk.corpus</literal> module we can load
+    files that have been chunked using the BIO (<literal>BEGIN/INSIDE/OUTSIDE</literal>)
+    notation, such as that provided by the evaluation competitions run
+    by CoNLL, the <emphasis>Conference on Natural Language Learning</emphasis>.
+    In the CoNLL format, each sentence is represented in a file as a
+    multiline string, as shown below:
     </para>
 
 <programlisting><![CDATA[
@@ -312,11 +318,11 @@ concern NN I-NP
     <literal>B</literal> (begin), <literal>I</literal> (inside) or
     <literal>O</literal> (outside), and the chunk type
     <literal>NP</literal>, <literal>VP</literal> or <literal>PP</literal>.
-    The <literal>ConllChunkedTokenizer</literal> parses this information
-    into a chunk structure.  Its initializer permits the selection of one or
-    more chunk types to be included.  The following example produces only
-    <literal>NP</literal> chunks.  The default (no argument) includes all
-    three kinds of chunk.
+    The <literal>ConllTokenReader</literal> parses this information
+    into a chunk structure.  Moreover, it permits us to choose any
+    subset of the three chunk types to use (by default it includes all
+    three).
+    The following example produces only <literal>NP</literal> chunks.
     </para>
 
 <programlisting><![CDATA[
@@ -341,162 +347,116 @@ concern NN I-NP
   <./.>)
 ]]></programlisting>
 
-    </section> <!-- The CoNLL Chunking Tokenizer -->
+    </section> <!-- BIO tagging -->
 
   </section> <!-- The Chunking Tokenizer -->
 
   <section id="RegexpChunkParser">
     <title> Chunking with Regular Expressions </title>
 
-    <para> For the remainder of this tutorial, we will examine 
-    <ulink url="&refdoc;/nltk.parser.chunk.RegexpChunkParser-class.html"
-    ><literal>RegexpChunkParser</literal></ulink>.  This chunk parser uses
-    a sequence of regular expression based
-    <glossterm>rules</glossterm> to chunk a tagged text. </para>
-
-    <note> <para> <literal>RegexpChunkParser</literal>
-    <emphasis>only</emphasis> works on tagged texts; if you need to
-    chunk an untagged text, then you should either use a tagger to tag
-    it first; or use a different chunk parser. </para>
-    </note>
+    <para> Earlier we noted that chunking builds flat (or non-nested)
+    structures.  In practice, the extents of text to be chunked are
+    identified using regular expressions over sequences of part-of-speech
+    tags.  In NLTK provides a regular expression chunk parser,
+    <literal>RegexpChunkParser</literal> to define the kinds of chunk
+    we are interested in, and then to chunk a tagged text.
+    </para>
 
     <para> <literal>RegexpChunkParser</literal> works by manipulating a
-    <glossterm>chunking hypothesis</glossterm>, which records a
-    particular chunking of the text:</para>
+    <glossterm>chunk structure</glossterm>, which represents a
+    particular chunking of the text.  The chunk parser begins
+    with a structure in which no tokens are chunked.  Each
+    regular-expression pattern (or <emphasis>chunk rule</emphasis>)
+    is applied in turn, successively updating the chunk structure.
+    Once all of the rules have been applied, the resulting chunk
+    structure is stored in the specified property of the token.
+    </para>
 
-    <orderedlist>
-      <listitem> <para> The <literal>RegexpChunkParser</literal> begins
-      with a chunking hypothesis where no tokens are chunked. </para>
-      </listitem>
-      <listitem> <para> Each rule is then applied, in turn, to the
-      chunking hypothesis.  Applying a rule to a chunking hypothesis
-      updates the chunking encoded by the hypothesis. </para>
-      </listitem>
-      <listitem> <para> After the all of the rules have been applied,
-      the chunk structure corresponding to the final chunking
-      hypothesis is returned. </para>
-      </listitem>
-    </orderedlist>
+    <para>
+    Chunk rules are defined in terms of regular expression patterns
+    over "tag strings."  A <glossterm>tag string</glossterm> is a
+    string consisting of tags, delimited with angle-brackets, e.g.:
+    <literal>&lt;DT>&lt;JJ>&lt;NN>&lt;VBD>&lt;DT>&lt;NN></literal>.
+    (Note that tag strings do not contain any whitespace.)
+    Chunk rules are defined using a special kind of regular
+    expression pattern, called a <glossterm>tag pattern</glossterm>.
+    Tag patterns are identical to the regular expression patterns
+    we have already seen, except for three differences which
+    make them easier to use for chunk parsing.  First,
+    The angle brackets group their contents into atomic units,
+    so "<literal>&lt;NN>+</literal>" matches one or more repetitions of
+    "<literal>&lt;NN></literal>"; and "<literal>&lt;NN|JJ></literal>"
+    matches "<literal>&lt;NN></literal>" or
+    "<literal>&lt;JJ></literal>."  Second, the period wildcard
+    operator is constrained not to cross tag boundaries, so that
+    "<literal>&lt;NN.*&gt;</literal>" matches any single tag
+    starting with "<literal>NN</literal>."  Finally,
+    whitespace is ignored in tag patterns, so
+    "<literal>&lt;DT&gt; | &lt;NN&gt;</literal>" is equivalent to
+    "<literal>&lt;DT&gt;|&lt;NN&gt;</literal>".  This allows
+    tag patterns to be formatted to improve readability.
+    </para>
+        
+    <para> Now that we can define tag patterns, it is a
+    straightforward matter to set up an NLTK chunk parser.
+    The simplest type of rule is <literal>ChunkRule</literal>.  This
+    chunks anything that matches a given tag pattern.
+    The <literal>ChunkRule</literal> constructor takes a
+    tag pattern and a description string.  Here is a rule
+    which chunks sequences consisting of one or more words
+    tagged as <literal>DT</literal> or <literal>NN</literal>
+    (i.e. determiners and nouns).
+    </para>
 
-    <para> New <literal>RegexpChunkParser</literal>s are constructed from
-    a list of rules, using the <ulink
-    url="&refdoc;/nltk.parser.chunk.RegexpChunkParser-class.html#__init__"
-    ><literal>RegexpChunkParser</literal> constructor</ulink>.  Optional
-    second and third arguments to the constructor specify the node
-    labels for chunks and for the top-level node, respectively:</para>
+<programlisting><![CDATA[
+>>> rule = ChunkRule('<DT|NN>+',
+...                  'Chunk sequences of DT and NN')
+]]></programlisting>
+
+    <para> Now we can define a <literal>RegexpChunkParser</literal>
+    based on this rule as follows:</para>
 
 <programlisting><![CDATA[
 # Construct a new noun-phrase chunk parser
->>> rules = [rule1, rule2, rule3] 
->>> chunkparser = RegexpChunkParser(rules, chunk_node='NP', top_node='S')
+>>> chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S')
 ]]></programlisting>
 
-    <note> <para> The following sections discuss how to construct
-    rules. </para>
-    </note>
-
-    <para> Tagged texts are chunked using the 
-    <ulink url="&refdoc;/nltk.parser.chunk.RegexpChunkParser-class.html#parse"
-    ><literal>parse</literal></ulink> method:</para>
-
-<programlisting><![CDATA[
->>> text = "the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN"
->>> sent = TaggedTokenReader().read_token(text)
->>> chunkparser.parse(sent)
->>> print sent
-(S: (NP: <the/DT> <little/JJ> <cat/NN>)
-    <sat/VBD> <on/IN>
-    (NP: <the/DT> <mat/NN>))
-]]></programlisting>
-
-  <section id="RegexpChunkParser.TagString">
-    <title> Tag Strings and Tag Patterns </title>
-
-    <para> <literal>RegexpChunkParser</literal>
-    rules are defined in terms of regular expression patterns
-    over "tag strings."  A <glossterm>tag string</glossterm> is a
-    string consisting of angle-bracket delimited tag names.  An example
-    of a <glossterm>tag string</glossterm> is: </para>
-
-<screen>
-&lt;DT>&lt;JJ>&lt;NN>&lt;VBD>&lt;DT>&lt;NN>
-</screen>
-      
-    <note>
-      <para> Tag strings do not contain any whitespace. </para>
-    </note>
-
-    <para> Most rules are defined using a special kind of regular
-    expression pattern, called a <glossterm>tag pattern</glossterm>.
-    Tag patterns are identical to <literal>re</literal> regular
-    expression patterns in most respects; however, there are a few
-    differences, which are intended to simplify their use with
-    <literal>RegexpChunkParser</literal>s:</para>
-
-    <itemizedlist>
-      <listitem>
-        <para> In tag patterns, "&lt;" and "&gt;" act like grouping
-        parentheses; so the tag pattern
-        "<literal>&lt;NN&gt;+</literal>" matches one or more repetitions of
-        "<literal>&lt;NN&gt;</literal>"; and "<literal>&lt;NN|JJ&gt;</literal>"
-        matches "<literal>&lt;NN&gt;</literal>" or
-        "<literal>&lt;JJ&gt;</literal>."</para>
-      </listitem>
-      <listitem>
-        <para> Whitespace in tag patterns is ignored; so
-        "<literal>&lt;DT&gt; | &lt;NN&gt;</literal>" is equivalent to
-        "<literal>&lt;DT&gt;|&lt;NN&gt;</literal>".  This allows you to make your
-        tag patterns easier to read by inserting whitespace in
-        appropriate places. </para>
-      </listitem>
-      <listitem>
-        <para>In tag patterns "<literal>.</literal>" is equivalent to
-        "<literal>[^{}&lt;&gt;]</literal>"; so "<literal>&lt;NN.*&gt;</literal>"
-        matches any single tag starting with
-        "<literal>NN</literal>."  (The use of <literal>{</literal> and
-        <literal>}</literal> will be explained later.)</para>
-      </listitem>
-    </itemizedlist>
-        
-  </section> <!-- Tag Strings & Tag Patterns -->
-
-  <section id="chunkrule"> <title> Chunk rules </title>
-
-    <para> The simplest type of rule is 
-    <ulink url="&refdoc;/nltk.parser.chunk.ChunkRule-class.html"
-    ><literal>ChunkRule</literal></ulink>.  A
-    <literal>ChunkRule</literal> chunks anything that matches a given
-    tag pattern.  <literal>ChunkRule</literal>s are created with the
-    <ulink url="&refdoc;/nltk.parser.chunk.ChunkRule-class.html#__init__"
-    ><literal>ChunkRule</literal> constructor</ulink>, which takes a
-    tag pattern and a description string.  For example, the following
-    code creates and uses an <literal>RegexpChunkParser</literal> that
-    chunks any sequence of tokens whose tags are all
-    "<literal>NN</literal>" or "<literal>DT</literal>": </para>
-
-<programlisting><![CDATA[
->>> rule1 = ChunkRule('<NN|DT>+',
-...                   'Chunk sequences of NN and DT')
->>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
->>> chunkparser.parse(sent)
->>> print sent['TREE']
-(S: (NP: <the/DT>)
-    <little/JJ>
-    (NP: <cat/NN>)
-    <sat/VBD> <on/IN>
-    (NP: <the/DT> <mat/NN>))
-]]></programlisting>
-
-      <note><para> Each rule must have a "description" associated with it,
+    <para>
+    Note that the constructor has optional second and third arguments
+    thatspecify the node labels for chunks and for the top-level node,
+    respectively.  Now we can use this to chunk a tagged sentence,
+    as illustrated by the complete program in Figure
+    <xref linkend="chunk-simple"/>.
+      <footnote><para> Each rule must have a "description" associated with it,
       which provides a short explanation of the purpose or the effect
       of the rule.  This description is accessed via the 
-      <ulink url="&refdoc;/nltk.parser.chunk.RegexpChunkParserRule-class.html#descr"
-      ><literal>descr</literal></ulink> method: </para></note>
+      <literal>descr()</literal> method. </para></footnote>
+    </para>
 
+<figure id="chunk-simple" float="1"><title>Simple Chunking in NLTK</title>
 <programlisting><![CDATA[
->>> print rule1.descr()
-'Chunk sequences of NN and DT'
+>>> from nltk.tokenreader.tagged import *
+>>> from nltk.parser.chunk import *
+
+>>> sent = "the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN"
+>>> reader = TaggedTokenReader(SUBTOKENS='WORDS')
+>>> sent_token = reader.read_token(sent)
+
+>>> rule = ChunkRule('<NN|DT>+',
+...                  'Chunk sequences of NN and DT')
+>>> parser = RegexpChunkParser([rule], SUBTOKENS='WORDS',
+...                            chunk_node='NP', top_node='S')
+>>> parser.parse(sent_token)
+>>> print sent_token['TREE']
+(S:
+  (NP: <the/DT>)
+  <little/JJ>
+  (NP: <cat/NN>)
+  <sat/VBD>
+  <on/IN>
+  (NP: <the/DT> <mat/NN>))
 ]]></programlisting>
+</figure>
 
     <para> We can also use more complex tag patterns.  The following
     code chunks any sequence of tokens beginning with an optional
@@ -508,8 +468,8 @@ concern NN I-NP
 >>> rule1 = ChunkRule('<DT>?<JJ.*>*<NN.*>',
 ...                   'Chunk optional det, zero or more adj, and a noun')
 >>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
->>> chunkparser.parse(sent)
->>> print sent['TREE']
+>>> chunkparser.parse(sent_token)
+>>> print sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
   <sat/VBD> <on/IN>
   (NP: <the/DT> <mat/NN>))
@@ -527,17 +487,18 @@ concern NN I-NP
 >>> nouns = TaggedTokenReader().read_token(text)
 >>> rule1 = ChunkRule('<NN><NN>',
 ...                   'Chunk two consecutive nouns')
->>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
->>> chunkparser.parse(nouns)
->>> print nouns
+>>> parser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
+>>> parser.parse(nouns)
+>>> print nouns['TREE']
 (S: (NP: <dog> <cat>) <mouse>)
 ]]></programlisting>
 
-    </section> <!-- ChunkRule -->
+  </section> <!-- RegexpChunkParser intro -->
 
-    <section id="chunkrule.tracing"> <title> Tracing </title>
+  <section id="chunkrule.developing"> <title> Developing Chunk Parsers </title>
 
-      <para> The <literal>RegexpChunkParser</literal> constructor takes an
+      <para> 
+      The <literal>RegexpChunkParser</literal> constructor takes an
       optional "<literal>trace</literal>" argument, which specifies whether
       debugging output should be shown during parsing.  This output
       shows the rules that are applied, and shows the chunking
@@ -547,7 +508,7 @@ concern NN I-NP
 >>> rule1 = ChunkRule('<DT>?<JJ.*>*<NN.*>',
 ...                   'Chunk optional det, zero or more adj, and a noun')
 >>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S', trace=1)
->>> chunkparser.parse(sent)
+>>> chunkparser.parse(sent_token)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk optional det, zero or more adj, and a noun:
@@ -587,7 +548,7 @@ Chunk optional det, zero or more adj, and a noun:
 >>> chunkparser = RegexpChunkParser([rule1, rule2], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk det+adj+noun:
@@ -595,7 +556,7 @@ Chunk det+adj+noun:
 Chunk sequences of NN and DT:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 
->>> print sent['TREE']
+>>> print sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
       <sat/VBD> <on/IN>
       (NP: <the/DT> <mat/NN>))
@@ -611,14 +572,14 @@ Chunk sequences of NN and DT:
 >>> chunkparser = RegexpChunkParser([rule2, rule1], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk sequences of NN and DT:
                {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
 Chunk det+adj+noun:
                {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
->>> print sent['TREE']
+>>> print sent_token['TREE']
 (S: (NP: <the/DT>)
       <little/JJ>
       (NP: <cat/NN>)
@@ -631,7 +592,6 @@ Chunk det+adj+noun:
       with chunks that were already in the hypothesis. </para>
 
     </section> <!-- Tracing -->
-  </section> <!-- RegexpChunkParser intro -->
 
   <section id="more_rules">
     <title> More Chunking Rules </title>
@@ -727,7 +687,7 @@ Chunk det+adj+noun:
 >>> chunkparser = RegexpChunkParser([chunkall_rule, chink_rule], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk everything:
@@ -735,6 +695,7 @@ Chunk everything:
 Chink sequences of VBD and IN:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 
+>>> prnt sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
       <sat/VBD> <on/IN>
       (NP: <the/DT> <mat/NN>))
@@ -747,7 +708,7 @@ Chink sequences of VBD and IN:
         <literal>RegexpChunkParser</literal>s can use any number of
         <literal>ChunkRule</literal>s and
         <literal>ChinkRules</literal>, in any order.  As was discussed
-        in the <xref linkend="chunkrule"></xref>,
+        in the <xref linkend="RegexpChunkParser"></xref>,
         <literal>ChunkRule</literal>s only create chunks that do not
         partially overlap with chunks already in the chunking
         hypothesis.  Similarly, <literal>ChinkRule</literal>s only
@@ -791,14 +752,14 @@ Chink sequences of VBD and IN:
 >>> chunkparser = RegexpChunkParser([chunk_rule, unchunk_rule], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk sequences of NN, JJ, and DT:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 Unchunk sequences of NN and DT:
            {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
->>> print sent['TREE']
+>>> print sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
     <sat/VBD>
     <on/IN>
@@ -820,14 +781,14 @@ Unchunk sequences of NN and DT:
 >>> chunkparser = RegexpChunkParser([chunk_rule, chink_rule], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk sequences of NN, JJ, and DT:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 Chink sequences of NN and DT:
                 <DT> {<JJ>} <NN>  <VBD>  <IN>  <DT>  <NN> 
->>> print sent['TREE']
+>>> print sent_token['TREE']
 (S: <the/DT>
     (NP: <little/JJ>)
     <cat/NN>
@@ -906,7 +867,7 @@ Chink sequences of NN and DT:
 >>> chunkparser = RegexpChunkParser(rules, chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
 Chunk all individual tokens:
@@ -915,7 +876,7 @@ Unchunk VBs and INs:
                {<DT>}{<JJ>}{<NN>} <VBD>  <IN> {<DT>}{<NN>}
 Merge NNs + DTs + JJs:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
->>> print sent
+>>> print sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
     <sat/VBD> <on/IN>
     (NP: <the/DT> <mat/NN>))
@@ -981,14 +942,14 @@ Merge NNs + DTs + JJs:
 >>> chunkparser = RegexpChunkParser([chunk_rule, split_rule], chunk_node='NP', top_node='S')
 
 # Parse sent with tracing turned on.
->>> chunkparser.parse(sent, trace=1)
+>>> chunkparser.parse(sent_token, trace=1)
 Input:
                <NNP>  <VBD>  <DT>  <NN>  <DT>  <NN>  <VBD> 
 Chunk sequences of NN, JJ, and DT:
               {<NNP>} <VBD> {<DT>  <NN>  <DT>  <NN>} <VBD> 
 Split NN followed by DT:
               {<NNP>} <VBD> {<DT>  <NN>}{<DT>  <NN>} <VBD> 
->>> print sent['TREE']
+>>> print sent_token['TREE']
 (S: (NP: <Bob/NNP>) 
     <saw/VBD>
     (NP: <the/DT> <man/NN>)
