@@ -36,11 +36,25 @@
 ;; Call: jade -d docbook-utils.dsl#print
 
 ; === Page layout ===
-;; (define %paper-type% "A4")		;; use A4 paper - comment this out if needed
+
+;;;; use A4 paper - comment this out if needed
+;; (define %paper-type% "A4") 
+
+;; Alternate which side the headers are on.  This doesn't seem to work.
+(define %two-side% #t)
+
+;; Decrease the indentation for section contents.
+(define %body-start-indent% 2pi)
+
+;; Place footnotes at the bottom of the page.
+(define bop-footnotes #t)
 
 ; === Media objects ===
-(define preferred-mediaobject-extensions  ;; this magic allows to use different graphical
-   (list "eps"))			;;   formats for printing and putting online
+
+;; this magic allows to use different graphical formats for printing
+;; and putting online
+(define preferred-mediaobject-extensions  
+   (list "eps"))			
 (define acceptable-mediaobject-extensions
    '())
 (define preferred-mediaobject-notations
@@ -49,18 +63,28 @@
    (list "linespecific"))
 
 ; === Rendering ===
-(define %head-after-factor% 0.2)	;; not much whitespace after orderedlist head
-(define ($paragraph$)			;; more whitespace after paragraph than before
+
+;; not much whitespace after orderedlist head
+(define %head-after-factor% 0.2)
+
+;; more whitespace after paragraph than before
+(define ($paragraph$)
   (make paragraph
     first-line-start-indent: (if (is-first-para)
                                  %para-indent-firstpara%
                                  %para-indent%)
-    space-before: (* %para-sep% 4)
+    space-before: (* %para-sep% 2)
     space-after: (/ %para-sep% 4)
     quadding: %default-quadding%
     hyphenate?: %hyphenation%
     language: (dsssl-language-code)
     (process-children)))
+
+; === Other options (see sgml/docbook/docbook-dsssl-1.78/print/dbparam.dsl ===
+
+;; Don't list URLs (mainly of ref docs); they clutter up the text.
+(define %show-ulinks% #f) 
+
 
     </STYLE-SPECIFICATION-BODY>
   </STYLE-SPECIFICATION>
