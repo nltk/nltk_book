@@ -19,13 +19,17 @@ PS := $(REPORTS:=.ps)
 PDF := $(REPORTS:=.pdf)
 CLEAN := $(REPORTS:=.clean)
 HTML := $(REPORTS:=.html)
+ALL := $(REPORTS:=.all)
 
-all: html
+all: $(ALL)
 dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
 clean: $(CLEAN)
 html: $(HTML)
+
+%.all: %
+	$(MAKE) -C $< all
 
 %.pdf: %
 	$(MAKE) -C $< pdf
