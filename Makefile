@@ -26,7 +26,7 @@ EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL)
 STATIC_HTML_DIR = webpage
 
 # The output location for the constructed webpage.
-WEBPAGE_DIR = html/
+WEBPAGE_DIR = built_webpage/
 WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
@@ -153,12 +153,15 @@ _copy_psets:
 _erase_webpage_dir:
 	rm -rf $(WEBPAGE_DIR)/*
 
+_erase_cvs:
+	rm -rf $(WEBPAGE_DIR)/CVS
+
 _webpage: _erase_webpage_dir \
 	  $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
           $(WEBPAGE_TECH_DIR_EXISTS) $(WEBPAGE_PSET_DIR_EXISTS) \
           $(WEBPAGE_TUTORIAL_DIR_EXISTS) \
           _copy_static _copy_technical _copy_tutorial _copy_reference \
-	  _copy_psets
+	  _copy_psets _erase_cvs
 
 web: webpage
 html: webpage
