@@ -9,7 +9,7 @@
 
 ##############################################
 ##  A list of all the technical reports
-REPORTS = probability introduction advpython
+REPORTS = probability introduction advpython tagging
 
 ##############################################
 ##  You shouldn't have to change anything below here.
