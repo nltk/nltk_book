@@ -51,7 +51,7 @@ EPYDOC = epydoc
 # The Python source files for which reference documentation should
 # be built.
 SOURCES = $(shell find ../src/nltk -name '*.py')
-CONTRIB_SOURCES = $(shell find ../src/nltk_contrib -name '*.py')
+CONTRIB_SOURCES = $(shell find ../contrib/nltk_contrib -name '*.py')
 
 # Find the tutorial documents & technical documents.
 TUTORIAL_DOCS = $(basename $(notdir $(wildcard tutorial/*/*.info)))
@@ -125,7 +125,7 @@ $(REFDOC_UPTODATE): $(REFDOC_DIR_EXISTS) $(SOURCES)
 $(CONTRIB_REFDOC_UPTODATE): $(CONTRIB_REFDOC_DIR_EXISTS) $(CONTRIB_SOURCES)
 	rm -rf $(CONTRIB_REFDOC_DIR)/*
 	$(EPYDOC) $(EPYDOC_CONTRIB_OPTS) -o $(CONTRIB_REFDOC_DIR) \
-	       ../src/nltk_contrib
+	       ../contrib/nltk_contrib
 	touch $(CONTRIB_REFDOC_UPTODATE)
 
 ##//////////////////////////////////////////////////
