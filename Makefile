@@ -130,7 +130,7 @@ _copy_reference:
 
 _copy_psets:
 	@echo "[Copying problem sets]"
-	@$(PYTHON) $(INDEXGEN) psets psets \
+	@$(PYTHON) $(INDEXGEN) psets ../psets \
 	       $(WEBPAGE_PSET_DIR)/index.html
 
 _webpage: $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
