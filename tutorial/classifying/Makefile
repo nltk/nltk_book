@@ -15,7 +15,7 @@ REPORT = classifying
 ##  The name of the html index file.  If the main element
 ##  has an id, then it's based on that; otherwise, it's t1.html
 ##  for articles, and book1.html for books.
-HTMLINDEX = t1.html
+HTMLINDEX = book1.html
 
 ##############################################
 ##  Programs and DSSSLs; change these if necessary.
