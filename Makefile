@@ -11,19 +11,18 @@
 WEBHOST_NAME = shell.sf.net
 WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 
-# The Python source files for which reference documentation should be
-# built.
-SOURCES = ../src/nltk/*.py ../src/nltk/*/*.py 
-
-# Output directory for reference documentation
+# (Local) output directory for reference documentation
 REFDOC_DIR = reference
+
+# Options for epydoc.  Add "-p" to include private objects.
+EPYDOC_OPTS = -vv -n nltk -u http://nltk.sf.net
 
 # The location of extra (static) html files to include in the
 # webpage.
 STATIC_HTML_DIR = webpage
 
 # The output location for the constructed webpage.
-WEBPAGE_DIR = html
+WEBPAGE_DIR = html/
 WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
@@ -32,24 +31,25 @@ WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
 # Python script to generate webpage indices
 INDEXGEN = ../src/webpage_index.py
 
-# Python executable and Epydoc executable.
+# Python executable and Epydoc executables.
 PYTHON = python
 EPYDOC = epydoc
-
-# Options for epydoc.  Add "-p" to include private objects.
-EPYDOC_OPTS = -v -n nltk -u http://nltk.sf.net
-
-# Find the tutorial documents & technical documents.
-TUTORIAL_DOCS = $(shell cd tutorial;ls */*.info |sed 's/[/][^/]*\.info//')
-TECHNICAL_DOCS = $(shell cd technical;ls */*.info |sed 's/[/][^/]*\.info//')
 
 ############################################################
 ##  You shouldn't have to change anything below here.
 ############################################################
 
+# The Python source files for which reference documentation should
+# be built.
+SOURCES = $(wildcard ../src/nltk/*.py ../src/nltk/*/*.py)
+
+# Find the tutorial documents & technical documents.
+TUTORIAL_DOCS = $(basename $(notdir $(wildcard tutorial/*/*.info)))
+TECHNICAL_DOCS = $(basename $(notdir $(wildcard technical/*/*.info)))
+
 # Declare phony targets
 .PHONY: all usage help clean tutorial misc technical reference
-.PHONY: webpage
+.PHONY: webpage html
 
 all: tutorial misc technical reference
 
@@ -65,7 +65,7 @@ help:
 	@echo "    make technical -- Build technical documentation"
 	@echo "    make reference -- Build reference documentation"
 	@echo
-	@echo "    make webpage   -- Build the web page"
+	@echo "    make webpage   -- Build the web page (in $(WEBPAGE_DIR))"
 	@echo "    make xfer      -- Build the web page and upload it"\
 	                            "to $(WEBHOST_NAME)"
 	@echo
@@ -87,6 +87,10 @@ WEBPAGE_TECH_DIR_EXISTS = $(WEBPAGE_TECH_DIR)/.exists
 WEBPAGE_TUTORIAL_DIR_EXISTS = $(WEBPAGE_TUTORIAL_DIR)/.exists
 WEBPAGE_PSET_DIR_EXISTS = $(WEBPAGE_PSET_DIR)/.exists
 
+# Keep track of whether the refdocs are up to date, so we don't
+# have to rebuild them.
+REFDOC_UPTODATE = $(REFDOC_DIR)/.uptodate
+
 ##//////////////////////////////////////////////////
 ##  Basic Documentation types.
 
@@ -99,9 +103,11 @@ misc:
 technical:
 	$(MAKE) -C technical all
 
-reference: $(REFDOC_DIR_EXISTS)
-	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) \
-	       $(SOURCES)
+reference: $(REFDOC_UPTODATE)
+
+$(REFDOC_UPTODATE): $(REFDOC_DIR_EXISTS) $(SOURCES)
+	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) $(SOURCES)
+	touch $(REFDOC_UPTODATE)
 
 ##//////////////////////////////////////////////////
 ##  Web page generation
@@ -114,7 +120,7 @@ _copy_tutorial: $(TUTORIAL_DOCS)
 $(TUTORIAL_DOCS): 
 	@cp -R tutorial/$@/$@ $(WEBPAGE_TUTORIAL_DIR)
 	@cp tutorial/$@/$@.pdf $(WEBPAGE_TUTORIAL_DIR)
-	@ln -s ../../stylesheet-images $(WEBPAGE_TUTORIAL_DIR)/$@
+	@ln -f -s ../../stylesheet-images $(WEBPAGE_TUTORIAL_DIR)/$@ 
 
 .PHONY: $(TECHNICAL_DOCS)
 _copy_technical: $(TECHNICAL_DOCS)
@@ -144,6 +150,8 @@ _webpage: $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
 	  _copy_technical _copy_tutorial _copy_reference \
 	  _copy_psets
 
+web: webpage
+html: webpage
 webpage: technical tutorial reference _webpage
 
 ##//////////////////////////////////////////////////
