@@ -48,6 +48,7 @@ TEX = $(REPORT).tex
 LOG = $(REPORT).log
 AUX = $(REPORT).aux
 TEMP = $(REPORT).temp
+OUT = $(REPORT).out
 
 # Notes on the makefile:
 #
@@ -86,23 +87,21 @@ $(HTMLNOCHUNKS): $(DOCBOOK) index.xml
 	     $(XML_DECL) $(DOCBOOK) \
 	     > $(HTMLNOCHUNKS)
 
-$(TEX): $(DOCBOOK) index.xml
+$(PDF): $(DOCBOOK) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
 	     $(XML_DECL) $(DOCBOOK)
-
-$(PDF): $(TEX)
 	$(PDFJADETEX) $(TEX) > $(TEMP) || \
 	        (cat $(TEMP); rm $(TEMP); false)
 	rm $(TEMP)
 	$(PDFJADETEX) $(TEX) >/dev/null
 	$(PDFJADETEX) $(TEX) >/dev/null
-	rm $(LOG) $(AUX)
+	rm $(LOG) $(AUX) $(TEX) $(OUT)
 
 clean:
-	rm -rf $(HTMLDIR) $(PDF) index.xml
+	rm -rf $(HTMLDIR) $(PDF) index.xml $(LOG) $(TEX) $(AUX) $(TEMP) $(OUT)
 
 usage: help
 help:
 	@echo "Usage:"
-	@echo "     make [all | html | pdf]"
+	@echo "     make [all | html | pdf | clean]"
 
