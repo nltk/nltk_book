@@ -61,6 +61,7 @@
 	(normalize "authorgroup") 
 	(normalize "author") 
 	(normalize "abstract")
+	(normalize "pubdate")
         (normalize "copyright")
         (normalize "legalnotice")))
 (define (book-titlepage-recto-elements)
