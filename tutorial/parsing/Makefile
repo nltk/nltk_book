@@ -11,6 +11,8 @@
 ##  The name of the report (without the .xml extension)
 REPORT = parsing
 
+IMG = parse_tree.png
+
 ##############################################
 ##  The name of the html index file.  If the main element
 ##  has an id, then it's based on that; otherwise, it's t1.html
@@ -77,8 +79,9 @@ HTMLDIR_EXISTS = $(HTMLDIR)/.exists
 
 
 all: index.xml html pdf
-html: $(HTMLCHUNKS) $(HTMLNOCHUNKS)
-pdf: $(PDF)
+html: $(HTMLCHUNKS) $(HTMLNOCHUNKS) $(IMG)
+pdf: $(PDF) $(IMG)
+
 
 index.xml: $(DOCBOOK) $(HTMLDIR_EXISTS)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
@@ -126,4 +129,4 @@ help:
 	@echo "     make [all | html | pdf | clean]"
 
 %.png:	%.ps
-	pstopnm -stdout $< | pnmtopng > $@
+	pstopnm -stdout $< | pnmrotate -90 | pnmtopng > $@
