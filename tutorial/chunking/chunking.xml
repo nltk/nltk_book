@@ -59,67 +59,31 @@ to read (each top-level section is a single web-page). -->
   <section id="ChunkParserI">
     <title> The Chunk Parser Interface </title>
 
-    <para> Unlike conventional parsers, chunk parsers do not need to
-    construct complete parse trees.  Instead, they return a simple
-    structure known as a chunk structure.  A <glossterm>chunk
-    structure</glossterm> is a list, containing a mixture of tokens
-    and sublists of tokens.  Here is an example of a chunk
-    structure: </para>
-
+    <para> A <glossterm>chunk parser</glossterm> finds contiguous,
+    non-overlapping spans of related tokens, and groups them together.
+    These grouped spans of tokens are called
+    <glossterm>chunks</glossterm>, and are represented by single-level
+    trees.  For example, the following chunk represents a simple noun
+    phrase: </para>
+      
 <screen>
-[
-  [
-    'the'/'DT'@[1],
-    'cat'/'NN'@[2]
-  ],
-  'sat'/'VBD'@[3],
-  'on'/'IN'@[4],
-  [
-    'the'/'DT'@[5],
-    'mat'/'NN'@[6]
-  ]
-]
+('NP': 'the' 'big' 'dog')@[0w:2w]
 </screen>
 
-    <para> We can define chunk structure as follows: </para>
+    <para> The chunk parser combines these individual chunks together,
+    along with the intervening tokens, to form a chunk structure.  A
+    <glossterm>chunk structure</glossterm> is a two-level tree that
+    spans the entire text, and contains both chunks and un-chunked
+    tokens.  For example, the following chunk structure captures the
+    sample noun phrases in a sentence: </para>
 
-    <!-- This looks horrible in pdf; how to fix it? -->
-    <informaltable>
-      <tgroup cols="3">
-        <thead>
-          <row>
-            <entry>Term</entry><entry></entry>
-            <entry>Definition</entry>
-          </row>
-        </thead>
-        <tbody colsep="0" rowsep="0">
-          <row>
-            <entry><glossterm>tagged token</glossterm></entry>
-            <entry>:=</entry>
-            <entry>a <literal>Token</literal> whose type is 
-                   a <literal>TaggedType</literal></entry>
-          </row>
-          <row>
-            <entry><glossterm>chunk</glossterm></entry>
-            <entry>:=</entry>
-            <entry>list of <emphasis>tagged tokens</emphasis></entry>
-          </row>
-          <row>
-            <entry><glossterm>chunk structure</glossterm></entry>
-            <entry>:=</entry>
-            <entry>list of (<emphasis>tagged token</emphasis> or 
-                   <emphasis>chunk</emphasis>)</entry>
-          </row>
-        </tbody>
-      </tgroup>
-    </informaltable>
-
-    <note>
-      <para> Although the terms <emphasis>chunk</emphasis> and
-      <emphasis>tagged text</emphasis> have the same definition
-      (namely, a list of tagged tokens), they are used in different
-      contexts. </para>
-    </note>
+<screen>
+('SENTENCE': ('NP': 'I')
+             'saw'
+             ('NP': 'the' 'big' 'dog')@[0w:2w]
+             'on'
+             ('NP': 'the' 'hill'))@[0:8]
+</screen>
 
     <para> Chunk parsers are defined by the 
     <ulink url="&refdoc;/nltk.chunkparser.ChunkParserI-class.html"
@@ -135,108 +99,76 @@ to read (each top-level section is a single web-page). -->
     inherit from <literal>ChunkParserI</literal> and reimplement its
     <literal>parse</literal> method. </para>
 
-    <note>
-      <para> In general, chunk parsers can be defined to use any kind
-      of token (not just tagged token).  In the general case, a
-      <emphasis>chunk</emphasis> would be defined as <emphasis>a list
-      of <literal>Token</literal>s</emphasis>, and a <emphasis>chunk
-      structure</emphasis> as <emphasis>a list of
-      (<literal>Token</literal> or chunk)</emphasis>.  However, the
-      only chunk parser currently implemented by NLTK operates on
-      tagged tokens; and in general, most chunk parsers that have been
-      created operate on tagged tokens.  So for the purposes of this
-      tutorial, we will assume that chunk parsers are defined to use
-      tagged tokens. </para>
-    </note>
-
-    <note>
-      <para>The current definition of chunk structure is too weak to
-      express a more general kind of chunking which associates a type
-      with each chunk.  For example, there are chunkers which can
-      identify both NP and VP chunks.  For these it is necessary to
-      define a more expressive representation.  For this and other
-      reasons, we may eventually change the
-      <literal>ChunkParserI</literal> to use the <ulink
-      url="&refdoc;/nltk.tree.TreeToken-class.html"
-      ><literal>TreeToken</literal></ulink> class instead of chunk
-      structures.</para>
-    </note>
-
   </section> <!-- The Chunk Parser Interface -->
 
+  <!-- XX add nltk.corpus support here? -->
   <section id="ChunkedTaggedTokenizer">
     <title> The Chunking Tokenizer </title>
 
-    <para>A common file representation for chunked tagged text is as
-    follows:</para>
+    <para> Chunk parsers often operate on tagged texts, and use the
+    tags to help make chunking decisions.  A common file
+    representation for chunked tagged text is as follows:</para>
 
 <screen>
-    [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
 </screen>
 
-    <para>It is often useful to be able to tokenize
-    text input in this format as part of the evaluation process.
-    For this purpose, the 
+    <para> It is useful to be able to tokenize text input in this
+    format as part of the evaluation process.  For this purpose, the
     <ulink url="&refdoc;/nltk.chunkparser-module.html"
-    ><literal>nltk.chunkparser</literal></ulink>
-    module contains a special kind of tagged tokenizer class, the
-    <ulink url="&refdoc;/nltk.tagger.ChunkedTaggedTokenizer-class.html"
-    ><literal>ChunkTaggedTokenizer</literal></ulink>.</para>
+    ><literal>nltk.chunkparser</literal></ulink> module contains a
+    specialized tokenizer, the <ulink
+    url="&refdoc;/nltk.tagger.ChunkedTaggedTokenizer-class.html"
+    ><literal>ChunkTaggedTokenizer</literal></ulink>, which splits a
+    text into a list of chunks and tokens. </para>
 
 <programlisting>
-    &prompt; <command>from nltk.chunkparser import *</command>
-    &prompt; <command>correct_sent = """
-    [ the/DT little/JJ cat/NN ]
-    sat/VBD on/IN
-    [ the/DT mat/NN ]
-    """</command>
-    &prompt; <command>tokenizer = ChunkedTaggedTokenizer()</command>
-    &prompt; <command>correct_chunks = tokenizer.tokenize(correct_sent)</command>
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]],
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+&prompt; <command>from nltk.chunkparser import *</command>
+&prompt; <command>correct_sent = """
+[ the/DT little/JJ cat/NN ]
+sat/VBD on/IN
+[ the/DT mat/NN ]
+"""</command>
+&prompt; <command>tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')</command>
+&prompt; <command>correct_chunks = tokenizer.tokenize(correct_sent, top_node='S')</command>
+[ ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')@[0w:3w],
+  'sat'/'VBD'@[3w],
+  'on'/'IN'@[4w],
+  ('NP': 'the'/'DT' 'mat'/'NN')@[5w:7w] ]
 </programlisting>
     
+    <para> If you want to create a chunk structure from thist list,
+    simply use the <literal>TreeToken</literal> constructor to merge
+    the tokens and chunks into a single tree.
+    </para>
+
+<programlisting>
+&prompt; <command>correct_chunkstruct = TreeToken('S', *correct_chunk)</command>
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
+</programlisting>
+      
     <section id="unchunk"> <title> Un-Chunking </title>
 
-      <para>Another utility defined in the
-      <literal>nltk.chunkparser</literal> module, 
-      <ulink url="&refdoc;/nltk.chunkparser-module.html#unchunk"
-      ><literal>unchunk</literal></ulink>, will convert a chunk
-      structure to a tagged text by removing all chunking: </para>
-
+      <para> During evaluation of a chunk parser, it is useful to
+      flatten a chunk structure into a list of tokens.  Since chunk
+      structures are represented by <literal>TreeTokens</literal>, we
+      can use the <ulink
+      url="&refdoc;/nltk.tree.TreeToken-class.html#leaves"
+      ><literal>leaves</literal></ulink> method to extract this
+      flattened list: </para>
+      
 <programlisting>
-    &prompt; <command>unchunked_sent = unchunk(correct_chunks)</command>
-    ['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w], 'sat'/'VBD'@[3w],
-     'on'/'IN'@[4w], 'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
+<emphasis># Flatten a chunk structrure into a list of tokens</emphasis>
+&prompt; <command>unchunked_sent = correct_chunkstruct.leaves()</command>
+['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w], 'sat'/'VBD'@[3w],
+ 'on'/'IN'@[4w], 'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
 </programlisting>
 
-    </section> <!-- Unchunk -->
+    </section>
 
-<!-- =====  Replaced by the "Tokenizing WSJ Tagged Data" section
-    <section id="LineTokenizer"> <title> LineTokenizer </title>
-      <para> The <literal>ChunkTaggedTokenizer</literal> is often
-      used in conjunction with the 
-      <ulink url="&refdoc;/nltk.token.LineTokenizer-class.html"
-      ><literal>LineTokenizer</literal></ulink> class, which reads a
-      file that contains one sentence per line.  For example, the
-      following example reads a file containing chunked tagged
-      sentences, one per line: </para>
-
-<programlisting>
-    &prompt; <command>from nltk.token import LineTokenizer</command>
-    &prompt; <command>text = open('corpus.txt').read()</command>
-    &prompt; <command>sentences = LineTokenizer().tokenize(text)</command>
-
-    &prompt; <command>ctt = ChunkedTaggedTokenizer()</command>
-    &prompt; <command>for sentence in sentences:</command>
-    &prompt2;     <command>chunked_sent = ctt.tokenize(sentence, source=sentence.loc())</command>
-    &prompt2;     <command>print chunked_sent</command>
-</programlisting>
-
-    </section> 
--->
-
+    <!-- XX add nltk.corpus support here? -->
     <section id="tokenize_wsj"> <title> Tokenizing WSJ Tagged Data </title>
 
       <para> The resources CD contains about 2,500 sentences of
@@ -248,22 +180,22 @@ to read (each top-level section is a single web-page). -->
       prints out each chunked sentence on a separate line. </para>
 
 <programlisting>
-    <emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
-    <emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
-    import os
-    sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
-    sentences = []
-    files = os.listdir(path)
-    for file in files:
-        print 'Loading %s...' % file
-        text = open(path+file).read()
-        sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
-     
-    <emphasis># Tokenize each sentence. </emphasis>   
-    ctt = ChunkedTaggedTokenizer()
-    for sentence in sentences:
-        chunked_sent = ctt.tokenize(sentence.type(), source=sentence.loc())
-        print chunked_sent
+<emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
+<emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
+import os
+sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
+sentences = []
+files = os.listdir(path)
+for file in files:
+    print 'Loading %s...' % file
+    text = open(path+file).read()
+    sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
+ 
+<emphasis># Tokenize each sentence. </emphasis>   
+ctt = ChunkedTaggedTokenizer()
+for sentence in sentences:
+    chunked_sent = ctt.tokenize(sentence.type(), source=sentence.loc())
+    print chunked_sent
 </programlisting>
 
       <note> 
@@ -274,16 +206,22 @@ to read (each top-level section is a single web-page). -->
         statements, or a similar statement:</para>
 
 <programlisting>
-    <emphasis># Unagi:</emphasis>
-    &prompt; <command>path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"</command> 
+<emphasis># Unagi:</emphasis>
+&prompt; <command>path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"</command> 
 
-    <emphasis># Linux, with the CD mounted at /mnt/cdrom:</emphasis>
-    &prompt; <command>path = "/mnt/cdrom/resources/data/wsj/tagged/"</command>
+<emphasis># Linux, with the CD mounted at /mnt/cdrom:</emphasis>
+&prompt; <command>path = "/mnt/cdrom/resources/data/wsj/tagged/"</command>
 
-    <emphasis># Windows, with the CD in drive E:.</emphasis>
-    &prompt; <command>path = "E:\\data\\wsj\\tagged/"</command>
+<emphasis># Windows, with the CD in drive E:.</emphasis>
+&prompt; <command>path = "E:\\data\\wsj\\tagged/"</command>
 </programlisting>
 
+      </note>
+
+      <note>
+        <para> The new (but not yet documented)
+        <literal>nltk.corpus</literal> module will greatly simplify
+        the task of reading in this data. </para>
       </note>
 
     </section> <!-- WSJ Tagged Data -->
@@ -294,11 +232,16 @@ to read (each top-level section is a single web-page). -->
     <title> REChunkParser </title>
 
     <para> For the remainder of this tutorial, we will examine 
-    
     <ulink url="&refdoc;/nltk.rechunkparser.REChunkParser-class.html"
     ><literal>REChunkParser</literal></ulink>.  This chunk parser uses
     a sequence of regular expression based
     <glossterm>rules</glossterm> to chunk a tagged text. </para>
+
+    <note> <para> <literal>REChunkParser</literal>
+    <emphasis>only</emphasis> works on tagged texts; if you need to
+    chunk an untagged text, then you should either use a tagger to tag
+    it first; or use a different chunk parser. </para>
+    </note>
 
     <para> <literal>REChunkParser</literal> works by manipulating a
     <glossterm>chunking hypothesis</glossterm>, which records a
@@ -319,18 +262,20 @@ to read (each top-level section is a single web-page). -->
     </orderedlist>
 
     <para> New <literal>REChunkParser</literal>s are constructed from
-    a list of rules, using the 
-    <ulink url="&refdoc;/nltk.rechunkparser.REChunkParser-class.html#__init__"
-    ><literal>REChunkParser</literal> constructor</ulink>:</para>
+    a list of rules, using the <ulink
+    url="&refdoc;/nltk.rechunkparser.REChunkParser-class.html#__init__"
+    ><literal>REChunkParser</literal> constructor</ulink>.  Optional
+    second and third arguments to the constructor specify the node
+    labels for chunks and for the top-level node, respectively:</para>
 
 <programlisting>
-    &prompt; <command>rules = [rule1, rule2, rule3] </command>
-    &prompt; <command>chunkparser = REChunkParser(rules)</command>
+<emphasis># Construct a new noun-phrase chunk parser</emphasis>
+&prompt; <command>rules = [rule1, rule2, rule3] </command>
+&prompt; <command>chunkparser = REChunkParser(rules, 'NP', 'S')</command>
 </programlisting>
 
-    <note> 
-      <para> We will discuss how to construct rules in the following
-      sections. </para>
+    <note> <para> The following sections discuss how to construct
+    rules. </para>
     </note>
 
     <para> Tagged texts are chunked using the 
@@ -338,10 +283,10 @@ to read (each top-level section is a single web-page). -->
     ><literal>parse</literal></ulink> method:</para>
 
 <programlisting>
-    &prompt; <command>chunkparser.parse(unchunked_sent)</command>
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+&prompt; <command>chunkparser.parse(unchunked_sent)</command>
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
   </section> <!-- REChunkParser intro -->
@@ -355,7 +300,7 @@ to read (each top-level section is a single web-page). -->
     of a <glossterm>tag string</glossterm> is: </para>
 
 <screen>
-    &lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;&lt;VBD&gt;&lt;DT&gt;&lt;NN&gt;
+&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;&lt;VBD&gt;&lt;DT&gt;&lt;NN&gt;
 </screen>
       
     <note>
@@ -453,8 +398,8 @@ to read (each top-level section is a single web-page). -->
       ><literal>descr</literal></ulink> method: </para>
 
 <programlisting>
-    &prompt; <command>print rule1.descr()</command>
-    'Chunk sequences of NN and DT'
+&prompt; <command>print rule1.descr()</command>
+'Chunk sequences of NN and DT'
 </programlisting>
 
     </section> <!-- Descriptions -->
@@ -476,15 +421,15 @@ to read (each top-level section is a single web-page). -->
     "<literal>NN</literal>" or "<literal>DT</literal>": </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;NN|DT&gt;+',</command>
-    &prompt2;<command>                   'Chunk sequences of NN and DT')</command>
-    &prompt; <command>chunkparser = REChunkParser( [rule1] )</command>
-    &prompt; <command>chunkparser.parse(unchunked_sent)</command>
-    [['the'/'DT'@[0w]], 
-     'little'/'JJ'@[1w], 
-     ['cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+&prompt; <command>rule1 = ChunkRule('&lt;NN|DT&gt;+',</command>
+&prompt2;<command>                   'Chunk sequences of NN and DT')</command>
+&prompt; <command>chunkparser = REChunkParser([rule1], 'NP', 'S')</command>
+&prompt; <command>chunkparser.parse(unchunked_sent)</command>
+('S': ('NP': 'the'/'DT')
+      'little'/'JJ'
+      ('NP': 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
     <para> We can also use more complex tag patterns.  The following
@@ -494,13 +439,13 @@ to read (each top-level section is a single web-page). -->
     single noun of any type ("<literal>NN.*</literal>"). </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;?&lt;JJ.*&gt;*&lt;NN.*&gt;',</command>
-    &prompt2;<command>                   'Chunk optional det, zero or more adj, and a noun')</command>
-    &prompt; <command>chunkparser = REChunkParser([rule1])</command>
-    &prompt; <command>chunkparser.parse(unchunked_sent)</command>
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+&prompt; <command>rule1 = ChunkRule('&lt;DT&gt;?&lt;JJ.*&gt;*&lt;NN.*&gt;',</command>
+&prompt2;<command>                   'Chunk optional det, zero or more adj, and a noun')</command>
+&prompt; <command>chunkparser = REChunkParser([rule1], 'NP', 'S')</command>
+&prompt; <command>chunkparser.parse(unchunked_sent)</command>
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
     <para> If a tag pattern matches at multiple overlapping locations,
@@ -509,17 +454,16 @@ to read (each top-level section is a single web-page). -->
     consecutive nouns, then the first two nouns will be chunked: </para>
 
 <programlisting>
-    &prompt; <command>from nltk.tagger import *</command>
-    &prompt; <command>noun_str = "dog/NN cat/NN mouse/NN"</command>
-    'dog/NN cat/NN mouse/NN'
-    &prompt; <command>three_nouns = TaggedTokenizer().tokenize(noun_str)</command>
-    ['dog'/'NN'@[0w], 'cat'/'NN'@[1w], 'mouse'/'NN'@[2w]]
-    &prompt; <command>rule1 = ChunkRule('&lt;NN&gt;&lt;NN&gt;',</command>
-    &prompt2;<command>                   'Chunk two consecutive nouns')</command>
-    &prompt; <command>chunkparser = REChunkParser([rule1])</command>
-    &prompt; <command>chunkparser.parse(three_nouns)</command>
-    [['dog'/'NN'@[0w], 'cat'/'NN'@[1w]], 
-     'mouse'/'NN'@[2w]]
+&prompt; <command>from nltk.tagger import *</command>
+&prompt; <command>noun_str = "dog/NN cat/NN mouse/NN"</command>
+'dog/NN cat/NN mouse/NN'
+&prompt; <command>three_nouns = TaggedTokenizer().tokenize(noun_str)</command>
+['dog'/'NN'@[0w], 'cat'/'NN'@[1w], 'mouse'/'NN'@[2w]]
+&prompt; <command>rule1 = ChunkRule('&lt;NN&gt;&lt;NN&gt;',</command>
+&prompt2;<command>                   'Chunk two consecutive nouns')</command>
+&prompt; <command>chunkparser = REChunkParser([rule1], 'NP', 'S')</command>
+&prompt; <command>chunkparser.parse(three_nouns)</command>
+('S': ('NP': 'dog' 'cat') 'mouse')@[0w:3w]
 </programlisting>
 
     <section id="chunkrule.tracing"> <title> Tracing </title>
@@ -532,16 +476,18 @@ to read (each top-level section is a single web-page). -->
       hypothesis at each stage of processing.  </para>
 
 <programlisting>
-    &prompt; <command>chunkparser = REChunkParser([rule1], 1)</command>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk optional det, zero or more adj, and a noun:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+&prompt; <command>rule1 = ChunkRule('&lt;DT&gt;?&lt;JJ.*&gt;*&lt;NN.*&gt;',</command>
+&prompt2;<command>                   'Chunk optional det, zero or more adj, and a noun')</command>
+&prompt; <command>chunkparser = REChunkParser([rule1], 'NP', 'S', 1)</command>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk optional det, zero or more adj, and a noun:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
       <note>
@@ -570,24 +516,24 @@ to read (each top-level section is a single web-page). -->
       "<literal>DT</literal>" or "<literal>NN</literal>".  </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;',</command>
-    &prompt2;<command>                   'Chunk det+adj+noun')</command>
-    &prompt; <command>rule2 = ChunkRule('&lt;DT|NN&gt;+',</command>
-    &prompt2;<command>                   'Chunk sequences of NN and DT')</command>
-    &prompt; <command>chunkparser = REChunkParser( [rule1, rule2] )</command>
+&prompt; <command>rule1 = ChunkRule('&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;',</command>
+&prompt2;<command>                   'Chunk det+adj+noun')</command>
+&prompt; <command>rule2 = ChunkRule('&lt;DT|NN&gt;+',</command>
+&prompt2;<command>                   'Chunk sequences of NN and DT')</command>
+&prompt; <command>chunkparser = REChunkParser([rule1, rule2], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk det+adj+noun:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk sequences of NN and DT:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk det+adj+noun:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk sequences of NN and DT:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
       <para> When a <literal>ChunkRule</literal> is applied to a
@@ -597,20 +543,22 @@ to read (each top-level section is a single web-page). -->
       different result: </para>
 
 <programlisting>
-    &prompt; <command>chunkparser = REChunkParser( [rule2, rule1] )</command>
+&prompt; <command>chunkparser = REChunkParser([rule2, rule1], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk sequences of NN and DT:
-                   {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
-    Chunk det+adj+noun:
-                   {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk sequences of NN and DT:
+               {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+Chunk det+adj+noun:
+               {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+('S': ('NP': 'the'/'DT')
+      'little'/'JJ'
+      ('NP': 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
       <para> Here, rule 2 ("chunk det+adj+noun") did not find any
@@ -639,7 +587,7 @@ to read (each top-level section is a single web-page). -->
       "sat/VBD on/IN" is a chink. </para>
 
 <screen>
-    [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
 </screen>
 
       <para> <glossterm>Chinking</glossterm> is the process of
@@ -694,8 +642,8 @@ to read (each top-level section is a single web-page). -->
       all "<literal>VBD</literal>" or "<literal>IN</literal>": </para>
 
 <programlisting>
-    &prompt; <command>chink_rule = ChinkRule('&lt;VBD|IN&gt;+',</command>
-    &prompt2;                        <command>'Chink sequences of VBD and IN')</command>
+&prompt; <command>chink_rule = ChinkRule('&lt;VBD|IN&gt;+',</command>
+&prompt2;                        <command>'Chink sequences of VBD and IN')</command>
 </programlisting>
 
       <para> Remember that <literal>REChunkParser</literal> begins
@@ -704,28 +652,28 @@ to read (each top-level section is a single web-page). -->
       entire sentence in a single chunk: </para>
 
 <programlisting>
-    &prompt; <command>chunkall_rule = ChunkRule('&lt;.*&gt;+',</command>
-    &prompt2;                           <command>'Chunk everything')</command>
+&prompt; <command>chunkall_rule = ChunkRule('&lt;.*&gt;+',</command>
+&prompt2;                           <command>'Chunk everything')</command>
 </programlisting>
 
       <para> Finally, we can combine these two rules to create a chunk
       parser: </para>
 
 <programlisting>
-    &prompt; <command>chunkparser = REChunkParser( [chunkall_rule, chink_rule] )</command>
+&prompt; <command>chunkparser = REChunkParser([chunkall_rule, chink_rule], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk everything:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt;}
-    Chink sequences of VBD and IN:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk everything:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt;}
+Chink sequences of VBD and IN:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
       <para> If a tag pattern matches at multiple overlapping
@@ -770,29 +718,32 @@ to read (each top-level section is a single web-page). -->
       </para>
 
 <programlisting>
-    &prompt; <command>unchunk_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
-    &prompt2;<command>                            'Unchunk sequences of NN and DT')</command>
+&prompt; <command>unchunk_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
+&prompt2;<command>                            'Unchunk sequences of NN and DT')</command>
 </programlisting>
 
       <para> We can combine this rule with a chunking rule to form a
       chunk parser: </para>
 
 <programlisting>
-    &prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
-    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
-    &prompt; <command>chunkparser = REChunkParser( [chunk_rule, unchunk_rule] )</command>
+&prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
+&prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+&prompt; <command>chunkparser = REChunkParser([chunk_rule, unchunk_rule], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk sequences of NN, JJ, and DT:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
-    Unchunk sequences of NN and DT:
-               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk sequences of NN, JJ, and DT:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+Unchunk sequences of NN and DT:
+           {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
 
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD'
+      'on'/'IN'
+      'the'/'DT'
+      'mat'/'NN')@[0w:7w]
 </programlisting>
 
       <para> Note that we would get a different result if we used a
@@ -802,26 +753,28 @@ to read (each top-level section is a single web-page). -->
       </para>
 
 <programlisting>
-    &prompt; <command>unchink_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
-    &prompt2;<command>                            'Chink sequences of NN and DT')</command>
-    &prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
-    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
-    &prompt; <command>chunkparser = REChunkParser( [chunk_rule, chink_rule] )</command>
+&prompt; <command>unchink_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
+&prompt2;<command>                            'Chink sequences of NN and DT')</command>
+&prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
+&prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+&prompt; <command>chunkparser = REChunkParser([chunk_rule, chink_rule], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk sequences of NN, JJ, and DT:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
-    Chink sequences of NN and DT:
-                    &lt;DT&gt; {&lt;JJ&gt;} &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk sequences of NN, JJ, and DT:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+Chink sequences of NN and DT:
+                &lt;DT&gt; {&lt;JJ&gt;} &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
 
-    ['the'/'DT'@[0w], 
-     ['little'/'JJ'@[1w]], 
-     'cat'/'NN'@[2w]], 'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
-     
+('S': 'the'/'DT'
+      ('NP': 'little'/'JJ')
+      'cat'/'NN'
+      'sat'/'VBD'
+      'on'/'IN'
+      'the'/'DT'
+      'mat'/'NN')@[0w:7w]
 </programlisting>
 
     </section> <!-- UnChunkRule -->
@@ -854,7 +807,7 @@ to read (each top-level section is a single web-page). -->
       hypothesis: </para>
 
 <screen>
-    [the/DT little/JJ][cat/NN]
+[the/DT little/JJ] [cat/NN]
 </screen>
 
       <para> Where
@@ -869,7 +822,7 @@ to read (each top-level section is a single web-page). -->
       merged to form a single chunk:</para>
 
 <screen>
-    [the/DT little/JJ cat/NN]
+[the/DT little/JJ cat/NN]
 </screen>
 
       <para> <literal>MergeRule</literal>s are created with the <ulink
@@ -881,8 +834,8 @@ to read (each top-level section is a single web-page). -->
       the second one begins in a determiner, noun, or adjective: </para>
 
 <programlisting>
-    &prompt; <command>merge_rule = MergeRule('&lt;NN|DT|JJ&gt;', '&lt;NN|DT|JJ&gt;',</command>
-    &prompt2;<command>                       'Merge NNs + DTs + JJs')</command>
+&prompt; <command>merge_rule = MergeRule('&lt;NN|DT|JJ&gt;', '&lt;NN|DT|JJ&gt;',</command>
+&prompt2;<command>                       'Merge NNs + DTs + JJs')</command>
 </programlisting>
 
       <para> To illustrate this rule, we will use a combine it with a
@@ -890,27 +843,27 @@ to read (each top-level section is a single web-page). -->
       unchunking rule that unchunks verbs and prepositions: </para>
 
 <programlisting>
-    &prompt; <command>chunk_rule = ChunkRule('&lt;.*&gt;',</command>
-    &prompt2;<command>                     'Chunk all individual tokens')</command>
-    &prompt; <command>unchunk_rule = UnChunkRule('&lt;IN|VB.*&gt;',</command>
-    &prompt2;<command>                         'Unchunk VBs and INs')</command>
-    &prompt; <command>rules = [chunk_rule, unchunk_rule, merge_rule]</command>
-    &prompt; <command>chunkparser = REChunkParser(rules)</command>
+&prompt; <command>chunk_rule = ChunkRule('&lt;.*&gt;',</command>
+&prompt2;<command>                     'Chunk all individual tokens')</command>
+&prompt; <command>unchunk_rule = UnChunkRule('&lt;IN|VB.*&gt;',</command>
+&prompt2;<command>                         'Unchunk VBs and INs')</command>
+&prompt; <command>rules = [chunk_rule, unchunk_rule, merge_rule]</command>
+&prompt; <command>chunkparser = REChunkParser(rules, 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
-    Input:
-                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
-    Chunk all individual tokens:
-                   {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;}{&lt;VBD&gt;}{&lt;IN&gt;}{&lt;DT&gt;}{&lt;NN&gt;}
-    Unchunk VBs and INs:
-                   {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;}{&lt;NN&gt;}
-    Merge NNs + DTs + JJs:
-                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
-    
-    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
-     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
-     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+Input:
+                &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+Chunk all individual tokens:
+               {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;}{&lt;VBD&gt;}{&lt;IN&gt;}{&lt;DT&gt;}{&lt;NN&gt;}
+Unchunk VBs and INs:
+               {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;}{&lt;NN&gt;}
+Merge NNs + DTs + JJs:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+
+('S': ('NP': 'the'/'DT' 'little'/'JJ' 'cat'/'NN')
+      'sat'/'VBD' 'on'/'IN'
+      ('NP': 'the'/'DT' 'mat'/'NN'))@[0w:7w]
 </programlisting>
 
     </section> <!-- MergeRule -->
@@ -932,7 +885,7 @@ to read (each top-level section is a single web-page). -->
       following chunking hypothesis: </para>
 
 <screen>
-    [the/DT little/JJ cat/NN the/DT dog/NN]
+[the/DT little/JJ cat/NN the/DT dog/NN]
 </screen>
 
       <para> If the left pattern is "<literal>NN</literal>", and the
@@ -941,7 +894,7 @@ to read (each top-level section is a single web-page). -->
       "<literal>dog</literal>", to form two smaller chunks:</para>
 
 <screen>
-    [the/DT little/JJ cat/NN] [the/DT dog/NN]
+[the/DT little/JJ cat/NN] [the/DT dog/NN]
 </screen>
 
       <para> <literal>SplitRule</literal>s are created with the <ulink
@@ -953,8 +906,8 @@ to read (each top-level section is a single web-page). -->
       "<literal>DT</literal>" to the right: </para>
 
 <programlisting>
-    &prompt; <command>split_rule = SplitRule('&lt;NN&gt;', '&lt;DT&gt;',</command>
-    &prompt2;<command>                     'Split NN followed by DT')</command>
+&prompt; <command>split_rule = SplitRule('&lt;NN&gt;', '&lt;DT&gt;',</command>
+&prompt2;<command>                     'Split NN followed by DT')</command>
 </programlisting>
 
       <para> To illustrate this rule, we will use a combine it with a
@@ -962,34 +915,33 @@ to read (each top-level section is a single web-page). -->
       and determiners: </para>
 
 <programlisting>
-    <emphasis># Tokenize a new test text</emphasis>
-    &prompt; <command>from nltk.tagger import *</command>
-    'Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'
-    &prompt; <command>sent='Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'</command>
-    ['Bob'/'NNP'@[0w], 'saw'/'VBD'@[1w], 'the'/'DT'@[2w], 'man'/'NN'@[3w], 
-     'the'/'DT'@[4w], 'cat'/'NN'@[5w], 'chased'/'VBD'@[6w]]
-    &prompt; <command>ttoks = TaggedTokenizer().tokenize(sent)</command>
+<emphasis># Tokenize a new test text</emphasis>
+&prompt; <command>from nltk.tagger import *</command>
+'Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'
+&prompt; <command>sent='Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'</command>
+['Bob'/'NNP'@[0w], 'saw'/'VBD'@[1w], 'the'/'DT'@[2w], 'man'/'NN'@[3w], 
+ 'the'/'DT'@[4w], 'cat'/'NN'@[5w], 'chased'/'VBD'@[6w]]
+&prompt; <command>ttoks = TaggedTokenizer().tokenize(sent)</command>
 
-    <emphasis># Create the chunk parser</emphasis>
-    &prompt; <command>chunk_rule = ChunkRule('&lt;NN.*|DT|JJ&gt;+',</command>
-    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
-    &prompt; <command>chunkparser = REChunkParser([chunk_rule, split_rule])</command>
+<emphasis># Create the chunk parser</emphasis>
+&prompt; <command>chunk_rule = ChunkRule('&lt;NN.*|DT|JJ&gt;+',</command>
+&prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+&prompt; <command>chunkparser = REChunkParser([chunk_rule, split_rule], 'NP', 'S')</command>
 
-    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
-    &prompt; <command>chunkparser.parse(ttoks, 1)</command>
-    Input:
-                   &lt;NNP&gt;  &lt;VBD&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;VBD&gt; 
-    Chunk sequences of NN, JJ, and DT:
-                  {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
-    Split NN followed by DT:
-                  {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;}{&lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
-    
-    [['Bob'/'NNP'@[0w]], 
-     'saw'/'VBD'@[1w], 
-     ['the'/'DT'@[2w], 'man'/'NN'@[3w]], 
-     ['the'/'DT'@[4w], 'cat'/'NN'@[5w]], 
-     'chased'/'VBD'@[6w]]
+<emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+&prompt; <command>chunkparser.parse(ttoks, 1)</command>
+Input:
+               &lt;NNP&gt;  &lt;VBD&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;VBD&gt; 
+Chunk sequences of NN, JJ, and DT:
+              {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
+Split NN followed by DT:
+              {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;}{&lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
 
+('S': ('NP': 'Bob'/'NNP') 
+      'saw'/'VBD'
+      ('NP': 'the'/'DT' 'man'/'NN')
+      ('NP': 'the'/'DT' 'cat'/'NN')
+      'chased'/'VBD')@[0w:7w]
 </programlisting>
 
     </section> <!-- SplitRule -->
@@ -1095,7 +1047,7 @@ to read (each top-level section is a single web-page). -->
       no arguments: </para>
 
 <programlisting>
-    &prompt; <command>chunkscore = ChunkScore()</command>
+&prompt; <command>chunkscore = ChunkScore()</command>
 </programlisting>
 
       <para> The output of a chunk parser can be evaluated using the
@@ -1103,9 +1055,9 @@ to read (each top-level section is a single web-page). -->
       ><literal>score</literal></ulink> method: </para>
 
 <programlisting>
-    &prompt; <command>unchunked = unchunk(correct)</command>
-    &prompt; <command>guess = chunkparser.parse(unchunked)</command>
-    &prompt; <command>chunkscore.score(correct, guess)</command>
+&prompt; <command>unchunked = unchunk(correct)</command>
+&prompt; <command>guess = chunkparser.parse(unchunked)</command>
+&prompt; <command>chunkscore.score(correct, guess)</command>
 </programlisting>
 
       <para> The following program listing shows a typical use of the
@@ -1114,42 +1066,42 @@ to read (each top-level section is a single web-page). -->
       from the Wall Street Journal tagged files. </para>
 
 <programlisting>
-    <emphasis># Import the relevant modules, classes, and functions.</emphasis>
-    from nltk.token import RETokenizer
-    from nltk.chunkparser import ChunkedTaggedTokenizer, ChunkScore, unchunk
-    from nltk.rechunkparser import *
-    import os
+<emphasis># Import the relevant modules, classes, and functions.</emphasis>
+from nltk.token import RETokenizer
+from nltk.chunkparser import ChunkedTaggedTokenizer, ChunkScore, unchunk
+from nltk.rechunkparser import *
+import os
 
-    <emphasis># Location of the training data.  </emphasis>
-    path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"
+<emphasis># Location of the training data.  </emphasis>
+path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"
 
-    <emphasis># Create the chunk parser that we wish to test.</emphasis>
-    rule1 = ChunkRule('&lt;DT|JJ|NN&gt;+', "Chunk sequences of DT, JJ, and NN")
-    chunkparser = REChunkParser( [rule1] )
+<emphasis># Create the chunk parser that we wish to test.</emphasis>
+rule1 = ChunkRule('&lt;DT|JJ|NN&gt;+', "Chunk sequences of DT, JJ, and NN")
+chunkparser = REChunkParser([rule1], 'NP', 'S')
 
-    <emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
-    <emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
-    sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
-    sentences = []
-    files = os.listdir(path)
-    for file in files:
-        print 'Loading %s...' % file
-        text = open(path+file).read()
-        sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
+<emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
+<emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
+sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
+sentences = []
+files = os.listdir(path)
+for file in files:
+    print 'Loading %s...' % file
+    text = open(path+file).read()
+    sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
 
-    <emphasis># Create a new ChunkScore utility class</emphasis>
-    chunkscore = ChunkScore()
+<emphasis># Create a new ChunkScore utility class</emphasis>
+chunkscore = ChunkScore()
 
-    <emphasis># Test the chunk parser.</emphasis>
-    ctt = ChunkedTaggedTokenizer()
-    for sentence in sentences:
-        correct = ctt.tokenize(sentence.type(), source=sentence.loc())
-        unchunked = unchunk(correct)
-        guess = chunkparser.parse(unchunked)
-        chunkscore.score(correct, guess)
+<emphasis># Test the chunk parser.</emphasis>
+ctt = ChunkedTaggedTokenizer()
+for sentence in sentences:
+    correct = ctt.tokenize(sentence.type(), source=sentence.loc())
+    unchunked = unchunk(correct)
+    guess = chunkparser.parse(unchunked)
+    chunkscore.score(correct, guess)
 
-    <emphasis># Print the results</emphasis>
-    print chunkscore
+<emphasis># Print the results</emphasis>
+print chunkscore
 </programlisting>
 
       <para> The overall results of the evaluation can be viewed by
@@ -1185,17 +1137,17 @@ to read (each top-level section is a single web-page). -->
       parser: </para>
 
 <programlisting>
-    from random import randint
+from random import randint
 
-    print 'Chunks missed by the chunk parser:'
-    missed = chunkscore.missed()
-    for i in range(15):
-        print missed[randint(0,len(missed)-1)].type()
+print 'Chunks missed by the chunk parser:'
+missed = chunkscore.missed()
+for i in range(15):
+    print missed[randint(0,len(missed)-1)].type()
 
-    print 'Incorrect chunks returned by the chunk parser:'
-    incorrect = chunkscore.incorrect()
-    for i in range(15):
-        print incorrect[randint(0,len(incorrect)-1)].type()
+print 'Incorrect chunks returned by the chunk parser:'
+incorrect = chunkscore.incorrect()
+for i in range(15):
+    print incorrect[randint(0,len(incorrect)-1)].type()
 </programlisting>
 
       <note>
@@ -1209,8 +1161,8 @@ to read (each top-level section is a single web-page). -->
         <literal>ChunkScore</literal> constructor:</para>
 
 <programlisting>
-    &prompt; <command>chunkscore = ChunkScore(max_fp_examples=1000,</command>
-    &prompt2;                        <command>max_fn_examples=1000)</command>
+&prompt; <command>chunkscore = ChunkScore(max_fp_examples=1000,</command>
+&prompt2;                        <command>max_fn_examples=1000)</command>
 </programlisting>
       </note>
 
@@ -1491,7 +1443,7 @@ AbstractChunkRule(r'(&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc='chunk NPs
     a chunkparser and apply it as follows:</para>
 
 <programlisting>
-&prompt; <command>chunker = REChunkParser(rules)</command>
+&prompt; <command>chunker = REChunkParser(rules, 'NP', 'S')</command>
 &prompt; <command>chunker.parse(tokens)</command>
 </programlisting>
 
@@ -1502,7 +1454,7 @@ AbstractChunkRule(r'(&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc='chunk NPs
 
 <programlisting>
 &prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
-&prompt; <command>cp = REChunkParser([r1])</command>
+&prompt; <command>cp = REChunkParser([r1], 'NP', 'S')</command>
 &prompt; <command>chunked_sent = cp.parse(unchunked_sent)</command>
 [['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word]],
 'sat'/'VBD'@[5word], 'on'/'IN'@[6word], ['the'/'DT'@[8word], 'mat'/'NN'@[9word]]]
@@ -1515,7 +1467,7 @@ AbstractChunkRule(r'(&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc='chunk NPs
 
 <programlisting>
 &prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
-&prompt; <command>cp = REChunkParser([r1], 1)</command>
+&prompt; <command>cp = REChunkParser([r1], 'NP', 'S', 1)</command>
 &prompt; <command>chunked_sent = cp.parse(unchunked_sent)</command>
 
 chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;:
@@ -1611,7 +1563,7 @@ AbstractChunkRule(r'(&lt;VB.*&gt;)', r'}\1{', doc='chink the verbs')
 
 <programlisting>
 unchunked_sent = unchunk(correct_chunks)
-chunker = REChunkParser(rules)
+chunker = REChunkParser(rules, 'NP', 'S')
 chunked_sent = cp.parse(unchunked_sent)
 score(correct_chunks, chunked_sent)
 </programlisting>
