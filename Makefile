@@ -120,6 +120,7 @@ technical:
 
 reference: $(REFDOC_UPTODATE)
 $(REFDOC_UPTODATE): $(REFDOC_DIR_EXISTS) $(SOURCES)
+	rm -rf $(REFDOC_DIR)/*
 	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) $(SOURCES)
 	touch $(REFDOC_UPTODATE)
 
@@ -168,7 +169,12 @@ _copy_psets:
 	@$(PYTHON) $(INDEXGEN) psets ../psets \
 	       $(WEBPAGE_PSET_DIR)/index.html
 
-_webpage: $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
+# To be safe, erase the webpage dir before building it.
+_erase_webpage_dir:
+	rm -rf $(WEBPAGE_DIR)/*
+
+_webpage: _erase_webpage_dir \
+	  $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
           $(WEBPAGE_TECH_DIR_EXISTS) $(WEBPAGE_PSET_DIR_EXISTS) \
           $(WEBPAGE_TUTORIAL_DIR_EXISTS) \
           _copy_static _copy_technical _copy_tutorial _copy_reference \
