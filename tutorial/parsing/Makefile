@@ -11,7 +11,7 @@
 ##  The name of the report (without the .xml extension)
 REPORT = parsing
 
-IMG = parse_tree.png
+IMG = parse_tree.png rdparser1.png rdparser2.png rdparser3.png rdparser4.png rdparser5.png rdparser6.png
 
 ##############################################
 ##  The name of the html index file.  If the main element
@@ -77,10 +77,9 @@ HTMLDIR_EXISTS = $(HTMLDIR)/.exists
 # to re-make $(HTMLDIR) (and therefore needs to remake everything that
 # depends on it)
 
-
 all: index.xml html pdf
-html: $(HTMLCHUNKS) $(HTMLNOCHUNKS) $(IMG)
-pdf: $(PDF) $(IMG)
+html: $(IMG) $(HTMLCHUNKS) $(HTMLNOCHUNKS)
+pdf: $(PDF)
 
 
 index.xml: $(DOCBOOK) $(HTMLDIR_EXISTS)
@@ -108,7 +107,7 @@ $(HTMLNOCHUNKS): $(DOCBOOK) index.xml
 	     $(XML_DECL) $(DOCBOOK) \
 	     > $(HTMLNOCHUNKS)
 
-$(PDF): $(DOCBOOK) index.xml
+$(PDF): $(DOCBOOK) index.xml $(IMG)
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
 	     -c $(DOCBOOK_CATALOG) \
 	     $(XML_DECL) $(DOCBOOK)
