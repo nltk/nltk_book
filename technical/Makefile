@@ -9,7 +9,7 @@
 
 ##############################################
 ##  A list of all the technical reports
-REPORTS = proposal reptypes printing
+REPORTS = proposal reptypes printing classification
 
 ##############################################
 ##  You shouldn't have to change anything below here.
