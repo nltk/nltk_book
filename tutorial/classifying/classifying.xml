@@ -1,0 +1,264 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1//EN" [
+<!ENTITY prompt "<prompt>&gt;</prompt><prompt>&gt;</prompt><prompt>&gt;</prompt>">
+<!ENTITY prompt2 "<prompt>...</prompt>">
+<!ENTITY refdoc "http://nltk.sourceforge.net/ref">
+]>
+
+<!-- TOC
+  1. Introduction
+  2. Labeled Texts
+  3. The Classifier Interface
+  4. Training Classifiers
+  5. Features
+  6. The Naive Bayes Classifier
+  7. The Maximum Entropy Classifier
+  8. Feature Selection
+-->
+
+<article>
+  <articleinfo>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
+    <title>NLTK Tutorial: Text Classification</title>
+  </articleinfo>
+
+  <section> <title> Introduction </title>
+
+    <para> Often, we wish to divide texts into categories.  For
+    example, we might want to categorize news stories by topic; or to
+    divide sentences into questions and statements.  In this tutorial,
+    we will consider <glossterm>single-category text
+    classification</glossterm> problems, in which: </para>
+
+    <itemizedlist>
+      <listitem> 
+        <para> There are a predefined set of categories.</para>
+      </listitem>
+      <listitem> 
+        <para> Each text belongs to exactly one category.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para> <glossterm>Text classification</glossterm> is the task of
+    chosing the most likely category for a given text. </para>
+
+    <section> <title> Relationship to Other Tasks </title>
+
+      <para> Single-category text classification is related to a
+      number of other categorization problems: </para>
+
+      <itemizedlist>
+        <listitem>
+          <para>In <emphasis>multi-category text
+          classification</emphasis>, each text can have zero or more
+          categories.</para>
+        </listitem>
+        <listitem>
+          <para>In <emphasis>clustering</emphasis>, the set of
+          categories is not predefined.</para>
+        </listitem>
+        <listitem>
+          <para>In <emphasis>tagging</emphasis>, we attempt to
+          categorize each element in a sequence of texts (as opposed
+          to text classification, where we just tag individual
+          texts).</para>
+        </listitem>
+      </itemizedlist>
+
+    </section> <!-- Relationship to other tasks -->
+
+  </section> <!-- Introduction -->
+
+  <section> <title> Labeled Texts </title>
+
+    <para> In text categorization, each category is uniquely
+    identified by a <glossterm>label</glossterm>.  Labels are
+    typically <literal>string</literal>s or
+    <literal>integer</literal>s.  For example, if we are classifying
+    news stories, our category labels might include
+    <literal>'sports'</literal>, <literal>'computers'</literal>, and
+    <literal>'foreign affairs'</literal>. </para>
+
+    <para> Categorized text types are represented using the <ulink
+    url="&refdoc;/nltk.classifier.LabeledText.html"
+    ><literal>LabeledText</literal></ulink> class, which is defined by
+    the <literal>nltk.classifier</literal> module.  New
+    <literal>LabeledText</literal>s are constructed using the <ulink
+    url="&refdoc;/nltk.classifier.LabeledText.html#__init__"
+    ><literal>LabeledText</literal> constructor</ulink>:</para>
+
+<programlisting>
+    &prompt; <command>text = "What's your name?"</command>
+    &prompt; <command>label = "question"</command>
+    &prompt; <command>labeled_text = LabeledText(text, label)</command>
+    "What's your name?"/"question"
+</programlisting>
+
+    <note>
+      <para> We may decide to change the printed representation for
+      labeled texts; currently, it is identical to the printed
+      representation for <literal>TaggedType</literal>s.</para>
+    </note>
+
+    <para> A <literal>LabeledText</literal>'s base type is accessed
+    via the <ulink
+    url="&refdoc;/nltk.classifier.LabeledText.html#text">
+    <literal>text</literal></ulink> member function; and its label is
+    accessed via the <ulink
+    url="%refdoc;/nltk.classifier.LabeledText.html#label">
+    <literal>label</literal></ulink> member function: </para>
+
+<programlisting>
+    &prompt;<command> labeled_text.text() </command>
+    "What's your name?"
+    &prompt;<command> labeled_text.label() </command>
+    'question'
+</programlisting>
+
+    <para> A <glossterm>labeled text token</glossterm> is a
+    <literal>Token</literal>s whose type is a
+    <literal>LabeledText</literal>: </para>
+
+<programlisting>
+    &prompt;<command> loc = Location(3, unit='s')</command>
+    @[3s]
+    &prompt;<command> labeled_token = Token(labeled_text, loc)</command>
+    "What's your name?"/"question"@[3s]
+</programlisting>
+
+  </section> <!-- Labeled Texts -->
+
+  <section> <title> The Classifier Interface </title>
+
+    <para> The <literal>nltk.classifier</literal> module defines
+    <ulink url="&refdoc;/nltk.classifier.ClassifierI.html">
+    <literal>ClassifierI</literal></ulink>, a general interface for
+    classifying texts.  This interface is used by all
+    single-category classifiers.  It requires that classifiers
+    define a single method, <ulink
+    url="&refdoc;/nltk.classifier.ClassifierI.html#classify">
+    <literal>classify</literal></ulink>, which assigns a label to a
+    text token, and returns the resulting labeled text
+    token. </para>
+
+<programlisting>
+    &prompt;<command> token = Token("What's your name?", loc)</command>
+    "What's your name?"@[3s]
+    &prompt;<command> my_classifier.classify(token)</command>
+    "What's your name?"/"question"@[3s]
+</programlisting>
+
+    <section> <title> Optional Methods </title>
+
+      <para> Classifiers are also encouraged (but not required) to
+      define two other methods:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para><ulink
+          url="&refdoc;/nltk.classifier.ClassifierI.html#distribution">
+          <literal>distribution</literal></ulink> returns a
+          probability distribution, whose samples are labeled text
+          tokens.  This probability distribution indicates the
+          likelihood for each label. </para>
+        </listitem>
+        <listitem>
+          <para><ulink
+          url="&refdoc;/nltk.classifier.ClassifierI.html#prob">
+          <literal>prob</literal></ulink> takes a labeled text
+          token, and returns the probability that the token's text
+          should be assigned the token's label. </para>
+        </listitem>
+      </itemizedlist>
+
+      <note> <para> These optional methods (and thier interfaces)
+      are under active development, and are likely to change.
+      If/when they do, the tutorial will be updated. </para>
+      </note>
+
+    </section> <!-- Optional Methods -->
+
+  </section> <!-- Classifiers -->
+
+  <section> <title> Training Classifiers </title>
+    
+    <para> Often, we have access to a corpus of classified texts.
+    This <glossterm>training corpus</glossterm> is usually
+    hand-classified, and we assume that most of the classifications
+    are correct. </para>
+
+    <!-- !!!! Add more precise forward reference? !!!! -->
+
+    <para> We can use statistical methods to build classifiers from
+    a training corpus.  Some of these methods are discussed in
+    following sections.  </para>
+
+    <para> The <literal>nltk.classifier</literal> module defines
+    <ulink url="&refdoc;/nltk.classifier.ClassifierTrainerI.html">
+    <literal>ClassifierTrainerI</literal></ulink>, a general
+    interface for building classifiers from training corpora.  It
+    requires that classifiers define a single method, <ulink
+    url="&refdoc;/nltk.classifier.ClassifierTrainerI.html#train">
+    <literal>train</literal></ulink>, which takes a list of labeled
+    tokens, and returns a new classifier. </para>
+
+<programlisting>
+    &prompt;<command> from nltk.classifier.naivebayes import NBClassifierTrainer</command>
+    &prompt;<command> classifier = NBClassifierTrainer().train(labeled_tokens)</command>
+    &lt;Naive Bayes classifier&gt;
+</programlisting>
+
+    <note> <para> The interfaces to the naive bayes classifier are
+    under development, and likely to change.  If/when they do, the
+    tutorial will be updated. </para>
+    </note>
+      
+  </section> <!-- Training Classifiers -->
+
+  <section> <title> Features </title>
+
+    <para> ... </para>
+
+<screen>
+                      +------------------+
+   labeled text  -->  | feature detector |  -->  feature value
+                      +------------------+
+</screen>
+
+<screen>
+                      FeatureDetectorList        FeatureValueList
+                      +------------------+       +---------------+
+                      | feature detector |  -->  | feature value |
+                      +------------------+       |               |
+                      | feature detector |  -->  | feature value |
+                      +------------------+       |               |
+   labeled text  -->  | feature detector |  -->  | feature value |
+                      +------------------+       |               |
+                      | feature detector |  -->  | feature value |
+                      +------------------+       |               |
+                      | feature detector |  -->  | feature value |
+                      +------------------+       +---------------+
+</screen>
+
+  </section> <!-- Features -->    
+
+  <section> <title> The Naive Bayes Classifier </title>
+
+    <para> ... </para>
+
+  </section> <!-- NB Classifier -->
+
+  <section> <title> The Maximum Entropy Classifier </title>
+
+    <para> ... </para>
+
+  </section> <!-- NB Classifier -->
+
+  <section> <title> Feature Selection </title>
+
+    <para> ... </para>
+
+  </section> <!-- Feature Selection -->
+
+</article>
