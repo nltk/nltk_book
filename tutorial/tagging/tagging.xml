@@ -1,0 +1,520 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1//EN" [
+<!ENTITY prompt "<prompt>&gt;</prompt><prompt>&gt;</prompt><prompt>&gt;</prompt>">
+<!ENTITY prompt2 "<prompt>...</prompt>">
+]>
+
+<!-- Add links to the ref documentation? -->
+<article>
+  <articleinfo>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
+    <title>NLTK Tutorial: Tagging</title>
+  </articleinfo>
+
+  <section> <title> Introduction </title>
+
+    <para>(add content here :) )</para>
+
+  </section> <!-- Introduction -->
+
+  <section> <title> Tagging a Text </title>
+
+    <para> When processing a text, it is often useful to associate
+    auxilliary information with each token.  For example, we might
+    want to label each token with its part of speech; or we might want
+    to disabiguate homonyms by associating them with "word sense"
+    labels.  This kind of auxilliary information is typically used in
+    later stages of text processing.  For example, part of speech
+    labels could be used to derive the internal structure of a
+    sentence; and "word sense" labels could be used to allow a
+    question-answering system to distinguish homonyms. </para>
+
+    <para> The process of associating labels with each token in a text
+    is called <glossterm>tagging</glossterm>, and the labels are
+    called <glossterm>tags</glossterm>.  The collection of tags used
+    for a particular task is known as a <glossterm>tag
+    set</glossterm>. </para>
+   
+    <para> <glossterm>Part-of-speech tagging</glossterm> is the most
+    common example of tagging, and it is the example we will examine
+    in this tutorial.  But you should keep in mind that most of the
+    techniques we discuss here can also be applied to many other
+    tagging problems. </para>
+
+  </section> <!-- Tagging a Text -->
+
+  <section> <title> Part-of-Speech Tagging </title>
+
+    <para> Part-of-speech tags divide words into categories, based on
+    how they can be combined to form sentences.  For example,
+    articles can combine with nouns, but not verbs.  Part-of-speech
+    tags also give information about the semantic content of a word.
+    For example, nouns typically express "things," and prepositions
+    express relationships between "things." </para>
+
+    <para> Most part-of-speech tag sets make use of the same basic
+    categories, such as "noun," "verb," "adjective," and
+    "preposition."  However, tag sets differ both in how finely they
+    divide words into categories; and in how define their categories.
+    For example, "is" might be tagged as a verb in one tag set; but as
+    a form of "to be" in another tag set.  This variation in tag sets
+    is reasonable, since part-of-speech tags are used in different
+    ways for different tasks. </para>
+
+    <!-- How do I make "Table1" not use a hard-coded number?? -->
+    <para> In this tutorial, we will use the tag set listed in Table
+    1.  This tag set is a simplification of the commonly used
+    <glossterm>Brown Corpus tag set</glossterm>.  The complete Brown
+    Corpus tag set has 87 basic tags.  For more information on tag
+    sets, see <citetitle>Foundations of Statistical Natural Langauge
+    Processing</citetitle>
+    (<author><surname>Manning</surname></author> &amp;
+    <author><surname>Schutze</surname></author>), pp. 139-145. </para>
+
+    <table id="table.tagset"> <title>Tag Set</title> 
+      <tgroup cols="2"><tbody>
+          <row>
+            <entry>AT</entry>
+            <entry>Article</entry>
+          </row>
+          <row>
+            <entry>NN</entry>
+            <entry>Noun</entry>
+          </row>
+          <row>
+            <entry>VB</entry>
+            <entry>Verb</entry>
+          </row>
+          <row>
+            <entry>JJ</entry>
+            <entry>Adjective</entry>
+          </row>
+          <row>
+            <entry>IN</entry>
+            <entry>Preposition</entry>
+          </row>
+          <row>
+            <entry>NN</entry>
+            <entry>Noun</entry>
+          </row>
+          <row>
+            <entry>CD</entry>
+            <entry>Number</entry>
+          </row>
+          <row>
+            <entry>END</entry>
+            <entry>Sentence-ending punctuation</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+
+  </section> <!-- Part-of-Speech Tagging -->
+
+  <section> <title> The nltk.tagger Module </title>
+
+    <para> The <ulink
+    url="http://nltk.sourceforge.net/ref/nltk.tagger.html">
+    <literal>nltk.tagger</literal></ulink> module defines the classes
+    and interfaces used by NLTK to perform tagging.  </para>
+
+    <section> <title> TaggedType </title>
+
+      <para> NLTK defines a simple class, <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggedType.html">
+      <literal>TaggedType</literal></ulink>, for representing the
+      types of tagged tokens.  A <literal>TaggedType</literal>
+      consists of a <glossterm>base type</glossterm> and a
+      <glossterm>tag</glossterm>.  Typically, the base type and the
+      tag will both be strings.  For example, the tagged type for the
+      noun "dog" would have the base type <literal>'dog'</literal> and
+      the tag <literal>'NN'</literal>.  A tagged type with base type
+      <replaceable>b</replaceable> and tag
+      <replaceable>t</replaceable> is written
+      <replaceable>b</replaceable><literal>/</literal><replaceable>t</replaceable>.
+      Tagged types are created with the <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggedType.html#__init__">
+      <literal>TaggedType</literal></ulink> constructor: </para>
+
+<programlisting>
+    &prompt;<command> ttype1 = TaggedType('dog', 'NN') </command>
+    'dog'/'NN'
+    &prompt;<command> ttype2 = TaggedType('runs', 'VB') </command>
+    'runs'/'VB'
+</programlisting>
+
+      <para> A <literal>TaggedType</literal>'s base type is accessed
+      via the
+      <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggedType.html#base">
+      <literal>base</literal></ulink> member; and its tag is accessed
+      via the
+      <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggedType.html#tag">
+      <literal>tag</literal></ulink> member: </para>
+
+<programlisting>
+    &prompt;<command> print ttype1.base() </command>
+    dog
+    &prompt;<command> print ttype2.tag() </command>
+    VB
+</programlisting>
+
+      <para> To construct a tagged token, simply use the <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.token.Token.html#__init__">
+      <literal>Token</literal></ulink> constructor with a
+      <literal>TaggedType</literal>: </para>
+
+<programlisting>
+    &prompt;<command> ttype = TaggedType('dog', 'NN') </command>
+    'dog'/'NN'
+    &prompt;<command> ttoken = Token(ttype, Location(5)) </command>
+    'dog'/'NN'@[5]
+</programlisting>
+
+    </section> <!-- TaggedType -->
+
+    <section> <title> Reading Tagged Corpora </title>
+
+      <para> Several large corpora (such as the Brown Corpus and
+      portions of the Wall Street Journal) have been manually tagged
+      with part-of-speech tags.  These corpora are primarily useful
+      for testing taggers and for training statistical taggers.
+      However, before we can use these corpera, we must read them from
+      files and tokenize them. </para>
+
+      <para> Tagged texts are usually stored in files as a sequences
+      of whitespace-separated tokens, where each token is of the form
+      <replaceable>base</replaceable><literal>/</literal><replaceable>tag</replaceable>.
+      Figure 1 shows an example of some tagged text, taken from the
+      Brown corpus.  To tokenize tagged texts of this form, the
+      <literal>nltk.tagger</literal> module defines the
+      <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggedTokenizer.html">
+      <literal>TaggedTokenizer</literal></ulink> class: </para>
+
+<programlisting>
+    &prompt;<command> text_str = open('corpus.txt').read() </command>
+    'John/NN saw/VB the/AT book/NN on/IN the/AT 
+     table/NN ./END  He/NN sighed/VB ./END'
+    &prompt;<command> tokens = TaggedTokenizer().tokenize(text_str) </command>
+    ['John'/'NN'@[0w], 'saw'/'VB'@[1w], 'the'/'AT'@[2w], 
+     'book'/'NN'@[3w], 'on'/'IN'@[4w], 'the'/'AT'@[5w], 
+     'table'/'NN'@[6w], '.'/'END'@[7w], 'He'/'NN'@[8w], 
+     'sighed'/'VB'@[9w], '.'/'END'@[10w]]
+</programlisting>
+
+      <para> If <literal>TaggedTokenizer</literal> encounters a word without
+      a tag, it will assign it the default tag
+      <literal>'UNK'</literal> (for "unknown"). </para>
+
+      <figure> <title> An Example of Tagged Text (exerpted from the Brown Corpus) </title>
+        <titleabbrev>Example of Tagged Text</titleabbrev>
+<screen>
+The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
+other/ap topics/nns ,/, among/in them/ppo the/at A tlanta/np and/cc
+Fulton/np-tl County/nn-tl purchasing/vbg departments/nns which/wdt
+it/pps said/vbd ``/`` are/ber well/ql o perated/vbn and/cc follow/vb
+generally/rb accepted/vbn practices/nns which/wdt inure/vb to/in
+the/at best/jjt interest/nn o f/in both/abx governments/nns ''/'' ./.
+</screen>
+      </figure>
+
+    </section> <!-- TaggedTokenizer -->
+
+    <section> <title> The TaggerI Interface </title>
+
+      <para> The <literal>nltk.tagger</literal> module defines a
+      general interface for tagging texts, the 
+      <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggerI.html">
+      <literal>TaggerI</literal></ulink> class.  This interface is
+      used by all taggers.  It defines a single method, <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.TaggerI.html#tag">
+      <literal>tag</literal></ulink>, which assigns a tag to each
+      token in a list, and returns the resulting list of tagged
+      tokens.</para>
+
+      <!-- I'm using my_tagger without defining it.  Is that ok?  It
+      means that if someone's following along, and typing everything
+      in, this listing won't work.  But there's no reasonable way to
+      define it at this point..  So I won't worry about it for now -->
+<programlisting>
+    &prompt;<command> tokens = WSTokenizer().tokenize(text_str) </command>
+    ['John'@[0w], 'saw'@[1w], 'the'@[2w], 'book'@[3w], 
+     'on'@[4w], 'the'@[5w], 'table'@[6w], '.'@[7w], 
+     'He'@[8w], 'sighed'@[9w], '.'@[10w]]
+    &prompt;<command> my_tagger.tag(tokens) </command>
+    ['John'/'NN'@[0w], 'saw'/'VB'@[1w], 'the'/'AT'@[2w], 
+     'book'/'NN'@[3w], 'on'/'IN'@[4w], 'the'/'AT'@[5w], 
+     'table'/'NN'@[6w], '.'/'END'@[7w], 'He'/'NN'@[8w], 
+     'sighed'/'VB'@[9w], '.'/'END'@[10w]]
+</programlisting>
+
+    </section> <!-- TaggerI -->
+
+  </section> <!-- The nltk.tagger module -->
+
+  <section> <title> Taggers </title>
+
+    <para> The <literal>nltk.tagger</literal> module currently defines
+    four taggers; this list will likely grow in the future.  This
+    section describes the taggers currently implemented by
+    <literal>nltk.tagger</literal>, and how they are used. </para>
+    
+    <section> <title> A Default Tagger </title>
+
+      <para> The simplest tagger defined by
+      <literal>nltk.tagger</literal> is <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.NN_CD_Tagger.html">
+      <literal>NN_CD_Tagger</literal></ulink>.  This tagger assigns a
+      tag to each token on the basis of its type.  If its type appears
+      to be a number, it assigns the type "CD."  Otherwise, it assigns
+      the type "NN." </para>
+
+<programlisting>
+    &prompt;<command> tokens = WSTokenizer().tokenize(text_str) </command>
+    ['John'@[0w], 'saw'@[1w], '3'@[2w], 
+     'polar'@[3w], 'bears'@[4w], '.'@[5w]]
+    &prompt;<command> my_tagger.tag(tokens) </command>
+    ['John'/'NN'@[0w], 'saw'/'NN'@[1w], '3'/'CD'@[2w], 
+     'polar'/'NN'@[3w], 'bears'/'NN'@[4w], '.'/'NN'@[5w]]
+</programlisting>
+
+      <para> This is a simple algorithm, but it yields quite poor
+      performance when used by itself.  On a typical corpus, it will
+      tag only 20%-30% of the tokens correctly.  However, it is a very
+      reasonable tagger to use as a default, if a more advanced tagger
+      fails to determine a token's tag.  When used in conjunction with
+      other taggers, <literal>NN_CD_Tagger</literal> can significantly
+      improve performance. </para>
+      
+    </section> <!-- NN_CD_Tagger -->
+
+    <section> <title> Unigram Tagging </title>
+
+      <para> The <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.UnigramTagger.html">
+      <literal>UnigramTagger</literal></ulink> class implements a
+      simple statistical tagging algorithm: for each token, it assigns
+      the tag that is most likey for that token's type.  For example,
+      it will assign the tag "JJ" to any occurance of the word
+      "frequent," since "frequent" is used as an adjective (e.g. "a
+      frequent word") more often than it is used as a verb (e.g. "I
+      frequent this cafe"). </para>
+
+      <para> Before a <literal>UnigramTagger</literal> can be used to
+      tag data, it must be trained on a <glossterm>training
+      corpus</glossterm>.  It uses this corpus to determine which tags
+      are most common for each word.
+      <literal>UnigramTaggers</literal> are trained using the <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.UnigramTagger.html#train">
+      <literal>train</literal></ulink> method: </para>
+
+<programlisting>
+    &prompt;<command> train_toks = TaggedTokenizer().tokenize('train.txt')</command>
+    &prompt;<command> tagger = UnigramTagger()</command>
+    &prompt;<command> tagger.train(train_toks)</command>
+</programlisting>
+
+      <para> Once a <literal>UnigramTagger</literal> has been trained,
+      it can be used to tag other corpera: </para>
+
+<programlisting>
+    &prompt;<command> tokens = TaggedTokenizer().tokenize('corpus.txt')</command>
+    &prompt;<command> tagger.tag(tokens)</command>
+    ['John'/'NN'@[0w], 'saw'/'VB'@[1w], 'the'/'AT'@[2w], 
+     'book'/'NN'@[3w], 'on'/'IN'@[4w], 'the'/'AT'@[5w], ...]
+</programlisting>
+
+      <para> <literal>UnigramTagger</literal> will assign the tag
+      <literal>'UNK'</literal> (unknown) to any token whose type was
+      not encountered in the training data. </para>
+
+      <para> Note that, like almost all statistical taggers, the
+      performance of <literal>UnigramTagger</literal> is highly
+      dependant on the quality of its training set.  In particular, if
+      the training set is too small, it will not be able to reliably
+      estimate the most likely tag for each word.  Performance will
+      also suffer if the training set is signifigantly different than
+      the texts we wish to tag. </para>
+      
+    </section> <!-- UnigramTagger -->
+
+    <section> <title> Nth Order Tagging </title>
+
+      <para> The <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.NthOrderTagger.html">
+      <literal>NthOrderTagger</literal></ulink> class implements a
+      more advanced statistical tagging algorithm.  In addition to
+      considering the token's type, it also considers the
+      part-of-speech tags of the <replaceable>n</replaceable> preceeding
+      tokens. </para>
+
+      <para> To decide which tag to assign to a token,
+      <literal>NthOrderTagger</literal> first constructs a
+      <glossterm>context</glossterm> for the token.  This context
+      consists of the token's type, along with the part-of-speech tags
+      of the <replaceable>n</replaceable> preceeding tags.  It then
+      picks the tag which is most likely for that context.  Note that
+      a 0th order tagger is equivalant to a unigram tagger, since a
+      0th context is just a token's type.  1st order taggers are
+      sometimes called <glossterm>bigram taggers</glossterm>, and 2nd
+      order taggers are called <glossterm>trigram taggers</glossterm>.
+      </para>
+
+      <para> <literal>NthOrderTagger</literal> uses a training corpus
+      to determine which part-of-speech tag is most likely for each
+      context:</para>
+
+<programlisting>
+    &prompt;<command> train_toks = TaggedTokenizer().tokenize('train.txt')</command>
+    &prompt;<command> tagger = NthOrderTagger(3)</command>         <emphasis># 3rd order tagger</emphasis>
+    &prompt;<command> tagger.train(train_toks)</command>
+</programlisting>
+
+      <para> Once an <literal>NthOrderTagger</literal> has been trained,
+      it can be used to tag other corpera: </para>
+
+<programlisting>
+    &prompt;<command> tokens = TaggedTokenizer().tokenize('corpus.txt')</command>
+    &prompt;<command> tagger.tag(tokens)</command>
+    ['John'/'NN'@[0w], 'saw'/'VB'@[1w], 'the'/'AT'@[2w], 
+     'book'/'NN'@[3w], 'on'/'IN'@[4w], 'the'/'AT'@[5w], ...]
+</programlisting>
+
+      <para> <literal>NthOrderTagger</literal> will assign the tag
+      <literal>'UNK'</literal> (unknown) to any token whose context was
+      not encountered in the training data. </para>
+
+      <para> Note that as <replaceable>n</replaceable> gets larger,
+      the specificity of the contexts increases; and with it, the
+      chance that the data we wish to tag will contain contexts that
+      were not present in the training data.  Thus, there is a
+      trade-off between the accuracy and the coverage of our results.
+      This is a common type of trade-off in natural language
+      processing.  It is closely related to the
+      <glossterm>precision/recall tradeoff</glossterm> that we'll
+      encounter later when we discuss information retrieval. </para>
+
+    </section> <!-- NthOrderTagger -->
+
+    <section> <title> Combining Taggers </title>
+
+      <para> One way to address the trade-off between accuracy and
+      coverage is to use the more accurate algorithms when we can, but
+      to fall back on algorithms with wider coverage when necessary.
+      For example, we could combine the results of a 1st order tagger,
+      a 0th order tagger, and an <literal>NN_CD_Tagger</literal>, as
+      follows:</para>
+
+      <orderedlist>
+        <listitem> 
+          <para> Try tagging the token with the 1st order
+          tagger. </para>
+        </listitem>
+        <listitem> 
+          <para> If the 1st order tagger is unable to find a tag for
+          the token, try finding a tag with the 0th order
+          tagger. </para>
+        </listitem> 
+        <listitem> 
+          <para> If the 0th order tagger is also unable to find a tag,
+          use the <literal>NN_CD_Tagger</literal> to find a tag. </para>
+        </listitem>
+      </orderedlist>
+
+      <para> NLTK defines the <ulink
+      url="http://nltk.sourceforge.net/ref/nltk.tagger.BackoffTagger.html">
+      <literal>BackoffTagger</literal></ulink> class for combining
+      taggers in this way: </para>
+
+<programlisting>
+    &prompt;<command> train_toks = TaggedTokenizer().tokenize('train.txt')</command>
+
+    <emphasis># Construct the taggers</emphasis>
+    &prompt;<command> tagger1 = NthOrderTagger(1)</command>         <emphasis># 1st order tagger</emphasis>
+    &prompt;<command> tagger2 = UnigramTagger()</command>           <emphasis># 0th order tagger</emphasis>
+    &prompt;<command> tagger3 = NN_CD_Tagger()</command>
+
+    <emphasis># Train the taggers</emphasis>
+    &prompt;<command> tagger1.train(train_toks)</command>
+    &prompt;<command> tagger2.train(train_toks)</command>
+
+    <emphasis># Combine the taggers</emphasis>
+    &prompt;<command> tagger = BackoffTagger([tagger1, tagger2, tagger3])</command>
+</programlisting>
+
+      <para> We can then use the combined tagger to tag new corpora:
+      </para>
+
+<programlisting>
+    &prompt;<command> tokens = TaggedTokenizer().tokenize('corpus.txt')</command>
+    &prompt;<command> tagger.tag(tokens)</command>
+    ['John'/'NN'@[0w], 'saw'/'VB'@[1w], 'the'/'AT'@[2w], 
+     'book'/'NN'@[3w], 'on'/'IN'@[4w], 'the'/'AT'@[5w], ...]
+</programlisting>
+      
+    </section> <!-- Combining Tagger -->
+
+  </section> <!-- Taggers -->
+
+  <section> <title> Tagging: A Closer Look </title>
+
+    <para> In this section, we will discuss how each of the four
+    taggers introduced in the last section is implemented.  This
+    discussion serves several purposes: </para>
+
+    <itemizedlist>
+      <listitem>
+        <para> It demonstrates how to write classes implementing the
+        interfaces defined by NLTK. </para>
+      </listitem>
+      <listitem>
+        <para> It provides you with a better understanding of the
+        algorithms and data structures underlying each approach to
+        tagging. </para>
+      </listitem>
+      <listitem>
+        <para> It gives you a chance to see some of the code used to
+        implement NLTK.  We have tried very hard to ensure that the
+        implementation of every class in NLTK is easy to understand.
+        </para>
+        <para> COMMENT: Should I say more here about "no magic"? </para>
+      </listitem>
+    </itemizedlist>
+
+    <section> <title> NN_CD_Tagger </title>
+
+      <para></para>
+
+    </section> <!-- NN_CD_Tagger -->
+
+    <section> <title> UnigramTagger </title>
+
+      <para></para>
+
+    </section> <!-- UnigramTagger -->
+
+    <section> <title> NthOrderTagger </title>
+
+      <para></para>
+
+    </section> <!-- NthOrderTagger -->
+
+    <section> <title> BackoffTagger </title>
+
+      <para></para>
+
+    </section> <!-- BackoffTagger -->
+
+  </section> <!-- Statistical Tagging -->
+
+    
+
+
+
+  
+
+</article>
