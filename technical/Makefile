@@ -18,7 +18,7 @@ PDF := $(REPORTS:=.pdf)
 CLEAN := $(REPORTS:=.clean)
 HTML := $(REPORTS:=.html)
 
-all: dvi
+all: pdf
 dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
