@@ -17,7 +17,7 @@ WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 
 # (Local) output directory for reference (API) documentation.  
 REFDOC_DIR = reference
-CONTRIB_REFDOC_DIR = contrib
+CONTRIB_REFDOC_DIR = contrib_ref
 
 # Options for epydoc.  Consider switching to --inheritance=included
 # later.
@@ -30,7 +30,7 @@ STATIC_HTML_DIR = webpage
 # The output location for the constructed webpage.
 WEBPAGE_DIR = built_webpage
 WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
-WEBPAGE_CONTRIB_REF_DIR = $(WEBPAGE_DIR)/contrib_ref
+WEBPAGE_CONTRIB_REF_DIR = $(WEBPAGE_DIR)/contrib
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
 WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
