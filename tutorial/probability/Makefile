@@ -33,7 +33,7 @@ $(INDEX): $(DOCBOOK) $(HTMLDIR)
 $(HTMLNOCHUNKS): $(DOCBOOK) $(HTMLDIR)
 	jw -f docbook -b html -u $(DOCBOOK) >$(HTMLNOCHUNKS)
 
-$(PDF):
+$(PDF): $(DOCBOOK)
 	jw -f docbook -b pdf $(DOCBOOK)
 
 clean:
