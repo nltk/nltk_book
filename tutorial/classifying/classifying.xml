@@ -46,7 +46,9 @@
     <section> <title> Relationship to Other Tasks </title>
 
       <para> Single-category text classification is related to a
-      number of other categorization problems: </para>
+      number of other categorization problems.  The following list
+      describes how single-category text classification differs from
+      three related problems: </para>
 
       <itemizedlist>
         <listitem>
@@ -101,19 +103,19 @@
       representation for <literal>TaggedType</literal>s.</para>
     </note>
 
-    <para> A <literal>LabeledText</literal>'s base type is accessed
-    via the <ulink
+    <para> A <literal>LabeledText</literal>'s underlying text is
+    accessed via the <ulink
     url="&refdoc;/nltk.classifier.LabeledText.html#text">
     <literal>text</literal></ulink> member function; and its label is
     accessed via the <ulink
-    url="%refdoc;/nltk.classifier.LabeledText.html#label">
+    url="&refdoc;/nltk.classifier.LabeledText.html#label">
     <literal>label</literal></ulink> member function: </para>
 
 <programlisting>
     &prompt;<command> labeled_text.text() </command>
     "What's your name?"
     &prompt;<command> labeled_text.label() </command>
-    'question'
+    "question"
 </programlisting>
 
     <para> A <glossterm>labeled text token</glossterm> is a
@@ -134,48 +136,112 @@
     <para> The <literal>nltk.classifier</literal> module defines
     <ulink url="&refdoc;/nltk.classifier.ClassifierI.html">
     <literal>ClassifierI</literal></ulink>, a general interface for
-    classifying texts.  This interface is used by all
-    single-category classifiers.  It requires that classifiers
-    define a single method, <ulink
-    url="&refdoc;/nltk.classifier.ClassifierI.html#classify">
-    <literal>classify</literal></ulink>, which assigns a label to a
-    text token, and returns the resulting labeled text
-    token. </para>
+    classifying texts.  This interface is used by all single-category
+    text classifiers.  It requires that classifiers define two
+    methods: </para>
+
+    <itemizedlist>
+      <listitem>
+        <para><ulink
+        url="&refdoc;/nltk.classifier.ClassifierI.html#classify">
+        <literal>classify</literal></ulink> determines which label is
+        most appropriate for a given text token, and returns a labeled
+        text token with that label. </para>
+      </listitem>
+      <listitem>
+        <para><ulink
+        url="&refdoc;/nltk.classifier.ClassifierI.html#labels">
+        <literal>labels</literal></ulink> returns the list of category
+        labels that are used by the classifier. </para>
+      </listitem>
+    </itemizedlist>
+
+    <para> These two methods are illustrated in the following example:
+    </para>
 
 <programlisting>
     &prompt;<command> token = Token("What's your name?", loc)</command>
     "What's your name?"@[3s]
     &prompt;<command> my_classifier.classify(token)</command>
     "What's your name?"/"question"@[3s]
+
+    &prompt;<command> my_classifier.labels()</command>
+    ("statement", "imperative", "question")
 </programlisting>
 
     <section> <title> Optional Methods </title>
 
       <para> Classifiers are also encouraged (but not required) to
-      define two other methods:</para>
+      define four additional methods:</para>
 
       <itemizedlist>
         <listitem>
           <para><ulink
-          url="&refdoc;/nltk.classifier.ClassifierI.html#distribution">
-          <literal>distribution</literal></ulink> returns a
-          probability distribution, whose samples are labeled text
-          tokens.  This probability distribution indicates the
-          likelihood for each label. </para>
+          url="&refdoc;/nltk.classifier.ClassifierI.html#prob">
+          <literal>prob</literal></ulink> takes a labeled text token,
+          and returns the probability that the token's text belongs to
+          the category indicated by the token's label. </para>
         </listitem>
         <listitem>
           <para><ulink
-          url="&refdoc;/nltk.classifier.ClassifierI.html#prob">
-          <literal>prob</literal></ulink> takes a labeled text
-          token, and returns the probability that the token's text
-          should be assigned the token's label. </para>
+          url="&refdoc;/nltk.classifier.ClassifierI.html#distribution">
+          <literal>distribution</literal></ulink> takes a text token,
+          and returns a probability distribution, whose samples are
+          labeled text tokens.  This probability distribution
+          indicates the likelihood that the text belongs to each
+          label's category. </para>
+        </listitem>
+        <listitem>
+          <para><ulink
+          url="&refdoc;/nltk.classifier.ClassifierI.html#distribution_dictionary">
+          <literal>distribution_dictionary</literal></ulink> takes a
+          text token, and returns a dictionary, mapping from each
+          label to the probability that the text is a member of that
+          label's category.</para>
+        </listitem>
+        <listitem>
+          <para><ulink
+          url="&refdoc;/nltk.classifier.ClassifierI.html#distribution_list">
+          <literal>distribution_list</literal></ulink> takes a text
+          token, and returns a list of probabilities, where the
+          <replaceable>i</replaceable>th element of the list is the
+          probability that the text belongs to the category indicated
+          by
+          <literal>classifier.labels()[<replaceable>i</replaceable>]</literal>. 
+          </para>
         </listitem>
       </itemizedlist>
 
-      <note> <para> These optional methods (and thier interfaces)
-      are under active development, and are likely to change.
-      If/when they do, the tutorial will be updated. </para>
-      </note>
+      <para> Each of these methods is illustrated in the following
+      example: </para>
+
+<programlisting>
+    &prompt;<command> print labeled_token</command>
+    "What's your name?"/"question"@[3s]
+
+    <emphasis># What's the probability that "What's your name?" is a question?</emphasis>
+    &prompt;<command> my_classifier.prob(labeled_token)</command>
+    0.67
+
+    <emphasis># What's the probability that "What's your name?" is a question,</emphasis>
+    <emphasis># given that it's not a statement? </emphasis>
+    &prompt;<command> prob_dist = my_classifier.distribution(token)</command>
+    &prompt;<command> def not_statement(ltoken): ltoken.type().label()!='statement'</command>
+    &prompt;<command> prob_dist.cond_prob(labeled_token, PredEvent(not_statement))</command>
+    0.85
+
+    <emphasis># What is the probability for each category?</emphasis>
+    &prompt;<command> prob_dict = my_classifier.distribution_dictionary(token) </command>
+    &prompt;<command> for label in prob_dict.keys():</command>
+    &prompt2;<command>     print "P(%s) = %.2f" % (label, prob_dict[label])</command>
+    P(statement) = 0.21
+    P(imperative) = 0.12
+    P(question) = 0.67
+
+    <emphasis># What is the probability for each category?</emphasis>
+    &prompt;<command> zip(my_classifier.labels(), my_classifier.distribution_list(token))</command>
+    [('statement', 0.21), ('imperative', 0.12), ('question', 0.67)]
+</programlisting>
 
     </section> <!-- Optional Methods -->
 
@@ -189,63 +255,529 @@
     are correct. </para>
 
     <!-- !!!! Add more precise forward reference? !!!! -->
-
-    <para> We can use statistical methods to build classifiers from
-    a training corpus.  Some of these methods are discussed in
-    following sections.  </para>
+    <para> We can use statistical methods to build classifiers from a
+    training corpus.  Some of these statistical methods are discussed
+    in following sections.  </para>
 
     <para> The <literal>nltk.classifier</literal> module defines
     <ulink url="&refdoc;/nltk.classifier.ClassifierTrainerI.html">
-    <literal>ClassifierTrainerI</literal></ulink>, a general
-    interface for building classifiers from training corpora.  It
-    requires that classifiers define a single method, <ulink
+    <literal>ClassifierTrainerI</literal></ulink>, a general interface
+    for building classifiers from training corpora.  It requires that
+    classifiers define a single method, <ulink
     url="&refdoc;/nltk.classifier.ClassifierTrainerI.html#train">
     <literal>train</literal></ulink>, which takes a list of labeled
-    tokens, and returns a new classifier. </para>
+    tokens, and returns a new classifier.  For example, the following
+    code builds a new Naive Bayes classifier from a training corpus:
+    </para>
 
 <programlisting>
     &prompt;<command> from nltk.classifier.naivebayes import NBClassifierTrainer</command>
     &prompt;<command> classifier = NBClassifierTrainer().train(labeled_tokens)</command>
-    &lt;Naive Bayes classifier&gt;
+    &lt;NBClassifier: 3 labels, 187 features&gt;
 </programlisting>
 
-    <note> <para> The interfaces to the naive bayes classifier are
-    under development, and likely to change.  If/when they do, the
-    tutorial will be updated. </para>
-    </note>
-      
   </section> <!-- Training Classifiers -->
 
-  <section> <title> Features </title>
+  <section> <title> Feature-Based Classification </title>
 
-    <para> ... </para>
+    <para> Most text classification algorithms do not depend on the
+    specific details of the task being performed.  The same algorithms
+    that we use to categorize documents by topic can also be used to
+    categorize words by their part of speech, or to categorize
+    acoustic signals according to which phoneme they represent.
+    <glossterm>Features</glossterm> provide a standard way of encoding
+    the information used to make classification decisions.  This
+    standard encoding abstracts away from the details of specifc
+    tasks, allowing the same classifier algorithm to be used to solve
+    many different problems. </para>
+
+    <para> Each feature specifies some aspect of a
+    <literal>LabeledText</literal> that is relevant to deciding how
+    likely that <literal>LabeledText</literal> is to occur.  These
+    features can be used by classification algorithms to examine how
+    likely different labels are for a given text.  A typical example
+    of a feature is:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Whether a document contains the word
+        <literal>"ball"</literal> and has the label
+        <literal>"sports"</literal>.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para> Notice that features depend on both the text and the label.
+    This allows us to specify which aspects of a text are relevant for
+    making decisions about which labels. </para>
+
+    <para> Features can be defined using <glossterm>feature detector
+    functions</glossterm>, which map <literal>LabeledText</literal>s
+    to values.  For example, the feature given above could be defined
+    using the following function:</para>
 
 <screen>
-                      +------------------+
-   labeled text  -->  | feature detector |  -->  feature value
-                      +------------------+
+    <replaceable>f</replaceable>(ltext)  =  1  <emphasis>if (("ball" in ltext.text) and (ltext.label == "sports"))</emphasis>
+                 0  <emphasis>otherwise</emphasis>
 </screen>
 
+    <para> The <glossterm>feature values</glossterm> produced by
+    feature detector functions are usually booleans or integers; but
+    occasionally, real-valued features are used. </para>
+    
+    <caution> 
+
+      <para>Many people use the term "feature" as we do, to refer to
+      an <emphasis>aspect</emphasis> of a labeled text; but some
+      people use the term to refer to the aspect's
+      <emphasis>value</emphasis>.  To avoid confusion, the following
+      table gives explicit definitions of the terminology used by
+      NLTK:</para>
+
+      <informaltable>
+        <tgroup cols="2">
+          <thead>
+            <row>
+              <entry>Term</entry>
+              <entry>Definition</entry>
+            </row>
+          </thead>
+          <tbody> <!-- colsep="0" rowsep="0"> -->
+            <row>
+              <entry><emphasis>feature</emphasis></entry> <entry>An
+              aspect of a <literal>LabeledText</literal> that is
+              relevant to classification. </entry>
+            </row>
+            <row>
+              <entry><emphasis>feature detector
+              function</emphasis></entry> <entry>A function that
+              defines a feature.  Feature detector functions map
+              <literal>LabeledText</literal>s to feature
+              values.</entry>
+            </row>
+            <row>
+              <entry><emphasis>feature value</emphasis></entry>
+              <entry>The value returned by a feature detector function
+              for a particular
+              <literal>LabeledText</literal>. </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </informaltable>
+    </caution>
+    
+    <section> <title> Feature Types </title>
+
+      <section> <title> Boolean Features </title>
+
+        <para> <glossterm>Boolean features</glossterm> are features
+        that generate boolean values.  Boolean features are the
+        simplest and the most common type of feature.  Boolean feature
+        detector functions usually have the form: </para>
+
 <screen>
-                      FeatureDetectorList        FeatureValueList
+
+    <replaceable>f</replaceable>(ltext)  =  1  <emphasis>if <replaceable>pred</replaceable>(ltext.text) and (ltext.label == <replaceable>L</replaceable>)</emphasis>
+                 0  <emphasis>otherwise</emphasis>
+</screen>
+
+        <para> for some boolean function
+        <replaceable>pred</replaceable> and some label
+        <replaceable>L</replaceable>.  Boolean features are also
+        called <glossterm>binary features</glossterm>.</para>
+
+        <para> Boolean features have a simple probablistic
+        interpretation: we can think of them as events defined in the
+        probability space of <literal>LabeledText</literal>s.</para>
+
+      </section> <!-- Boolean Features -->
+
+      <section> <title> Integer Features </title>
+
+        <para> <glossterm>Integer features</glossterm> are features
+        that generate integer values.  Integer feature detector
+        functions usually have the form:</para>
+
+<screen>
+    <replaceable>f</replaceable>(ltext)  =  <replaceable>g</replaceable>(ltext.text)  <emphasis>if ltext.label == <replaceable>L</replaceable></emphasis>
+                       0        <emphasis>otherwise</emphasis>
+</screen>
+        
+        <para> for some integer valued function
+        <replaceable>g</replaceable> and some label
+        <replaceable>L</replaceable>. </para>
+
+        <para> Integer features can be used to give classifiers access
+        to more precise information about the text.  A typical example
+        of an integer feature detector function is: </para>
+
+<screen>
+    <replaceable>f</replaceable>(ltext)  =  num_occurances("ball", ltext.text)  <emphasis>if ltext.label == "sports"</emphasis>
+                               0                     <emphasis>otherwise</emphasis>
+</screen>
+
+      </section> <!-- Integer Features -->
+      
+      <section> <title> Other Feature Types </title>
+
+        <para> Some classifier algorithms use real-valued features, or
+        even more exotic kinds of features.  NLTK allows features
+        values to be any immutable type; but currently, NLTK only
+        implements classifier trainers for boolean and integer
+        features. </para>
+        
+      </section> <!-- Other Features -->
+
+    </section> <!-- Feature Types -->
+
+    <section> <title> Feature Detectors </title>
+
+      <para> The <literal>nltk.classifier.feature</literal> module
+      defines <ulink
+      url="&refdoc;/nltk.classifier.feature.FeatureDetectorI.html">
+      <literal>FeatureDetectorI</literal></ulink>, a general interface
+      for implementing feature detector functions.  Feature detectors
+      are required to define a single method, <ulink
+      url="&refdoc;/nltk.classifier.feature.FeatureDetectorI.html#detect">
+      <literal>detect</literal></ulink>, which takes a labeled text,
+      and returns a feature value. </para>
+
+      <para> <ulink
+      url="&refdoc;/nltk.classifier.feature.FunctionFeatureDetector.html">
+      <literal>FunctionFeatureDetector</literal></ulink> provides a
+      simple flexible implementation of the
+      <literal>FeatureDetectorI</literal> interface.
+      <literal>FunctionFeatureDetector</literal>s are constructed from
+      Python functions with the <ulink
+      url="&refdoc;/nltk.classifier.feature.FunctionFeatureDetector.html#__init__">
+      <literal>FunctionFeatureDetector</literal> constructor</ulink>:</para>
+
+<programlisting>
+    &prompt; <command>def ball_sports(ltext):</command>
+    &prompt2; <command>    return ("ball" in ltext.text()) and (ltext.label() == "sports")</command>
+    &prompt; <command>fdetector = FunctionFeatureDetector(ball_sports)</command>
+    &lt;FeatureDetector: ball_sports&gt;
+</programlisting>
+
+      <para> Once we have constructed a function detector, we can use
+      the <literal>detect</literal> method to find the feature values
+      for various labeled texts: </para>
+
+<programlisting>
+    &prompt; <command>document1 = "John threw the ball over the fence".split()</command>
+    &prompt; <command>document1 = "Mary solved the equation".split()</command>
+    &prompt; <command>fdetector.detect(LabeledText(document1, "sports"))</command>
+    1
+    &prompt; <command>fdetector.detect(LabeledText(document2, "sports"))</command>
+    0
+    &prompt; <command>fdetector.detect(LabeledText(document1, "news"))</command>
+    0
+</programlisting>
+
+    </section> <!-- Feature Detectors -->
+
+    <section> <title> Feature Detector Lists </title>
+
+      <para> <glossterm>Feature detector lists</glossterm> are data
+      structures that represent the feature detector functions for a
+      set of features.  Feature detector lists serve three important
+      functions: </para>
+
+      <itemizedlist>
+        <listitem>
+          <para> They provide a mechanism for grouping feature
+          detectors together.</para>
+        </listitem>
+        <listitem>
+          <para> They associate a unique identifier with each feature
+          detector.</para>
+        </listitem>
+        <listitem>
+          <para> They allow for efficient implementations for sets of
+          related feature detectors. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Abstractly, a feature detector list can be thought of as
+      a <literal>list</literal> of
+      <literal>FeatureDetector</literal>s.  The index of each feature
+      detector in the list serves as a unique identifier for that
+      detector's feature.  This identifier is known as a
+      <glossterm>feature id</glossterm>.  The feature ids for a
+      feature detector list with <emphasis>N</emphasis> features are
+      <emphasis>0, 1, ..., N-1</emphasis>. </para>
+
+      <warning>
+        <para> Feature ids uniquely identify a feature, given a
+        feature detector list.  However, they are not globally unique
+        identifiers.  Thus, a single feature might have different
+        identifiers in different feature detector lists; and two
+        different features might have the same feature id if they are
+        from different feature detector lists.  Care must be taken not
+        to mix feature ids from different feature detector
+        lists. </para>
+      </warning>
+
+      <section> <title> FeatureDetectorListI </title>
+
+        <para> The <literal>nltk.classifier.feature</literal> module
+        defines <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureDetectorListI.html">
+        <literal>FeatureDetectorListI</literal></ulink>, a general
+        interface for implementing feature detector lists.  Feature
+        detector lists are required to implement four methods: an
+        indexing operator; a length operator; a
+        <literal>detect</literal> method; and an addition
+        operator.</para>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureDetectorListI.html#__getitem__">indexing
+        operator</ulink> allows feature detector lists to be treated as lists
+        of <literal>FeatureDetector</literal>s:</para>
+
+<programlisting>
+    <emphasis># fdlist is a feature detector list.</emphasis>
+    &prompt; <command>print fdlist</command>
+    &lt;FeatureDetectorList with 6 features&gt;
+
+    <emphasis># Print the third feature detector. </emphasis>
+    &prompt; <command>fdlist[2]</command>
+    &lt;FeatureDetector: ball_sports&gt;
+
+    <emphasis># Print the feature values generated for labeled_text.</emphasis>
+    &prompt; <command>labeled_text = LabeledText(document2, "news")</command>
+    &prompt; <command>for fdetector in fdlist:</command>
+    &prompt2; <command>    print fdetector, fdetector.detect(labeled_text)</command>
+    &lt;FeatureDetector: ball_news&gt; 0
+    &lt;FeatureDetector: ball_weather&gt; 0
+    &lt;FeatureDetector: ball_sports&gt; 0
+    &lt;FeatureDetector: solved_news&gt; 1
+    &lt;FeatureDetector: solved_weather&gt; 0
+    &lt;FeatureDetector: solved_sports&gt; 0
+</programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureDetectorListI.html#__len__">length
+        operator</ulink> returns the number of features represented
+        by a feature detector list: </para>
+
+<programlisting>
+    &prompt; <command>len(fdlist)</command>
+    6
+</programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureDetectorListI.html#detect"><literal>detect</literal></ulink>
+        method finds the feature value for each feature detector.
+        These values are returned in a structure called a "feature
+        value list," which is discussed in the next section.
+        Conceptually, the <literal>detect</literal> method is
+        equivalant to applying each individual feature detector's
+        <literal>detect</literal> method in parallel; this is
+        illustrated in the following diagram:
+      </para>
+
+<screen>
+                      FeatureDetectorList        FeatureValueList 
                       +------------------+       +---------------+
                       | feature detector |  -->  | feature value |
-                      +------------------+       |               |
+                      +------------------+       +---------------+
                       | feature detector |  -->  | feature value |
-                      +------------------+       |               |
+                      +------------------+       +---------------+
    labeled text  -->  | feature detector |  -->  | feature value |
-                      +------------------+       |               |
-                      | feature detector |  -->  | feature value |
-                      +------------------+       |               |
+                      +------------------+       +---------------+
+                      |       . . .      |  -->  |     . . .     | 
+                      +------------------+       +---------------+
                       | feature detector |  -->  | feature value |
                       +------------------+       +---------------+
 </screen>
+
+<programlisting>
+    &prompt; <command>fdlist.detect(LabeledText(document2, "news"))</command>
+    &lt;FeatureValueList with 6 features&gt;
+</programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureDetectorListI.html#__add__">addition
+        operator</ulink> can be used to combine feature detector
+        lists. </para>
+
+<programlisting>
+    <emphasis># fdlist1 and fdlist2 are feature detector lists.</emphasis>
+    &prompt; <command>print fdlist1</command>
+    &lt;FeatureDetectorList with 6 features&gt;
+    &prompt; <command>print fdlist2</command>
+    &lt;FeatureDetectorList with 72 features&gt;
+
+    &prompt; <command>new_fdlist = fdlist1 + fdlist2</command>
+    &lt;FeatureDetectorList with 78 features&gt;
+</programlisting>
+
+        <para> Note that the feature ids for the feature list produced
+        by addition may be different from the feature ids for the two
+        constituant feature lists: </para>
+
+<programlisting>
+    &prompt; <command>print fdlist2[3]</command>
+    &lt;FeatureDetector: running_weathers&gt;
+
+    &prompt; <command>print new_fdlist[3]</command>
+    &lt;FeatureDetector: asleep_sports&gt;
+</programlisting>
+
+      </section> <!-- FeatureDetectorListI -->
+
+      <section> <title> Efficiency </title>
+
+        <para> Although feature detector lists can be abstractly
+        thought of as <literal>list</literal>s of
+        <literal>FeatureDetector</literal>s, they are not usually
+        implemented that way, for efficiency reasons.  Many of the
+        features used for classification are closely related to each
+        other.  For example, a document classifier might use features
+        that examine whether a given word is in a document.  If the
+        feature detector list were implemented as a list of
+        independant feature detectors, then we would need to apply
+        each feature detector separately.  This would require scanning
+        through the document once for each word we are interested
+        in.</para>
+
+        <para> Instead, we can build a feature detector list that will
+        check for all relevant words at the same time.  This feature
+        detector list makes a single pass through the document.  Each
+        time it encounters a word that we are interested in, it
+        updates the corresponding feature value.  This approach allows
+        for significantly more efficient feature detection. </para>
+
+      </section> <!-- Efficiency -->
+
+    </section> <!-- Feature Detector Lists -->
+
+    <section> <title> Feature Value Lists </title>
+
+      <para> <glossterm>Feature value lists</glossterm> are data
+      structures that represent the feature values for a set of
+      features.  Feature value lists serve three important functions:
+      </para>
+
+      <itemizedlist>
+        <listitem>
+          <para> They provide a mechanism for grouping feature
+          values together.</para>
+        </listitem>
+        <listitem>
+          <para> They associate a unique identifier with each feature
+          value.</para>
+        </listitem>
+        <listitem>
+          <para> They allow for efficient encoding of sparse sets of
+          feature values. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Abstractly, a feature value list can be thought of as a
+      <literal>list</literal> of the feature values for a set of
+      features.  The value for the feature whose id is
+      <replaceable>i</replaceable> is the
+      <replaceable>i</replaceable>th element of the list. </para>
+
+      <para> Feature value lists are usually created with the
+      <literal>detect</literal> method of a feature detector list.
+      The feature ids in the feature value list correspond with the
+      feature ids in the feature detector list that was used to create
+      it.  In other words, the <replaceable>i</replaceable>th feature
+      detector in the feature detector list is responsible for
+      generating the <replaceable>i</replaceable>th feature value in
+      the feature value list.  This correspondance was illustrated in
+      the diagram used to illustrate the <literal>detect</literal>
+      method, above. </para>
+
+      <section> <title> FeatureValueListI </title>
+
+        <para> The <literal>nltk.classifier.feature</literal> module
+        defines <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureValueListI.html">
+        <literal>FeatureValueListI</literal></ulink>, a general
+        interface for implementing feature value lists.  Feature value
+        lists are required to implement four methods: an indexing
+        operator; a length operator; an <literal>assignments</literal>
+        method; and a <literal>defaults</literal> method. </para>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureValueListI.html#__getitem__">indexing
+        operator</ulink> allows feature value lists to be treated as lists
+        of feature values:</para>
+
+<programlisting>
+    <emphasis># fvlist is a feature value list.</emphasis>
+    &prompt; <command>print fvlist</command>
+    &lt;FeatureValueList with 6 features&gt;
+
+    <emphasis># Print the third feature value. </emphasis>
+    &prompt; <command>fvlist[2]</command>
+    0
+
+    <emphasis># Print each feature value.</emphasis>
+    &prompt; <command>print [fvalue for fvalue in fvlist]
+    [0, 0, 0, 1, 0, 0]
+</programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureValueListI.html#__len__">length
+        operator</ulink> returns the number of features represented
+        by a feature value list: </para>
+
+<programlisting>
+    &prompt; <command>len(fvlist)</command>
+    6
+</programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureValueListI.html#assignments"><literal>assignments</literal></ulink>
+        method and the <ulink
+        url="&refdoc;/nltk.classifier.feature.FeatureValueListI.html#defaults"><literal>defaults</literal></ulink>
+        method provide an efficient way ...
+
+
+    </section> <!-- Feature Value Lists -->
 
   </section> <!-- Features -->    
 
   <section> <title> The Naive Bayes Classifier </title>
 
-    <para> ... </para>
+    <para> The Naive Bayes classifier implements a relatively simple
+    classification algorithm that can achieve relatively good
+    performance.  Naive Bayes classifiers can be used with any type of
+    feature; but they usually used with binary features. </para>
+
+    <section> <title> The Naive Bayes Assumption </title>
+
+      <para> what is it? why is it useful? </para>
+
+    </section> <!-- Naive Bayes Assumption -->
+
+    <section> <title> Classifying Texts </title>
+
+      <para> how to classify?  how to approximate P(l|t)? </para>
+
+    </section> <!-- Classifying -->
+
+    <section> <title> A Simple Optimization </title>
+
+      <para> get rid of P(f=default) </para>
+
+    </section> <!-- Classifying -->
+
+    <section> <title> NBClassifier </title>
+
+      <para> describe the NBClassifier implementation/interface </para>
+
+    </section> <!-- Classifying -->
+
+    <section> <title> Training the Naive Bayes Classifier </title>
+
+      <para> describe manual training; then NBClassifierTrainer </para>
+
+    </section> <!-- Classifying -->
 
   </section> <!-- NB Classifier -->
 
