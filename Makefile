@@ -8,7 +8,7 @@
 # $Id$
 
 # What's the current version of NLTK?
-NLTK_VERSION = 0.6
+NLTK_VERSION = '0.7a'
 
 # Where is the web page hosted on the web?
 WEBHOST_NAME = shell.sf.net
