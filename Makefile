@@ -34,7 +34,10 @@ INDEXGEN = ../src/webpage_index.py
 
 # Python executable and Epydoc executable.
 PYTHON = python
-EPYDOC = python -c "import epydoc.cli;epydoc.cli.cli()"
+EPYDOC = epydoc
+
+# Options for epydoc.  Add "-p" to include private objects.
+EPYDOC_OPTS = -v -n nltk -u http://nltk.sf.net
 
 # Find the tutorial documents & technical documents.
 TUTORIAL_DOCS = $(shell cd tutorial;ls */*.info |sed 's/[/][^/]*\.info//')
@@ -97,7 +100,8 @@ technical:
 	$(MAKE) -C technical all
 
 reference: $(REFDOC_DIR_EXISTS)
-	$(EPYDOC) -v -o $(REFDOC_DIR) $(SOURCES)
+	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) \
+	       $(SOURCES)
 
 ##//////////////////////////////////////////////////
 ##  Web page generation
