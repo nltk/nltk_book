@@ -35,8 +35,11 @@
     <para>In terms of the other NLP tasks, chunking usually takes place after
     tokenization and tagging.</para>
 
-    <para>This tutorial describes the NLTK regular expression chunking
-    module.
+    <para>
+    Typically, chunk parsers are based on finite-state methods.
+    The constraints about well-formed chunks are expressed using
+    regular expressions over the sequence of word tags.
+    This tutorial describes the NLTK regular-expression chunk parser.
     </para>
 
   </section> <!-- Introduction -->
@@ -117,36 +120,33 @@ sat/VBD on/IN
 </programlisting>
     
     <para>Another utility defined in the <literal>rechunkparser</literal>
-    module allows the chunking to be removed:</para>
+    module,
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.unchunk.html">
+    <literal>unchunk</literal></ulink>
+    allows the chunking to be removed:</para>
 
 <programlisting>
 &prompt; <command>unchunked_sent = unchunk(correct_chunks)</command>
-['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word], 'sat'/'VBD'@[5word], 'on'/'IN'@[6word], 'the'/'DT'@[8word], 'mat'/'NN'@[9word]]
+['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word], 'sat'/'VBD'@[5word],
+'on'/'IN'@[6word], 'the'/'DT'@[8word], 'mat'/'NN'@[9word]]
 </programlisting>
 
   </section> <!-- The Chunking Tokenizer -->
 
-  <section> <title> The Regular Expression Chunk Parser </title>
+  <section> <title> The String Representation of Tokenized Sequences </title>
 
-    <para>Typically, chunk parsers are based on finite-state methods.
-    The constraints about well-formed chunks are expressed using
-    regular expressions over the sequence of word tags.
-    This section describes the NLTK chunk parser
-    in which all constraints have this form.</para>
-
-    <section> <title> The String Representation of Tokenized Sequences </title>
-
-      <para>Before we can apply a regular expression to a sequence of objects,
-      those objects must first be encoded in a string.  This presents a difficulty.
-      We want to apply the chunker to the output of the tagger, and we want the
-      output of the chunker simply add the chunking information.  However, on
-      the face of it, we must first project out the tags into a string, chunk
-      the string, then somehow get back to the non-string representation.  The
-      following sequence of Python objects illustrate the dilemma:</para>
+    <para>Before we can apply a regular expression to a sequence of objects,
+    those objects must first be encoded in a string.  This presents a difficulty.
+    We want to apply the chunker to the output of the tagger, and we want the
+    output of the chunker simply add the chunking information.  However, on
+    the face of it, we must first project out the tags into a string, chunk
+    the string, then somehow get back to the non-string representation.  The
+    following sequence of Python objects illustrate the dilemma:</para>
 
 <programlisting>
 <emphasis># tagger output</emphasis>
-[ 'the'/'DT'@[1], 'cat'/'NN'@[2] 'sat'/'VBD'@[3], 'on'/'IN'@[4], 'the'/'DT'@[5], 'mat'/'NN'@[6] ]
+[ 'the'/'DT'@[1], 'cat'/'NN'@[2] 'sat'/'VBD'@[3], 'on'/'IN'@[4],
+'the'/'DT'@[5], 'mat'/'NN'@[6] ]
 
 <emphasis># the list of tags</emphasis>
 [ 'DT', 'NN', 'VBD', 'IN', 'DT', 'NN' ]
@@ -158,16 +158,17 @@ sat/VBD on/IN
 '[DT NN] VBD IN [DT NN]'
 
 <emphasis># some black magic?</emphasis>
-[ [ 'the'/'DT'@[1], 'cat'/'NN'@[2] ], 'sat'/'VBD'@[3], 'on'/'IN'@[4], [ 'the'/'DT'@[5],'mat'/'NN'@[6] ] ]
+[ [ 'the'/'DT'@[1], 'cat'/'NN'@[2] ], 'sat'/'VBD'@[3], 'on'/'IN'@[4],
+[ 'the'/'DT'@[5],'mat'/'NN'@[6] ] ]
 </programlisting>
 
-      <para>The solution is to encode each token in a string which contains sufficient
-      information for the token to be reconstructed, and then write chunking rules
-      which only consider the tags, ignoring the types and the locations.
-      The <literal>REChunkParser</literal> class provides a convenient interface
-      hides this additional layer of complexity from the developer.</para>
+    <para>The solution is to encode each token in a string which contains sufficient
+    information for the token to be reconstructed, and then write chunking rules
+    which only consider the tags, ignoring the types and the locations.
+    The <literal>REChunkParser</literal> class provides a convenient interface
+    hides this additional layer of complexity from the developer.</para>
 
-      <para>The string representation of a token is illustrated below:</para>
+    <para>The string representation of a token is illustrated below:</para>
 
 <programlisting>
 <emphasis># a token</emphasis>
@@ -177,200 +178,201 @@ sat/VBD on/IN
 '&gt;the/DT@[1]&lt;'
 </programlisting>
 
-      <para>The <literal>rechunkparser</literal> module provides a function
-      <literal>tag2str</literal> which takes a list of tagged tokens and converts
-      it into a string, concatenating the string encoding of each token.</para>
+    <para>The <literal>rechunkparser</literal> module provides a function
+    <literal>tag2str</literal> which takes a list of tagged tokens and converts
+    it into a string, concatenating the string encoding of each token.</para>
 
-      <note><para>Note that no spaces are inserted between the encoded tokens.
-      In the encoding, tokens are delimited with &lt; and &gt;, not with
-      whitespace.</para></note>
+    <note><para>Note that no spaces are inserted between the encoded tokens.
+    In the encoding, tokens are delimited with &lt; and &gt;, not with
+    whitespace.</para></note>
 
 <programlisting>
-&prompt; <command>ttokens = [ 'the'/'DT'@[1], 'cat'/'NN'@[2] 'sat'/'VBD'@[3], 'on'/'IN'@[4], 'the'/'DT'@[5], 'mat'/'NN'@[6] ]</command>
+&prompt; <command>ttokens = [ 'the'/'DT'@[1], 'cat'/'NN'@[2] 'sat'/'VBD'@[3],
+'on'/'IN'@[4], 'the'/'DT'@[5], 'mat'/'NN'@[6] ]</command>
 &prompt; <command>tag2str(ttokens)</command>
 '&lt;the/DT@[1]&gt;&lt;cat/NN@[2]&gt;&lt;sat/VBD@[3]&gt;&lt;on/IN@[4]&gt;&lt;the/DT@[5]&gt;&lt;mat/NN@[6]&gt;'
 </programlisting>
 
-      <para>The chunker operates on this string, not by splitting it, but
-      by inserting/removing chunk delimiters.  The <literal>rechunkparser</literal>
-      module uses braces as delimiters since, unlike parentheses and square brackets, these
-      do not usually need to be backslash-escaped in regular expressions.
-      Thus, the chunked representation of the above example is as follows:
-      </para>
+    <para>The chunker operates on this string, not by splitting it, but
+    by inserting/removing chunk delimiters.  The <literal>rechunkparser</literal>
+    module uses braces as delimiters since, unlike parentheses and square brackets, these
+    do not usually need to be backslash-escaped in regular expressions.
+    Thus, the chunked representation of the above example is as follows:
+    </para>
 
 <programlisting>
 '{&lt;the/DT@[1]&gt;&lt;cat/NN@[2]&gt;}&lt;sat/VBD@[3]&gt;&lt;on/IN@[4]&gt;{&lt;the/DT@[5]&gt;&lt;mat/NN@[6]&gt;}'
 </programlisting>
 
-      <para>The module provides a method called <literal>str2chunks</literal>
-      which builds a chunk structure from this string.  This is what is
-      returned by the chunkparser for further processing, e.g. by an
-      information extraction system.</para>
+    <para>The module provides a method called <literal>str2chunks</literal>
+    which builds a chunk structure from this string.  This is what is
+    returned by the chunkparser for further processing, e.g. by an
+    information extraction system.</para>
 
-      <para>It is possible to build an NLTK chunker based solely on the
-      infrastructure provided above.  However, we also provide classes to
-      make it easier to express chunk rules and chunk parsers.  The
-      rest of the section discusses these.</para>
+    <para>It is possible to build an NLTK chunker based solely on the
+    infrastructure provided above.  However, we also provide classes to
+    make it easier to express chunk rules and chunk parsers.  The
+    rest of the section discusses these.</para>
 
     </section> <!-- The String Representation of Tokenized Sequences -->
 
     <section> <title> Chunk Rules and Abstract Chunk Rules </title>
 
-      <para>Chunk rules operate on strings of encoded tokens to insert
-      and delete the chunk delimiters.  For instance, a rule might
-      create a chunk by inserting <literal>{</literal> before the fifth
-      token, and inserting <literal>}</literal> after the sixth token.
-      Equally, a rule could combine two adjacent chunks by
-      <emphasis>removing</emphasis> <literal>}{</literal> from the string.</para>
+    <para>Chunk rules operate on strings of encoded tokens to insert
+    and delete the chunk delimiters.  For instance, a rule might
+    create a chunk by inserting <literal>{</literal> before the fifth
+    token, and inserting <literal>}</literal> after the sixth token.
+    Equally, a rule could combine two adjacent chunks by
+    <emphasis>removing</emphasis> <literal>}{</literal> from the string.</para>
 
-      <para>The
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.ChunkRule.html">
-      <literal>ChunkRule</literal></ulink> class provides a convenient wrapper
-      for Python's built-in <literal>re</literal> (regular expression) class.
-      The <literal>ChunkRule</literal> constructor takes five arguments:</para>
+    <para>The
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.ChunkRule.html">
+    <literal>ChunkRule</literal></ulink> class provides a convenient wrapper
+    for Python's built-in <literal>re</literal> (regular expression) class.
+    The <literal>ChunkRule</literal> constructor takes five arguments:</para>
 
-      <itemizedlist>
-        <listitem><para><emphasis>target</emphasis>
-          The material that the regular expression must apply to
-        </para></listitem>
-        <listitem><para><emphasis>action</emphasis>
-          The action performed on this material
-          (i.e. reproducing the material using the <literal>\1</literal>
-          construct and adding or removing braces).
-        </para></listitem>
-        <listitem><para><emphasis>left</emphasis>
-          The left-hand context in which this rule applies.
-        </para></listitem>
-        <listitem><para><emphasis>right</emphasis>
-          The right-hand context in which this rule applies.
-        </para></listitem>
-        <listitem><para><emphasis>doc</emphasis>
-          Brief documentation of the function of the rule
-          (e.g. <literal>'chunking groups of JJ|NN'</literal>).
-        </para></listitem>
-      </itemizedlist>
+    <itemizedlist>
+      <listitem><para><emphasis>target</emphasis>
+        The material that the regular expression must apply to
+      </para></listitem>
+      <listitem><para><emphasis>action</emphasis>
+        The action performed on this material
+        (i.e. reproducing the material using the <literal>\1</literal>
+        construct and adding or removing braces).
+      </para></listitem>
+      <listitem><para><emphasis>left</emphasis>
+        The left-hand context in which this rule applies.
+      </para></listitem>
+      <listitem><para><emphasis>right</emphasis>
+        The right-hand context in which this rule applies.
+      </para></listitem>
+      <listitem><para><emphasis>doc</emphasis>
+        Brief documentation of the function of the rule
+        (e.g. <literal>'chunking groups of JJ|NN'</literal>).
+      </para></listitem>
+    </itemizedlist>
 
-      <para>Both <literal>target</literal> and <literal>action</literal>
-      are explicit arguments.  The remaining arguments are optional,
-      keyword arguments.  Here is a chunk rule which inserts the chunk
-      delimiters around any tag <literal>NN</literal>.</para>
+    <para>Both <literal>target</literal> and <literal>action</literal>
+    are explicit arguments.  The remaining arguments are optional,
+    keyword arguments.  Here is a chunk rule which inserts the chunk
+    delimiters around any tag <literal>NN</literal>.</para>
 
 <programlisting>
 ChunkRule(r'(&lt;[^&gt;]*/NN@[^&gt;]*&gt;)', r'{\1}', doc='chunk NNs')
 </programlisting>
 
-      <note><para>Note that we use Python's raw string notation, so that
-      the interpreter does not preprocess the backslash escapes.  In general,
-      it is a good idea to use the raw string notation whenever regular
-      expressions are involved.  We follow this practice here.</para></note>
+    <note><para>Note that we use Python's raw string notation, so that
+    the interpreter does not preprocess the backslash escapes.  In general,
+    it is a good idea to use the raw string notation whenever regular
+    expressions are involved.  We follow this practice here.</para></note>
 
-      <para>This rule matches tokens like
-      <literal>&lt;cat/NN@[1]&gt;</literal>,
-      and flags them as chunks by wrapping them with the chunk
-      delimiters.  This is probably the simplest kind of chunk rule,
-      and it is already incomprehensible.  Therefore, the
-      <literal>rechunkparser</literal> module defines a more
-      convenient interface, namely the <literal>AbstractChunkRule</literal>
-      class.</para>
+    <para>This rule matches tokens like
+    <literal>&lt;cat/NN@[1]&gt;</literal>,
+    and flags them as chunks by wrapping them with the chunk
+    delimiters.  This is probably the simplest kind of chunk rule,
+    and it is already incomprehensible.  Therefore, the
+    <literal>rechunkparser</literal> module defines a more
+    convenient interface, namely the <literal>AbstractChunkRule</literal>
+    class.</para>
 
-      <para>The
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.AbstractChunkRule.html">
-      <literal>AbstractChunkRule</literal></ulink>
-      class is a simple wrapper for the <literal>ChunkRule</literal> class.
-      <literal>AbstractChunkRule</literal> is a derived class whose
-      initializer preprocesses its <literal>target</literal>,
-      <literal>left</literal> and <literal>right</literal> arguments.
-      The calling function can now employ regular expressions
-      <emphasis>over the tags only</emphasis>,
-      ignoring the fact that the string also contains types and
-      locations.  The chunk rule we saw above can now be written
-      as follows:</para>
+    <para>The
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.AbstractChunkRule.html">
+    <literal>AbstractChunkRule</literal></ulink>
+    class is a simple wrapper for the <literal>ChunkRule</literal> class.
+    <literal>AbstractChunkRule</literal> is a derived class whose
+    initializer preprocesses its <literal>target</literal>,
+    <literal>left</literal> and <literal>right</literal> arguments.
+    The calling function can now employ regular expressions
+    <emphasis>over the tags only</emphasis>,
+    ignoring the fact that the string also contains types and
+    locations.  The chunk rule we saw above can now be written
+    as follows:</para>
 
 <programlisting>
 AbstractChunkRule(r'(&lt;NN&gt;)', r'{\1}', doc='chunk NNs')
 </programlisting>
 
-      <para>Given this simpler format it is now relatively straightforward
-      to construct some quite complex chunk rules.  The first generalization
-      is to note that the tags themselves have some internal structure that
-      we can exploit.  For example, a plural noun is tagged <literal>NNS</literal>.
-      Suppose we wished to treat all tags starting with <literal>NN</literal>
-      in a single chunk rule.  We could do this as follows:</para>
+    <para>Given this simpler format it is now relatively straightforward
+    to construct some quite complex chunk rules.  The first generalization
+    is to note that the tags themselves have some internal structure that
+    we can exploit.  For example, a plural noun is tagged <literal>NNS</literal>.
+    Suppose we wished to treat all tags starting with <literal>NN</literal>
+    in a single chunk rule.  We could do this as follows:</para>
 
 <programlisting>
 AbstractChunkRule(r'(&lt;NN.*&gt;)', r'{\1}', doc='chunk NNX')
 </programlisting>
 
-      <para>In some cases, there is no common prefix and so we are forced
-      to use disjunction.  Here is a chunk rule which puts chunk delimiters
-      around any individual determiner, adjective or noun.  (Adjacent chunks would then
-      need to be merged by another rule.)</para>
+    <para>In some cases, there is no common prefix and so we are forced
+    to use disjunction.  Here is a chunk rule which puts chunk delimiters
+    around any individual determiner, adjective or noun.  (Adjacent chunks would then
+    need to be merged by another rule.)</para>
 
 <programlisting>
 AbstractChunkRule(r'(&lt;DT|JJ|NN.*&gt;)', r'{\1}', doc='chunk DT|JJ|NNX')
 </programlisting>
 
-      <para>Now suppose we wished to create a single chunk which encompassed
-      a sequence consisting of a determiner followed by zero or more adjectives,
-      followed by a noun.  We can also use the star operator for this:</para>
+    <para>Now suppose we wished to create a single chunk which encompassed
+    a sequence consisting of a determiner followed by zero or more adjectives,
+    followed by a noun.  We can also use the star operator for this:</para>
 
 <programlisting>
 AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN.*&gt;)', r'{\1}', doc='chunk DT,JJ,NNX')
 </programlisting>
 
-      <para>In this example, the scope of the star operator is the preceding tag
-      (i.e. the material contained inside the previous pair of angle brackets).
-      </para>
+    <para>In this example, the scope of the star operator is the preceding tag
+    (i.e. the material contained inside the previous pair of angle brackets).
+    </para>
 
-      <note><para>Note that the star and other regular expression operators
-      behave differently depending on whether they are inside or outside the
-      scope of the angle brackets.  Inside the angle brackets, the operators work
-      at the character level.  Outside the angle brackets the operators apply to
-      complete tags.  In other words, the angle brackets are behaving like
-      ordinary parentheses in regular expressions.</para></note>
+    <note><para>Note that the star and other regular expression operators
+    behave differently depending on whether they are inside or outside the
+    scope of the angle brackets.  Inside the angle brackets, the operators work
+    at the character level.  Outside the angle brackets the operators apply to
+    complete tags.  In other words, the angle brackets are behaving like
+    ordinary parentheses in regular expressions.</para></note>
 
-      <para>The application of chunk rules can be constrained by making use of
-      the <literal>left</literal> and <literal>right</literal> context arguments.
-      For example, suppose we wanted to chunk a maximal string of tags which ends
-      with a verb.  Here is a possible rule:</para>
+    <para>The application of chunk rules can be constrained by making use of
+    the <literal>left</literal> and <literal>right</literal> context arguments.
+    For example, suppose we wanted to chunk a maximal string of tags which ends
+    with a verb.  Here is a possible rule:</para>
 
 <programlisting>
 AbstractChunkRule(r'(&lt;.*&gt;*)', r'{\1}', right = r'&lt;VB.*&gt;')
 </programlisting>
 
-      <note><para>Contrary to the above, for technical reasons it is
-      <emphasis>not</emphasis> possible to use the left context in
-      <literal>AbstractChunkRule</literal>s.  (This is because Python's
-      look-behind operator requires a fixed-width pattern.)</para></note>
+    <note><para>Contrary to the above, for technical reasons it is
+    <emphasis>not</emphasis> possible to use the left context in
+    <literal>AbstractChunkRule</literal>s.  (This is because Python's
+    look-behind operator requires a fixed-width pattern.)</para></note>
 
-      <note><para>We use a special context argument to permit rules to apply
-      to their own output.  The other logical possibility - embedding
-      multiple parentheses in the <literal>target</literal> argument, prevents
-      rules reapplying to the same context.  This is only an issue in those
-      cases where the context of some rule later becomes the target of a
-      separate instance of the same rule.</para></note>
+    <note><para>We use a special context argument to permit rules to apply
+    to their own output.  The other logical possibility - embedding
+    multiple parentheses in the <literal>target</literal> argument, prevents
+    rules reapplying to the same context.  This is only an issue in those
+    cases where the context of some rule later becomes the target of a
+    separate instance of the same rule.</para></note>
 
     </section> <!-- Chunk Rules and Abstract Chunk Rules -->
 
     <section> <title> The REChunkParser Class </title>
 
-      <para>The
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.REChunkParser.html">
-      <literal>REChunkParser</literal></ulink>
-      allows the programmer to construct a chunkparser object from a list
-      (or <emphasis>cascade</emphasis>) of chunk rules.  Suppose we have a list of
-      of rules and a list of tokens.  Then we can construct
-      a chunkparser and apply it as follows:</para>
+    <para>The
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.REChunkParser.html">
+    <literal>REChunkParser</literal></ulink>
+    allows the programmer to construct a chunkparser object from a list
+    (or <emphasis>cascade</emphasis>) of chunk rules.  Suppose we have a list of
+    of rules and a list of tokens.  Then we can construct
+    a chunkparser and apply it as follows:</para>
 
 <programlisting>
 &prompt; <command>chunker = REChunkParser(rules)</command>
 &prompt; <command>chunker.parse(tokens)</command>
 </programlisting>
 
-      <para>The <literal>parse</literal> method converts its argument to the
-      string encoding, applies the chunk rules in sequence, then converts the
-      result to a chunk structure and returns this structure.  Here is a
-      simple example using a rule we created earlier:</para>
+    <para>The <literal>parse</literal> method converts its argument to the
+    string encoding, applies the chunk rules in sequence, then converts the
+    result to a chunk structure and returns this structure.  Here is a
+    simple example using a rule we created earlier:</para>
 
 <programlisting>
 &prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
@@ -380,10 +382,10 @@ AbstractChunkRule(r'(&lt;.*&gt;*)', r'{\1}', right = r'&lt;VB.*&gt;')
 'sat'/'VBD'@[5word], 'on'/'IN'@[6word], ['the'/'DT'@[8word], 'mat'/'NN'@[9word]]]
 </programlisting>
 
-      <para>The <literal>REChunkParser</literal> initializer has an optional
-      second argument which is a debug flag.  If this is set (e.g. to 1) then
-      the chunk parser will display diagnostic output.  We repeat the above
-      example with the debug flag set:</para>
+    <para>The <literal>REChunkParser</literal> initializer has an optional
+    second argument which is a debug flag.  If this is set (e.g. to 1) then
+    the chunk parser will display diagnostic output.  We repeat the above
+    example with the debug flag set:</para>
 
 <programlisting>
 &prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
@@ -403,31 +405,55 @@ input:   &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;
 
     <section> <title> Chunking Strategies </title>
 
-      <para>brute force vs iterative</para>
+    <para>brute force vs iterative</para>
 
-      <para>Notes: in the brute force approach we construct complex
-      regular expressions which create the desired chunks in a single step.
-      In the iterative approach we create chunks, then successively merge
-      and split them, until we get the desired result.</para>
+    <para>Notes: in the brute force approach we construct complex
+    regular expressions which create the desired chunks in a single step.
+    In the iterative approach we create chunks, then successively merge
+    and split them, until we get the desired result.</para>
 
-      <para>chunking vs chinking</para>
+    <para>chunking vs chinking</para>
 
-      <para>Notes: chunking begins with an unchunked sentence and adds chunk
-      delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
-      begins with the entire sentence in a single chunk, then removes pieces.
-      For example, we could chunk the whole sentence then
-      chink the verbs using the following rule:</para>
+    <para>Notes: chunking begins with an unchunked sentence and adds chunk
+    delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
+    begins with the entire sentence in a single chunk, then removes pieces.
+    For example, we could chunk the whole sentence then
+    chink the verbs using the following rule:</para>
 
 <programlisting>
 AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
 AbstractChunkRule(r'(&lt;VB.*&gt;)', r'}\1{', doc='chink the verbs')
 </programlisting>
 
-      <para>Note the directionality of the braces in the second argument
-      of the second constructor.</para>
-      
-    </section> <!-- Chunking Strategies -->
+    <para>Note the directionality of the braces in the second argument
+    of the second constructor.</para>
+    
+  </section> <!-- Chunking Strategies -->
 
-  </section> <!-- The Regular Expression Chunk Parser -->
+  <section> <title> Evaluating Chunk Parsers </title>
+
+    <para> An easy way to evaluate a chunk parser is to take some
+    already chunked text, strip off the chunks, rechunk it, and compare
+    the result with the original chunked text.  NLTK provides the necessary
+    functions:</para>
+
+<programlisting>
+unchunked_sent = unchunk(correct_chunks)
+chunker = REChunkParser(rules)
+chunked_sent = cp.parse(unchunked_sent)
+score(correct_chunks, chunked_sent)
+</programlisting>
+
+    <para>The 
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rechunkparser.score.html">
+    <literal>score</literal></ulink>
+    function takes the correctly chunked sentence as its first argument, and
+    the newly chunked version as its second argument, and compares them.
+    It reports the fraction of actual chunks that were found (recall), the
+    fraction of hypothesized chunks that were correct (precision), and a
+    combined score, the F-measure (the harmonic mean of precision and recall).
+    </para>
+
+  </section> <!-- Evaluating Chunk Parsers -->
 
 </article>
