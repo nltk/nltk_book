@@ -39,34 +39,17 @@
 
 <!------------------------------------------------------------------------>
 
-<section id="tokenization"><title>Tokenization</title>
+<section id="token"><title>Tokens: the building blocks of text</title>
 
-<para> This chapter addresses the following questions: how do we know
-that piece of text is a <glossterm>word</glossterm>, and how do we
-represent words and associated information in a machine?
-</para>
-
-<!--
-<para> This chapter and the following one address the following questions: How do we know
-that piece of text is a <glossterm>word</glossterm>? And once we know
-that something is a word, what linguistic
-<glossterm>category</glossterm> should it be assigned to?
-In this chapter, we will also look at a powerful technique for
-describing textual patterns called <glossterm>regular expressions</glossterm>.
-</para>
--->
-
-<para> It might seem needlessly picky to ask what a word is. Can't we
-just say the following?
-<orderedlist>
-<listitem id="word_def">
-<para>A word is a string of characters which has white space
-before and after it</para>
-</listitem>
-</orderedlist>
-
+<para> How do we know that piece of text is a
+<glossterm>word</glossterm>, and how do we represent words and
+associated information in a machine?  It might seem needlessly picky
+to ask what a word is. Can't we just say that
+a word is a string of characters which has white space
+before and after it?
 However, it turns out that things are quite a bit
-more complex. To get a flavour of the problems, consider the following text.
+more complex. To get a flavour of the problems, consider the following
+text from the Wall Street Journal:
 <example id="wsj_0034">
 <title>Paragraph 12 from <filename>wsj_0034</filename></title>
 <literallayout><literal>
@@ -86,7 +69,7 @@ Mr. Porter.
 
 <para>
 Let's start with the string <literal>aren't</literal>. According to
-<xref linkend="word_def"/>, it counts as only one word. But consider a
+our naive definition, it counts as only one word. But consider a
 situation where we wanted to check whether all the words in our text
 occurred in a dictionary, and our dictionary had entries for <literal
 lang="en">are</literal> and <literal lang="en">not</literal>, but not
@@ -98,7 +81,7 @@ text to extract all words which express dates. In this case, we would
 get achieve more generality by first stripping oexcept in this case, we
 would not expect to find <literal>1992</literal> in a dictionary.--> 
 
-If we take <xref linkend="word_def"/> literally (as we should, if we are
+If we take our naive definition of word literally (as we should, if we are
 thinking of implementing it in code), then there are some other minor
 but real problems. For example, assuming our file consists of a number
 of separate lines, as indicated in <xref linkend="wsj_0034"/>, then all
@@ -132,7 +115,6 @@ following (drawn from the MedLine [ref] corpus):
 </para>
 </listitem>
 </orderedlist>
-
 In these cases, we encounter terms which are unlikely to be found in any
 general purpose English lexicon. Moreover, we will have no success in
 trying to syntactically analyse these strings using a standard grammar
@@ -142,28 +124,25 @@ up</quote> expressions such as
 and <literal>4.53 +/- 0.15%</literal> so that they are presented as
 unanalysable atoms to the parser. That is, we want to treat them as
 single <quote>words</quote> for the purposes of subsequent processing.
-</para>
-
-<para>The upshot is that, even if we confine our attention to English
+The upshot is that, even if we confine our attention to English
 text, the question of what we treat as word may depend a great deal on
-what our purposes are. If we turn to languages other than English,
+what our purposes are.</para>
+
+<note><para>
+If we turn to languages other than English,
 segmenting words can be even more of a challenge. For example, in
 Chinese orthography, characters correspond to monosyllabic
 morphemes. Many morphemes are words in their own right, but many words
 contain more than one morpheme; most of them consist of two
 morphemes. However, there is no visual representation of word boundaries
 in Chinese text.
-
-<note><para>give example
-</para>
-</note>
-
-</para>
+</para></note>
 
 <para>
-Let's look in more detail at the words in the text <xref linkend="wsj_0034"/>.
-Suppose we use white space as the delimiter for words, and then list all
-the words; we would expect to get something like the following:
+Let's look in more detail at the words in <xref linkend="wsj_0034"/>.
+Suppose we use white space as the delimiter for words, and then list
+all the words of the text in alphabetical order; we would expect to
+get something like the following:
 <informalexample>
 <programlisting><![CDATA[
 120 1992 And Barney But European European Fund I It It Japanese Korea
@@ -205,18 +184,7 @@ wc -w wsj_0034_pars12-13
 ]]></programlisting>
 -->
 Now, if we ask a program utility to tell us how many words there in the
-text, it will probably come back with something like the following:
-
-<itemizedlist>
-<listitem>
-<para>There are 90 words in <xref linkend="wsj_0034"/>.</para>
-</listitem>	
-
-<!--	  <listitem>
-<para>the word `European' occurs twice in <xref
-linkend="wsj_0034"/> </para></listitem>  
--->
-</itemizedlist>
+text, it will probably return the answer: 90.
 <indexterm><primary>word token</primary></indexterm>
 <indexterm><primary>word type</primary></indexterm>
 This calculation depends on treating each of the three occurrences of
@@ -252,8 +220,8 @@ context, we will simply use the terms <glossterm>token</glossterm> and
   </para>
 
 <!-- SUBSECTION: Strings -->
-<section id="tokenization.strings">
-<title>Strings and Tokens</title>
+<section id="token.representing">
+<title>Representing tokens</title>
 
 <para> When written language is stored in a machine it is normally
 represented as a sequence (or <glossterm>string</glossterm>) of
@@ -274,11 +242,6 @@ whitespace (space, tab, or newline) or certain punctuation symbols, and
 breaking the string into word tokens at these points.
 </para>
 
-</section><!--Strings and Tokens-->
-
-<section id="words">
-<title>Representing Words</title>
-
 <para>
 Earlier we said that written language can be stored in a machine as a character string.
 We can represent words in Python using strings, such as <literal>'dog'</literal>.
@@ -295,10 +258,13 @@ of permitting us to distinguish homographs.  Two words that are spelled the
 same might be given different indices.</para>
 
 <para> It turns out that both of these representations -- strings and integers -- are
-too impoverished for our purposes.  They fail to distinguish between word types and
-word tokens.  Additionally, they do not make it easy to associate other information
-(such as a part-of-speech tag) with a word token.
+too impoverished for our purposes.
+First, they make it difficult to associate other information
+(such as a part-of-speech tag) with a word token, and second,
+they fail to distinguish between word types and word tokens.
+We will now show how both of these problems are remedied.</para>
 
+<para>
 In NLTK, we usually represent words using
 <ulink url="&refdoc;/nltk.token.Token-class.html"><literal>Token</literal>s</ulink>.
 In the next section we will learn more about <literal>Tokens</literal>, and how they are
@@ -337,9 +303,132 @@ additional properties with a token:
 However, none of this permits us to distinguish two instances of the same word.
 For that, we need to use <emphasis>locations</emphasis>, which we turn to next.
 </para>
-</section> <!-- Words -->
+</section><!--Representing Tokens-->
 
-<section> <title> Texts </title>
+<section id="token.locations">
+<title> Locations </title>
+
+<para> <glossterm>Span locations</glossterm> specify regions of
+      texts, using a <glossterm>start index</glossterm> and an
+      <glossterm>end index</glossterm>.  A location in a stream of
+      text starting at character
+      <replaceable>s</replaceable> and ending at character
+      <replaceable>e</replaceable> is written
+      <literal>@[</literal><replaceable>s</replaceable><literal>:</literal><replaceable>e</replaceable><literal>c]</literal>.
+      This location specifies the region of the text beginning at
+      <replaceable>s</replaceable>, and including everything up to
+      (but not including) <replaceable>e</replaceable>.
+      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html"
+      ><literal>CharSpanLocations</literal></ulink> are created using the
+      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html#__init__"
+      ><literal>CharSpanLocation</literal> constructor</ulink>, which is
+      defined in the <ulink url="&refdoc;/nltk.token-module.html"
+      ><literal>nltk.token</literal></ulink> module:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.token import * 
+>>> my_loc = CharSpanLocation(1, 5) 
+@[1:5]c
+]]></programlisting>
+
+<para> Note that a text location does <emphasis>not</emphasis> include
+the text at its end location.  This convention may seem unintuitive at
+first, but it has a number of advantages.  First, it is consistent with
+Python's slice notation (e.g., <literal>x[1:3]</literal> specifies
+elements 1 and 2 of <literal>x</literal>).
+
+<footnote><para>Unlike Python slices, text locations do
+<emphasis>not</emphasis> support negative indexes.</para></footnote> 
+
+Second, it allows text locations to specify points <emphasis>between</emphasis> tokens,
+instead of just ranges.  For example, <literal>Location(3,3)</literal> specifies the
+point just before the text at index 3.  Finally, it simplifies arithmetic on
+indices; for example, the length of <literal>Location(5,10)</literal> is
+<literal>10-5</literal>, and two locations are contiguous if the start
+of one equals the end of the other. </para>
+
+<para>A text location may be tagged with a
+<glossterm>source</glossterm>, which gives an indication of where the
+text was derived from.  By default, the location's source is
+unspecified.  A typical example of a source would be the name of the
+file from which the element of text was read.<footnote><para> The
+location indexes are zero-based, so the first sentence starts at an
+index of zero, not one.</para></footnote>
+</para>
+
+<programlisting><![CDATA[
+>>> my_loc = CharSpanLocation(1, 5, 'foo.txt') 
+@[1:5c]@'foo.txt'
+>>> another_loc = CharSpanLocation(3, 72, 'bar.txt') 
+@[3:72c]@'bar.txt'
+]]></programlisting>
+
+<para> As discussed above, a text token represents a single
+      occurrence of a piece of text.  In NLTK, a token is defined by a
+      type, together with a location at which that type occurs.  A
+      token with text <replaceable>t</replaceable> and location
+      <literal>@[<replaceable>l</replaceable>]</literal> can be
+      written as
+      <literal>&lt;<replaceable>t</replaceable>>@[<replaceable>l</replaceable>]</literal>.
+      This location information can be used to distinguish two instances of
+      the same text.
+      Tokens are constructed with the <ulink
+      url="&refdoc;/nltk.token.Token-class.html#__init__"
+      ><literal>Token</literal> constructor</ulink>: </para>
+
+<programlisting><![CDATA[
+>>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
+'hello'@[0,5c]
+>>> token2 = Token(TEXT='world', LOC=CharSpanLocation(6, 11)) 
+'world'@[6,11c]
+]]></programlisting>
+
+<para> Two tokens are only equal if they are equal on all their attributes,
+in this case, for the attributes <literal>text</literal> and <literal>loc</literal>.
+</para>
+
+<programlisting><![CDATA[
+>>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
+'hello'@[0,5c]
+>>> token2 = Token(TEXT='hello', LOC=CharSpanLocation(6, 11)) 
+'world'@[6,11c]
+>>> token1 == token2 
+False
+>>> token1['TEXT'] == token2['TEXT'] 
+True
+]]></programlisting>
+
+<note>
+<para> When a token's location is unknown or unimportant, it may be omitted.
+However, the distinction between a word token and a word type is lost in this
+case.
+</para>
+</note>
+
+<note>
+<para> A location's start index, end index, and source, can be accessed
+  using the <literal>start()</literal>, <literal>end()</literal>, and
+  <literal>source()</literal> member functions:
+<programlisting><![CDATA[
+>>> loc1 = CharSpanLocation(0, 8, 'corpus.txt') 
+@[0:8c]@'corpus.txt'
+>>> loc1.start()
+0
+>>> loc1.end()
+8
+>>> loc1.source()
+'corpus.txt'
+]]></programlisting>
+</para>
+</note>
+
+</section> <!-- Locations -->
+
+</section>  <!-- Tokens -->
+
+<!------------------------------------------------------------------------>
+
+<section> <title> Tokenization </title>
 
 <para> Many natural language processing tasks involve analyzing
     texts of varying sizes, ranging from single sentences to very
@@ -365,33 +454,32 @@ For that, we need to use <emphasis>locations</emphasis>, which we turn to next.
 >>> from nltk.tokenizer import *
 >>> text_token = Token(TEXT='Hello world.  This is a test file.')
 <Hello world.  This is a test file.>
->>> WhitespaceTokenizer().tokenize(text_token)
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token)
 >>> print text_token 
 <[<Hello>, <world.>, <This>, <is>, <a>, <test>, <file.>]>
 ]]></programlisting>
 
-<para> Observe that the <literal>text_token</literal> initially contains
-a single token for the entire text.  We further tokenize this into its
-component word tokens, and the result is stored as an annotation of the
-original token.  The original source token and the resulting tokens are all stored
-together, as the following code illustrates:
+<para> Observe that the <literal>text_token</literal> initially
+contains a single token for the entire text.  We further tokenize this
+into its component word tokens, and the result is stored as an
+annotation of the original token.  The original source token and the
+resulting tokens are all stored together, as the following code
+illustrates:<footnote><para>The default method for printing a token
+containing subtokens is just to print the subtokens.</para></footnote>
 </para>
 
 <programlisting><![CDATA[
 >>> print text_token['TEXT'] 
 <Hello world.  This is a test file.>
->>> print text_token['SUBTOKENS'] 
+>>> print text_token['WORDS'] 
 [<Hello>, <world.>, <This>, <is>, <a>, <test>, <file.>]
 ]]></programlisting>
-
-<note><para>The default method for printing a token containing subtokens
-is just to print the subtokens.</para></note>
 
 <para> If we want all tokens to contain location data, then we
 specify the <literal>addlocs</literal> option:</para>
 
 <programlisting><![CDATA[
->>> WhitespaceTokenizer().tokenize(text_token, addlocs=True) 
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token, addlocs=True) 
 >>> print text_token 
 <[<Hello>@[0:5c], <world.>@[6:12c], <This>@[14:18c], <is>@[19:21c], <a>@[22:23c],
 <test>@[24:28c], <file.>@[29:34c]]>
@@ -402,7 +490,7 @@ useful in document classification applications: </para>
 
 <programlisting><![CDATA[
 >>> from nltk.set import * 
->>> print Set(*text_token.freeze()['SUBTOKENS']) 
+>>> print Set(*text_token.freeze()['WORDS']) 
 {<a>, <This>, <is>, <file.>, <test>, <Hello>, <world.>}
 ]]></programlisting>
 
@@ -412,10 +500,10 @@ lowercase, expanding contractions, and possibly even stemming the
 words.  An example for stemming is shown below:
 <programlisting><![CDATA[
 >>> text_token = Token(TEXT='stemming can be fun and exciting') 
->>> WhitespaceTokenizer().tokenize(text_token) 
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token) 
 >>> from nltk.stemmer.porter import * 
 >>> stemmer = PorterStemmer() 
->>> for word_token in text_token['SUBTOKENS']: 
+>>> for word_token in text_token['WORDS']: 
 ...     stemmer.stem(word_token)
 >>> print text_token 
 <[<TEXT='stemming', STEM='stem'>, <TEXT='can', STEM='can'>, <TEXT='be', STEM='be'>,
@@ -424,44 +512,30 @@ words.  An example for stemming is shown below:
 </para>
 </note>
 
-</section> <!-- Texts -->
-
-<section> <title> The regular expression tokenizer </title>
-
-<para> The <literal>RegexpTokenizer</literal> is a more powerful
-      tokenizer.  It uses a regular expression to determine how text
-      should be split up.  This regular expression specifies the
-      format of a valid word.  For example, if we wanted to mimic the
-      behavior or <literal>WhitespaceTokenizer</literal>, we could define the
-      following <literal>RegexpTokenizer</literal>: </para>
-
-<programlisting><![CDATA[
->>> text_token = Token(TEXT='Hello. Isn't this fun?') 
->>> tokenizer = RegexpTokenizer(r'[^\s]+') 
->>> tokenizer.tokenize(text_token) 
->>> print text_token 
-<[<Hello.>, <Isn't>, <this>, <fun?>]>
-]]></programlisting>
-
-<para> (The regular expression <literal>\s</literal> matches any
-      whitespace character.) </para>
-
-<para> To define a tokenizer that includes punctuation as
-      separate tokens, we could use: </para>
+<para>Tokenization based on white space is too simplistic for most
+applications.  For instance, it fails to separate the last word of a
+phrase or sentence from punctuation characters, such as comma, period,
+exclamation mark and question mark.  As its name suggests,
+<literal>RegexpTokenizer</literal> employs a regular expression to
+determine how text should be split up.  This regular expression
+specifies the characters that can be included in a valid word.  To
+define a tokenizer that includes punctuation as separate tokens, we
+could use:</para>
 
 <programlisting><![CDATA[
 >>> regexp = r'\w+|[^\w\s]+'
 '\w+|[^\w\s]+'
->>> tokenizer = RegexpTokenizer(regexp) 
->>> tokenizer.tokenize(text_token) 
->>> print text_token 
+>>> tokenizer = RegexpTokenizer(regexp, SUBTOKENS='WORDS')
+>>> tokenizer.tokenize(text_token)
+>>> print text_token
 <[<Hello>, <.>, <Isn>, <'>, <t>, <this>, <fun>, <?>]>
 ]]></programlisting>
 
 <para> The regular expression in this example will match
-      <emphasis>either</emphasis> a sequence of alphanumeric
-      characters (letters and numbers); <emphasis>or</emphasis> a
-      sequence of punctuation characters. </para>
+a sequence consisting of one or more word characters <literal>\w+</literal>.
+It will also match a sequence consisting of one or more punctuation
+characters (or non-word, non-space characters <literal>[^\w\s]+</literal>).
+</para>
 
 <para> There are a number of ways we might want to improve this
       regular expression.  For example, it currently breaks the string
@@ -474,16 +548,13 @@ words.  An example for stemming is shown below:
 >>> text_token = Token(TEXT='That poster costs $22.40.') 
 >>> regexp = r'(\w+)|(\$\d+\.\d+)|([^\w\s]+)'
 '(\w+)|(\$\d+\.\d+)|([^\w\s]+)'
->>> tokenizer = RegexpTokenizer(regexp) 
->>> tokenizer.tokenize(text_token) 
->>> print text_token 
-<[<That>, <poster>, <costs>, &lt$22.40>, <.>]>
+>>> tokenizer = RegexpTokenizer(regexp, SUBTOKENS='WORDS')
+>>> tokenizer.tokenize(text_token)
+>>> print text_token
+<[<That>, <poster>, <costs>, <$22.40>, <.>]>
 ]]></programlisting>
 
-<para> Of course, more general solutions to this problem are
-      also possible, using different regular expressions. </para>
-
-<note><para>It is sometimes more convenient to write a regular expression
+<para>It is sometimes more convenient to write a regular expression
 matching the material that appears <emphasis>between</emphasis> tokens, such as whitespace
 and punctuation.  The <literal>RegexpTokenizer()</literal> constructor permits
 an optional parameter <literal>negative</literal> which inverts the meaning
@@ -491,24 +562,21 @@ of the regular expression.  For example, the following two tokenizers are
 equivalent:
 <literal>RegexpTokenizer(r'[^\s]+')</literal>,
 <literal>RegexpTokenizer(r'\s+', negative=1)</literal>.
-</para></note>
+</para>
 
-<note>
 <para> 
 The <literal>nltk.corpus</literal> module provides ready access to several
 corpora included with NLTK, along with built-in tokenizers.  Here is an
 example of its use:
 <programlisting><![CDATA[
 >>> from nltk.corpus import gutenberg 
->>> print gutenberg.tokenize('milton-paradise.txt') 
-<[<**This>@[2:8c], <is>@[9:11c], <the>@[12:15c], <Project>@[16:23c], <Gutenberg>@[24:33c],
-<Etext>@[34:39c], <of>@[40:42c], <Paradise>@[43:51c], <Lost(Raben)**> ... ]>
+>>> print gutenberg.tokenize('milton-paradise.txt')
+<[<**This>, <is>, <the>, <Project>, <Gutenberg>,
+<Etext>, <of>, <Paradise>, <Lost(Raben)**> ... ]>
 ]]></programlisting>
-</para></note>
+</para>
 
 </section> <!-- Regexp tokenizer -->
-
-</section>  <!-- Tokenization in NLTK -->
 
 <section id="frequency">
 <title> Word Frequency and Text Categorization </title>
@@ -1450,163 +1518,108 @@ miscellaneous: government & house organs    115     37    152     13     99    2
 
 </section> <!-- Tagged Tokens and Tagged Corpora -->
 
-<appendix>
-<title> Locations </title>
+<section id="classifying">
+  <title>Classifying Words Automatically</title>
 
-<para> <glossterm>Span locations</glossterm> specify regions of
-      texts, using a <glossterm>start index</glossterm> and an
-      <glossterm>end index</glossterm>.  A location in a stream of
-      text starting at character
-      <replaceable>s</replaceable> and ending at character
-      <replaceable>e</replaceable> is written
-      <literal>@[</literal><replaceable>s</replaceable><literal>:</literal><replaceable>e</replaceable><literal>c]</literal>.
-      This location specifies the region of the text beginning at
-      <replaceable>s</replaceable>, and including everything up to
-      (but not including) <replaceable>e</replaceable>.
-      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html"
-      ><literal>CharSpanLocations</literal></ulink> are created using the
-      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html#__init__"
-      ><literal>CharSpanLocation</literal> constructor</ulink>, which is
-      defined in the <ulink url="&refdoc;/nltk.token-module.html"
-      ><literal>nltk.token</literal></ulink> module:</para>
+  <para>intro</para>
+
 
 <programlisting><![CDATA[
-    >>> from nltk.token import * 
-    >>> my_loc = CharSpanLocation(1, 5) 
-    @[1:5]c@'corpus.txt'
-    >>> another_loc = CharSpanLocation(0, 2) 
-    @[0:2]c@'corpus.txt'
-    >>> yet_another_loc = CharSpanLocation(22, 22) 
-    @[22:22]c@'corpus.txt'
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.corpus import brown
+>>> cfdist = ConditionalFreqDist()
+
+>>> for item in brown.items('belles-lettres'):
+...     text_token = brown.tokenize(item)
+...     for word_token in text_token['SUBTOKENS']:
+...         word = word_token['TEXT']
+...         tag = word_token['TAG']
+...         cfdist[word].inc(tag)
+
+>>> for word in "John saw 3 polar bears".split():
+...     print word, cfdist[word].max()
+John np
+saw vbd
+3 cd-tl
+polar jj
+bears vbz
 ]]></programlisting>
+    
+    <para>Note that bears was incorrectly tagged as the
+    3rd person singular form of a verb.</para>
 
-<para> Note that a text location does <emphasis>not</emphasis> include
-the text at its end location.  This convention may seem unintuitive at
-first, but it has a number of advantages.  First, it is consistent with
-Python's slice notation (e.g., <literal>x[1:3]</literal> specifies
-elements 1 and 2 of <literal>x</literal>).
 
-<footnote><para>Unlike Python slices, text locations do
-<emphasis>not</emphasis> support negative indexes.</para></footnote> 
+</section>
 
-Second, it allows text locations to specify points <emphasis>between</emphasis> tokens,
-instead of just ranges.  For example, <literal>Location(3,3)</literal> specifies the
-point just before the text at index 3.  Finally, it simplifies arithmetic on
-indices; for example, the length of <literal>Location(5,10)</literal> is
-<literal>10-5</literal>, and two locations are contiguous if the start
-of one equals the end of the other. </para>
 
-<para>A text location may be tagged with a
-<glossterm>source</glossterm>, which gives an indication of where the
-text was derived from.  A typical example of a source would be
-the name of the file from which the element of text was read. </para>
 
-<programlisting><![CDATA[
-    >>> my_loc = CharSpanLocation(1, 5, 'foo.txt') 
-    @[1:5c]@'foo.txt'
-    >>> another_loc = CharSpanLocation(3, 72, 'bar.txt') 
-    @[3:72c]@'bar.txt'
-]]></programlisting>
+<section id="exercises">
+  <title>Exercises</title>
 
-<note>
-<para> By default, the location's source is unspecified. </para>
-</note>
+  <orderedlist>
 
-<para> Sometimes, it is useful to use text locations as the
-        sources for other text locations.  For example, we could
-        specify the third character of the fourth word of the first
-        sentence in the file <literal>foo.txt</literal> with
-        <literal>char_loc</literal>: </para>
+    <listitem>
+      <formalpara>
+        <title> Accessing and tokenizing a text file </title>
+        <para> Obtain some plain text data (e.g. visit a web-page and
+          save it as plain text), and store it in a file 'corpus.txt'.</para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+          Using the <literal>open()</literal> and
+          <literal>read()</literal> functions, load the text into
+          a string variable and print it.
+        </para></listitem>
+        <listitem><para>
+          Now, initialize a new token with <literal>Token()</literal>,
+          using this text.  Tokenize the text with
+          <literal>WhitespaceTokenizer</literal>, 
+          and specify that the
+          result should be stored in the <literal>WORDS</literal>
+          property.  Print the result.
+        </para></listitem>
+        <listitem><para>
+          Next, compute the number of tokens, using the
+          <literal>len()</literal> function, and print the result.
+        </para></listitem>
+        <listitem><para>
+          Finally, discuss shortcomings of this method for tokenizing
+          text.  In particular, identify any material which has not
+          been correctly tokenized.  (You may need to look for a more
+          complex text.)
+        </para></listitem>
+      </orderedlist>
+    </listitem>
 
-<programlisting><![CDATA[
-    >>> sent_loc = CharSpanLocation(0, 25, 'foo.txt') 
-    [0:25]c@'foo.txt'
-    >>> word_loc = CharSpanLocation(5, 10, sent_loc) 
-    [5:10c]@[0:25c]@'foo.txt'
-    >>> char_loc = CharSpanLocation(6, 7, word_loc) 
-    [6:7c]@[5:10c]@[0:25c]@'foo.txt'
-]]></programlisting>
+    <listitem>
+      <formalpara>
+        <title> Tokenizing text using regular expressions </title>
+        <para> Obtain some plain text data (e.g. visit a web-page and
+          save it as plain text), and store it in a file 'corpus.txt'.
+          so that you can answer the following questions.</para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+          Word processors typically hyphenate words when they are
+          split across a linebreak.  When word-processed documents
+          are converted to plain text, the pieces are usually
+          not recombined.  It is easy to discover such texts by
+          searching on the web for broken words,
+          e.g. <literal>depart- ment</literal>.
+          Create a <literal>RegexpTokenizer</literal> which
+          treats such broken words as a single token.
+        </para></listitem>
+        <listitem><para>
+          Consider the following book title:
+          <emphasis>This Is the Beat Generation: New York-San Francisco-Paris</emphasis>.
+          What would it take to be able to tokenize such strings so
+          that each city name was stored as a single token?
+        </para></listitem>
+      </orderedlist>
+    </listitem>
 
-<note>
-<para> The location indexes are zero-based, so the
-        first sentence starts at an index of zero, not one.  </para>
-</note>
-
-<para> As discussed above, a text token represents a single
-      occurrence of a piece of text.  In NLTK, a token is defined by a
-      type, together with a location at which that type occurs.  A
-      token with text <replaceable>t</replaceable> and location
-      <literal>@[<replaceable>l</replaceable>]</literal> can be
-      written as
-      <literal>&lt;<replaceable>t</replaceable>>@[<replaceable>l</replaceable>]</literal>.
-      This location information can be used to distinguish two instances of
-      the same text.
-      Tokens are constructed with the <ulink
-      url="&refdoc;/nltk.token.Token-class.html#__init__"
-      ><literal>Token</literal> constructor</ulink>: </para>
-
-<programlisting><![CDATA[
-    >>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
-    'hello'@[0,5c]
-    >>> token2 = Token(TEXT='world', LOC=CharSpanLocation(6, 11)) 
-    'world'@[6,11c]
-]]></programlisting>
-
-<para> Two tokens are only equal if they are equal on all their attributes,
-      in this case, for the attributes <literal>text</literal> and <literal>loc</literal>.
-</para>
-
-<programlisting><![CDATA[
-    >>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
-    'hello'@[0,5c]
-    >>> token2 = Token(TEXT='hello', LOC=CharSpanLocation(6, 11)) 
-    'world'@[6,11c]
-    >>> token1 == token2 
-    False
-    >>> token1['TEXT'] == token2['TEXT'] 
-    True
-]]></programlisting>
-
-<note>
-<para> When a token's location is unknown or unimportant, it may be omitted.
-However, the distinction between a word token and a word type is lost in this
-case.
-</para>
-</note>
-
-<para> To access a location's start index, use its <ulink
-      url="&refdoc;/nltk.token.Location-class.html#start"
-      ><literal>start</literal></ulink> member function; and to access
-      a location's end index, use its <ulink
-      url="&refdoc;/nltk.token.Location-class.html#end"
-      ><literal>end</literal></ulink> member function: </para>
-
-<programlisting><![CDATA[
-    >>> loc1 = CharSpanLocation(0, 8) 
-    @[0:8c]
-    >>> loc1.start()
-    0
-    >>> loc1.end()
-    8
-]]></programlisting>
-
-<para> To access a location's source, use its <ulink
-      url="&refdoc;/nltk.token.Location-class.html#source"
-      ><literal>source</literal></ulink> member function: </para>
-
-<programlisting><![CDATA[
-    >>> loc1 = CharSpanLocation(3, 6, 'corpus.txt') 
-    @[3,6c]@'corpus.txt'
-    >>> loc1.source()
-    'corpus.txt'
-]]></programlisting>
-
-<para> For more information about tokens and locations, see the
-      reference documentation for the <ulink
-      url="&refdoc;/nltk.token-module.html"
-      ><literal>nltk.token</literal></ulink> module. </para>
-
-</appendix>
+  </orderedlist>
+</section> <!-- Exercises -->
 
 <appendix>
   <title>Frequently Used Property Names</title>
