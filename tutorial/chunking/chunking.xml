@@ -93,13 +93,13 @@ Token and Chunk Levels</title>
     developed.
     </para>
 
-<programlisting><![CDATA[
+<screen>
 gave NP
 gave up NP in NP
 gave NP up
 gave NP help
 gave NP to NP
-]]></programlisting>
+</screen>
 
     <para>
     Chunking is akin to parsing in the sense that it can be used to
@@ -207,22 +207,25 @@ gave NP to NP
     <title> Reading Chunked Text </title>
 
     <para> Chunk parsers often operate on tagged texts, and use the
-    tags to help make chunking decisions.  A common file
+    tags to help make chunking decisions.  A common string
     representation for chunked tagged text is illustrated below.
-    This can be parsed using the
-    <literal>ChunkedTaggedTokenReader</literal> as shown.
     </para>
 
 <screen>
 [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
 </screen>
 
+    <para>
+    This can be parsed using the
+    <literal>ChunkedTaggedTokenReader</literal> as shown.
+    </para>
+
 <programlisting><![CDATA[
 >>> from nltk.tokenreader.tagged import ChunkedTaggedTokenReader
 >>> chunked_string = "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]"
 >>> reader = ChunkedTaggedTokenReader(chunk_node='NP', SUBTOKENS='WORDS')
->>> chunk_struct = reader.read_token(chunked_string)
->>> print chunk_struct['TREE']
+>>> sent_token = reader.read_token(chunked_string)
+>>> print sent_token['TREE']
 (S:
   (NP: <the/DT> <little/JJ> <cat/NN>)
   <sat/VBD>
@@ -230,6 +233,12 @@ gave NP to NP
   (NP: <the/DT> <mat/NN>))
 ]]></programlisting>
     
+    <para>
+    We usually want to read structured data from corpora, not strings.
+    In the remainder of this section we show how this is done for
+    two popular chunked corpus formats.
+    </para>
+
   <section>
     <title>Reading chunk structures from bracketed text</title>
 
@@ -253,15 +262,15 @@ gave NP to NP
 <programlisting><![CDATA[
 >>> item = treebank.items('tagged')[10]
 >>> tree = treebank.read(item)
-<PARAS=[<SENTS=[<TREE=(S: (NP_CHUNK: <South/NNP> <Korea/NNP>) <registered/VBD> ...
+<SENTS=[<TREE=(S: (NP_CHUNK: <South/NNP> <Korea/NNP>) <registered/VBD> ...
 ]]></programlisting>
       
-      <para>The result is a set of chunk structures, grouped into
-      paragraphs.  We can access the third sentence of the first
-      paragraph as shown below:</para>
+      <para>The result is a token with a <literal>SENTS</literal>
+      property that contains a list of chunk structures.
+      We can access the third sentence as shown below:</para>
 
 <programlisting><![CDATA[
->>> tree = treebank.read(item)['PARAS'][0]['SENTS'][2]['TREE']
+>>> tree = treebank.read(item)['SENTS'][2]['TREE']
 >>> print tree
 (S:
   (NP_CHUNK: <Exports/NNS>)
@@ -295,7 +304,7 @@ gave NP to NP
     multiline string, as shown below:
     </para>
 
-<programlisting><![CDATA[
+<screen>
 he PRP B-NP
 accepted VBD B-VP
 the DT B-NP
@@ -312,7 +321,7 @@ merchant NN I-NP
 banking NN I-NP
 concern NN I-NP
 . . O
-]]></programlisting>
+</screen>
 
     <para>Each line consists of a word, its part-of-speech, the chunk category
     <literal>B</literal> (begin), <literal>I</literal> (inside) or
@@ -322,9 +331,11 @@ concern NN I-NP
     into a chunk structure.  Moreover, it permits us to choose any
     subset of the three chunk types to use (by default it includes all
     three).
-    The following example produces only <literal>NP</literal> chunks.
+    The example in <xref linkend="conll"/> produces only <literal>NP</literal> chunks.
     </para>
 
+<figure id="conll" float="1">
+<title>Reading NP Chunks from the CoNLL Corpus</title>
 <programlisting><![CDATA[
 >>> from nltk.tokenreader.conll import *
 >>> text = """he PRP B-NP
@@ -346,6 +357,14 @@ concern NN I-NP
   (NP: <a/DT> <merchant/NN> <banking/NN> <concern/NN>)
   <./.>)
 ]]></programlisting>
+</figure>
+
+  <para>
+    This concludes our discussion of loading chunked data.  In the
+    rest of this chapter we will see how chunked data can be created
+    from tokenized text, chunked using a chunk parser, then evaluated
+    against the so-called gold-standard data.
+  </para>
 
     </section> <!-- BIO tagging -->
 
@@ -360,6 +379,8 @@ concern NN I-NP
     tags.  In NLTK provides a regular expression chunk parser,
     <literal>RegexpChunkParser</literal> to define the kinds of chunk
     we are interested in, and then to chunk a tagged text.
+    This discussion presumes that readers are already familiar with
+    regular expressions.
     </para>
 
     <para> <literal>RegexpChunkParser</literal> works by manipulating a
@@ -423,10 +444,9 @@ concern NN I-NP
 
     <para>
     Note that the constructor has optional second and third arguments
-    thatspecify the node labels for chunks and for the top-level node,
+    that specify the node labels for chunks and for the top-level node,
     respectively.  Now we can use this to chunk a tagged sentence,
-    as illustrated by the complete program in Figure
-    <xref linkend="chunk-simple"/>.
+    as illustrated by the complete program in <xref linkend="chunk-simple"/>.
       <footnote><para> Each rule must have a "description" associated with it,
       which provides a short explanation of the purpose or the effect
       of the rule.  This description is accessed via the 
@@ -458,22 +478,12 @@ concern NN I-NP
 ]]></programlisting>
 </figure>
 
-    <para> We can also use more complex tag patterns.  The following
-    code chunks any sequence of tokens beginning with an optional
-    determiner ("<literal>DT</literal>"), followed by zero or more
-    adverbs of any type ("<literal>JJ.*</literal>"), followed by a
-    single noun of any type ("<literal>NN.*</literal>"). </para>
-
-<programlisting><![CDATA[
->>> rule1 = ChunkRule('<DT>?<JJ.*>*<NN.*>',
-...                   'Chunk optional det, zero or more adj, and a noun')
->>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
->>> chunkparser.parse(sent_token)
->>> print sent_token['TREE']
-(S: (NP: <the/DT> <little/JJ> <cat/NN>)
-  <sat/VBD> <on/IN>
-  (NP: <the/DT> <mat/NN>))
-]]></programlisting>
+    <para> We can also use more complex tag patterns, such as
+    <literal>&lt;DT>?&lt;JJ.*>*&lt;NN.*></literal>.  This
+    can be used to chunk any sequence of tokens beginning with an optional
+    determiner <literal>DT</literal>, followed by zero or more
+    adjectives of any type <literal>JJ.*</literal>, followed by a
+    single noun of any type <literal>NN.*</literal>. </para>
 
     <para> If a tag pattern matches at multiple overlapping locations,
     the first match takes precedence.  For example, if we apply a rule
@@ -485,9 +495,9 @@ concern NN I-NP
 >>> from nltk.tokenreader import *
 >>> text = "dog/NN cat/NN mouse/NN"
 >>> nouns = TaggedTokenReader().read_token(text)
->>> rule1 = ChunkRule('<NN><NN>',
-...                   'Chunk two consecutive nouns')
->>> parser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S')
+>>> rule = ChunkRule('<NN><NN>',
+...                  'Chunk two consecutive nouns')
+>>> parser = RegexpChunkParser([rule], chunk_node='NP', top_node='S')
 >>> parser.parse(nouns)
 >>> print nouns['TREE']
 (S: (NP: <dog> <cat>) <mouse>)
@@ -498,56 +508,36 @@ concern NN I-NP
   <section id="chunkrule.developing"> <title> Developing Chunk Parsers </title>
 
       <para> 
+      Creating a good chunk parser usually requires several develop
+      and test cycles, during which existing rules are refined and
+      new rules are added.  In a later section we will describe an
+      automatic evaluation process.  Here we show how to trace the
+      execution of a chunk parser, to help the developer diagnose
+      any problems.</para>
+
+      <para>
       The <literal>RegexpChunkParser</literal> constructor takes an
       optional "<literal>trace</literal>" argument, which specifies whether
       debugging output should be shown during parsing.  This output
       shows the rules that are applied, and shows the chunking
-      hypothesis at each stage of processing.  </para>
-
-<programlisting><![CDATA[
->>> rule1 = ChunkRule('<DT>?<JJ.*>*<NN.*>',
-...                   'Chunk optional det, zero or more adj, and a noun')
->>> chunkparser = RegexpChunkParser([rule1], chunk_node='NP', top_node='S', trace=1)
->>> chunkparser.parse(sent_token)
-Input:
-                <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-Chunk optional det, zero or more adj, and a noun:
-               {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-
-(S: (NP: <the/DT> <little/JJ> <cat/NN>)
-      <sat/VBD> <on/IN>
-      (NP: <the/DT> <mat/NN>))
-]]></programlisting>
-
-      <note>
+      hypothesis at each stage of processing.
+      <footnote>
         <para>Note that the <literal>parse</literal> method can also be given
         a trace value; this overrides the value given
-        to the constructor.</para>
-
-        <para>In the tracing output, chunking is indicated by braces
-        ("{" and "}"), instead of the more conventional square
-        brackets ("[" and "]").  The reasons for this will be
-        discussed when we cover general transformational rules. </para>
-        <!-- Add a specific ref? -->
-      </note>
-
-      <note><para> <literal>RegexpChunkParser</literal>s can be generated from
-      multiple <literal>ChunkRule</literal>s.  In this case, each rule
-      will be applied in turn.  For example, the following code chunks
-      the example sentence by first finding all sequences of three
-      tokens whose tags are "<literal>DT</literal>",
-      "<literal>JJ</literal>", and "<literal>NN</literal>"; and then
-      looking for any sequence of tokens whose tags are either
-      "<literal>DT</literal>" or "<literal>NN</literal>".  </para></note>
+        to the constructor.</para></footnote>
+      In the execution trace, chunks are indicated by braces.
+      In the following example, two chunking rules are applied to the
+      input sentence.  The first rule finds all sequences of three
+      tokens whose tags are <literal>DT</literal>,
+      <literal>JJ</literal>, and <literal>NN</literal>, and the second
+      rule finds any sequence of tokens whose tags are either
+      <literal>DT</literal> or <literal>NN</literal>.
+      </para>
 
 <programlisting><![CDATA[
->>> rule1 = ChunkRule('<DT><JJ><NN>',
-...                   'Chunk det+adj+noun')
->>> rule2 = ChunkRule('<DT|NN>+',
-...                   'Chunk sequences of NN and DT')
+>>> rule1 = ChunkRule('<DT><JJ><NN>', 'Chunk det+adj+noun')
+>>> rule2 = ChunkRule('<DT|NN>+', 'Chunk sequences of NN and DT')
 >>> chunkparser = RegexpChunkParser([rule1, rule2], chunk_node='NP', top_node='S')
-
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -555,7 +545,6 @@ Chunk det+adj+noun:
                {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
 Chunk sequences of NN and DT:
                {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-
 >>> print sent_token['TREE']
 (S: (NP: <the/DT> <little/JJ> <cat/NN>)
       <sat/VBD> <on/IN>
@@ -571,7 +560,6 @@ Chunk sequences of NN and DT:
 <programlisting><![CDATA[
 >>> chunkparser = RegexpChunkParser([rule2, rule1], chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -591,7 +579,7 @@ Chunk det+adj+noun:
       chunks, since all chunks that matched its tag pattern overlapped
       with chunks that were already in the hypothesis. </para>
 
-    </section> <!-- Tracing -->
+    </section> <!-- Developing -->
 
   <section id="more_rules">
     <title> More Chunking Rules </title>
@@ -608,7 +596,7 @@ Chunk det+adj+noun:
       
       <para> A <glossterm>chink</glossterm> is a sequence of tokens
       that is not included in a chunk. In the following example,
-      "sat/VBD on/IN" is a chink. </para>
+      <literal>sat/VBD on/IN</literal> is a chink. </para>
 
 <screen>
 [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
@@ -617,10 +605,12 @@ Chunk det+adj+noun:
       <para> <glossterm>Chinking</glossterm> is the process of
       removing a sequence of tokens from a chunk.  If the sequence of
       tokens spans an entire chunk, then the whole chunk is removed;
-      if the sequence of tokens is in the middle of the chunk, two new
-      chunks are formed; and if the sequence is at the beginning or
-      end of the chunk, one new chunk is formed.  These three
-      possibilities are illustrated in the following figure: </para>
+      if the sequence of tokens appears in the middle of the chunk,
+      these tokens are removed, leaving two chunks where there was
+      only one before.  If the sequence is at the beginning or
+      end of the chunk, these tokens are removed, and a smaller
+      chunk remains.  These three
+      possibilities are illustrated in the following table: </para>
 
       <informaltable>
         <tgroup cols="4">
@@ -686,7 +676,6 @@ Chunk det+adj+noun:
 <programlisting><![CDATA[
 >>> chunkparser = RegexpChunkParser([chunkall_rule, chink_rule], chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -708,7 +697,7 @@ Chink sequences of VBD and IN:
         <literal>RegexpChunkParser</literal>s can use any number of
         <literal>ChunkRule</literal>s and
         <literal>ChinkRules</literal>, in any order.  As was discussed
-        in the <xref linkend="RegexpChunkParser"></xref>,
+        in <xref linkend="RegexpChunkParser"/>,
         <literal>ChunkRule</literal>s only create chunks that do not
         partially overlap with chunks already in the chunking
         hypothesis.  Similarly, <literal>ChinkRule</literal>s only
@@ -751,7 +740,6 @@ Chink sequences of VBD and IN:
 ...                        'Chunk sequences of NN, JJ, and DT')
 >>> chunkparser = RegexpChunkParser([chunk_rule, unchunk_rule], chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -780,7 +768,6 @@ Unchunk sequences of NN and DT:
 ...                        'Chunk sequences of NN, JJ, and DT')
 >>> chunkparser = RegexpChunkParser([chunk_rule, chink_rule], chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -866,7 +853,6 @@ Chink sequences of NN and DT:
 >>> rules = [chunk_rule, unchunk_rule, merge_rule]
 >>> chunkparser = RegexpChunkParser(rules, chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                 <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -934,14 +920,13 @@ Merge NNs + DTs + JJs:
 # Tokenize a new test text
 >>> from nltk.tokenreader import *
 >>> text = 'Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'
->>> sent = TaggedTokenReader().read_token(text)
+>>> sent_token = TaggedTokenReader().read_token(text)
 
 # Create the chunk parser
 >>> chunk_rule = ChunkRule('<NN.*|DT|JJ>+',
 ...                        'Chunk sequences of NN, JJ, and DT')
 >>> chunkparser = RegexpChunkParser([chunk_rule, split_rule], chunk_node='NP', top_node='S')
 
-# Parse sent with tracing turned on.
 >>> chunkparser.parse(sent_token, trace=1)
 Input:
                <NNP>  <VBD>  <DT>  <NN>  <DT>  <NN>  <VBD> 
@@ -966,19 +951,8 @@ Split NN followed by DT:
 
     <para> An easy way to evaluate a chunk parser is to take some
     already chunked text, strip off the chunks, rechunk it, and compare
-    the result with the original chunked text.  NLTK provides the necessary
-    functions:</para>
-
-<programlisting><![CDATA[
-unchunked_sent = unchunk(correct_chunks)
-chunker = RegexpChunkParser(rules, chunk_node='NP', top_node='S')
-chunked_sent = cp.parse(unchunked_sent)
-score(correct_chunks, chunked_sent)
-]]></programlisting>
-
-    <para>The 
-    <ulink url="&refdoc;/nltk.parser.chunk-module.score.html"
-    ><literal>score</literal></ulink>
+    the result with the original chunked text.  The
+    <literal>ChunkScore.score()</literal>
     function takes the correctly chunked sentence as its first argument, and
     the newly chunked version as its second argument, and compares them.
     It reports the fraction of actual chunks that were found (recall), the
@@ -1031,158 +1005,83 @@ score(correct_chunks, chunked_sent)
 
     <para> During evaluation of a chunk parser, it is useful to
       flatten a chunk structure into a list of tokens.  Since chunk
-      structures are represented by <literal>TreeTokens</literal>, we
-      can use the <ulink
-      url="&refdoc;/nltk.tree.TreeToken-class.html#leaves"
-      ><literal>leaves</literal></ulink> method to extract this
-      flattened list:
+      structures are just trees, we use the
+      <literal>leaves()</literal> method to extract this
+      flattened list.  Note that we must always include location information
+      when evaluating a chunk parser.
     </para>
       
 <programlisting><![CDATA[
-# Flatten a chunk structrure into a list of tokens
->>> unchunked_sentence = chunk_structure.leaves()
-[<the/DT>, <little/JJ>, <cat/NN>, <sat/VBD>, <on/IN>, <the/DT>, <mat/NN>]
+>>> from nltk.token import *
+>>> from nltk.tokenreader.tagged import ChunkedTaggedTokenReader
+
+>>> chunked_string = "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]"
+>>> reader = ChunkedTaggedTokenReader(chunk_node='NP', SUBTOKENS='WORDS')
+>>> correct = reader.read_token(chunked_string, add_locs=True)
+>>> guess = Token(WORDS=correct['TREE'].leaves())
+>>> print guess
+[<the/DT>@[2:5c], <little/JJ>@[9:15c], <cat/NN>@[19:22c],
+<sat/VBD>@[28:31c], <on/IN>@[36:38c], <the/DT>@[44:47c], <mat/NN>@[51:54c]]
 ]]></programlisting>
 
-<para>
-NOTES: CONLL:
-We now extract the word tokens, input them to the chunker, then
-compare the resulting chunked sentences with the originals, as
-follows:
-</para>
+  <para>
+    Now we run a chunker, and then compare the resulting chunked sentences
+    with the originals, as follows:
+  </para>
  
 <programlisting><![CDATA[
 >>> from nltk.parser.chunk import *
 >>> chunkscore = ChunkScore()
 
 >>> rule = ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+', "Chunk items that often occur in NPs")
->>> chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S')
+>>> chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S', SUBTOKENS='WORDS')
 
->>> for cs in chunk_structs:                 # for each chunked sentence
-...     tokens = cs.leaves()                 # extract word tokens
-...     guess = chunkparser.parse(tokens)    # chunk them
-...     chunkscore.score(cs, guess)          # compare with original
+>>> chunkparser.parse(guess)
+>>> chunkscore.score(correct['TREE'], guess['TREE'])
 >>> print chunkscore
+ChunkParser score:
+    Precision: 100.0%
+    Recall:    100.0%
+    F-Measure: 100.0%
 ]]></programlisting>
 
-
-    <section id="evaluation.chunkscore">
-      <title> ChunkScore </title>
-
-      <para> <ulink url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html"
-      ><literal>ChunkScore</literal></ulink> is a utility class for
+      <para> <literal>ChunkScore</literal> is a class for
       scoring chunk parsers.  It can be used to evaluate the output of
       a chunk parser, using precision, recall, f-measure, missed
       chunks, and incorrect chunks.  It can also be used to combine
       the scores from the parsing of multiple texts.  This is quite
-      useful if we are parsing a text one sentence at a time.  </para>
-
-      <para> <literal>ChunkScore</literal>s are created with the
-      <ulink url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#__init__"
-      ><literal>ChunkScore</literal> constructor</ulink>, which takes
-      no arguments: </para>
-
-<programlisting><![CDATA[
->>> chunkscore = ChunkScore()
-]]></programlisting>
-
-      <para> The output of a chunk parser can be evaluated using the
-      <ulink url="&refdoc;/nltk.parser.chunk.ChunkScore-class.html#score"
-      ><literal>score</literal></ulink> method: </para>
-
-<programlisting><![CDATA[
->>> unchunked = unchunk(correct)
->>> guess = chunkparser.parse(unchunked)
->>> chunkscore.score(correct, guess)
-]]></programlisting>
-
-      <para> The following program listing shows a typical use of the
+      useful if we are parsing a text one sentence at a time.
+      The following program listing shows a typical use of the
       <literal>ChunkScore</literal> class.  In this example,
       <literal>chunkparser</literal> is being tested on each sentence
       from the Wall Street Journal tagged files. </para>
 
 <programlisting><![CDATA[
->>> item = treebank.items('tagged')[10]
->>> tree = treebank.read(item)
-<PARAS=[<SENTS=[<TREE=(S: (NP_CHUNK: <South/NNP> <Korea/NNP>) <registered/VBD> ...
-]]></programlisting>
-      
-      <para>The result is a set of chunk structures, grouped into
-      paragraphs.  We can access the third sentence of the first
-      paragraph as shown below:</para>
+>>> from nltk.parser.chunk import *
+>>> from nltk.corpus import treebank
 
-<programlisting><![CDATA[
-from nltk.tokenizer import RegexpTokenizer
-from nltk.parser.chunk import *
-from nltk.corpus import treebank
+>>> rule = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
+>>> chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S', TAG='POS')
 
-# Create the chunk parser that we wish to test.
-rule = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S')
+>>> chunkscore = ChunkScore()
 
-# Create a new ChunkScore utility class
-chunkscore = ChunkScore()
+>>> for item in treebank.items('tagged')[:10]:
+...     for sent in treebank.read(item, add_locs=True)['SENTS']:
+...         test = Token(SUBTOKENS = sent['TREE'].leaves())
+...         chunkparser.parse(test)
+...         chunkscore.score(sent['TREE'], test['TREE'])
 
-# Read the treebank corpus, and tokenize it into sentences.
-sentences = []
-for item in treebank.items('tagged')[:2]:
-    for para in treebank.read(item, add_locs=True)['PARAS']:
-        for sent in para['SENTS']:
-            test = Token(SUBTOKENS = sent['TREE'].leaves())
-            chunkparser.parse(test)
-            chunkscore.score(sent['TREE'], test['TREE'])
-
-# Print the results
-print chunkscore
+>>> print chunkscore
+ChunkParser score:
+    Precision:  43.5%
+    Recall:     30.5%
+    F-Measure:  35.8%
 ]]></programlisting>
 
   <note><para>It is important to add locations to tokens
     (using <literal>add_locs=True</literal>) so that
     the scorer doesn't confuse tokens taken from different
-    regions of the data...</para></note>
-
-<!--
-    <para>Here's another example of chunking code,
-    this time for the CoNLL chunking data.</para>
-
-<programlisting><![CDATA[
-from nltk.tokenizer import RETokenizer
-from nltk.parser.chunk import *
-from nltk.corpus import chunking
-from nltk.tree import TreeToken
-
-# How many sentences to chunk
-samplesize = 10
-
-# Read the treebank corpus, and tokenize it into sentences
-print "tokenizing..."
-sentences = chunking.tokenize('train.txt')
-
-# Convert each sentence into a chunk structure
-print "converting..."
-chunk_tokenizer = ConllChunkedTokenizer(['NP'])
-c_sents = [TreeToken('S', *chunk_tokenizer.tokenize(s.type()))
-           for s in sentences[:samplesize]]
-
-# Create a new ChunkScore utility class
-chunkscore = ChunkScore()
-
-# Create the chunk parser that we wish to test.
-print "creating parser..."
-rule1 = ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+', "Chunk items that often occur in NPs")
-chunkparser = RegexpChunkParser([rule1], 'NP', 'S')
-
-# Test the chunk parser
-print "testing..."
-for c_sent in c_sents:
-    tokens = c_sent.leaves()
-    guess = chunkparser.parse(tokens)
-    chunkscore.score(c_sent, guess)
-
-# Print the results
-print chunkscore
-]]></programlisting>
--->
+    regions of the data.</para></note>
 
       <para> The overall results of the evaluation can be viewed by
       printing the <literal>ChunkScore</literal>.  Each evaluation
@@ -1224,16 +1123,60 @@ for i in range(15):
 ]]></programlisting>
       </note> -->
 
-    </section> <!-- ChunkScore -->
+      <para> When evaluating a chunker it is important to score it
+        against the baseline performance of a very simple chunker.
+        Perhaps the most naive chunking method is to classify every
+        tag in the training data as to whether it occurs inside
+        or outside a chunk more often.  We can do this easily using
+        a chunked corpus and a conditional frequency distribution
+        as shown in <xref linkend="baseline"/>.
+      </para>
 
-    <section>
-      <title> Baseline performance with an automatic chunker </title>
+<figure id="baseline" float="1"><title>Computing Baseline Performance for Chunking</title>
+<programlisting><![CDATA[
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.parser.chunk import *
+>>> from nltk.corpus import treebank
 
-      <para>Discuss a simple training method which classifies each
-        tag as most likely inside vs outside a chunk, then chunk
-        text based on this method.</para>
+>>> cfdist = ConditionalFreqDist()
+>>> items = treebank.items('tagged')
+>>> split = len(items)*9/10
+>>> train, test = items[:split], items[split:]
 
-    </section>
+>>> for item in train:
+...     for sent in treebank.read(item)['SENTS']:
+...         for t in sent['TREE']:
+...             if isinstance(t, Tree):
+...                 for tok in t.leaves():
+...                     cfdist[tok['POS']].inc(True)
+...             else:
+...                 cfdist[t['POS']].inc(False)
+
+>>> chunk_tags = [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
+>>> tag_pattern = '<' + '|'.join(chunk_tags) + '>+'
+>>> print 'Chunking:', tag_pattern
+Chunking: <PRP$|POS|WDT|JJ|WP|DT|$|NN|PRP|NNS|NNP|PDT|LS|CD|EX|WP$|NNPS|JJS|JJR>+
+
+# Now, in the evaluation phase we chunk any sequence of those tags:
+
+>>> rule = ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
+>>> chunkparser = RegexpChunkParser([rule], chunk_node='NP', top_node='S',
+...                                 TAG='POS', SUBTOKENS='WORDS')
+>>> chunkscore = ChunkScore()
+
+>>> for item in test:
+...     for sent in treebank.read(item, add_locs=True)['SENTS']:
+...         test = Token(WORDS = sent['TREE'].leaves())
+...         chunkparser.parse(test)
+...         chunkscore.score(sent['TREE'], test['TREE'])
+
+>>> print chunkscore
+ChunkParser score:
+    Precision:  80.2%
+    Recall:     81.1%
+    F-Measure:  80.7%
+]]></programlisting>
+</figure>
 
   </section> <!-- Evaluating Chunk Parsers-->
 
@@ -1241,14 +1184,74 @@ for i in range(15):
   <section>
     <title>Cascaded Chunking</title>
 
-    <para/>
+    <para> A chunk parser can be used to add multiple levels of
+      structure to a sequence of tokens.  For instance, on the first
+      pass, NP chunks could be identified.  On the second pass, these
+      chunks could be treated as atomic units, and VP chunks could
+      be identified.  First we create a tree whose leaves are tagged
+      tokens.
+    </para>
+
+    <note><para> There should be a way to use the <literal>TreebankTokenReader</literal>
+      to do this work.
+    </para></note>
+
+<programlisting><![CDATA[
+>>> from nltk.tree import Tree
+>>> from nltk.parser.chunk import *
+
+>>> the    = Token(TEXT='the', TAG='DT')
+>>> little = Token(TEXT='little', TAG='JJ')
+>>> cat    = Token(TEXT='cat', TAG='NN')
+>>> sat    = Token(TEXT='sat', TAG='VBD')
+>>> on     = Token(TEXT='on', TAG='IN')
+>>> the    = Token(TEXT='the', TAG='DT')
+>>> mat    = Token(TEXT='mat', TAG='NN')
+
+>>> np2 = Tree('NP', [the, mat])
+>>> vp = Tree('VP', [sat, on, np2])
+>>> np1 = Tree('NP', [the, little, cat])
+>>> s = Tree('S', [np1, vp])
+>>> print s
+(S:
+  (NP: <the/DT> <little/JJ> <cat/NN>)
+  (VP: <sat/VBD> <on/IN> (NP: <the/DT> <mat/NN>)))
+]]></programlisting>
+
+    <para>Now we can extract the leaves of this tree, and run two
+    chunk parsers over them, first to find NP chunks, then to find VP
+    chunks.  Observe that the first chunk parser puts its result tree
+    in a property called <literal>NP-CHUNKS</literal>, while the
+    second chunk parser uses the contents of the <literal>NP-CHUNKS</literal>
+    property as input.
+    </para>
+
+<programlisting><![CDATA[
+# find NP chunks
+>>> rule = ChunkRule(r'<DT>?<JJ>*<NN.*>', 'Chunk NPs')
+>>> parser = RegexpChunkParser([rule], chunk_node='NP', top_node='S', TREE='NP-CHUNKS')
+>>> text_tok = Token(SUBTOKENS=s.leaves())
+>>> parser.parse( text_tok )
+
+# find VP chunks
+>>> rule = ChunkRule(r'<VB.*><.*>*', 'Chunk VPs')
+>>> parser = RegexpChunkParser([rule], chunk_node='VP', top_node='S', SUBTOKENS='NP-CHUNKS')
+>>> parser.parse( text_tok )
+>>> print text_tok['TREE']
+(S:
+  (NP: <the/DT> <little/JJ> <cat/NN>)
+  (VP: <sat/VBD> <on/IN> (NP: <the/DT> <mat/NN>)))
+]]></programlisting>
 
   </section>
 
   <section>
     <title>Conclusion</title>
 
-      <para>There are a surprising number of different ways to chunk a
+      <para>
+      In this chapter we have explored a robust method for identifying
+      structure in text using chunk parsers.
+      There are a surprising number of different ways to chunk a
       sentence.  The chunk rules can add, shift and remove chunk delimiters
       in many ways, and the chunk rules can be combined in many ways.
       One can use a small number of very complex rules, or a long sequence of
@@ -1344,7 +1347,7 @@ for i in range(15):
     <listitem>
       <formalpara>
         <title> NP Chunker </title>
-        <para>Develop a noun phrase chunker for the chunking corpus
+        <para>Develop a noun phrase chunker for the CoNLL corpus
           using the regular-expression
           chunk parser <literal>RegexpChunkParser</literal>.  Use any
           combination of rules.
