@@ -159,6 +159,7 @@ _copy_reference:
 	@cp -R $(REFDOC_DIR)/* $(WEBPAGE_REF_DIR)
 	@cp -R $(CONTRIB_REFDOC_DIR)/* $(WEBPAGE_CONTRIB_REF_DIR)
 	@ln -s api-$(NLTK_VERSION) $(WEBPAGE_DIR)/api
+	@ln -s contrib-$(NLTK_VERSION) $(WEBPAGE_DIR)/contrib
 
 _copy_psets:
 	@echo "[Copying problem sets]"
