@@ -79,6 +79,8 @@
 (define %title-font-family% "Times New Roman")
 (define %line-spacing-factor% 1.2)
 
+(define %visual-acuity% "presbyopic")
+
 ; === Media objects ===
 
 ;; this magic allows to use different graphical formats for printing
