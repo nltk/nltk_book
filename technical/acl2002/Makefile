@@ -9,10 +9,11 @@
 
 ##############################################
 ##  The name of the report
-REPORT = submission
+REPORT = acl02
 
 # We're using bibtex:
 $(REPORT).dvi: $(REPORT).bbl
+BIBFILE = nltk.bib
 
 ##############################################
 ##  Figure dependancies
@@ -33,7 +34,7 @@ pdf: $(PDF)
 clean:
 	rm -f *.log *.aux *.dvi *.ps *.toc *.pdf *.bbl *.blg
 
-%.bbl: %.tex %.bib
+%.bbl: %.tex $(BIBFILE)
 	latex $*.tex || (rm -f $*.dvi && false)
 	bibtex $* || (rm -f $*.dvi $@ && false)
 
