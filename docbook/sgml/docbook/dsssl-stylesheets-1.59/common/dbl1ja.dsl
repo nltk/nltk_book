@@ -3,6 +3,7 @@
   PUBLIC "-//Norman Walsh//ENTITIES DocBook Stylesheet Localization//JA"
          "dbl1ja.ent">
 %ja.words;
+<!ENTITY Chapter	"\U-7AE0;">
 ]>
 
 <style-sheet>
