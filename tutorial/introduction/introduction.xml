@@ -1,0 +1,322 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//Norman Walsh//DTD DocBk XML V3.1.3//EN" "/usr/lib/sgml/dtd/docbook-xml/docbookx.dtd" [
+<!ENTITY prompt "<prompt>&gt;&gt;&gt;</prompt>">
+]>
+<article>
+  <artheader>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
+    <title>NLTK Tutorial: Basics</title>
+  </artheader>
+
+  <section> <title> Goals </title>
+
+    <para> The Natural Language Processing Toolkit provides a basic
+    infrastructure that can be used to build NLP programs in Python.
+    blah.. </para>
+
+  </section> <!-- Goals -->
+
+  <section> <title> Words </title>
+
+    <para> There are a number of reasonable ways to represent words in
+    Python.  Perhaps the simplest is as string values, such as
+    <literal>'dog'</literal>; this is how words are typically
+    represented when using the toolkit.  
+
+<screen>
+    &prompt;<command> words = ['the', 'cat', 'climbed', 'the', 'tree']</command>
+    ['the', 'cat', 'climbed', 'the', 'tree']
+</screen>
+
+    However, the toolkit also allows for other representations.  For
+    example, you could store words as integers, with some mapping
+    between integers and words. </para>
+
+    <section> <title> Types and Tokens </title>
+
+      <para> The term "word" can actually be used in two ways: to
+      refer to an individual occurance of a word; or to refer to a
+      word in the abstract.  For example, the phrase ``my dog likes
+      his dog'' contains five occurances of words, but only four
+      abstract words (since the word ``dog'' appears twice).  In order
+      to make this distinction clear, we will use the term
+      <glossterm>word token</glossterm> to refer to occurances of
+      words, and the term <glossterm>word type</glossterm> to refer to
+      abstract words. </para>
+
+      <para> The terms <glossterm>token</glossterm> and
+      <glossterm>type</glossterm> can also be applied in other
+      domains.  For example, an individual occurance of a sentence
+      would be a <glossterm>sentence token</glossterm>, while an
+      abstract sentence would be a <glossterm>sentence
+      type</glossterm>.  If someone repeats a sentence twice, they
+      have uttered two sentence tokens, but only one sentence type.
+      When the kind of token or type is obvious from context, we will
+      simply use the terms <glossterm>token</glossterm> and
+      <glossterm>type</glossterm>.
+
+      <para> Word types are Tokens are constructed from their types,
+      using the <literal>Token</literal> constructor:
+
+<screen>
+    &prompt;<command> my_word_type = 'dog'
+    'dog'
+    &prompt;<command> my_word_token = Token(my_word_type)
+    'dog'@[?]
+</screen>
+
+      The reason that the token is displayed this way will be
+      explained in the next section. </para>
+
+    </section> <!-- Tokens and Types -->
+
+    <section> <title> Text Locations </title>
+
+      <para> <glossterm>Text locations</glossterm> specify regions of
+      texts, using a <glossterm>start index</glossterm> and an
+      <glossterm>end index</glossterm>.  A location with start index
+      <replaceable>s</replaceable> and end index
+      <replaceable>e</replaceable> is written
+      <literal>[<replaceable>s</replaceable>:<replaceable>e</replaceable>]</literal>,
+      and specifies the region of the text beginning at $s$, and
+      including everything up to (but not including) the text at
+      $e$.  Locations are created using the <literal>Location</literal> constructor:
+
+<screen>
+    &prompt;<command> my_loc = Location(1, 5)
+    @[1:5]
+    &prompt;<command> another_loc = Location(0, 2)
+    @[0:2]
+    &prompt;<command> yet_another_loc = Location(22, 22)
+    @[22:22]
+</screen>
+</para>
+
+      <para> Note that a text location does <emph>not</emph> include
+      the text at its end location.  This convention may seem
+      unintuitive at first, but it has a number of advantages.  It is
+      consistant with Python's slice notation (e.g.,
+      <literal>x[1:3]</literal> specifies elements 1 and 2 of x).
+
+        <footnote>But unlike Python slices, text locations do
+        <emph>not</emph> support negative indexes.</footnote>
+
+      It allows text location to specify single points, instead of
+      just ranges; for example, <literal>Location(3,3)</literal>
+      specifies the point just before the text at index 3.  And it
+      simplifies arithmatic on indices; for example, the length of
+      <literal>Location(5,10)<literal> is <literal>10-5</literal>, and
+      two locations are contiguous if the start of one equals the end
+      of the other. </para>
+
+      <para> To create a text location specifying the text at a single
+      index, use the <literal>Location</literal> constructor with a
+      single argument.  For example, the fourth word in a text could
+      be specified with <literal>loc1</literal>:
+
+<screen>
+    &prompt;<command> loc1 = Location(4)
+    @[4]
+</screen>
+
+      The toolkit uses the shorthand notation
+      <literal>@[<replaceable>s</replaceable>]</literal> for locations
+      whose width is one.  Note that
+      <literal>Location(<replaceable>s</replaceable>)</literal> is
+      equivalant to <literal>Location(<replaceable>s</replaceable>,
+      <replaceable>s+1</replaceable>)</literal>, <emph>not</emph>
+      <literal>Location(<replaceable>s</replaceable>,
+      <replaceable>s</replaceable>)</literal>:
+
+<screen>
+    &prompt;<command> loc2 = Location(4, 5)
+    @[4]
+    &prompt;<command> loc3 = Location(4, 4)
+    @[4:4]
+</screen>
+</para>
+
+      <section> <title> Units </title>
+
+        <para> The start and end indices can be based on a variety of
+        different <glossterm>units</glossterm>, such as character
+        number, word number, or sentence number.  By default, the unit
+        of a text location is left unspecified, but locations can be
+        explicitly tagged with information about what unit their
+        indices use:
+
+<screen>
+    &prompt;<command> my_loc = Location(1, 5, unit='w')
+    @[1w:5w]
+    &prompt;<command> another_loc = Location(3, 72, unit='c')
+    @[3c:72c]
+    &prompt;<command> my_loc = Location(6, unit='s')
+    @[6s]
+    &prompt;<command> my_loc = Location(10, 11, unit='s')
+    @[10s]
+</screen>
+
+        Unit labels take the form of case-insensitive
+        <literal>string</literal>s.  Typical examples of unit labels
+        are <literal>'c'</literal> (for character number),
+        <literal>'w'</literal> (for word number), and
+        <literal>'s'</literal> (for sentence number). </para>
+
+      </section>  <!-- Units -->
+      <section> <title> Sources </title>
+
+        <para> A text location may also be tagged with a
+        <glossterm>source</glossterm>, which gives an indication of
+        where the text was derived from.  A typical example of a
+        source would be a <literal>string</literal> containing the
+        name of the file from which the element of text was read.
+
+<screen>
+    &prompt;<command> my_loc = Location(1, 5, source='foo.txt')
+    @[1:5]@'foo.txt'
+    &prompt;<command> another_loc = Location(3, 72, unit='c', source='bar.txt')
+    @[3c:72c]@'bar.txt'
+    &prompt;<command> my_loc = Location(6, unit='s', source='baz.txt')
+    @[6s]@'baz.txt'
+</screen>
+
+        By default, a text location's source is unspecified. </para>
+
+        <para> Sometimes, it is useful to use text locations as the
+        sources for other text locations.  For example, we could
+        specify the third character of the fourth word of the first
+        sentence in the file <literal>foo.txt</literal> with
+        <literal>char_loc</literal>:
+
+<screen>
+    &prompt;<command> sentence_loc = Location(0, unit='s', source='foo.txt')
+    @[0s]@'foo.txt'
+    &prompt;<command> word_loc = Location(3, unit='w', source=sentence_loc)
+    @[3w]@[0s]@'foo.txt'
+    &prompt;<command> char_loc = Location(2, unit='c', source=word_loc)
+    @[2c]@[3w]@[0s]@'foo.txt'
+</screen>
+
+        Note that the location indexes are zero-based, so the first
+        sentence starts at an index of zero, not one.  </para>
+
+      </section>  <!-- Sources -->
+
+    <section> <title> Tokens and Locations </title>
+
+      <para> As discussed above, a text token represents a single
+      occurance of a text type.  A text token consists of a text type
+      together with a location at which that text type occurs.  A text
+      token with type <replaceable>t</replaceable> and location
+      <literal>@[<replaceable>l</replaceable>]</literal> can be
+      written as
+      <literal><replaceable>t</replaceable>@[<replaceable>l</replaceable>]</literal>.
+      Tokens can be constructed with the <literal>Token</literal>
+      constructor:
+
+<screen>
+    &prompt;<command> token1 = Token('hello', Location(0, unit='w'))
+    'hello'@[0w]
+    &prompt;<command> token2 = Token('world', Location(1, unit='w'))
+    'world'@[1w]
+</screen>
+
+      <para> Two tokens are only equal if both their type and thier
+      location are equal:
+
+<screen>
+    &prompt;<command> token1 = Token('hello', Location(0, unit='w'))
+    'hello'@[0w]
+    &prompt;<command> token2 = Token('hello', Location(1, unit='w'))
+    'world'@[1w]
+    &prompt;<command> token3 = Token('world', Location(0, unit='w'))
+    'world'@[1w]
+    &prompt;<command> token4 = Token('hello', Location(0, unit='w'))
+    'world'@[1w]
+    &prompt;<command> token1 == token2
+    0
+    &prompt;<command> token1 == token3
+    0
+    &prompt;<command> token1 == token4
+    1
+</screen>
+</para>
+
+      <para> When a token's location is unknown or unimportant, the
+      special location <literal>None</literal> may be used.  A token
+      with type <replaceable>t</replaceable> and location
+      <literal>None</literal> is written as
+      <literal><replaceable>t</replaceable>@[?]</literal>.  If a
+      token's location is not specified, it defaults to
+      <literal>None</literal>:
+
+<screen>
+    &prompt;<command> token1 = Token('hello', None)
+    'hello'@[?]
+    &prompt;<command> token2 = Token('world')
+    'world'@[?]
+</screen>
+</para>
+
+      <para> A Token with a location of <literal>None</literal> is not
+      considered to be equal to any other token.  In particular, even
+      if two tokens have the same type, and both have a location of
+      <literal>None</literal> they are not equal:
+
+<screen>
+    &prompt;<command> token1 = Token('hello')
+    'hello'@[?]
+    &prompt;<command> token2 = Token('hello')
+    'hello'@[?]
+    &prompt;<command> token1 == token2
+    0
+</screen>
+</para>
+
+    </section>  <!-- Tokens and Locations -->
+  </section>  <!-- Words -->
+
+  <section> <title> Texts </title>
+
+    <para> Many natural language processing tasks involve analyzing
+    texts of varying sizes, ranging from single sentences to very
+    large corpera.  There are a number of ways to represent texts
+    using the toolkit.  The simples is as a single
+    <literal>string</literal>.  These strings are typically loaded
+    from files:
+
+<screen>
+    &prompt;<command> text_str = open('foo.txt').read()
+    'Hello world.  This is a test file.\n'
+</screen>
+</para>
+
+    <para> It is often more convenient to represent a text as a
+    <literal>list</literal> of <literal>Token</literal>s.  These
+    <literal>list</literal>s are typically created using a
+    <glossterm>tokenizer</glossterm>, such as
+    <literal>WSTokenizer</literal> (which splits words apart based on
+    whitespace):
+
+<screen>
+    &prompt;<command> text_tok_list = WSTokenizer().tokenize(text_str)
+    ['Hello'@[0w], 'world.'@[1w], 'This'@[2w], 'is'@[3w], 
+     'a'@[4w], 'test'@[5w], 'file.'@[6w]]
+</screen>
+</para>
+
+    <para> Texts can also be represented as sets of word tokens or
+    sets of word types:
+
+<screen>
+    &prompt;<command> text_tok_set = Set(*text_tok_list)
+    'Hello world.  This is a test file.\n'
+</screen>
+
+  For example, this representation might be
+    convenient for a search engine which is trying to find all
+    documents containing some keyword. </para>
+
+</article>
+
