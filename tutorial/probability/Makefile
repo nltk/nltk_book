@@ -15,13 +15,27 @@ REPORT = probability
 ##  You shouldn't have to change anything below here.
 
 DOCBOOK = $(REPORT).xml
-HTML = html
-INDEX = $(HTML)/index.html
+HTMLDIR = $(REPORT)
+INDEX = $(HTMLDIR)/t1.html
+HTMLNOCHUNKS = $(HTMLDIR)/nochunks.html
+PDF = $(REPORT).pdf
 
-all: html
-html: $(INDEX)
+all: html pdf
+html: $(INDEX) $(HTMLNOCHUNKS)
+pdf: $(PDF)
 
-$(INDEX): $(DOCBOOK)
-	db2html -multipage $(DOCBOOK) $(HTML)
+$(HTMLDIR):
+        mkdir $(HTMLDIR) 2>/dev/null || true
 
+$(INDEX): $(DOCBOOK) $(HTMLDIR)
+        jw -f docbook -b html -o $(HTMLDIR) $(DOCBOOK)
+
+$(HTMLNOCHUNKS): $(DOCBOOK) $(HTMLDIR)
+        jw -f docbook -b html -u $(DOCBOOK) >$(HTMLNOCHUNKS)
+
+$(PDF):
+        jw -f docbook -b pdf $(DOCBOOK)
+
+clean:
+        rm -rf $(HTMLDIR) $(PDF)
 
