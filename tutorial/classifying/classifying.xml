@@ -22,6 +22,8 @@
 <!ENTITY fn "<replaceable>f<subscript>n</subscript></replaceable>">
 <!ENTITY vn "<replaceable>v<subscript>n</subscript></replaceable>">
 <!ENTITY fdnlt "<replaceable>fd<subscript>n</subscript></replaceable>(<replaceable>lt</replaceable>)">
+<!ENTITY fdilt "<replaceable>fd<subscript>i</subscript></replaceable>(<replaceable>lt</replaceable>)">
+<!ENTITY fdiltextlt "<replaceable>fd<subscript>i</subscript></replaceable>(<literal>LabeledText(<replaceable>lt</replaceable>)</literal>)">
 <!ENTITY ltext "<replaceable>lt</replaceable>">
 <!ENTITY fvlist "<replaceable>fvlist</replaceable>">
 <!ENTITY ltextlt "<literal>LabeledText(<replaceable>l</replaceable>,<replaceable>t</replaceable>)</literal>">
@@ -31,6 +33,7 @@
 <!ENTITY vi "<replaceable>v<subscript>i</subscript></replaceable>">
 <!ENTITY fi "<replaceable>f<subscript>i</subscript></replaceable>">
 <!ENTITY fj "<replaceable>f<subscript>j</subscript></replaceable>">
+<!ENTITY wi "<replaceable>w<subscript>i</subscript></replaceable>">
 <!ENTITY fdilt "<replaceable>fd<subscript>i</subscript></replaceable>(<replaceable>lt</replaceable>)">
 ]>
 
@@ -1960,7 +1963,114 @@
         <section id="nb.training.impl.nbcfd" xreflabel="NBClassifierFreqDist">
           <title> NBClassifierFreqDist </title>
 
-          <para> ... </para>
+          <para> <ulink
+          url="&refdoc;/nltk.classifier.naivebayes.NBClassifierFreqDist.html">
+          <literal>NBClassifierFreqDist</literal></ulink> is a
+          relatively simple frequency distribution that's specialized
+          for use with <literal>NBClassifier</literal>.  By placing
+          restrictions on the types of samples and events that the
+          probability distribution supports,
+          <literal>NBClassifierFreqDist</literal> can be made quite
+          efficient.  The restrictions that
+          <literal>NBClassifierFreqDist</literal> employs are: </para>
+
+          <itemizedlist>
+            <listitem> <para> Samples be boolean C{FeatureValueList}s of
+            fixed length.</para>
+            </listitem>
+            <listitem> <para> The <literal>freq</literal> method only
+            supports <literal>AssignmentEvent</literal>s.</para>
+            </listitem>
+            <listitem> <para> The <literal>count</literal> method only
+            supports <literal>AssignmentEvent</literal>s.</para>
+            </listitem>
+            <listitem> <para> The methods <literal>samples</literal>,
+            <literal>cond_samples</literal>, <literal>B</literal>,
+            <literal>bins</literal>, <literal>Nr</literal>,
+            <literal>max</literal>, <literal>cond_max</literal>, and
+            <literal>cond_freq</literal> are not supported.</para>
+            </listitem>
+          </itemizedlist>
+
+          <para> Internally, <literal>NBClassifierFreqDist</literal>
+          keeps track of the samples for which each feature has been
+          active (<replaceable>fcount[id]</replaceable>); and the
+          total number of samples (<replaceable>N</replaceable>).  From
+          these values, it can calculate the number of samples that
+          are contained in a given <literal>AssignmentEvent</literal>:
+          </para>
+
+          <itemizedlist>
+            <listitem> <para> count(AssignmentEvent(id, 1)) = fcount[id]</para>
+              <para> count(AssignmentEvent(id, 0)) = N - fcount[id]</para>
+            </listitem>
+          </itemizedlist>
+
+          <para> Similarly, it can calculate the frequency for a given
+          <literal>AssignmentEvent</literal>: </para>
+
+          <itemizedlist>
+            <listitem> <para> freq(AssignmentEvent(id, 1)) = fcount[id]/N</para>
+              <para> freq(AssignmentEvent(id, 0)) = 1 - fcount[id]/N</para>
+            </listitem>
+          </itemizedlist>
+
+          <para> <literal>NBClassifierFreqDist</literal> uses an
+          <literal>array</literal> to store <literal>fcount</literal>.
+          <literal>Array</literal>s are efficient data structures for
+          storing homogenous data; they are defined by the
+          <literal>Numeric</literal> module.  In most cases, they can
+          be acessed like <literal>list</literal>s.  The function
+          <literal>zeros</literal> can be used to create a new
+          <literal>array</literal> of a given length, all of whose
+          elements are <literal>zero</literal>.  </para>
+
+          <para> The implementation of
+          <literal>NBClassifierFreqDist</literal> is streight-forward:
+          </para>
+
+<programlisting>
+<command>class NBClassifierFreqDist(FreqDistI):</command>
+<command>    def __init__(self, fvlist_size):</command>
+<command>        self._fcount = zeros(fvlist_size)</command>
+<command>        self._N = 0.0</command>
+
+<command>    def N(self):</command>
+<command>        return self._N</command>
+
+<command>    def inc(self, sample):</command>
+<command>        self._N += 1</command>
+
+<command>        # Increment the feature count array</command>
+<command>        for (fid,val) in sample.assignments():</command>
+<command>            if val != 0:</command>
+<command>                self._fcount[fid] += 1</command>
+
+<command>    def freq(self, event):</command>
+<command>        (fid, value) = event.assignment()</command>
+<command>        if value:</command>
+<command>            return (self._fcount[fid] / self._N)</command>
+<command>        else:</command>
+<command>            return 1 - (self._fcount[fid] / self._N)</command>
+
+<command>    def count(self, event):</command>
+<command>        (fid, value) = event.assignment()</command>
+<command>        if value:</command>
+<command>            return self._fcount[fid]</command>
+<command>        else:</command>
+<command>            return self._N - self._fcount[fid]</command>
+</programlisting>
+
+          <note> <para> Although the implementation described here is
+          sufficient for use with simple probability distribution,
+          such as <literal>MLEProbDist</literal>, we need to implement
+          more methods to allow more complex probability distributions
+          to be used.  For this reason, the version of
+          <literal>NBClassifierFreqDist</literal> implemented in
+          <literal>nltk.classifier.naivebayes</literal> supports
+          several additonal methods; and will likely grow to support
+          even more methods. </para>
+          </note>
 
         </section> <!-- NBClassifierFreqDist -->
 
@@ -1973,14 +2083,232 @@
   <chapter id="maxent" xreflabel="The Maximum Entropy Classifier"> 
     <title> The Maximum Entropy Classifier </title>
 
-    <para> ... </para>
+    <para> One problem with the Naive Bayes classifier is that its
+    performance depends on the degree to which the features are
+    independant.  But the feature sets used for classification are
+    rarely independant; and often, we wish to use features which are
+    highly dependant on each other.  Under these circumstances,
+    <literal>NaiveBayesClassifier</literal> tends to give poor
+    performance.  One alternative is to use a different classifier
+    model. </para>
+
+    <!-- INSERT REFERENCES!! (Berger, Pietra) -->
+
+    <para> The <glossterm>maximum entropy</glossterm> classifier can
+    use mutually dependant features to reliably classify texts.  This
+    classifier is based on the idea that we should "model all that is
+    known and assume nothing about that which is unknown."  To
+    accomplish this goal, we considers all classifiers that are
+    "emperically consistant" with a set of training data; and chooses
+    the classifier that maximizes entropy.  </para>
+
+    <section id="maxent.emperical" xref="Emperical Consistancy">
+      <title> Emperical Consistancy</title>
+
+      <para> A classifier is <glossterm>emperically
+      consistant</glossterm> with a set of training data if its
+      estimate for the frequency of each feature is equal to the
+      frequency of that feature in the training data.  In other words:
+      </para>
+      
+
+      <itemizedlist>
+        <listitem><para> &sum;<subscript>&ltext;</subscript> &fdilt;
+        &times; P<subscript>classifier</subscript>(&ltext;) =
+        &sum;<subscript>&ltext;</subscript> &fdilt; &times;
+        freq<subscript>training</subscript>(&ltext;)</para>
+        </listitem>
+      </itemizedlist>
+
+      <para> for all <replaceable>i</replaceable>, where: </para>
+
+      <itemizedlist>
+        <listitem><para> P<subscript>classifier</subscript>(&ltext;)
+        is the classifier's estimated probability for &ltext;.</para>
+        </listitem>
+        <listitem><para> freq<subscript>training</subscript>(&ltext;)
+        is the frequency of &ltext; in the training data.</para>
+        </listitem>
+      </itemizedlist>
+        
+      <note> <para> In general, the more features we use, the stronger
+      the constraints that emperical consistancy puts on the
+      classifier.  At one extreme, if we use no features, then any
+      classifier will be emperically consistant with any training set.
+      At the other extreme, if we use one feature for each possible
+      labeled text, then only one classifier will be emperically
+      consistant with a given training set. </para>
+      </note>
+      
+      <para> It seems reasonable to require our classifier to be
+      emperically consistant with the training data.  It is this
+      requirement allows our classifier to capture the structure of
+      the training data.  However, it is not immediately obvious why
+      we should want to choose the classifier that maximizes
+      entropy. </para>
+
+    </section> <!-- Emperical Consistancy -->
+
+    <section id="maxent.entropy" xref="The Principle of Maximum Entropy">
+      <title> The Principle of Maximum Entropy</title>
+
+      <para> A classifier's <glossterm>entropy</glossterm> provides a
+      measure of how predictable that classifier's decisions are: the
+      higher a classifier's entropy, the more randomly it behaves.
+      For example: </para>
+
+      <itemizedlist>
+        <listitem> <para> A classifier that always categorizes texts
+        using the same label has an entropy of zero. </para>
+        </listitem>
+        <listitem> <para> A classifier that randomly classsifies texts
+        into categories (each with equal probability) has a very high
+        entropy. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> The intuition behind maximizing entropy is that
+      classifiers with lower entropy introduce biases that are not
+      justified.  In order to avoid these biases, we must pick the
+      classifier with the highest entropy.  This is most easily seen
+      with an example.  </para>
+
+      <para> Consider the task of classifying numerical expressions as
+      distances, volumes, dates, counts, or monetary amounts.
+      Examining our training corpus, we notice that 3/10 of the
+      numerical expressions are distances or volumes.  There are an
+      infinite number of classifiers that are consistant with this
+      statistic.  For example, we could hypothesize the following
+      category probabilities: </para>
+
+      <informaltable>
+        <tgroup cols="3">
+          <thead>
+            <row>
+              <entry>Category</entry><entry></entry>
+              <entry>Probability</entry>
+            </row>
+          </thead>
+          <tbody> 
+            <row>
+              <entry>distance</entry><entry></entry>
+              <entry>0.1</entry>
+            </row>
+            <row>
+              <entry>volume</entry><entry></entry>
+              <entry>0.2</entry>
+            </row>
+            <row>
+              <entry>date</entry><entry></entry>
+              <entry>0.6</entry>
+            </row>
+            <row>
+              <entry>count</entry><entry></entry>
+              <entry>0.1</entry>
+            </row>
+            <row>
+              <entry>monetary amount</entry><entry></entry>
+              <entry>0.0</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </informaltable>
+
+      <para> But this classifier introduces biases that are not justified
+      by what we know about the training data.  For example, we have
+      no reason to believe that dates are signifigantly more common
+      than counts, or that monetary amounts never occur.  In contrast,
+      the emperically consistant distribution that maximizes entropy
+      does not introduce any such biases: </para>
+
+      <informaltable>
+        <tgroup cols="3">
+          <thead>
+            <row>
+              <entry>Category</entry><entry></entry>
+              <entry>Probability</entry>
+            </row>
+          </thead>
+          <tbody> 
+            <row>
+              <entry>distance</entry><entry></entry>
+              <entry>0.15</entry>
+            </row>
+            <row>
+              <entry>volume</entry><entry></entry>
+              <entry>0.15</entry>
+            </row>
+            <row>
+              <entry>date</entry><entry></entry>
+              <entry>0.23333</entry>
+            </row>
+            <row>
+              <entry>count</entry><entry></entry>
+              <entry>0.23333</entry>
+            </row>
+            <row>
+              <entry>monetary amount</entry><entry></entry>
+              <entry>0.23333</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </informaltable>
+
+      <para> For simple examples like the one presented here, we can
+      find the maximum entropy classifier by hand.  However, for
+      classification tasks involving many mutually dependant features,
+      we must employ more advanced methods. </para>
+
+    </section> <!-- Principle of maxent -->
+
+    <section id="maxent.condexp" xref="The Conditional Exponential Model">
+      <title> The Conditional Exponential Model </title>
+
+      <para> In <xref linkend="maxent"></xref>, we said that we can
+      find the maximum entropy classifier by considering all
+      classifiers that are emperically consistant with the training
+      data, and choosing the classifier that maximizes entropy.
+      However, there are an infinite number of classifiers that are
+      emperically consistant with the training data.  </para>
+
+      <para> Luckily, we can show that the maximum entropy classifier
+      will always have a specific form.  In particular, the maximum
+      entropy classifier will always estimate P(&l;|&t;) using the
+      formula: </para>
+
+      <itemizedlist>
+        <listitem> <para> P(&l;|&t;) = 1/Z &times;
+        &prod;<subscript>i</subscript> (&wi; &times; &fdiltextlt;) </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Where &wi; are a set of model parameters.  This form is
+      known as the <glossterm>conditional exponential
+      model</glossterm>.  
+
+    </section> <!-- Conditional exponential model -->
+
+    <section id="maxent.training" xref="Training Maximum Entropy Classifiers">
+      <title> Training Maximum Entropy Classifiers</title>
+
+      <para> (under construction) </para>
+
+    </section> <!-- Training -->
+    
 
   </chapter> <!-- NB Classifier -->
 
   <chapter id="fselection" xreflabel="Feature Selection"> 
     <title> Feature Selection </title>
 
-    <para> ... </para>
+    <para> (under construction) </para>
+
+  </chapter> <!-- Feature Selection -->
+
+  <chapter id="bibliography" xreflabel="Bibliography"> 
+    <title> Bibliography </title>
+
+    <para> (under construction) </para>
 
   </chapter> <!-- Feature Selection -->
 
