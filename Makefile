@@ -150,8 +150,8 @@ _copy_technical: $(TECHNICAL_DOCS)
 	@$(PYTHON) $(INDEXGEN) technical technical \
 	       $(WEBPAGE_TECH_DIR)/index.html
 $(TECHNICAL_DOCS): 
-	@cp -R technical/$@/$@.ps $(WEBPAGE_TECH_DIR)
-	@cp technical/$@/$@.pdf $(WEBPAGE_TECH_DIR)
+	@cp -R technical/$@/$@.ps $(WEBPAGE_TECH_DIR) || true
+	@cp technical/$@/$@.pdf $(WEBPAGE_TECH_DIR) || true
 
 _copy_static:
 	@echo "[Copying static html]"
