@@ -53,7 +53,7 @@ to read (each top-level section is a single web-page). -->
 
 <figure id="segmentation"><title>Segmentation and Labelling at both the
 Token and Chunk Levels</title>
-<informaltable frame="topbot">
+<informaltable>
 <tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/segmentation" scale="30"/>
 </entry></row></tbody></tgroup></informaltable>
@@ -102,19 +102,57 @@ gave NP help
 gave NP to NP
 ]]></programlisting>
 
-    <para>This chapter is organized as follows...
+    <para>
+    Chunking is akin to parsing in the sense that it can be used to
+    build hierarchical structure over text.  There are several
+    important differences, however.  First, as noted above, chunking
+    is not exhaustive, and typically omits items in the surface string.
+    Second, where parsing constructs nested deeply structures,
+    chunking creates structures of fixed depth (typically depth 2),
+    and as fine-grained as possible, as shown below:</para>
+
+<orderedlist>
+  <listitem><para>
+[<subscript>NP</subscript>
+  [<subscript>NP</subscript>
+    G.K. Chesterton ],
+  [<subscript>NP</subscript>
+    [<subscript>NP</subscript>
+      author ] of
+    [<subscript>NP</subscript>
+      [<subscript>NP</subscript>
+        The Man ] who was
+      [<subscript>NP</subscript>
+        Thursday ]
+    ]
+  ]
+]
+</para></listitem><listitem><para>
+  [<subscript>NP</subscript> G.K. Chesterton ],
+  [<subscript>NP</subscript> author ] of
+  [<subscript>NP</subscript> The Man ] who was
+  [<subscript>NP</subscript> Thursday ]
+</para></listitem>
+</orderedlist>
+
+    <para>In this chapter we explore the representation of chunks, and
+    show how chunks can be recognized using a <emphasis>chunk parser</emphasis>.
+    We describe a chunk parsing method based on regular expressions,
+    then show how chunk parsers can be cascaded to create more deeply nested
+    structures.
     </para>
 
   </section> <!-- Introduction -->
 
-  <section id="Chunk_Structures">
-    <title> Chunk Structures and Chunk Parsers </title>
+  <section id="representing_chunks">
+    <title> Representing Chunks: Tags vs Trees </title>
 
     <para> As befitting its intermediate status between tagging and
     parsing, chunk structures can be represented using tags or trees.
-    The most widespread representation uses tags.  Simplifying
-    somewhat, each token can be tagged with one of three special
-    chunk tags.  A token is tagged as <literal>BEGIN</literal> if it
+    The most widespread file representation uses so-called ``BIO'' tags.
+    In this scheme, each token is tagged with one of three special
+    chunk tags, <literal>BEGIN</literal>, <literal>INSIDE</literal>
+    or <literal>OUTSIDE</literal>.  A token is tagged as <literal>BEGIN</literal> if it
     is at the beginning of a chunk, and contained within that chunk.
     Subsequent tokens within the chunk are tagged <literal>INSIDE</literal>.
     All other tokens are tagged <literal>OUTSIDE</literal>.  An
@@ -122,36 +160,32 @@ gave NP to NP
     </para>
 
 <figure id="tagrep"><title>Tag Representation of Chunk Structures</title>
-<informaltable frame="topbot">
+<informaltable>
 <tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/tagrep" scale="30"/>
 </entry></row></tbody></tgroup></informaltable>
 </figure>
 
-    <note><para>Observe that three tags are needed to distinguish adjacent
-    chunks from a single larger chunk.</para></note>
-
     <para>The other logical representation for chunk structures is to
     use trees, as shown in <xref linkend="treerep"></xref>.  These
     have the benefit that each chunk is a constituent that can be
-    manipulated directly.  We adopt this representation in NLTK.
+    manipulated directly.  NLTK uses this for its internal
+    representation of chunks.
     </para>
 
 <figure id="treerep"><title>Tree Representation of Chunk Structures</title>
-<informaltable frame="topbot">
+<informaltable>
 <tgroup cols="1"><tbody><row><entry>
 <graphic fileref="images/treerep" scale="30"/>
 </entry></row></tbody></tgroup></informaltable>
 </figure>
 
     <para> A <glossterm>chunk parser</glossterm> finds contiguous,
-    non-overlapping spans of related tokens, or
-    <glossterm>chunk</glossterm>, and groups them together.  The
-    following chunk represents a simple noun phrase: </para>
-      
-<screen>
-(NP: &lt;the> &lt;big> &lt;dog>)
-</screen>
+    non-overlapping spans of related tokens and groups them together
+    into <glossterm>chunks</glossterm>.  The
+    following chunk represents a simple noun phrase:
+    <literal>(NP: &lt;the> &lt;big> &lt;dog>)</literal>
+    </para>
 
     <para> The chunk parser combines these individual chunks together,
     along with the intervening tokens, to form a chunk structure.  A
@@ -168,121 +202,84 @@ gave NP to NP
     (NP: &lt;the> &lt;hill>))
 </screen>
 
-  </section> <!-- Chunk Structuresd -->
+  </section> <!-- Chunk Structures -->
 
   <section id="ChunkedTaggedTokenizer">
-    <title> The Chunking Tokenizer </title>
+    <title> Reading Chunked Text </title>
 
     <para> Chunk parsers often operate on tagged texts, and use the
     tags to help make chunking decisions.  A common file
-    representation for chunked tagged text is as follows:</para>
+    representation for chunked tagged text is illustrated below.
+    This can be parsed using the
+    <literal>ChunkedTaggedTokenReader</literal> as shown.
+    </para>
 
 <screen>
 [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
 </screen>
 
-    <para> It is useful to be able to tokenize text input in this
-    format as part of the evaluation process.  For this purpose, the
-    <ulink url="&refdoc;/nltk.parser.chunk-module.html"
-    ><literal>nltk.parser.chunk</literal></ulink> module contains a
-    specialized tokenizer, the <ulink
-    url="&refdoc;/nltk.parser.chunk.ChunkedTaggedTokenizer-class.html"
-    ><literal>ChunkTaggedTokenizer</literal></ulink>, which splits a
-    text into a list of chunks and tokens. </para>
-
 <programlisting><![CDATA[
->>> from nltk.token import Token
->>> from nltk.parser.chunk import ChunkedTaggedTokenizer
+>>> from nltk.tokenreader.tagged import ChunkedTaggedTokenReader
 >>> chunked_string = "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]"
->>> sentence = Token(TEXT=chunked_string)
->>> tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')
->>> tokenizer.tokenize(sentence)
->>> print sentence['SUBTOKENS']
-[(NP: <the/DT> <little/JJ> <cat/NN>), <sat/VBD>, <on/IN>, (NP: <the/DT> <mat/NN>)]
-]]></programlisting>
-    
-    <para> If you want to create a chunk structure from this list,
-    simply use the <literal>TreeToken</literal> constructor to merge
-    the tokens and chunks into a single tree.
-    </para>
-
-<programlisting><![CDATA[
->>> chunk_structure = TreeToken(NODE='S', CHILDREN=sentence['SUBTOKENS'])
+>>> reader = ChunkedTaggedTokenReader(chunk_node='NP', SUBTOKENS='WORDS')
+>>> chunk_struct = reader.read_token(chunked_string)
+>>> print chunk_struct['TREE']
 (S:
   (NP: <the/DT> <little/JJ> <cat/NN>)
   <sat/VBD>
   <on/IN>
   (NP: <the/DT> <mat/NN>))
 ]]></programlisting>
-      
-    <section id="tokenize_wsj"> <title> Tokenizing WSJ Tagged Data </title>
-
-      <para> The <ulink url="&refdoc;/nltk.corpus-module.html"
-      ><literal>nltk.corpus</literal></ulink> module defines a corpus
-      reader named <ulink
-      url="&refdoc;/nltk.corpus-module.html#treebank"
-      ><literal>treebank</literal></ulink> that can be used to read
-      the Penn Treebank corpus.  The <literal>'tagged'</literal> group
-      contains tagged chunked sentences: </para>
+    
+      <para> We can obtain a larger quantity of chunked text from
+      the tagged Wall Street Journal in the Penn Treebank corpus.
+      NLTK includes a sample of this corpus, and it can be accessed
+      as follows: </para>
 
 <programlisting><![CDATA[
 >>> from nltk.corpus import treebank
-<Corpus: treebank (contains 396 items; 4 groups)>
 >>> print treebank.groups()
 ('raw', 'tagged', 'parsed', 'merged')
 >>> treebank.items('tagged')
 ('tagged/wsj_0001.pos', 'tagged/wsj_0002.pos', ...)
 ]]></programlisting>
 
-      <para> Within each file, sentences are split by blank lines and
-      by "divider" lines containing 38 equal signs.  We can use a
-      regular expression tokenizer to divide these files into
-      sentences: </para>
+      <para> Each file in the <literal>tagged</literal> section of the
+      corpus consists of chunked, tagged text.  We can read in
+      a file as follows:</para>
 
 <programlisting><![CDATA[
->>> from nltk.tokenizer import *
->>> sent_tokenizer = RegexpTokenizer('(=======+)?\n\n+', negative=1)
+>>> item = treebank.items('tagged')[10]
+>>> tree = treebank.read(item)
+<PARAS=[<SENTS=[<TREE=(S: (NP_CHUNK: <South/NNP> <Korea/NNP>) <registered/VBD> ...
 ]]></programlisting>
       
-      <para> Using <literal>sent_tokenizer</literal> and a
-      <literal>ChunkedTaggedTokenizer</literal>, we divide the
-      treebank corpus into a list of chunk structures: </para>
+      <para>The result is a set of chunk structures, grouped into
+      paragraphs.  We can access the third sentence of the first
+      paragraph as shown below:</para>
 
 <programlisting><![CDATA[
-# Create a chunked tagged tokenizer.
->>> tokenizer = ChunkedTaggedTokenizer(chunk_node='NP')
-
-# Read the treebank corpus, and tokenize it into sentences.
->>> from nltk.corpus import treebank
->>> sentences = []
->>> for item in treebank.items('tagged'):
-...     sentence = treebank.tokenize(item, tokenizer=sent_tokenizer)
-...     sentences += sentence['SUBTOKENS']
-
-# Convert each sentence into a chunk structure.
->>> chunk_structs = []
->>> for sent in sentences:
-...     tokenizer.tokenize(sent)
-...     chunk_structs.append(TreeToken(NODE='S', CHILDREN=sent['SUBTOKENS']))
->>> print chunk_structs
-[(S: (NP: <Pierre/NNP> <Vinken/NNP>) <,/,> (NP: <61/CD> <years/NNS>) <old/JJ> <,/,>
-<will/MD> <join/VB> (NP: <the/DT> <board/NN>) <as/IN> (NP: <a/DT> <nonexecutive/JJ>
-<director/NN> <Nov./NNP> <29/CD>) <./.>), (S: (NP: <Mr./NNP> <Vinken/NNP>) <is/VBZ>
-(NP: <chairman/NN>) <of/IN> (NP: <Elsevier/NNP> <N.V./NNP>) <,/,> (NP: <the/DT>
-<Dutch/NNP> <publishing/VBG> <group/NN>) <./.>), (S: (NP: <Rudolph/NNP> <Agnew/NNP>)
-<,/,> (NP: <55/CD> <years/NNS>) <old/JJ> <and/CC> ... ]
+>>> tree = treebank.read(item)['PARAS'][0]['SENTS'][2]['TREE']
+>>> print tree
+(S:
+  (NP_CHUNK: <Exports/NNS>)
+  <in/IN>
+  (NP_CHUNK: <October/NNP>)
+  <stood/VBD>
+  <at/IN>
+  (NP_CHUNK: <$/$> <5.29/CD> <billion/CD>)
+  <,/,>
+  ...
 ]]></programlisting>
 
-      <note>
-        <para> In order for <literal>nltk.corpus</literal> to find the
-        corpora that are installed on your system, the corpus base
-        directly must be set correctly.  If the environment variable
-        <literal>NLTK_CORPORA</literal> is set, then it is used to
-        find the corpora; otherwise, a default operating system
-        specific directory is used. </para>
-      </note>
-          
-    </section> <!-- WSJ Tagged Data -->
+    <para>We can display this tree graphically using the
+      <literal>nltk.draw.tree</literal> module:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.draw import tree
+>>> tree.draw()
+]]></programlisting>
+
 
     <section id="ConllChunkedTokenizer">
       <title> The CoNLL Chunking Tokenizer - FIX FOR NLTK 1.4</title>
@@ -1429,6 +1426,19 @@ for i in range(15):
 >>> demo()  # the chunk parser
 ]]></programlisting>
 
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> BIO Tagging </title>
+        <para>A common file representation of chunks uses
+        the tags <literal>BEGIN</literal>, <literal>INSIDE</literal>
+        and <literal>OUTSIDE</literal>.  Why are three tags
+        necessary?  What problem would be caused if we used
+        <literal>INSIDE</literal> and <literal>OUTSIDE</literal>
+        tags exclusively?
+        </para>
+      </formalpara>
     </listitem>
 
     <listitem>
