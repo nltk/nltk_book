@@ -9,9 +9,9 @@ REPORT = reptypes
 
 ##############################################
 ##  Figure dependancies
-reptypes.tex: tree.eps treetoken.eps badtree.eps
-reptypes.tex: tree-impl.eps treetoken-impl.eps
-reptypes.tex: containership.eps dependencies.eps
+reptypes.dvi: tree.eps treetoken.eps badtree.eps
+reptypes.dvi: tree-impl.eps treetoken-impl.eps
+reptypes.dvi: containership.eps dependencies.eps
 
 
 
