@@ -8,7 +8,7 @@
 # $Id$
 
 # What's the current version of NLTK?
-NLTK_VERSION = 1.1a
+NLTK_VERSION = 1.1
 
 # Where is the web page hosted on the web?
 NLTK_URL = http://nltk.sourceforge.net
