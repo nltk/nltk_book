@@ -83,6 +83,49 @@
 
   </section> <!-- The Chunk Parser Interface -->
 
+  <section> <title> The Chunking Tokenizer </title>
+
+    <para>A common file representation for chunked tagged text is as
+    follows:</para>
+
+<programlisting>
+[ the/DT little/JJ cat/NN ]
+sat/VBD on/IN
+[ the/DT mat/NN ]
+</programlisting>
+
+    <para>It is often useful to be able to tokenize
+    text input in this format as part of the evaluation process.
+    For this purpose, the 
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.token.html">
+    <literal>token</literal></ulink>
+    module contains a special kind of tagged tokenizer class, the
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.token.ChunkedTaggedTokenizer.html">
+    <literal>ChunkTaggedTokenizer</literal></ulink>.</para>
+
+<programlisting>
+&prompt; <command>correct_sent = """
+[ the/DT little/JJ cat/NN ]
+sat/VBD on/IN
+[ the/DT mat/NN ]</command>
+"""
+
+&prompt; <command>tokenizer = ChunkedTaggedTokenizer()</command>
+&prompt; <command>correct_chunks = tokenizer.tokenize(correct_sent)</command>
+[['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word]],
+'sat'/'VBD'@[5word], 'on'/'IN'@[6word], ['the'/'DT'@[8word], 'mat'/'NN'@[9word]]]
+</programlisting>
+    
+    <para>Another utility defined in the <literal>rechunkparser</literal>
+    module allows the chunking to be removed:</para>
+
+<programlisting>
+&prompt; <command>unchunked_sent = unchunk(correct_chunks)</command>
+['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word], 'sat'/'VBD'@[5word], 'on'/'IN'@[6word], 'the'/'DT'@[8word], 'mat'/'NN'@[9word]]
+</programlisting>
+
+  </section> <!-- The Chunking Tokenizer -->
+
   <section> <title> The Regular Expression Chunk Parser </title>
 
     <para>Typically, chunk parsers are based on finite-state methods.
@@ -320,13 +363,41 @@ AbstractChunkRule(r'(&lt;.*&gt;*)', r'{\1}', right = r'&lt;VB.*&gt;')
       a chunkparser and apply it as follows:</para>
 
 <programlisting>
-chunker = REChunkParser(rules)
-chunker.parse(tokens)
+&prompt; <command>chunker = REChunkParser(rules)</command>
+&prompt; <command>chunker.parse(tokens)</command>
 </programlisting>
 
       <para>The <literal>parse</literal> method converts its argument to the
       string encoding, applies the chunk rules in sequence, then converts the
-      result to a chunk structure and returns this structure.</para>
+      result to a chunk structure and returns this structure.  Here is a
+      simple example using a rule we created earlier:</para>
+
+<programlisting>
+&prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
+&prompt; <command>cp = REChunkParser([r1])</command>
+&prompt; <command>chunked_sent = cp.parse(unchunked_sent)</command>
+[['the'/'DT'@[1word], 'little'/'JJ'@[2word], 'cat'/'NN'@[3word]],
+'sat'/'VBD'@[5word], 'on'/'IN'@[6word], ['the'/'DT'@[8word], 'mat'/'NN'@[9word]]]
+</programlisting>
+
+      <para>The <literal>REChunkParser</literal> initializer has an optional
+      second argument which is a debug flag.  If this is set (e.g. to 1) then
+      the chunk parser will display diagnostic output.  We repeat the above
+      example with the debug flag set:</para>
+
+<programlisting>
+&prompt; <command>r1 = AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")</command>
+&prompt; <command>cp = REChunkParser([r1], 1)</command>
+&prompt; <command>chunked_sent = cp.parse(unchunked_sent)</command>
+
+chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;:
+left:
+target: ((?:&lt;[^/]*/(?:DT)@\d+&gt;)(?:&lt;[^/]*/(?:JJ)@\d+&gt;)*(?:&lt;[^/]*/(?:NN)@\d+&gt;))
+right:
+action: {\1}
+input:   &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt;
+   -&gt;   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+</programlisting>
 
     </section> <!-- The REChunkParser Class -->
 
@@ -334,7 +405,26 @@ chunker.parse(tokens)
 
       <para>brute force vs iterative</para>
 
+      <para>Notes: in the brute force approach we construct complex
+      regular expressions which create the desired chunks in a single step.
+      In the iterative approach we create chunks, then successively merge
+      and split them, until we get the desired result.</para>
+
       <para>chunking vs chinking</para>
+
+      <para>Notes: chunking begins with an unchunked sentence and adds chunk
+      delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
+      begins with the entire sentence in a single chunk, then removes pieces.
+      For example, we could chunk the whole sentence then
+      chink the verbs using the following rule:</para>
+
+<programlisting>
+AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
+AbstractChunkRule(r'(&lt;VB.*&gt;)', r'}\1{', doc='chink the verbs')
+</programlisting>
+
+      <para>Note the directionality of the braces in the second argument
+      of the second constructor.</para>
       
     </section> <!-- Chunking Strategies -->
 
