@@ -17,6 +17,7 @@ WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 
 # (Local) output directory for reference (API) documentation.  
 REFDOC_DIR = reference
+CONTRIB_REFDOC_DIR = contrib
 
 # Options for epydoc.  Consider switching to --inheritance=included
 # later.
@@ -27,8 +28,9 @@ EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL)
 STATIC_HTML_DIR = webpage
 
 # The output location for the constructed webpage.
-WEBPAGE_DIR = built_webpage/
+WEBPAGE_DIR = built_webpage
 WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
+WEBPAGE_CONTRIB_REF_DIR = $(WEBPAGE_DIR)/contrib_ref
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
 WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
@@ -80,7 +82,7 @@ clean:
 	$(MAKE) -C tutorial clean
 	$(MAKE) -C misc clean
 	$(MAKE) -C technical clean
-	rm -rf $(REFDOC_DIR)
+	rm -rf $(REFDOC_DIR) $(CONTRIB_REFDOC_DIR)
 	rm -rf $(WEBPAGE_DIR)
 
 ##//////////////////////////////////////////////////
@@ -88,7 +90,9 @@ clean:
 
 WEBPAGE_DIR_EXISTS = $(WEBPAGE_DIR)/.exists
 REFDOC_DIR_EXISTS = $(REFDOC_DIR)/.exists
+CONTRIB_REFDOC_DIR_EXISTS = $(CONTRIB_REFDOC_DIR)/.exists
 WEBPAGE_REF_DIR_EXISTS = $(WEBPAGE_REF_DIR)/.exists
+WEBPAGE_CONTRIB_REF_DIR_EXISTS = $(WEBPAGE_CONTRIB_REF_DIR)/.exists
 WEBPAGE_TECH_DIR_EXISTS = $(WEBPAGE_TECH_DIR)/.exists
 WEBPAGE_TUTORIAL_DIR_EXISTS = $(WEBPAGE_TUTORIAL_DIR)/.exists
 WEBPAGE_PSET_DIR_EXISTS = $(WEBPAGE_PSET_DIR)/.exists
@@ -96,6 +100,7 @@ WEBPAGE_PSET_DIR_EXISTS = $(WEBPAGE_PSET_DIR)/.exists
 # Keep track of whether the refdocs are up to date, so we don't
 # have to rebuild them.
 REFDOC_UPTODATE = $(REFDOC_DIR)/.uptodate
+CONTRIB_REFDOC_UPTODATE = $(CONTRIB_REFDOC_DIR)/.uptodate
 
 ##//////////////////////////////////////////////////
 ##  Basic Documentation types.
@@ -109,11 +114,16 @@ misc:
 technical:
 	$(MAKE) -C technical all
 
-reference: $(REFDOC_UPTODATE)
+reference: $(REFDOC_UPTODATE) $(CONTRIB_REFDOC_UPTODATE)
 $(REFDOC_UPTODATE): $(REFDOC_DIR_EXISTS) $(SOURCES)
 	rm -rf $(REFDOC_DIR)/*
 	$(EPYDOC) $(EPYDOC_OPTS) -o $(REFDOC_DIR) ../src/nltk
 	touch $(REFDOC_UPTODATE)
+$(CONTRIB_REFDOC_UPTODATE): $(CONTRIB_REFDOC_DIR_EXISTS) $(CONTRIB_SOURCES)
+	rm -rf $(CONTRIB_REFDOC_DIR)/*
+	$(EPYDOC) $(EPYDOC_CONTRIB_OPTS) -o $(CONTRIB_REFDOC_DIR) \
+	       ../src/nltk_contrib
+	touch $(CONTRIB_REFDOC_UPTODATE)
 
 ##//////////////////////////////////////////////////
 ##  Web page generation
@@ -144,6 +154,7 @@ _copy_static:
 _copy_reference:
 	@echo "[Copying reference documentation]"
 	@cp -R $(REFDOC_DIR)/* $(WEBPAGE_REF_DIR)
+	@cp -R $(CONTRIB_REFDOC_DIR)/* $(WEBPAGE_CONTRIB_REF_DIR)
 
 _copy_psets:
 	@echo "[Copying problem sets]"
@@ -158,9 +169,9 @@ _erase_cvs:
 	rm -rf $(WEBPAGE_DIR)/CVS
 
 _webpage: _erase_webpage_dir \
-	  $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
+	  $(WEBPAGE_DIR_EXISTS) $(WEBPAGE_CONTRIB_REF_DIR_EXISTS) \
           $(WEBPAGE_TECH_DIR_EXISTS) $(WEBPAGE_PSET_DIR_EXISTS) \
-          $(WEBPAGE_TUTORIAL_DIR_EXISTS) \
+          $(WEBPAGE_TUTORIAL_DIR_EXISTS) $(WEBPAGE_REF_DIR_EXISTS) \
           _copy_static _copy_technical _copy_tutorial _copy_reference \
 	  _copy_psets _erase_cvs
 
@@ -192,27 +203,10 @@ old_xfer: webpage.tar.gz
 ##//////////////////////////////////////////////////
 ##  Build directories, if they don't exist.
 
-$(WEBPAGE_DIR_EXISTS):
-	mkdir -p $(WEBPAGE_DIR)
-	touch $(WEBPAGE_DIR_EXISTS)
-
-$(REFDOC_DIR_EXISTS):
-	mkdir -p $(REFDOC_DIR)
-	touch $(REFDOC_DIR_EXISTS)
-
-$(WEBPAGE_REF_DIR_EXISTS):
-	mkdir -p $(WEBPAGE_REF_DIR)
-	touch $(WEBPAGE_REF_DIR_EXISTS)
-
-$(WEBPAGE_TECH_DIR_EXISTS):
-	mkdir -p $(WEBPAGE_TECH_DIR)
-	touch $(WEBPAGE_TECH_DIR_EXISTS)
-
-$(WEBPAGE_TUTORIAL_DIR_EXISTS):
-	mkdir -p $(WEBPAGE_TUTORIAL_DIR)
-	touch $(WEBPAGE_TUTORIAL_DIR_EXISTS)
-
-$(WEBPAGE_PSET_DIR_EXISTS):
-	mkdir -p $(WEBPAGE_PSET_DIR)
-	touch $(WEBPAGE_PSET_DIR_EXISTS)
+%/.exists:
+	mkdir -p $*
+	touch $*/.exists
+$(WEBPAGE_DIR)/%/.exists:
+	mkdir -p $(WEBPAGE_DIR)/$*
+	touch $(WEBPAGE_DIR)/$*/.exists
 
