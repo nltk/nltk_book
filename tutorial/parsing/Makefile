@@ -114,7 +114,7 @@ $(PDF): $(DOCBOOK) index.xml
 	rm $(TEMP)
 	$(PDFJADETEX) $(TEX) >/dev/null
 	$(PDFJADETEX) $(TEX) >/dev/null
-	rm $(LOG) $(AUX) $(TEX) $(OUT)
+#	rm $(LOG) $(AUX) $(TEX) $(OUT)
 
 clean:
 	rm -rf $(HTMLDIR)
