@@ -1,0 +1,2232 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" 
+"../../docbook/sgml/docbook/xml-dtd-4.2/docbookx.dtd" [
+<!-- Base URL for the reference & tutorial documentation -->
+<!ENTITY refdoc "../../api/public">
+<!ENTITY tutdoc "..">
+
+<!-- Index -->
+<!ENTITY index SYSTEM "index.xml">
+
+<!-- Copyright & License -->
+<!ENTITY copyright SYSTEM "../copyright.xml">
+
+<!-- Version & Date -->
+<!ENTITY versiondate SYSTEM "versiondate.xml">
+]>
+
+<article>
+  <articleinfo>
+    <author><firstname>Steven</firstname><surname>Bird</surname></author>
+    <authorinitials>sb</authorinitials>
+    <author><firstname>Ewan</firstname><surname>Klein</surname></author>
+    <authorinitials>ek</authorinitials>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
+    <othercredit role="translator">
+      <firstname>Tiago</firstname><surname>Tresoldi</surname>
+      <contrib>Traduziu o documento para o português brasileiro.</contrib>
+    </othercredit>
+    
+    <title>NLTK Tutorial: Tagging</title>
+    &versiondate; &copyright;
+<!--
+    <title>Tagging</title>
+-->
+  </articleinfo>
+
+<!--
+  <para><emphasis>Sample chapter for Introduction to Computational
+    Linguistics and Language Technology, by Steven Bird, Ewan Klein
+    and Edward Loper, May 2004</emphasis></para>
+-->
+
+<!-- TODO: ADD DISCUSSION OF HOW TO SAVE A TRAINED TAGGER SO IT
+DOESN'T NEED TO BE TRAINED EACH TIME IT IS USED -->
+
+<section id="intro">
+  <title>Introdução</title>
+
+  <para>
+    Muitos enunciados de uma linguagem natural são ambíguos, obrigando-nos
+    a utilizar outras fontes de informação para ajudar na interpretação. Por
+    exemplo, a nossa interpretação do enunciado em inglês <literal>fruit flies
+    like a banana</literal> depende da presença de guias contextuais que
+    nos predispõem a interpretar <literal>flies</literal> ou como um substantivo
+    ou como um verbo. Antes mesmo que possamos abordar esta discussão, é
+    preciso que sejamos capazes de representar as informações lingüísticas
+    necessárias. Eis uma representação possível:
+  </para>
+
+      <table id="table.fruit1">
+        <title/>
+        <tgroup cols="5">
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <tbody>
+            <row>
+	    <entry><literal>Fruit</literal></entry>
+	    <entry><literal>flies</literal></entry>
+	    <entry><literal>like</literal></entry>
+	    <entry><literal>a</literal></entry>
+	    <entry><literal>banana</literal></entry>
+            </row>
+            <row>
+              <entry>substantivo</entry>
+              <entry>verbo</entry>
+              <entry>preposição</entry>
+              <entry>artigo</entry>
+              <entry>substantivo</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+
+      <table id="table.fruit2">
+        <title/>
+        <tgroup cols="5">
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <colspec colwidth='1.5cm'/>
+          <tbody>
+            <row>
+	    <entry><literal>Fruit</literal></entry>
+	    <entry><literal>flies</literal></entry>
+	    <entry><literal>like</literal></entry>
+	    <entry><literal>a</literal></entry>
+	    <entry><literal>banana</literal></entry>
+            </row>
+            <row>
+              <entry>substantivo</entry>
+              <entry>substantivo</entry>
+              <entry>verbo</entry>
+              <entry>artigo</entry>
+              <entry>substantivo</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+
+  <para>
+    A maioria dos sistemas de processamento lingüístico é obrigada a
+    reconhecer e interpretar as estruturas lingüísticas que existem numa
+    seqüência de palavras. Esta tarefa é virtualmente impossível se tudo
+    que soubermos sobre cada palavra é sua representação textual. Para
+    determinar se uma dada string de palavras possui a estrutura de, por
+    exemplo, um sintagma nominal, é impraticável verificar uma lista
+    (possivelmente infinita) de todas as strings que podem ser classificadas
+    como sintagma nominal. Ao invés disso, queremos ter a capacidade de
+    generalizar quanto a <emphasis>classes</emphasis> de palavras. Estas
+    <firstterm>classes de palavras</firstterm> são normalmente "etiquetas"
+    que reportam informações como 'artigo', 'adjetivo' ou 'substantivo'.
+    De forma contrária, para interpretar palavras somos obrigados a
+    saber discriminar entre as diferentes utilizações de uma mesma
+    palavra, como <literal>deal</literal> que pode ser utilizada tanto
+    como substantivo quanto como verbo. O processo de classificação de
+    palavras neste sentido, e sua etiquetação em conformidade com esta
+    classificação, é conhecido por <glossterm>tagging de funções
+    discursivas</glossterm> (ou 'tagging de funções gramaticais'),
+    <glossterm>POS-tagging</glossterm> (a partir da abreviatura inglesa)
+    ou, simplesmente, <glossterm>tagging</glossterm>. O conjunto de tags
+    utilizado para determinada tarefa é conhecido por <glossterm>tag 
+    set</glossterm>.
+  </para>
+
+ 
+<!--
+ <para>
+    In the following sections, we will give a more detailed account of
+    the linguistic and practical issues that arise in the course of
+    part-of-speech tagging, and then survey how tagging is carried out
+    in NLTK. Before launching into this, however, we will give the
+    reader a flavour of the uses of tagging. That is,
+    we consider three kinds of language analysis where tags play
+    an important role: parsing, morphological analysis, and
+    stylistics.
+  </para>
+
+  <para>
+    Most natural language parsers depend on <glossterm>part-of-speech
+    tags</glossterm>.  Instead of writing rules like <literal>NP &rarr;
+    the dog</literal> and <literal>NP &rarr; three red cars</literal>,
+    we can write <literal>NP &rarr; DT JJ* NN</literal>.  In this way,
+    the terminal symbols of the grammar can be word categories, instead
+    of words, greatly reducing the size of the grammar.
+
+  </para>
+
+
+
+  <para>
+    <glossterm>Morphological analysis</glossterm> is also assisted by part-of-speech tags.
+    For instance, if we encounter the word <literal>deals</literal>
+    in running text, should this be analysed as the plural form of a
+    noun, e.g., <literal>deal<subscript>N</subscript>+PL</literal>
+    or the third-person singular form of a verb, e.g.,
+    <literal>deal<subscript>V</subscript>+3PS</literal>?
+    A tagger will consider the context in which this word appears,
+    and will reliably determine whether it is a noun or a verb.
+    Then the morphological analyser can be given either
+    <literal>deals/NN</literal> or <literal>deals/VB</literal>
+    to process.
+  </para>
+-->
+  <para>
+    Anteriormente, apresentamos <xref linkend="table.fruit1"/> e <xref
+    linkend="table.fruit2"/> como exemplos de como uma string de palavras
+    pode ser complementada com informações referentes às classe de palavra
+    às quais suas palavras pertencem. Na verdade, o que fizemos foi
+    executar um processo de tagging para a string <literal>fruit flies
+    likes a banana</literal>. Porém, as tags são normalmente incluídas
+    ao lado do texto aos quais estão associadas. Isto é ilustrado pelo
+    seguinte trecho extraído do Brown Corpus:
+    <literal>
+      The/at Pantheon's/np$ interior/nn ,/, still/rb in/in its/pp$
+      original/jj form/nn ,/, is/bez truly/ql majestic/jj and/cc an/at
+      architectural/jj triumph/nn ./.
+    </literal> 
+<!-- *** According to our table later on, ./. should actually be ./end -->
+    Neste exemplo, a seqüência <literal>The/at</literal> indica que o token
+    de palavra <literal>The</literal> carrega consigo a tag 
+    <literal>at</literal>, que é a tag do Brown Corpus para 'artigo'.
+    <footnote>
+	<para>O leitor pode ficar inicialmente curioso com strings como
+   <literal>,/,</literal>. Isto significa simplesmente que a tag para a
+   vírgula é exatamente '<literal>,'</literal>.</para>
+	
+      </footnote>
+      
+    Podemos pensar no processo de tagging como uma forma de 
+    <firstterm>anotar</firstterm> um corpus textual. Anotações são uma
+    forma de adicionar-se informações a um texto &mdash; de fato, podemos
+    pensar nestas como uma forma de tornar explícitas informações já
+    presentes implicitamente no texto.
+  </para>
+  <para>
+    Qual o propósito de anotar-se um texto desta forma? Uma demonstração
+    é a utilização de corpora com tags para estudar padrões de utilização
+    de palavras em diferentes gêneros literários 
+    (<glossterm>estilística</glossterm>). Por exemplo, podemos utilizar as
+    tags para identificar todas as palavras de uma determinada classe,
+    como os verbos modais em inglês, e então tabular suas freqüências de
+    ocorrência nos diferentes gêneros, como mostrado em
+    <xref linkend="table.stylistics"/>.
+  </para>
+
+
+<table id="table.stylistics">
+  <title>Uso de verbos modais no Brown Corpus, por gênero literário</title>
+  <tgroup cols="7">
+    <colspec colwidth='3cm'/>
+    <colspec colwidth='12mm'/><colspec colwidth='12mm'/><colspec colwidth='12mm'/>
+    <colspec colwidth='12mm'/><colspec colwidth='12mm'/><colspec colwidth='12mm'/>
+    <tbody>
+      <row>
+        <entry>Gênero</entry>
+        <entry>can</entry><entry>could</entry><entry>may</entry>
+        <entry>might</entry><entry>must</entry><entry>will</entry>
+      </row>
+      <row>
+        <entry>skill and hobbies</entry>
+        <entry>273</entry><entry>59</entry><entry>130</entry>
+        <entry>22</entry><entry>83</entry><entry>259</entry>
+      </row>
+      <row>
+        <entry>humor</entry>
+        <entry>17</entry><entry>33</entry><entry>8</entry>
+        <entry>8</entry><entry>9</entry><entry>13</entry>
+      </row>
+      <row>
+        <entry>fiction: science</entry>
+        <entry>16</entry><entry>49</entry><entry>4</entry>
+        <entry>12</entry><entry>8</entry><entry>16</entry>
+      </row>
+      <row>
+        <entry>press: reportage</entry>
+        <entry>94</entry><entry>86</entry><entry>66</entry>
+        <entry>36</entry><entry>50</entry><entry>387</entry>
+      </row>
+      <row>
+        <entry>fiction: romance</entry>
+        <entry>79</entry><entry>195</entry><entry>11</entry>
+        <entry>51</entry><entry>46</entry><entry>43</entry>
+      </row>
+      <row>
+        <entry>religion</entry>
+        <entry>84</entry><entry>59</entry><entry>79</entry>
+        <entry>12</entry><entry>54</entry><entry>64</entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>
+
+<!-- this repeats the text after table 2
+  <para>
+    The process of associating labels with each token in a text is
+    called <glossterm>tagging</glossterm>, and the labels are called
+    <glossterm>tags</glossterm>.  The collection of tags used for a
+    particular task is known as a <glossterm>tag set</glossterm>.
+  </para>
+-->
+
+  <para>
+    Este tutorial foca-se no tagging de partes do discurso, por ser um
+    passo inicial no processamento lingüístico que não depende de uma
+    profunda análise lingüística. Os leitores devem lembrar-se de que
+    existem muitos outros tipos de tagging. As palavras podem receber
+    tags com diretivas para um sintetizador de voz, indicando quais
+    palavras deveriam ser enfatizadas durante a leitura automática. As
+    palavras também podem receber tags com índices numéricos de sentido,
+    referendio-se a qual sentido está sendo utilizado naquela ocorrência.
+    As palavras também podem receber tags referentes a propriedades
+    morfológicas. Exemplos de cada um destes tipos de tags são mostrados
+    em <xref linkend="table.taggingexamples"/>.  Note que por motivos de
+    espaço somente reportamos a tag da palavra em itálico. Note também que
+    os dois primeiros exemplos utilizam tags no estilo XML, no qual os
+    elementos entre sinais de maior e menor cercam a palavra à qual a
+    tag se refere.
+  </para>
+
+<table id="table.taggingexamples">
+  <title>Examples de tags não-"partes do discurso"</title>
+  <tgroup cols="2">
+    <colspec colwidth='6cm'/>
+    <tbody>
+      <row>
+        <entry>Speech Synthesis Markup Language (W3C SSML) - Linguagem
+	       de marcação para síntese de voz</entry>
+        <entry>That is a
+        &lt;emphasis><emphasis>big</emphasis>&lt;/emphasis> car!</entry>
+      </row>
+      <row>
+        <entry>SemCor: Brown Corpus com tags semânticas do WordNet</entry>
+        <entry>Space in any
+          &lt;wf pos="NN" lemma="form" wnsn="4"><emphasis>form</emphasis>&lt;/wf>
+          is completely measured by the three dimensions.
+          <emphasis>
+            (Wordnet form/nn sense 4: "shape, form, configuration,
+            contour, conformation")
+          </emphasis>
+        </entry>
+      </row>
+      <row>
+        <entry>Tags morfológicas do Banco da Língua Italiana da Universidade de Turim</entry>
+        <entry>
+          E' italiano , come progetto e realizzazione , il
+          <emphasis>primo</emphasis> (PRIMO ADJ ORDIN M SING)
+          porto turistico dell' Albania .
+        </entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>
+
+ <para>Já dissemos que as tags referentes às partes do discurso estão
+   em forte relação com a noção de classe gramatical utilizada na
+   sintaxe. O princípio assumido pela lingüística teórica é de que todo
+   tipo distinto de palavra estará listado em um léxico (ou em um dicionário),
+   com informações quanto à sua pronúncia, propriedades sintáticas e
+   significado. Uma componente chava das propriedades sintáticas de uma
+   palavra será a classe à qual ela pertence. Quando realizamos uma análise
+   sintática de nosso exemplo anterior <literal>fruit flies like a 
+   banana</literal> procuramos por cada palavra em nosso léxico, determinamos
+   qual é sua classe gramatical e finalmente a agrupamos em uma hierarquia de
+   frases, como ilustrado na árvore de análise ('parse tree') a seguir.
+   </para>
+
+<figure id="syn-tree"><title>Árvore de análise sintática</title>
+<informaltable frame="topbot">
+<tgroup cols="1"><tbody><row><entry>
+<graphic fileref="images/syn-tree" scale="6"/>
+</entry></row></tbody></tgroup></informaltable>
+</figure>
+
+   <para>Nesta árvore, utilizamos as abreviações sintáticas padrão para as
+   classes gramaticais. Estas são listadas em <xref linkend="table.class-tag"/>
+   em conjunto com seus correspondentes no tag set do Brown Corpus.
+   </para>
+
+    <table id="table.class-tag">
+        <title>Etiquetas e tags de classes gramaticais</title>
+        <tgroup cols="3">
+            <colspec colwidth='3.5cm'/>
+            <colspec colwidth='2cm'/>
+            <colspec colwidth='5cm'/>
+     <thead>
+      <row>
+       <entry>Etiqueta de classe gramatical</entry>
+       <entry>Tag do Brown Corpus</entry>
+       <entry>Classe gramatical</entry>
+      </row>
+     </thead>
+            <tbody>
+                <row>
+                    <entry>Det</entry>
+                    <entry>at</entry>
+                    <entry>Artigo</entry>
+                </row>
+                <row>
+                    <entry>N</entry>
+                    <entry>nn</entry>
+                    <entry>Substantivo</entry>
+                </row>
+                <row>
+                    <entry>V</entry>
+                    <entry>vb</entry>
+                    <entry>Verbo</entry>
+                </row>
+                <row>
+                    <entry>Adj</entry>
+                    <entry>jj</entry>
+                    <entry>Adjetivo</entry>
+                </row>
+                <row>
+                    <entry>P</entry>
+                    <entry>in</entry>
+                    <entry>Preposição</entry>
+                </row>
+                <row>
+                    <entry>Card</entry>
+                    <entry>cd</entry>
+                    <entry>Numeral</entry>
+                </row>
+                <row>
+                    <entry>&ndash;</entry>
+                    <entry>end</entry>
+                    <entry>Pontuação de final de sentença</entry>
+                </row>
+            </tbody>
+        </tgroup>
+    </table>
+
+   <para>
+     Nas análises sintáticas, há normalmente uma estreita correlação entre
+     a classe à qual uma palavra pertence e as frases e sintagmas que esta
+     forma com as palavras vizinhas. Assim, por exemplo, um sintagma nominal
+     (designado por NP) consiste normalmente de um substantivo (N) opcionalmente
+     acompanhado por um artigo (Det) e alguns modificadores como adjetivos (Adj).
+     Podemos expressar esta generalização em termos de uma regra de produção:
+    <simplelist>
+     <member><literal>NP &rarr; Det Adj* N</literal></member>
+    </simplelist>
+    Em casos como este, dizemos que o substantivo é o 
+    <glossterm>head</glossterm> (em português 'cabeça' ou 'chefe', mas no
+    Brasil costuma-se utilizar a terminologia inglesa) do sintagma
+    nominal; basicamente podemos dizer que o head de um sintagma é o elemento
+    essencial que pode ocorrer em qualquer contexto em que o sintagma como
+    um todo pode ocorrer. Porém, de um ponto de vista puramente notacional,
+    temos liberdade para utilizar qualquer etiqueta que desejarmos para as
+    classes de palavras e estas podem ser as tags fornecidas pelo tag set. Por
+    exemplo, poderíamos substituir a regra anterior pela seguinte:
+    <simplelist>
+     <member><literal>NP &rarr; at jj* nn</literal></member>
+    </simplelist>
+    Isto é conveniente, já que em algumas tarefas práticas podemos utilizar
+    um tagger automático para etiquetar as palavras de nosso exemplo com
+    as tags retiradas do tag set do Brown Corpus, e utilizar o resultado como
+    base para a construção de uma árvore de análises sintática como em <xref
+    linkend="syn-tree"/>. 
+   </para>
+
+   <para>
+   Até agora, discorremos apenas sober as tags utilizadas para referir-se a
+   informações quanto à classe das palavras. Porém, tag sts comuns como aqueles
+   utilizados no Brown Corpus costumam incluir também informações de cunho
+   <glossterm>morfo-sintático</glossterm>. Considere, por exemplo, a seleção
+   de formas distintas da palavra <literal>be</literal> ilustrada nas sentenças
+   a seguir:
+    <simplelist>
+     <member><literal>Be still!</literal></member>
+     <member><literal>Being still is hard.</literal></member>
+     <member><literal>I am still.</literal></member>
+     <member><literal>I have been still all day.</literal></member>
+     <member><literal>I was still all day.</literal></member>
+    </simplelist>
+    Dizemos que estas formas são morfo-sintáticamente distintas pois elas
+    apresentam diferentes flexões morfológicas e diferentes restrições
+    co-ocorrentes com as palavras vizinhas. Por exemplo, 
+    <literal>am</literal> não pode substituir nenhum dos dois primeiros
+    exemplos:
+    <simplelist>
+     <member><literal>*Am still!</literal></member>
+     <member><literal>*Am still is hard.</literal></member>
+     </simplelist>
+    Estas diferenças entre as formas são codificadas em suas tags do
+    Brown Corpus: <literal>be/be, being/beg, am/bem, been/ben</literal>
+    e <literal>was/bedz</literal>. Isto significa que um tagger automático
+    que utilize este tag set está na verdade efetuando uma limitada análise
+    morfológica.
+  </para>
+
+
+</section> <!-- Introduction -->
+
+
+
+<section id="taggers.simple">
+  <title> Taggers simples </title>
+
+  <para>
+    Nesta seção iremos abordar três taggers simples. Todos eles processam
+    os tokens fornecidos ('input tokens') um a um, adicionando uma tag a
+    cada token. Em todos os casos eles trabalham sobre texto tokenizado. Podemos
+    criar facilmente um exemplo de texto tokenizado da seguinte forma:
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.tokenizer import *
+>>> text_token = Token(TEXT="John saw 3 polar bears .")
+>>> WhitespaceTokenizer().tokenize(text_token)
+>>> print text_token
+<[<John>, <saw>, <3>, <polar>, <bears>, <.>]>
+]]></programlisting>
+
+  <section id="taggers.unigram.default">
+    <title> O Default Tagger (Tagger Padrão) </title>
+
+    <para>
+      O tagger mais simples possível atribui uma mesma tag a qualquer token que
+      lhe seja fornecindo, não importando o texto do token. A classe 
+      <literal>DefaultTagger</literal> implementa este tipo de tagger. No
+      programa abaixo, iremos criar um tagger chamado <literal>my_tagger</literal>
+      que marca qualquer token como sendo um substantivo.
+    </para>
+
+<programlisting><![CDATA[
+>>> from nltk.tagger import *
+>>> my_tagger = DefaultTagger('nn')
+>>> my_tagger.tag(text_token)
+>>> print text_token
+<[<John/nn>, <saw/nn>, <3/nn>, <polar/nn>, <bears/nn>, <./nn>]>
+]]></programlisting>
+
+    <para>
+      Trata-se de um algoritmo muito simples e que fornece resultados
+      precários quando usado isoladamente. Em um corpus típico, apenas
+      20-30% dos tokens receberão uma tag adequada. É porém razoável
+      utilizar este tipo de tagger como o padrão, se taggers mais sofisticados
+      falharem em determinar a tag correta para um token. Quando usado em
+      conjunto com outros tagger, um <literal>DefaultTagger</literal> pode
+      melhorar significativamente o desempenho.
+    </para>
+
+    <important><para>
+      Default Tagger atribuem sua tag para qualquer palavra, mesmo àquelas que
+      nunca foram encontradas antes. Assim, eles ajudam a melhor a solidez
+      de um sistema de processamento lingüístico.
+    </para></important>
+
+  </section> <!-- DefaultTagger -->
+
+  <section id="taggers.regexp">
+    <title> O Tagger por Expressões Regulares </title>
+
+    <para>
+      O tagger por expressões regulares atribui tags aos tokens com base
+      em padrões ('matching patterns') aplicados ao texto dos tokens. Por
+      exemplo, o tagger apresentado a seguir atribui a tag 
+      <literal>cd</literal> aos numerais cardinais e <literal>nn</literal> a
+      todo o resto.
+    </para>
+
+<programlisting><![CDATA[
+>>> NN_CD_tagger = RegexpTagger([(r'^[0-9]+(.[0-9]+)?$', 'cd'), (r'.*', 'nn')])
+>>> NN_CD_tagger.tag(text_token)
+>>> print text_token
+<[<John/nn>, <saw/nn>, <3/cd>, <polar/nn>, <bears/nn>, <./nn>]>
+]]></programlisting>
+
+    <para>
+      Podemos generalizar este método para adivinhar qual a tag correta para
+      uma palavra com base na presença de prefixos ou sufixos. Por exemplo,
+      as palavras em inglês que começam por <literal>un-</literal> são
+      provavelmente adjetivos.
+    </para>
+
+  </section> <!-- DefaultTagger -->
+
+  <section id="taggers.unigram.unigram">
+    <title> O Unigram Tagger </title>
+
+    <para>
+      A classe <literal>UnigramTagger</literal> implementa um simples
+      algoritmo estatístico para o processo de tagging: para cada token é
+      atribuída a tag mais provável para seu texto. Por exemplo, este tipo
+      de tagger irá atribuir a tag <literal>jj</literal> a qualquer ocorrência
+      da palavra <literal>frequent</literal>, pois esta aparece mais
+      freqüentemente como um adjetivo (como em <literal>a frequent
+      word</literal>) do que como um verbo (como em <literal>I frequent this
+      cafe</literal>).
+    </para>
+
+    <para>
+      Antes que um <literal>UnigramTagger</literal> possa ser utilizado 
+      no processo de tagging é necessário trainá-lo com um <glossterm>corpus
+      de treinamento</glossterm>. O tagger irá utilizar este corpus para
+      determinar qual as tag mais comum para cada palavra. Os
+      <literal>UnigramTaggers</literal> são treinados usando-se o método
+      <literal>train()</literal>, que recebe como argumento um corpus com
+      informações de tags:
+    </para>
+
+<programlisting><![CDATA[
+>>> from nltk.tagger import *
+>>> from nltk.corpus import brown
+    # Tokenize ten texts from the Brown Corpus
+>>> train_tokens = []
+>>> for item in brown.items()[:10]:
+...     train_tokens.append(brown.read(item))
+    # Initialise and train a unigram tagger
+>>> mytagger = UnigramTagger(SUBTOKENS='WORDS')
+>>> for tok in train_tokens: mytagger.train(tok)
+]]></programlisting>
+
+    <para>
+      Uma vez que um <literal>UnigramTagger</literal> tenha sido treinado, o
+      método <literal>tag()</literal> pode ser utilizado no processo de
+      tagging de novos textos:
+    </para>
+
+<programlisting><![CDATA[
+>>> text_token = Token(TEXT="John saw the book on the table")
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token)
+>>> mytagger.tag(text_token)
+>>> print text_token
+<[<John/np>, <saw/vbd>, <the/at>, <book/None>, <on/in>, <the/at>, <table/nn>]>
+]]></programlisting>
+
+    <para>
+      Como dissemos antes, um <literal>UnigramTagger</literal> atribuirá a
+      tag padrão <literal>None</literal> (nada) a qual token que não tenha
+      sido encontrado durante o treinamento. Mais tarde veremos como um
+      <literal>UnigramTagger</literal> pode ser combinado a um
+      <literal>DefaultTagger</literal> para assegurar-se que qualquer palavra
+      receba uma tag.
+    </para>
+
+  </section> <!-- UnigramTagger -->
+</section> <!-- Unigram Tagging -->
+
+<section id="evaluation">
+  <title>Avaliando taggers</title>
+
+  <para>
+    Conforme testamos diferentes tipos de taggers, é importante ter uma forma
+    objetiva de medir-se seus desempenhos. Por sorte já dispomos de um corpus
+    de treinamento verificado manualmente (o corpus com informações de tags
+    original) que poderemos utilizar para avaliar nossos taggers.
+  </para>
+
+  <para>
+    Considere as sentenças a seguir retiradas do Brown Corpus. As tags
+    'Gold Standard' ('Padrão de Ouro', as tags corretas) do corpus são reportadas
+    na segunda coluna, enquanto as tags atribuídas pelo Unigram Tagger aparecem
+    na terceira coluna. Os dois erros cometidos pelo Unigram Tagger são
+    assinalados em itálico.
+   </para>
+
+  <table id="table.evaluation">
+    <title>Avaliando taggers</title>
+    <tgroup cols="3">
+      <colspec colwidth='3cm'/>
+      <colspec colwidth='3cm'/>
+      <colspec colwidth='3cm'/>
+      <tbody>
+        <row><entry>Sentença:</entry><entry>Gold Standard:</entry><entry>Unigram Tagger:</entry></row>
+        <row><entry>The</entry><entry>at</entry><entry>at</entry></row>
+        <row><entry>President</entry><entry>nn-tl</entry><entry>nn-tl</entry></row>
+        <row><entry>said</entry><entry>vbd</entry><entry>vbd</entry></row>
+        <row><entry>he</entry><entry>pps</entry><entry>pps</entry></row>
+        <row><entry>will</entry><entry>md</entry><entry>md</entry></row>
+        <row><entry>ask</entry><entry>vb</entry><entry>vb</entry></row>
+        <row><entry>Congress</entry><entry>np</entry><entry>np</entry></row>
+        <row><entry>to</entry><entry>to</entry><entry>to</entry></row>
+        <row><entry>increase</entry><entry>vb</entry><entry><emphasis>nn</emphasis></entry></row>
+        <row><entry>grants</entry><entry>nns</entry><entry>nns</entry></row>
+        <row><entry>to</entry><entry>in</entry><entry><emphasis>to</emphasis></entry></row>
+        <row><entry>states</entry><entry>nns</entry><entry>nns</entry></row>
+        <row><entry>for</entry><entry>in</entry><entry>in</entry></row>
+        <row><entry>vocational</entry><entry>jj</entry><entry>jj</entry></row>
+        <row><entry>rehabilitation</entry><entry>nn</entry><entry>nn</entry></row>
+        <row><entry>.</entry><entry>.</entry><entry>.</entry></row>
+      </tbody>
+    </tgroup>
+  </table>
+
+  <para>
+    O tagger atribuiu tags corretas a 14 das 16 palavras, resultando em um
+    índice de acerto de 14/16 ou 87,5%. Evidentemente, o desempenho 
+    deveria ser avaliado com base em um conteúdo maior de dados. O NLTK disponibiliza
+    uma função chamada <literal>tagger_accuracy</literal> que automatiza
+    esta tarefa. No caso mais simples, podemos testar o tagger utilizando
+    o mesmo conjunto de dados sobre o qual ele foi treinado:
+  </para>
+
+<programlisting><![CDATA[
+>>> acc = tagger_accuracy(mytagger, train_tokens)
+>>> print 'Accuracy = %4.1f%%' % (100 * acc)
+94.8%
+]]></programlisting>
+
+  <para>
+    Mas, como dissemos, testar um sistema de processamento lingüístico sobre
+    os mesmos dados que foram utilizados para treiná-lo não é muito sábio.
+    Um sistema que simplesmente memorizasse os dados de treinamento obteria
+    um resultado perfeito sem realizar qualquer tipo de modelagem lingüística.
+    Ao invés disso, é importante valorizar sistemas que consigam fazer boas
+    generalizações, de tal forma que possamos aplicá-los a <emphasis>dados
+    ainda desconhecidos</emphasis> e substituir o 
+    <literal>train_tokens</literal> ('tokens de treinamento', em inglês) acima 
+    por <literal>unseen_tokens</literal> ('tokens desconhecidos', em inglês).
+    Podemos então definir dois conjuntos de dados como a seguir:
+  </para>
+
+<programlisting><![CDATA[
+>>> train_tokens = []
+>>> for item in brown.items()[:10]:    # texts 0-9
+...     train_tokens.append(brown.read(item))
+>>> unseen_tokens = []
+>>> for item in brown.items()[10:12]:  # texts 10-11
+...     unseen_tokens.append(brown.read(item))
+]]></programlisting>
+
+  <para>
+    Podemos agora treinar o tagger utilizando o <literal>train_tokens</literal>
+    e avaliar seu desempenho utilizando o <literal>unseen_tokens</literal>, como
+    mostrado a seguir:
+  </para>
+
+<programlisting><![CDATA[
+>>> for tok in train_tokens: mytagger.train(tok)
+>>> acc = tagger_accuracy(mytagger, unseen_tokens)
+>>> print 'Accuracy = %4.1f%%' % (100 * acc)
+Accuracy = 64.6%
+]]></programlisting>
+
+  <para>
+    Os resultados de desempenho produzidos por este método de avaliação são
+    inferiores mas fornecem-nos uma imagem mais realista do desempenho do
+    tagger. Note que o desempenho de qualquer tagger estatístico depende
+    altamente da qualidade dos dados utilizados para treiná-lo. Em particular,
+    se a quantidade de dados de treinamento for pequena, o tagegr não será
+    capaz de estimar a tag mais provável para cada palavra de forma confiável.
+    O desempenho também sofrerá se os dados de treinamento forem 
+    significativamente diferentes dos textos aos quais desejamos aplicar o
+    processo de tagging.
+  </para>
+
+  <para>
+    Durante o processo de desenvolvimento de um tagger, podemos utilizar o
+    índice de desempenho como uma medida objetiva das melhorias aportadas
+    ao sistema. Inicialmente, o índice de desempenho crescerá rapidamente
+    a medida que solucionamos problemas óbvios no tagger. Após certo tempo,
+    porém, as melhorias tornam-se mais difíceis o índice cresce pouco.
+  </para>
+
+  <para>
+    Mesmo sendo o índice de desempenho extremamente útil, ele não nos informa
+    sobre como melhor o tagger. Para isto é necessário que realizemos uma
+    análise de erro. Por exemplo, podemos construir uma <glossterm>matriz de
+    confusão</glossterm>, com uma linha e uma coluna para cada tag possível,
+    e entradas que armazenem o quão freqüentemente a tag 
+    <literal>T<subscript>i</subscript></literal> é incorretamente utilizada
+    no lugar de <literal>T<subscript>j</subscript></literal>. Outra abordagem
+    é uma análise do contexto dos erros.
+  </para>
+
+<programlisting><![CDATA[
+>>> errors = {}                                # para armazenar os contextos de erros
+>>> for gold_doc in unseen_tokens:
+...     test_doc = gold_doc.exclude('TAG')     # remove as tags
+...     mytagger.tag(test_doc)                 # tagging do texto desconhecido
+...     for i in range(len(test_doc['WORDS'])):     # interage em cada token
+...         if test_doc['WORDS'][i] != gold_doc['WORDS'][i]:    # um erro
+...             test_context = [tok['TAG'] for tok in test_doc['WORDS'][i-1:i+1]]
+...             gold_context = [tok['TAG'] for tok in gold_doc['WORDS'][i-1:i+1]]
+...             if None not in test_context:   # foi feito tagging em todas as palavras do contexto?
+...                 pair = (tuple(test_context), tuple(gold_context))   # salva o context
+...                 errors[pair] = errors.get(pair, 0) + 1
+]]></programlisting>
+
+  <para>
+    O programa acima cataloga todos os erros juntamente com a tag à esquerda de cada
+    um (a tag da palavra que os antecede) e suas freqüências de ocorrência. O
+    dicionário <literal>errors</literal> possui chaves na forma
+    <literal>((t1,t2),(g1,g2))</literal>, nas quais <literal>(t1,t2)</literal>
+    são as tags de teste e <literal>(g1,g2)</literal> são as tags do Gold Standard. Os
+    valores armazenados no dicionário <literal>errors</literal> são simples
+    contagens da freqüência com a qual os erros são encontrados. Com algum
+    processamento adicional, podemos construir a lista <literal>counted_errors</literal>
+    contendo tuples que consistam das contagens e dos erros, revertendo sua ordem
+    ao final para obter os erros mais significativos primeiro:
+  </para>
+  
+<programlisting><![CDATA[
+>>> counted_errors = [(errors[k], k) for k in errors.keys()]
+>>> counted_errors.sort()
+>>> counted_errors.reverse()
+>>> for err in counted_errors[:5]:
+...     print err
+(11, (('at', 'vb'), ('at', 'nn')))
+(9, (('nn', 'to'), ('nn', 'in')))
+(8, (('cc', 'vbn'), ('cc', 'vbd')))
+(7, ((',', 'vbn'), (',', 'vbd')))
+(7, ((',', 'np'), (',-hl', 'np-hl')))
+]]></programlisting>
+
+  <para>
+    A primeira linha do output (saída, resultado do programa) demonstra, de fato,
+    que há 11 casos em que o Unigram Tagger atribuiu errôneamente a tag de verbo
+    a um substantivo que seguia um artigo. Na verdade, já encontramos este erro
+    antes em <xref linkend="table.evaluation"/> para a palavra
+    <literal>increase</literal>. O Unigram Tagger marcou <literal>increase</literal>
+    como um verbo ao invés de um substantivo pois esta ocorre mais freqüentemente
+    no corpus de treinamento como um verbo. Porém, quando <literal>increase</literal>
+    é encontrada imediatamente após um artigo, trata-se invariavelmente de um
+    substantivo. Evidentemente, o desempenho do tagger melhoraria se este fosse
+    modifica para que passasse a considerar não apenas a palavra que está sendo
+    processada a cada momento, mas também a tag já atribuída à palavra que a
+    antecede. Este tipo de tagger é conhecido por Bigram Tagger e serão os
+    próximos a serem abordados.
+  </para>
+
+ 
+
+</section>
+
+<section id="taggers.ngram">
+  <title> Taggers de ordem superior (Higher Order Taggers) </title>
+
+  <para>
+    Anteriormente estudamos o <literal>UnigramTagger</literal>, que
+    atribui uma tag a uma palavra com base na identidade desta palavra.
+    Nesta seção iremos considerar os taggers que adoperam uma quantidade maior
+    de contexto durante o processo de atribuição de uma tag.
+  </para>
+
+  <section id="taggers.ngram.bigram">
+    <title> Bigram Taggers </title>
+
+  <para>
+    Como o nome sugere, os <glossterm>bigram taggers</glossterm> utilizam
+    dois pedaços de informação para cada decisão quanto ao tagging. Normalmente
+    esta informação é constituída pelo texto da palavra que está sendo
+    analisada no momento e a tag da palavra anterior. Estes dois pedaços de
+    informação constituem o <glossterm>contexto</glossterm> para o token
+    ao qual será atribuída uma tag. Dado o contexto, o tagger busca atribuir
+    a tag mais provável. Podemos visualizar este processo com a ajuda do
+    <xref linkend="table.bigram"/>, um pequeno fragmento da estrutura interna de
+    dados que é construída por um Bigram Tagger.
+    <!-- The selected tags are italicised.-->
+
+  </para>
+
+  <table id="table.bigram">
+    <title> Tabela de fragmentos de um Bigram Tagger </title>
+    <tgroup cols="8">
+      <tbody>
+        <row><entry/><entry>ask</entry> <entry>Congress</entry> <entry>to</entry> <entry>increase</entry> <entry>grants</entry> <entry>to</entry> <entry>states</entry></row>
+        <row><entry>at</entry><entry/> <entry/> <entry/> <entry>nn</entry> <entry/> <entry/> <entry/></row>
+        <row><entry>tl</entry><entry/> <entry/> <entry>to</entry> <entry/> <entry/> <entry>to</entry> <entry/></row>
+        <row><entry>bd</entry><entry/> <entry/> <entry>to</entry> <entry/> <entry>nns</entry> <entry>to</entry> <entry/></row>
+        <row><entry>md</entry><entry><emphasis>vb</emphasis></entry> <entry/> <entry/> <entry>vb</entry> <entry/> <entry/> <entry/></row>
+        <row><entry>vb</entry><entry/> <entry><emphasis>np</emphasis></entry> <entry>to</entry> <entry/> <entry><emphasis>nns</emphasis></entry> <entry>to</entry> <entry>nns</entry></row>
+        <row><entry>np</entry><entry/> <entry/> <entry><emphasis>to</emphasis></entry> <entry/> <entry/> <entry>to</entry> <entry/></row>
+        <row><entry>to</entry><entry>vb</entry> <entry/> <entry/> <entry><emphasis>vb</emphasis></entry> <entry/> <entry/> <entry/></row>
+        <row><entry>nn</entry><entry/> <entry>np</entry> <entry>to</entry> <entry>nn</entry> <entry>nns</entry> <entry>to</entry> <entry/></row>
+        <row><entry>nns</entry><entry/> <entry/> <entry>to</entry> <entry/> <entry/> <entry><emphasis>to</emphasis></entry> <entry/></row>
+        <row><entry>in</entry><entry/> <entry>np</entry> <entry>in</entry> <entry/> <entry/> <entry>in</entry> <entry><emphasis>nns</emphasis></entry></row>
+        <row><entry>jj</entry><entry/> <entry/> <entry>to</entry> <entry/> <entry>nns</entry> <entry>to</entry> <entry>nns</entry></row>
+      </tbody>
+    </tgroup>
+  </table>
+
+<!-- SOURCE CODE FOR BIGRAM TABLE
+from nltk.tagger import *
+from nltk.corpus import brown
+train_tokens = []
+for item in brown.items()[:10]:
+    train_tokens.append(brown.read(item))
+mytagger = NthOrderTagger(1)
+for tok in train_tokens: mytagger.train(tok)
+words = '''ask Congress to increase grants to states'''.split()
+tags = '''at nn-tl vbd md vb np to nn nns in jj'''.split()
+
+print "     ",
+for word in words:
+    print "<entry>%s</entry>" % word,
+print
+for tag in tags:
+    print "%5s" % tag,
+    for word in words:
+        guess = mytagger._freqdist[((tag,), word)].max()
+        if not guess: guess=""
+        print "<entry>%s</entry>" % guess,
+    print
+-->
+    
+  <para>A melhor forma para se entender esta tabela é analisá-la por meio de
+    um exemplo. Imagine que já tenhamos processado a sentença <literal>The
+    President will ask Congress to increase grants to states for vocational
+    rehabilitation.</literal> até a altura do token <literal>will/md</literal>.
+    Podemos utilizar esta tabela para entender quais tags seriam atribuídas ao
+    restante da senteça. Quando antecedida por <literal>md</literal>, o tagger
+    considera que a palavra <literal>ask</literal> deve receber a tag
+    <literal>vb</literal> (em itálico na tabela). Continuando para a próxima
+    palavra, sabemos que a tag anterior será agora <literal>vb</literal>, e
+    buscando por esta linha podemos encontrar <literal>Congress</literal> com
+    a atribuição da tag <literal>np</literal>. O processo segue até o final
+    da frase. No momento em que a palavra <literal>increase</literal> é
+    encontrada, atribuímos-lhe corretamente a tag <literal>vb</literal> (ao
+    contrário do Unigram Tagger que a marcaria como <literal>nn</literal>).
+    Ainda assim, o Bigram Tagger errôneamente atribui a tag de "infinitivante"
+    (ou seja, que em língua inglesa torna o verbo sucessivo um verbo no
+    infinitivo) à palavra <literal>to</literal> que antecede 
+    <literal>states</literal> e não a tag correta que indica tratar-se de
+    uma preposição. Isto sugere que pode ser necessário considerar um contexto
+    ainda maior para obter a tag correta.
+  </para>
+
+<!--
+  <note><para>
+    To create a bigram tagger in NLTK, use
+    <literal>NthOrderTagger(1)</literal>.  In other words,
+    a bigram tagger is an nth-order tagger that looks at
+    the tag of one word of prior context.
+    There is not much point in experimenting with
+    these higher order taggers until we have considered how
+    taggers can be combined.
+  </para></note>
+-->    
+</section>
+
+<section id="taggers.ngram.nthorder">
+  <title> Taggers de Ordem N (Nth-Order Taggers) </title>
+
+  <para>
+    Como acabamos de ver, pode ser interessa considerar mais dados além
+    da tag da palavra antecedente durante um processo de taggin. Um
+    <glossterm>tagger de ordem N</glossterm> é uma generalização de
+    um Bigram Tagger, cujo contexto é o texto do token atual juntamente
+    com as tags dos <replaceable>n</replaceable> tokens anteriores, como
+    mostrado em <xref linkend="context"/>. O tagger seleciona a tagger
+    mais provável com base nas informações deste contexto. Em <xref
+    linkend="context"/>, a tag a ser escolhida,
+    <replaceable>t<subscript>k</subscript></replaceable>, está circulada e
+    o contexto está hachurado em tons de cinza. Neste exemplo de tagger de
+    ordem N, temos <replaceable>n</replaceable> como sendo igual a 2; ou
+    seja, estamos inspecionando as duas palavras que antecedem a atual.
+  </para>
+
+<figure id="context"><title>Contexto do tagger</title>
+<informaltable frame="none">
+<tgroup cols="1"><tbody><row><entry>
+<graphic  fileref="images/context" scale="15"/>
+</entry></row></tbody></tgroup></informaltable>
+</figure>
+ 
+  <important><para> Um tagger de ordem 0 é simplesmente uma terminologia
+  diferente para um Unigram Tagger: o contexto utilizado para atribuir uma
+  tag a cada token é apenas o texto do próprio token. Taggers de ordem 1 também
+  são chamados de <glossterm>bigram taggers/glossterm> e taggers de ordem 2
+  são chamados de <glossterm>trigram taggers</glossterm>. </para></important>
+
+  <para>
+    A classe <literal>NthOrderTagger</literal> utiliza um corpus de treinamento
+    com tags para determinar qual tag de parte do discurso é a mais provável
+    para cada contexto:
+  </para>
+
+<programlisting><![CDATA[
+>>> tagger = NthOrderTagger(3, SUBTOKENS='WORDS')       # tagger de ordem 3
+>>> for item in brown.items()[:10]:
+...     tok = brown.read(item)
+...     tagger.train(tok)
+]]></programlisting>
+
+  <para>
+    Uma vez que um <literal>NthOrderTagger</literal> tenha sido treinado,
+    podemos utilizá-lo para o tagging de novos corpora:
+  </para>
+
+<programlisting><![CDATA[
+>>> WhitespaceTokenizer().tokenize(text_token)
+>>> tagger.tag(text_token)
+>>> print text_token
+<[<John/NN>, <saw/VB>, <the/AT>, <book/NN>, <on/IN>, <the/AT>, ...]>
+]]></programlisting>
+
+  <para>
+    Como os outros taggers considerados anteriormente, o 
+    <literal>NthOrderTagger</literal> também irá atribuir a tag padrão
+    <literal>None</literal> a qualquer token cujo contexto não tenha
+    sido encontrado em seus dados de treinamento.
+  </para>
+  <para>
+    Note que, à medida que <replaceable>n</replaceable> aumenta, a
+    especificidade do contexto também aumenta e, com esta, as possibilidades
+    de que os dados que desejamos treinar contenham contextos que não
+    estão presentes nos dados de treinamento. Este problema é normalmente
+    conhecido por <glossterm>dados esparsos</glossterm>. Assim, é necessário
+    encontrar um eqüilíbrio entre os índices de acerto e abrangência de nossos
+    resultados. Este é um fator habitual no processamento de linguagem natural.
+    Ele está intimamente relacionado ao problema do 
+    <glossterm>precision/recall</glossterm> que encontraremos depois ao
+    discutirmos a obtenção de informações.
+  </para>
+</section> <!-- NthOrderTagger -->
+</section> <!-- Ngram -->
+
+<section id="tagger.backoff">
+  <title> Combinando taggers </title>
+
+  <para>
+    Uma forma de lidarmos com o trade-off entre índice de acerto e extensão
+    é utilizar os algoritmos mais precisos quando pudermos, mas permitindo-se
+    utilizar algoritmos de abordagem mais ampla quando necessário. Por exemplo,
+    poderíamos combinar os resultados de um tagger de ordem 1, de um tagger de
+    ordem 0 e de um <literal>NN_CD_Tagger</literal> da seguinte forma:
+  </para>
+
+  <orderedlist>
+    <listitem>
+      <para> Tentamos atribuir uma tag ao token com base no resultado fornecido
+      pelo tagger de ordem 1. </para>
+    </listitem>
+    <listitem>
+      <para> Se o tagger de ordem 1 for incapaz de encontrar uma tag para o token,
+      tentamos atribuir uma tag com base no resultado fornecido pela tagger de
+      ordem 0.</para>
+    </listitem>
+    <listitem>
+      <para> Se o tagger de ordem 0 também for incapaz de encontrar uma tag para
+      o token, utilizamos o <literal>NN_CD_Tagger</literal> para atribuir-lhe
+      uma.</para>
+    </listitem>
+  </orderedlist>
+
+  <para>
+    O NLTK implementa a classe <literal>BackoffTagger</literal> para combinar
+    taggers desta forma. Um <literal>BackoffTagger</literal> é construído a
+    partir de uma lista de um ou mais <glossterm>subtaggers</glossterm>. Para
+    cada token fornecido como input, o <literal>BackoffTagger</literal>
+    atribui o resultado do primeiro tagger de sua lista que for capaz de
+    encontrar uma tag para o token em questão. Os taggers reportam sua
+    incapacidade de atribuir uma tag ao token assilando-o com a tag
+    especial <literal>None</literal> (nada). Podemos utilizar um
+    <literal>BackoffTagger</literal> para implementar a estratégia proposta
+    acima:
+  </para>
+
+<programlisting><![CDATA[
+# Constrói os taggers
+>>> tagger1 = NthOrderTagger(1, SUBTOKENS='WORDS')       # tagger de ordem 1
+>>> tagger2 = UnigramTagger(SUBTOKENS='WORDS')           # tagger de ordem 0
+>>> tagger3 = RegexpTagger([(r'^[0-9]+(.[0-9]+)?$', 'cd'), (r'.*', 'nn')],
+...                SUBTOKENS='WORDS')
+# Treina os taggers
+>>> for tok in train_tokens:
+...     tagger1.train(tok)
+...     tagger2.train(tok)
+# Combina os taggers
+>>> tagger = BackoffTagger([tagger1, tagger2, tagger3])
+]]></programlisting>
+
+  <important><para> A ordem na qual os taggers são fornecidos ao
+  <literal>BackoffTagger</literal> é importante: os taggers devem ser listados
+  na ordem na qual eles devem ser testados. Tipicamente, isto significa que os
+  taggers mais específicos deveriam ser listados antes de taggers menos
+  específicos. </para></important>
+
+  <para>
+    Tendo definido um tagger composto, podemos utilizá-lo no processo de tag
+    de novos corpora:
+  </para>
+
+<programlisting><![CDATA[
+>>> tagger.tag(text_token)
+>>> print text_token
+<[<John/NN>, <saw/VB>, <the/AT>, <book/NN>, <on/IN>, <the/AT>, ...]>
+]]></programlisting>
+
+  <para> Avaliação: desempenho para os diferentes taggers </para>
+
+  <para> Treino e teste dos taggers: </para>
+
+<programlisting><![CDATA[
+>>> train_tokens = []
+>>> for item in brown.items()[:20]:
+...     train_tokens.append(brown.read(item))
+>>> unseen_tokens = []
+>>> for item in brown.items()[20:30]:
+...     unseen_tokens.append(brown.read(item))
+
+>>> subtagger1 = UnigramTagger(SUBTOKENS='WORDS')
+>>> subtagger2 = NthOrderTagger(1, SUBTOKENS='WORDS')     # bigram tagger
+>>> subtagger3 = NthOrderTagger(2, SUBTOKENS='WORDS')     # trigram tagger
+
+>>> for tok in train_tokens:
+...     subtagger1.train(tok)
+...     subtagger2.train(tok)
+...     subtagger3.train(tok)
+
+>>> tagger1 = BackoffTagger([subtagger1], SUBTOKENS='WORDS')
+>>> tagger2 = BackoffTagger([subtagger2, subtagger1], SUBTOKENS='WORDS')
+>>> tagger3 = BackoffTagger([subtagger3, subtagger2, subtagger1], SUBTOKENS='WORDS')
+
+>>> accuracy1 = tagger_accuracy(tagger1, unseen_tokens)
+>>> accuracy2 = tagger_accuracy(tagger2, unseen_tokens)
+>>> accuracy3 = tagger_accuracy(tagger3, unseen_tokens)
+
+>>> print 'Unigram Accuracy = %4.1f%%' % (100 * accuracy1)
+>>> print 'Bigram Accuracy  = %4.1f%%' % (100 * accuracy2)
+>>> print 'Trigram Accuracy = %4.1f%%' % (100 * accuracy3)
+Unigram Accuracy = 74.7%
+Bigram Accuracy  = 75.5%
+Trigram Accuracy = 75.5%
+]]></programlisting>
+
+<!--
+  <para> [Combining taggers using voting?] </para>
+-->
+
+</section> <!-- Combining Taggers -->
+
+    <!-- Taggers -->
+    <!-- old material on implementation that appeared here to be moved to
+an implementation tutorial - SB -->
+
+<section id="brill">
+  <title>O Brill Tagger</title>
+
+  <para>
+    Um problema em potencial com taggers de ordem n é seu tamanho. Se o
+    processo de tagging vier a ser desempenhado por uma variedade de
+    tecnologias da linguagem em dispositivos portáteis de computação, é
+    importante encontrar formas de reduzir o tamanho dos modelos sem
+    comprometer demasiadamente o desempenho. Uma combinação de diferentes
+    de tagger de ordem n pode armazenar tabelas de trigram e bigram,
+    enormes matrizes esparsas que podem conter centenas de milhões de
+    entradas. Como vimos em <xref linkend="context"/>, modelos de ordem n
+    apenas consideram as tags das palavras dentro de determinado contexto.
+    Uma conseqüência do tamanho destes modelos é simplesmente a impraticabilidade
+    de se condicionar modelos de ordem n quanto às características das
+    palavras no contexto. Nesta seção iremos examinar o Brill tagging,
+    um método de tagging estatístico que apresenta um desempenho muito bom
+    utilizando modelos que correspondem a uma pequena fração do tamanho
+    de taggers de ordem n.
+  </para>
+    
+  <para>
+    O Brill tagging é um tipo de <glossterm>aprendizagem baseada em
+    transformações</glossterm> ("transformation-based learning", em inglês).
+    A idéia geral é bastante simples: primeiramente, atribui-se a tag mais 
+    provável a cada palavra e então retorna-se ao início para corrigir os
+    erros. Desta forma, um Brill Tagger transforma aos poucos um texto com
+    tags incorretamente marcadas em um com tags corretamente marcadas.
+    Como no processo de tagging por ordem n, este é um método de
+    <glossterm>aprendizagem supervisionada</glossterm> ("supervised
+    learning", em inglês), já que é necessário um conjundo de dados
+    anotados sobre os quais efetuar o treinamento. Porém, ao contrário
+    do tagging de ordem n, ele não efetua uma contagem das observações
+    mas compila uma lista de regras de correção transformacionais.
+  </para>
+
+  <para>
+    O processo de Brill Tagging é geralmente explicado por meio de uma
+    analogia com a pintura. Imagine que estejamos pintando uma árvore,
+    com todos seus detalhes de ramos, galhos e folhas sobre um fundo
+    uniforme de cor azul-celeste. Ao invés de pintarmos primeiro a árvore
+    e então pintar em azul os espaços entre seus ramos, é muito mais 
+    simples pintar a tela inteira de azul e então "corrigir" nesta a
+    seção da árvore, pintando sobre o fundo azul. Da mesma forma podemos
+    pintar o tronco com um marrom uniforme antes de voltar para pincelar
+    sobre este detalhes mais específicos. O Brill Tagging vale-se 
+    da mesma idíea: obtém-se inicialmente o "grosso" da pintura com
+    pinceladas bruscas e então cuida-se dos detalhes. Com o andamento do
+    processo, pincéis cada vez menores são utilizados e a escala das
+    mudanças torna-se arbitrariamente pequena. A decisão quanto ao
+    momento certo para parar também é, de certa forma, arbitrária.
+    <xref linkend="table.brill"/> ilustra este processo utilizando
+    inicialmente um unigram tagger e corrigindo os erros logo após.
+  </para>
+
+  <table id="table.brill">
+    <title>Passos no Brill Tagging</title>
+    <tgroup cols="5">
+      <colspec colwidth='3cm'/>
+      <colspec colwidth='2cm'/>
+      <colspec colwidth='2cm'/>
+      <tbody>
+        <row><entry>Sentença:</entry><entry>Gold Standard:</entry>
+             <entry>Unigram Tagger:</entry>
+             <entry>Substitui <literal>nn</literal> por
+               <literal>vb</literal> quando a palavra anterior for
+               <literal>to</literal></entry>
+             <entry>Substitui <literal>to</literal> por
+               <literal>in</literal> quando a próxima palavra for
+               <literal>nns</literal></entry>
+        </row>
+        <row><entry>The</entry><entry>at</entry><entry>at</entry><entry/><entry/></row>
+        <row><entry>President</entry><entry>nn-tl</entry><entry>nn-tl</entry><entry/><entry/></row>
+        <row><entry>said</entry><entry>vbd</entry><entry>vbd</entry><entry/><entry/></row>
+        <row><entry>he</entry><entry>pps</entry><entry>pps</entry><entry/><entry/></row>
+        <row><entry>will</entry><entry>md</entry><entry>md</entry><entry/><entry/></row>
+        <row><entry>ask</entry><entry>vb</entry><entry>vb</entry><entry/><entry/></row>
+        <row><entry>Congress</entry><entry>np</entry><entry>np</entry><entry/><entry/></row>
+        <row><entry>to</entry><entry>to</entry><entry>to</entry><entry/><entry/></row>
+        <row><entry>increase</entry><entry>vb</entry><entry><emphasis>nn</emphasis></entry><entry><emphasis>vb</emphasis></entry><entry/></row>
+        <row><entry>grants</entry><entry>nns</entry><entry>nns</entry><entry/><entry/></row>
+        <row><entry>to</entry><entry>in</entry><entry><emphasis>to</emphasis></entry><entry><emphasis>to</emphasis></entry><entry><emphasis>in</emphasis></entry></row>
+        <row><entry>states</entry><entry>nns</entry><entry>nns</entry><entry/><entry/></row>
+        <row><entry>for</entry><entry>in</entry><entry>in</entry><entry/><entry/></row>
+        <row><entry>vocational</entry><entry>jj</entry><entry>jj</entry><entry/><entry/></row>
+        <row><entry>rehabilitation</entry><entry>nn</entry><entry>nn</entry><entry/><entry/></row>
+        <row><entry>.</entry><entry>.</entry><entry>.</entry><entry/><entry/></row>
+      </tbody>
+    </tgroup>
+  </table>
+
+  <para>
+    Em <xref linkend="table.brill"/> vimos duas regras. Todas estas regras
+    são geradas a partir de um modelo com a seguinte forma:
+    "substitui <literal>T<subscript>1</subscript></literal> por
+      <literal>T<subscript>2</subscript></literal> no contexto
+      <literal>C</literal>".
+    Contextos típicos são a identidade ou a tag das palavras que precedem ou
+    seguem a atual ou a presença de determinada tag num intervalo de 2-3 palavras
+    de distância da atual. Durante sua etapa de treinamento, o tagger
+    estima os valores para <literal>T<subscript>1</subscript></literal>,
+    <literal>T<subscript>2</subscript></literal> e
+    <literal>C</literal> para criar milhares de regras em potencial. A
+    cada regra é então atribuído um coeficiente de desempenho baseado em
+    seu sucesso global: o número de tags incorretas que ele corrige menos o
+    número de tags corretas que ele incorretamente modifica. Este processo
+    é ilustrado melhor por meio da listagem do output do Brill Tagger do
+    NLTK (aqui sendo executado no corpus com tags do Wall Street Journal
+    distribuído com o Penn Treebank).<footnote><para>Agradecemos a Christopher
+	Maloof por desenvolver um Brill Tagger para o NLTK. O Tagger está
+	atualmente colocado no pacote <literal>nltk_contrib</literal>, mas
+	está sendo migrado para o pacote de taggers padrão do NLTK.
+    </para></footnote>
+  </para>
+
+<programlisting><![CDATA[
+Loading tagged data...
+Training unigram tagger: [accuracy: 0.820940]
+Training Brill tagger on 37168 tokens...
+ 
+Iteration 1: 1482 errors; ranking 23989 rules;
+  Found: "Replace POS with VBZ if the preceding word is tagged PRP"
+  Apply: [changed 39 tags: 39 correct; 0 incorrect]
+ 
+Iteration 2: 1443 errors; ranking 23662 rules;
+  Found: "Replace VBP with VB if one of the 3 preceding words is tagged MD"
+  Apply: [changed 36 tags: 36 correct; 0 incorrect]
+ 
+Iteration 3: 1407 errors; ranking 23308 rules;
+  Found: "Replace VBP with VB if the preceding word is tagged TO"
+  Apply: [changed 24 tags: 23 correct; 1 incorrect]
+ 
+Iteration 4: 1384 errors; ranking 23057 rules;
+  Found: "Replace NN with VB if the preceding word is to"
+  Apply: [changed 67 tags: 22 correct; 45 incorrect]
+...
+Iteration 20: 1138 errors; ranking 20717 rules;
+  Found: "Replace RBR with JJR if one of the 2 following words is tagged NNS"
+  Apply: [changed 14 tags: 10 correct; 4 incorrect]
+ 
+Iteration 21: 1128 errors; ranking 20569 rules;
+  Found: "Replace VBD with VBN if the preceding word is tagged VBD"
+[insufficient improvement; stopping]
+ 
+Brill accuracy: 0.835145
+
+]]></programlisting>
+
+<!--
+  <para>
+    [Doing it in NLTK - Maloof's Brill tagger - code fragments;
+    List of transformations learned; what linguistic significance
+    do these have?]
+  </para>
+-->
+
+</section>
+
+
+<section id="conclusion">
+  <title>Conclusão</title>
+
+  <para>
+    Este capítulo introduziu a tarefa de processamento lingüístico conhecida
+    por tagging, com ênfase no tagging das partes do discurso. Classes de palavra
+    da língua inglesa e suas tags correspondentes foram apresentadas. Mostramos
+    como tokens com tags e corpora com tags podem ser representados e
+    discutimos uma série de taggers: default tagger, taggers por expressões
+    regulares, unigram taggers, taggers de ordem n e o Brill tagger. Também
+    descrevemos alguns métodos de avaliação objetivos. No processo, o leitor
+    foi introduzido a dois importantes paradigmas do processamento lingüístico,
+    a <glossterm>modelagem lingüística</glossterm> e a <glossterm>aprendizagem
+    baseada em transformações</glossterm>. A primeira é extremamente geral e
+    será discutida novamente nos próximos capítulos. A última foi adaptada
+    especialmente para a tarefa de tagging, mas resultou em modelos menores
+    e lingüisticamente interpretáveis.
+  </para>
+
+<!--
+  <para>
+    Discussion of how statistical methods have been used to
+    reach a linguistically interpretable, symbolic result.
+    Contrast between n-gram and Brill tagger about whether
+    we can learn anything from inspecting the model itself
+    (n-gram data vs transformational rules).  Comparing accuracy
+    of these two methods: 2D graph showing how accuracy changes
+    for the two methods as training size increases.
+  </para>
+-->
+
+  <para>
+    Há várias outras abordagens importandes ao tagging que envolvem
+    <glossterm>modelos de Markov Hidden</glossterm> (veja
+    <literal>nltk.hmm</literal>) e <glossterm>transdutores de estado
+    finito</glossterm>, mas uma discussão sobre estas abordagens não
+    entra no objetivo deste capítulo. Mais tarde veremos uma generalização
+    do tagging chamada <glossterm>chunking</glossterm> no qual
+    a uma seqüência contínua de palavras é atribuída uma única tag.
+  </para>
+
+</section>
+
+
+<section id="reading">
+  <title>Leituras complementares</title>
+
+<!--
+  <para>[This section to be expanded to a half-page of discussion and
+    pointers to the literature and online resources.]</para>
+-->
+
+  <para>Brill tagging: Manning 361ff; Jurafsky 307ff</para>
+
+  <para>HMM tagging: Manning 345ff</para>
+
+</section>
+
+
+<section id="exercises">
+  <title>Exercícios</title>
+
+  <orderedlist>
+
+    <listitem>
+      <formalpara>
+        <title> Experimentações com corpora com tags de partes do discurso </title>
+        <para> Tokenize o Brown Corpus e construa uma ou mais estruturas de dados
+	apropriadas para que você possa responder às seguintes questões.</para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+	  Qual é a tag mais freqüente? (Esta é a tag que um 
+	  <literal>DefaultTagger</literal> deveria atribuir)</para>
+        </listitem>
+        <listitem><para>
+	  Qual palavra possui o maior número de tags distintas?</para>
+        </listitem>
+        <listitem><para>
+	  Qual é a razão entre pronomes masculinos e femininos?</para>
+        </listitem>
+        <listitem><para>
+	  Quantas palavras são ambíguas, no sentido que elas podem receber
+	  no mínimo duas tags diferentes?</para>
+        </listitem>
+        <listitem><para>
+	  Qual porcentagem de <emphasis>ocorrências</emphasis> de palavras do
+	  Brown Corpus envolve estas palavras ambíguas?</para>
+        </listitem>
+        <listitem><para>
+	  Quais substantivos são mias comuns em sua forma plural que em sua
+	  forma singular? (Considere apenas plurais regulares, formados pelo
+	  sufixo <literal>-s</literal>)
+        </para></listitem>
+        <listitem><para>
+	  Produza uma lista ordenada alfabeticamente das palavras distintas que
+	  recebem a tag <literal>md</literal>.
+        </para></listitem>
+        <listitem><para>
+	  Identifique palavras que podem ser tanto substantivos no plural quanto
+	  verbos na terceira pessoa do singular (como <literal>deals</literal>).
+        </para></listitem>
+        <listitem><para>
+	  Identifique frases preposicionais de três palavras na forma
+	  preposição + determinante + substantivo.
+        </para></listitem>
+        <listitem><para>
+	  Há 264 palavras distintas com exatamente três tags possíveis. Exiba uma
+	  tabela com os números de 1 a 10 em uma coluna e o número de palavras
+	  distintas do corpus com um número de a 1 a 10 tags possíveis.
+        </para></listitem>
+        <listitem><para>
+	  A palavra <literal>still</literal> pode receber sete tags diferentes.
+	  Exiba sete sentenças que contenham esta palavra, uma para cada tag
+	  diferente.
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Taggir por expressões regulares </title>
+        <para>
+	  No capítulo, definimos o <literal>NN_CD_Tagger</literal> que pode ser
+	  utilizado como um tagger de fall-back para palavras desconhecidas. Este
+	  tagger verifica apenas a presença ou não de número cardinais. Testando
+	  strings de prefixos e sufixos particulares, deveria ser possível
+	  adivinhar outras tags. Por exemplo, poderíamos atribuir a tag de
+	  substantivo plural a toda palavra terminada em <literal>-s</literal>.
+        </para>
+      </formalpara>
+
+      <orderedlist>
+        <listitem>
+          <para>
+	    Defina um <literal>RegexpTagger</literal> que teste no mínimo
+	    cinco outros padrões na ortografia das palavras. (Utilize
+	    documentação inline para explicar as regras.)
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+	    Avalie a precisão de seu tagger utilizando o 
+	    <literal>tagger_accuracy()</literal> e discuta quanto aos resultados.
+          </para>
+        </listitem>
+      </orderedlist>
+    </listitem>
+
+
+    <listitem>
+      <formalpara>
+        <title> Unigram Tagging </title>
+        <para>
+	  Treine um unigram tagger e execute-o sobre um texto novo.
+        </para>
+      </formalpara>
+
+      <orderedlist>
+        <listitem>
+          <para>
+	    Avalie o tagger como antes e discuta quanto aos resultados.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+	    Observe que a algumas palavras não será atribuída nenhuma tag.
+	    Por que?
+          </para>
+        </listitem>
+      </orderedlist>
+    </listitem>
+
+
+    <listitem>
+      <formalpara>
+        <title> Bigram Tagging </title>
+        <para>
+	  Treien um bigram tagger e execute-o sobre parte do corpus de
+	  treinamento. A seguir, execute-o sobre um texto novo. O que
+	  acontece com o desempenho do tagger? Por quê?
+        </para>
+      </formalpara>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Combinando taggers com o BackoffTagger</title> <para>
+	Tipicamente, há um trade-off entre o desempenho e a abrangência dos
+	taggers: taggers que utilizam conceitos mais especificos geralmente
+	produzem resultados mais precisos quando foram treinados sobre estes
+	contextos; mas como os dados de treinamento são limitados, é menor
+	a probabilidade que eles encontrem cada contexto a medida que a
+	especificidade aumenta. O <literal>BackoffTagger</literal> trabalha
+	sobre este problema executando inicialmente os taggers com os contextos
+	mais específicos e recaíndo sobre taggers mais gerais quando
+	necessário. Neste exercício, examinamos os efeitos da utilização de um
+        <literal>BackoffTagger</literal>.  Crie um
+        <literal>DefaultTagger</literal> ou um
+        <literal>RegexpTagger</literal>, um
+        <literal>UnigramTagger</literal> e um
+        <literal>NthOrderTagger</literal>. Treine o
+        <literal>UnigramTagger</literal> e o 
+        <literal>NthOrderTagger</literal> utilizando parte do Brown Corpus.
+        </para>
+      </formalpara>
+
+      <orderedlist>
+        <listitem>
+          <para> Avalie cada tagger sobre dados desconhecidos do Brown Corpus.
+	  Armazene a <glossterm>precisão</glossterm> do tagger (a porcentagem de
+	  tokens que recebem a tag correta). Assegure-se de utilizar
+	  seções diferentes do corpus para o treinamento e para a avaliação. </para>
+        </listitem>
+        <listitem>
+          <para> Use um <literal>BackoffTagger</literal> para criar três diferentes
+	  combinações de taggers básicos. Teste a precisão de cada combinação.
+	  Quais combinações fornecem os melhores resultados? </para>
+        </listitem>
+        <listitem>
+          <para> Tente repetir as etapas 1-3 com corpus de treinamento de tamanhos
+	  diferentes. Como o tamanho afeta os resultados? </para>
+        </listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Tagger por contexto </title>
+        <para> Um <literal>NthOrderTagger</literal> determina a tag para um
+	token com base no tipo deste e nas tags dos <replaceable>n</replaceable>
+	tokens anteriores. Este é um contexto comum durante o processo de
+	tagging, mas certamente não se trata do único contexto possível. Construa
+	um novo tagger, como uma subclasse do <literal>SequentialTagger</literal>,
+	que utilize um contexto diferente. Se o contexto de seu tagger contiver
+	múltiplos elementos, é aconselhável que você os combine em um
+	<literal>tuple</literal>. Algumas possibilidades para os elementos
+	incluídos são:
+        </para>
+      </formalpara>
+
+      <itemizedlist>
+        <listitem>
+          <para> O texto do token atual, ou do token anterior. </para>
+        </listitem>
+        <listitem>
+          <para> O comprimento do texto do token atual, ou do texto do token
+            anterior. </para>
+        </listitem>
+        <listitem>
+          <para> A primeira letra do texto do token atual, ou do texto do token
+	  anterior. </para>
+        </listitem>
+        <listitem>
+          <para> A tag do token anterior. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Tente escolher elementos de contexto que você acredita que irão ajudar
+      o tagger na decisão de qual a tag mais apropriada. Lembre-se do trade-off entre
+      taggers mais específicos e de resultados mais precisos com os taggers mais
+      gerais e de abrangência maior. Combine seu tagger com outros taggers
+      utilizando o <literal>BackoffTagger</literal>.
+      </para>
+
+      <orderedlist>
+        <listitem>
+          <para> Como a precisão do tagger combinado se compara com a do
+	  tagger básico? </para>
+        </listitem>
+        <listitem>
+          <para> Como a precisão do tagger combinado se compara com as dos taggers
+	  criados no exercício anterior? </para>
+        </listitem>
+      </orderedlist>
+ 
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Taggers por seqüência reversa </title>
+        <para> Como taggers seqüenciais atribuem as tags em ordem, uma por vez,
+	ele apenas pode prever as tags à <emphasis>esquerda</emphasis> do token atual
+	para decidir qual a tag atribuir a cada token. Mas, em alguns casos, o
+	contexto à <emphasis>direita</emphasis> pode fornecer mais informações
+	sobre qual tag deveria ser utilizada. Um <glossterm>tagger por seqüência
+	reversa</glossterm> é um tagger que:</para>
+      </formalpara>
+
+      <itemizedlist>
+        <listitem>
+          <para> Atribui tags em ordem, uma por vez, iniciando pelo último token
+	  de um texto e prosseguindo da direita para a esqueda. </para>
+        </listitem>
+        <listitem>
+          <para> Decida qual tag atribuir a um token com base neste token, no token
+	  que o segue e nas tags mais prováveis para os tokens que o seguem. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Não é necessário criar novas classes para executar um tagging em
+      seqüência reversa. Revertendo os textos no momento apropriado, podemos
+      utilizar classes de taggers seqüenciais para executar tagging por seqüência
+      reversa. Além disso, deveríamos reverter o texto de treinamento antes de
+      treinar estes taggers e reverter o texto que submeteremos ao tagging tanto
+      antes quanto depois da utilização do tagger seqüencial. Utilize esta técnica
+      para criar um tagger de seqüência reversa de ordem 1. </para>
+
+      <itemizedlist>
+        <listitem><para> Meça sua precisão numa seção com tags do Brown Corpus.
+	Assegure-se de estar utilizando seções diferentes do corpus para o
+	treinamento e para a avaliação.</para>
+        </listitem>
+
+        <listitem><para>Como a precisão deste tagger se compara com um tagger
+	seqüencial de ordem 1, utilizando os mesmos dados para o treinamento e
+	para a avaliação?
+        </para>
+      </listitem>
+      </itemizedlist>
+    </listitem>
+      
+    <listitem>
+      <formalpara>
+        <title> Processando sentenças individuais </title>
+        <para> Crie um <literal>NthOrderTagger</literal> modificado que ignore as
+	tags que são encontradas numa sentença anterior. Por exemplo, para um tagger
+	de ordem 3, se as três palavras anteriores forem "dog/NN ./. A/DT", utilize
+	apenas "DT" e o token atual como contexto.</para>
+      </formalpara>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Alternativas ao backoff </title> <para> Crie um novo tipo
+	de tagger que combine vários subtaggers utilizando um novo mecanismo
+	ao invés do backoff (como por votação). Para um desempenho sólido frente
+	a palavras desconhecidas, inclua um RegexpTagger, um unigram tagger que
+	remova um pequeno número de caracteres de prefixo ou sufixo até que a
+	palavra seja reconhecida ou um NthOrderTagger que não considere o texto
+	do token que está sendo processado.
+        </para>
+      </formalpara>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Comparando taggers de ordem n com taggers tipo Brill </title>
+        <para> Investique a precisão relativa de taggers de ordem n com backoff
+	e taggers tipo Brill quando o tamanho dos dados de treinamento é aumentado.
+	Analise e compare os erros de cada tipo de tagger.
+        </para>
+      </formalpara>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Aplicando a outras línguas </title>
+        <para> Obtenha alguns dados com tags para outra língua e treine e avalie
+	um série de taggers sobre estes. Se a língua em questão for morfologicamente
+	complexa ou se houverem marcas ortográficas para as classes de palavras
+	(como inicias maiúsculas), considere o desenvolvimento de um tagger por
+	expressões regulares para estes casos (que será executado após o unigram
+	tagger e antes do default tagger). Como a precisão deste(s) tagger(s) se
+	compara com os taggers de mesmo tipo para a língua inglesa? Discuta qualquer
+	problema que você tenha encontrado na aplicação destes métodos à
+	língua em questão.
+        </para>
+      </formalpara>
+    </listitem>
+  </orderedlist>
+
+</section> <!-- Exercises -->
+
+<appendix>
+  <title>Tag Set do Brown Corpus</title>
+
+  <para>A tabulação e os exemplos abaixo foram retirados da documentação do
+  tagger AMALGAM. Note que as tags marcadas com asterisco são a negação de
+  suas contro-partes.</para>
+
+<table id="table.browntagset">
+  <title>Complete Brown Tag Set</title>
+  <tgroup cols="3">
+    <colspec colwidth='2cm'/>
+    <colspec colwidth='6cm'/>
+    <thead>
+      <row>
+        <entry>Tag</entry>
+        <entry>Description</entry>
+        <entry>Examples</entry>
+      </row>
+    </thead>
+    <tbody>
+
+      <row>
+        <entry> * </entry>
+        <entry> negator </entry>
+        <entry> not n't </entry>
+      </row>
+      <row>
+        <entry> . </entry>
+        <entry> sentence terminator </entry>
+        <entry> . ? ; ! : </entry>
+      </row>
+      <row>
+        <entry> : </entry>
+        <entry> colon </entry>
+        <entry> : </entry>
+      </row>
+      <row>
+        <entry> abl </entry>
+        <entry> determiner/pronoun, pre-qualifier </entry>
+        <entry> quite such rather </entry>
+      </row>
+      <row>
+        <entry> abn </entry>
+        <entry> determiner/pronoun, pre-quantifier </entry>
+        <entry> all half many nary </entry>
+      </row>
+      <row>
+        <entry> abx </entry>
+        <entry> determiner/pronoun, double conjunction or pre-quantifier </entry>
+        <entry> both </entry>
+      </row>
+      <row>
+        <entry> ap </entry>
+        <entry> determiner/pronoun, post-determiner </entry>
+        <entry> many other next more last former little several enough
+                 most least only very few fewer past same </entry>
+      </row>
+      <row>
+        <entry> ap$ </entry>
+        <entry> determiner/pronoun, post-determiner, genitive </entry>
+        <entry> other's </entry>
+      </row>
+
+      <row>
+        <entry> be </entry>
+        <entry> verb "to be", infinitive or imperative </entry>
+        <entry> be </entry>
+      </row>
+      <row>
+        <entry> bed / bed* </entry>
+        <entry> verb "to be", past tense, 2nd person singular or all
+          persons plural </entry>
+        <entry> were / weren't </entry>
+      </row>
+      <row>
+        <entry> bedz / bedz*</entry>
+        <entry> verb "to be", past tense, 1st and 3rd person singular </entry>
+        <entry> was / wasn't </entry>
+      </row>
+      <row>
+        <entry> beg </entry>
+        <entry> verb "to be", present participle or gerund </entry>
+        <entry> being </entry>
+      </row>
+      <row>
+        <entry> bem / bem*</entry>
+        <entry> verb "to be", present tense, 1st person singular </entry>
+        <entry> am / ain't </entry>
+      </row>
+      <row>
+        <entry> ben </entry>
+        <entry> verb "to be", past participle </entry>
+        <entry> been </entry>
+      </row>
+      <row>
+        <entry> ber / ber* </entry>
+        <entry> verb "to be", present tense, 2nd person singular or all
+          persons plural </entry>
+        <entry> are art / aren't ain't </entry>
+      </row>
+      <row>
+        <entry> bez / bez* </entry>
+        <entry> verb "to be", present tense, 3rd person singular </entry>
+        <entry> is / isn't ain't </entry>
+      </row>
+      <row>
+        <entry> cc </entry>
+        <entry> conjunction, coordinating </entry>
+        <entry> and or but plus & either neither nor yet 'n' and/or minus an' </entry>
+      </row>
+      <row>
+        <entry> cd </entry>
+        <entry> numeral, cardinal </entry>
+        <entry> two 1 1913 three million 87-31 1,119 fifty-three 7.5 billion ... </entry>
+      </row>
+      <row>
+        <entry> cd$ </entry>
+        <entry> numeral, cardinal, genitive </entry>
+        <entry> 1960's 1961's .404's </entry>
+      </row>
+      <row>
+        <entry> cs </entry>
+        <entry> conjunction, subordinating </entry>
+        <entry> that as after whether before while like because if since for
+                 than until so unless though providing once lest
+                 till whereas whereupon supposing albeit then </entry>
+      </row>
+      <row>
+        <entry> do / do*</entry>
+        <entry> verb "to do", uninflected present tense, infinitive or imperative </entry>
+        <entry> do dost / don't</entry>
+      </row>
+      <row>
+        <entry> dod / dod* </entry>
+        <entry> verb "to do", past tense </entry>
+        <entry> did done / didn't </entry>
+      </row>
+      <row>
+        <entry> doz / doz* </entry>
+        <entry> verb "to do", present tense, 3rd person singular </entry>
+        <entry> does / doesn't don't </entry>
+      </row>
+      <row>
+        <entry> dt </entry>
+        <entry> determiner/pronoun, singular </entry>
+        <entry> this each another that 'nother </entry>
+      </row>
+      <row>
+        <entry> dt$ </entry>
+        <entry> determiner/pronoun, singular, genitive </entry>
+        <entry> another's </entry>
+      </row>
+      <row>
+        <entry> dt+bez </entry>
+        <entry> determiner/pronoun + verb "to be", present tense, 3rd person singular </entry>
+        <entry> that's </entry>
+      </row>
+      <row>
+        <entry> dt+md </entry>
+        <entry> determiner/pronoun + modal auxiliary </entry>
+        <entry> that'll this'll </entry>
+      </row>
+      <row>
+        <entry> dti </entry>
+        <entry> determiner/pronoun, singular or plural </entry>
+        <entry> any some </entry>
+      </row>
+      <row>
+        <entry> dts </entry>
+        <entry> determiner/pronoun, plural </entry>
+        <entry> these those them </entry>
+      </row>
+      <row>
+        <entry> dtx </entry>
+        <entry> determiner, pronoun or double conjunction </entry>
+        <entry> neither either one </entry>
+      </row>
+      <row>
+        <entry> ex </entry>
+        <entry> existential there </entry>
+        <entry> there </entry>
+      </row>
+      <row>
+        <entry> hv / hv*</entry>
+        <entry> verb "to have", uninflected present tense, infinitive or imperative </entry>
+        <entry> have hast / haven't ain't </entry>
+      </row>
+      <row>
+        <entry> hv+to </entry>
+        <entry> verb "to have", uninflected present tense + infinitival to </entry>
+        <entry> hafta </entry>
+      </row>
+      <row>
+        <entry> hvd / hvd*</entry>
+        <entry> verb "to have", past tense </entry>
+        <entry> had / hadn't </entry>
+      </row>
+      <row>
+        <entry> hvg </entry>
+        <entry> verb "to have", present participle or gerund </entry>
+        <entry> having </entry>
+      </row>
+      <row>
+        <entry> hvn </entry>
+        <entry> verb "to have", past participle </entry>
+        <entry> had </entry>
+      </row>
+      <row>
+        <entry> hvz / hvz*</entry>
+        <entry> verb "to have", present tense, 3rd person singular </entry>
+        <entry> has hath / hasn't ain't </entry>
+      </row>
+      <row>
+        <entry> in </entry>
+        <entry> preposition </entry>
+        <entry> of in for by considering to on among at through with under
+                 into regarding than since despite ... </entry>
+      </row>
+      <row>
+        <entry> jj </entry>
+        <entry> adjective </entry>
+        <entry> recent over-all possible hard-fought favorable hard meager fit
+                 such widespread outmoded inadequate ... </entry>
+      </row>
+      <row>
+        <entry> jj$ </entry>
+        <entry> adjective, genitive </entry>
+        <entry> Great's </entry>
+      </row>
+      <row>
+        <entry> jjr </entry>
+        <entry> adjective, comparative </entry>
+        <entry> greater older further earlier later freer franker wider better
+                 deeper firmer tougher faster higher bigger ... </entry>
+      </row>
+      <row>
+        <entry> jjs </entry>
+        <entry> adjective, semantically superlative </entry>
+        <entry> top chief principal northernmost master key head main
+                 tops utmost innermost foremost uppermost ... </entry>
+      </row>
+      <row>
+        <entry> jjt </entry>
+        <entry> adjective, superlative </entry>
+        <entry> best largest coolest calmest latest greatest earliest simplest
+                 strongest newest fiercest unhappiest worst ...</entry>
+      </row>
+      <row>
+        <entry> md / md*</entry>
+        <entry> modal auxiliary </entry>
+        <entry> should may might will would must can could shall ought need 
+                 wilt /
+                cannot couldn't wouldn't can't won't shouldn't shan't mustn't musn't </entry>      </row>
+      <row>
+        <entry> nn </entry>
+        <entry> noun, singular, common </entry>
+        <entry> failure burden court fire appointment awarding compensation
+                 Mayor interim committee fact effect ... </entry>
+      </row>
+      <row>
+        <entry> nn$ </entry>
+        <entry> noun, singular, common, genitive </entry>
+        <entry> season's world's player's night's chapter's golf's football's
+                 baseball's club's U.'s coach's bride's ... </entry>
+      </row>
+      <row>
+        <entry> nn+bez </entry>
+        <entry> noun, singular, common + verb "to be", present tense, 3rd person singular </entry>
+        <entry> water's camera's sky's kid's Pa's heat's throat's father's
+                 money's undersecretary's granite's level's ... </entry>
+      </row>
+      <row>
+        <entry> nn+hvz </entry>
+        <entry> noun, singular, common + verb "to have", present tense, 3rd person singular </entry>
+        <entry> guy's Knife's boat's summer's rain's company's </entry>
+      </row>
+      <row>
+        <entry> nns </entry>
+        <entry> noun, plural, common </entry>
+        <entry> irregularities presentments thanks reports voters laws
+                 legislators years areas adjustments chambers ... </entry>
+      </row>
+      <row>
+        <entry> nns$ </entry>
+        <entry> noun, plural, common, genitive </entry>
+        <entry> taxpayers' children's members' States' women's cutters'
+                 motorists' steelmakers' hours' Nations' ... </entry>
+      </row>
+      <row>
+        <entry> np </entry>
+        <entry> noun, singular, proper </entry>
+        <entry> Fulton Atlanta September-October Durwood Pye Ivan Allen Jr.
+                 Jan. Alpharetta Grady ... </entry>
+      </row>
+      <row>
+        <entry> np$ </entry>
+        <entry> noun, singular, proper, genitive </entry>
+        <entry> Green's Landis' Smith's Carreon's Allison's Boston's Spahn's
+                 Willie's Mickey's Milwaukee's ... </entry>
+      </row>
+      <row>
+        <entry> np+bez </entry>
+        <entry> noun, singular, proper + verb "to be", present tense, 3rd person singular </entry>
+        <entry> W.'s Ike's Mack's Jack's Kate's Katharine's Black's Arthur's
+                 Seaton's Buckhorn's Breed's Penny's ... </entry>
+      </row>
+      <row>
+        <entry> nps </entry>
+        <entry> noun, plural, proper </entry>
+        <entry> Chases Aderholds Chapelles Armisteads Lockies Carbones French
+                 Marskmen Toppers Franciscans ... </entry>
+      </row>
+      <row>
+        <entry> nps$ </entry>
+        <entry> noun, plural, proper, genitive </entry>
+        <entry> Republicans' Orioles' Birds' Yanks' Redbirds' Bucs' Yankees'
+                 Stevenses' Geraghtys' Burkes' ...</entry>
+      </row>
+      <row>
+        <entry> nr </entry>
+        <entry> noun, singular, adverbial </entry>
+        <entry> Friday home Wednesday Tuesday Monday Sunday Thursday yesterday
+                 tomorrow tonight West East Saturday west left east downtown
+                 north northeast southeast northwest North South right ... </entry>
+      </row>
+      <row>
+        <entry> nr$ </entry>
+        <entry> noun, singular, adverbial, genitive </entry>
+        <entry> Saturday's Monday's yesterday's tonight's tomorrow's Sunday's
+                 Wednesday's Friday's today's Tuesday's West's Today's South's </entry>
+      </row>
+      <row>
+        <entry> nrs </entry>
+        <entry> noun, plural, adverbial </entry>
+        <entry> Sundays Mondays Saturdays Wednesdays Souths Fridays </entry>
+      </row>
+      <row>
+        <entry> od </entry>
+        <entry> numeral, ordinal </entry>
+        <entry> first 13th third nineteenth 2d 61st second sixth eighth ninth
+                 twenty-first eleventh 50th ... </entry>
+      </row>
+      <row>
+        <entry> pn </entry>
+        <entry> pronoun, nominal </entry>
+        <entry> none something everything one anyone nothing nobody everybody
+                 everyone anybody anything someone no-one nothin </entry>
+      </row>
+      <row>
+        <entry> pn$ </entry>
+        <entry> pronoun, nominal, genitive </entry>
+        <entry> one's someone's anybody's nobody's everybody's anyone's everyone's </entry>
+      </row>
+      <row>
+        <entry> pp$ </entry>
+        <entry> determiner, possessive </entry>
+        <entry> our its his their my your her out thy mine thine </entry>
+      </row>
+      <row>
+        <entry> pp$$ </entry>
+        <entry> pronoun, possessive </entry>
+        <entry> ours mine his hers theirs yours </entry>
+      </row>
+      <row>
+        <entry> ppl </entry>
+        <entry> pronoun, singular, reflexive </entry>
+        <entry> itself himself myself yourself herself oneself ownself </entry>
+      </row>
+      <row>
+        <entry> ppls </entry>
+        <entry> pronoun, plural, reflexive </entry>
+        <entry> themselves ourselves yourselves </entry>
+      </row>
+      <row>
+        <entry> ppo </entry>
+        <entry> pronoun, personal, accusative </entry>
+        <entry> them it him me us you 'em her thee we'uns </entry>
+      </row>
+      <row>
+        <entry> pps </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular </entry>
+        <entry> it he she thee </entry>
+      </row>
+      <row>
+        <entry> pps+bez </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular + verb
+          "to be", present tense, 3rd person singular </entry>
+        <entry> it's he's she's </entry>
+      </row>
+      <row>
+        <entry> pps+hvd </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular + verb "to have", past tense </entry>
+        <entry> she'd he'd it'd </entry>
+      </row>
+      <row>
+        <entry> pps+hvz </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular + verb
+          "to have", present tense, 3rd person singular </entry>
+        <entry> it's he's she's </entry>
+      </row>
+      <row>
+        <entry> pps+md </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular + modal auxiliary </entry>
+        <entry> he'll she'll it'll he'd it'd she'd </entry>
+      </row>
+      <row>
+        <entry> ppss </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular </entry>
+        <entry> they we I you ye thou you'uns </entry>
+      </row>
+      <row>
+        <entry> ppss+bem </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular +
+          verb "to be", present tense, 1st person singular </entry>
+        <entry> I'm Ahm </entry>
+      </row>
+      <row>
+        <entry> ppss+ber </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular + 
+          verb "to be", present tense, 2nd person singular or all persons plural </entry>
+        <entry> we're you're they're </entry>
+      </row>
+      <row>
+        <entry> ppss+hv </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular + verb "to have", uninflected present tense </entry>
+        <entry> I've we've they've you've </entry>
+      </row>
+      <row>
+        <entry> ppss+hvd </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular + verb "to have", past tense </entry>
+        <entry> I'd you'd we'd they'd </entry>
+      </row>
+      <row>
+        <entry> ppss+md </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular + modal auxiliary </entry>
+        <entry> you'll we'll I'll we'd I'd they'll they'd you'd </entry>
+      </row>
+      <row>
+        <entry> ql </entry>
+        <entry> qualifier, pre </entry>
+        <entry> well less very most so real as highly fundamentally even how much remarkably somewhat more completely too thus ill deeply little overly halfway almost impossibly far severely such ... </entry>
+      </row>
+      <row>
+        <entry> qlp </entry>
+        <entry> qualifier, post </entry>
+        <entry> indeed enough still 'nuff </entry>
+      </row>
+      <row>
+        <entry> rb </entry>
+        <entry> adverb </entry>
+        <entry> only often generally also nevertheless upon together back
+                 newly no likely meanwhile near then heavily there apparently 
+                 yet outright fully aside consistently specifically formally 
+                 ever just ...  </entry>
+      </row>
+      <row>
+        <entry> rb+bez </entry>
+        <entry> adverb + verb "to be", present tense, 3rd person singular </entry>
+        <entry> here's there's </entry>
+      </row>
+      <row>
+        <entry> rbr </entry>
+        <entry> adverb, comparative </entry>
+        <entry> further earlier better later higher tougher more harder longer
+                 sooner less faster easier louder ... </entry>
+      </row>
+      <row>
+        <entry> rbt </entry>
+        <entry> adverb, superlative </entry>
+        <entry> most best highest uppermost nearest brightest hardest fastest
+                 deepest farthest loudest ... </entry>
+      </row>
+      <row>
+        <entry> rn </entry>
+        <entry> adverb, nominal </entry>
+        <entry> here afar then </entry>
+      </row>
+      <row>
+        <entry> rp </entry>
+        <entry> adverb, particle </entry>
+        <entry> up out off down over on in about through across after </entry>
+      </row>
+      <row>
+        <entry> to </entry>
+        <entry> infinitival to </entry>
+        <entry> to t' </entry>
+      </row>
+      <row>
+        <entry> uh </entry>
+        <entry> interjection </entry>
+        <entry> Hurrah bang whee hmpf ah goodbye oops oh-the-pain-of-it ha
+                 crunch say oh why see well hello lo alas tarantara 
+                 rum-tum-tum gosh hell ... </entry>
+      </row>
+      <row>
+        <entry> vb </entry>
+        <entry> verb, base: uninflected present, imperative or infinitive </entry>
+        <entry> investigate find act follow inure achieve reduce take remedy
+                 re-set distribute realize disable feel receive ... </entry>
+      </row>
+      <row>
+        <entry> vbd </entry>
+        <entry> verb, past tense </entry>
+        <entry> said produced took recommended commented urged found added
+                 praised charged listed ... </entry>
+      </row>
+      <row>
+        <entry> vbg </entry>
+        <entry> verb, present participle or gerund </entry>
+        <entry> modernizing improving purchasing lacking enabling
+                 pricing keeping getting picking ... </entry>
+      </row>
+      <row>
+        <entry> vbn </entry>
+        <entry> verb, past participle </entry>
+        <entry> conducted charged won received studied revised operated
+                 accepted combined experienced ... </entry>
+      </row>
+      <row>
+        <entry> vbz </entry>
+        <entry> verb, present tense, 3rd person singular </entry>
+        <entry> deserves believes receives takes goes expires says opposes
+                 starts permits expects thinks faces ... </entry>
+      </row>
+      <row>
+        <entry> wdt </entry>
+        <entry> WH-determiner </entry>
+        <entry> which what whatever whichever whichever-the-hell </entry>
+      </row>
+      <row>
+        <entry> wdt+bez </entry>
+        <entry> WH-determiner + verb "to be", present tense, 3rd person singular </entry>
+        <entry> what's </entry>
+      </row>
+      <row>
+        <entry> wp$ </entry>
+        <entry> WH-pronoun, genitive </entry>
+        <entry> whose whosever </entry>
+      </row>
+      <row>
+        <entry> wpo </entry>
+        <entry> WH-pronoun, accusative </entry>
+        <entry> whom that who </entry>
+      </row>
+      <row>
+        <entry> wps </entry>
+        <entry> WH-pronoun, nominative </entry>
+        <entry> that who whoever whosoever what whatsoever </entry>
+      </row>
+      <row>
+        <entry> wps+bez </entry>
+        <entry> WH-pronoun, nominative + verb "to be", present, 3rd person singular </entry>
+        <entry> that's who's </entry>
+      </row>
+      <row>
+        <entry> wps+hvd </entry>
+        <entry> WH-pronoun, nominative + verb "to have", past tense </entry>
+        <entry> who'd </entry>
+      </row>
+      <row>
+        <entry> wps+hvz </entry>
+        <entry> WH-pronoun, nominative + verb "to have", present tense, 3rd person singular </entry>
+        <entry> who's that's </entry>
+      </row>
+      <row>
+        <entry> wps+md </entry>
+        <entry> WH-pronoun, nominative + modal auxiliary </entry>
+        <entry> who'll that'd who'd that'll </entry>
+      </row>
+      <row>
+        <entry> wql </entry>
+        <entry> WH-qualifier </entry>
+        <entry> however how </entry>
+      </row>
+      <row>
+        <entry> wrb </entry>
+        <entry> WH-adverb </entry>
+        <entry> however when where why whereby wherever how whenever
+                 whereon wherein wherewith wheare wherefore whereof howsabout </entry>
+      </row>
+      <row>
+        <entry> wrb+ber </entry>
+        <entry> WH-adverb + verb "to be", present, 2nd person singular or all persons plural </entry>
+        <entry> where're </entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>
+
+</appendix>
+
+
+
+&index;
+</article>
+
