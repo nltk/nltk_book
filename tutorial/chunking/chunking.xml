@@ -203,6 +203,7 @@ to read (each top-level section is a single web-page). -->
 
     </section> <!-- Unchunk -->
 
+<!-- =====  Replaced by the "Tokenizing WSJ Tagged Data" section
     <section> <title> LineTokenizer </title>
       <para> The <literal>ChunkTaggedTokenizer</literal> is often
       used in conjunction with the 
@@ -216,13 +217,65 @@ to read (each top-level section is a single web-page). -->
     &prompt; <command>from nltk.token import LineTokenizer</command>
     &prompt; <command>text = open('corpus.txt').read()</command>
     &prompt; <command>sentences = LineTokenizer().tokenize(text)</command>
+
     &prompt; <command>ctt = ChunkedTaggedTokenizer()</command>
     &prompt; <command>for sentence in sentences:</command>
     &prompt2;     <command>chunked_sent = ctt.tokenize(sentence, source=sentence.loc())</command>
     &prompt2;     <command>print chunked_sent</command>
 </programlisting>
 
-    </section> <!-- LineTokenizer -->
+    </section> 
+-->
+
+    <section> <title> Tokenizing WSJ Tagged Data </title>
+
+      <para> The resources CD contains about 2,500 sentences of
+      tagged, chunked data, split between 99 files.  Within each file,
+      sentences are split by blank lines and by "divider" lines
+      containing 38 equal signs.  We can use a regular expression
+      tokenizer to divide these files into sentences.  The following
+      example reads the chunked, tagged data in these 99 files, and
+      prints out each chunked sentence on a separate line. </para>
+
+<programlisting>
+    <emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
+    <emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
+    sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
+    sentences = []
+    files = os.listdir(path)
+    for file in files:
+        print 'Loading %s...' % file
+        text = open(path+file).read()
+        sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
+     
+    <emphasis># Tokenize each sentence. </emphasis>   
+    ctt = ChunkedTaggedTokenizer()
+    for sentence in sentences:
+        chunked_sent = ctt.tokenize(sentence.type(), source=sentence.loc())
+        print chunked_sent
+</programlisting>
+
+      <note> 
+        <para> In this example, <literal>path</literal> is the
+        directory containing the WSJ tagged data.  Depending on what
+        operating system you are using, and where you installed NLTK,
+        path can probably be defined with one of the following
+        statements, or a similar statement:</para>
+
+<programlisting>
+    <emphasis># Unagi:</emphasis>
+    &prompt; <command>path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"</command> 
+
+    <emphasis># Linux, with the CD mounted at /mnt/cdrom:</emphasis>
+    &prompt; <command>path = "/mnt/cdrom/resources/data/wsj/tagged/"</command>
+
+    <emphasis># Windows, with the CD in drive E:.</emphasis>
+    &prompt; <command>path = "E:\\data\\wsj\\tagged/"</command>
+</programlisting>
+
+      </note>
+
+    </section> <!-- WSJ Tagged Data -->
 
   </section> <!-- The Chunking Tokenizer -->
 
@@ -1027,32 +1080,45 @@ to read (each top-level section is a single web-page). -->
       <para> The following program listing shows a typical use of the
       <literal>ChunkScore</literal> class.  In this example,
       <literal>chunkparser</literal> is being tested on each sentence
-      in the file "<literal>corpus.txt</literal>". </para>
+      from the Wall Street Journal tagged files. </para>
 
 <programlisting>
+    <emphasis># Import the relevant modules, classes, and functions.</emphasis>
+    from nltk.token import RETokenizer
+    from nltk.chunkparser import ChunkedTaggedTokenizer, ChunkScore, unchunk
+    from nltk.rechunkparser import *
+    import os
+
+    <emphasis># Location of the training data.  </emphasis>
+    path = "/spd25/cis530/cdrom/resources/data/wsj/tagged/"
+
+    <emphasis># Create the chunk parser that we wish to test.</emphasis>
+    rule1 = ChunkRule('&lt;DT|JJ|NN&gt;+', "Chunk sequences of DT, JJ, and NN")
+    chunkparser = REChunkParser( [rule1] )
+
+    <emphasis># Read the WSJ corpus as a list of sentences.  Sentences are</emphasis>
+    <emphasis># separated by blank lines and by sequences of equal signs.</emphasis>
+    sent_tokenizer = RETokenizer('(=======+)?\n\n+', 0)
+    sentences = []
+    files = os.listdir(path)
+    for file in files:
+        print 'Loading %s...' % file
+        text = open(path+file).read()
+        sentences += sent_tokenizer.tokenize(text, source=file, unit='s')
+
     <emphasis># Create a new ChunkScore utility class</emphasis>
-    &prompt; <command>chunkscore = ChunkScore()</command>
+    chunkscore = ChunkScore()
 
-    <emphasis># Split the text into sentences </emphasis>
-    &prompt; <command>text = open('corpus.txt').read()</command>
-    &prompt; <command>sentences = LineTokenizer().tokenize(text)</command>
+    <emphasis># Test the chunk parser.</emphasis>
+    ctt = ChunkedTaggedTokenizer()
+    for sentence in sentences:
+        correct = ctt.tokenize(sentence.type(), source=sentence.loc())
+        unchunked = unchunk(correct)
+        guess = chunkparser.parse(unchunked)
+        chunkscore.score(correct, guess)
 
-    <emphasis># Run the chunk parser on each sentence, and </emphasis>
-    <emphasis># score the results. </emphasis>
-    &prompt; <command>ctt = ChunkedTaggedTokenizer()</command>
-    &prompt; <command>for sentence in sentences:</command>
-    &prompt2; <command>    correct = ctt.tokenize(sentence.type(), </command>
-    &prompt2; <command>                           source=sentence.loc())</command>
-    &prompt2; <command>    unchunked = unchunk(correct)</command>
-    &prompt2; <command>    guess = chunkparser.parse(unchunked)</command>
-    &prompt2; <command>    chunkscore.score(correct, guess)</command>
-
-    <emphasis># Report the overall results. </emphasis>
-    &prompt; <command>print chunkscore</command>
-    ChunkParser score:
-        Precision:  60.0%
-        Recall:    100.0%
-        F-Measure:  75.0%
+    <emphasis># Print the results</emphasis>
+    print chunkscore
 </programlisting>
 
       <para> The overall results of the evaluation can be viewed by
@@ -1085,7 +1151,37 @@ to read (each top-level section is a single web-page). -->
       <para> The <literal>missed</literal> and
       <literal>incorrect</literal> methods can be especially useful
       when trying to improve the performance of a chunk
-      parser. </para>
+      parser: </para>
+
+<programlisting>
+    from random import randint
+
+    print 'Chunks missed by the chunk parser:'
+    missed = chunkscore.missed()
+    for i in range(15):
+        print missed[randint(0,len(missed)-1)].type()
+
+    print 'Incorrect chunks returned by the chunk parser:'
+    incorrect = chunkscore.incorrect()
+    for i in range(15):
+        print incorrect[randint(0,len(incorrect)-1)].type()
+</programlisting>
+
+      <note>
+        <para> By default, only the first 100 missed chunks and the
+        first 100 incorrect chunks will be remembered by the
+        <literal>ChunkScore</literal>.  You can tell
+        <literal>ChunkScore</literal> to record more chunk examples
+        with the <literal>max_fp_examples</literal> (maximum false
+        positive examples) and the <literal>max_fn_examples</literal>
+        (maximum false negative examples) keyword arguments to the
+        <literal>ChunkScore</literal> constructor:</para>
+
+<programlisting>
+    &prompt; <command>chunkscore = ChunkScore(max_fp_examples=1000,</command>
+    &prompt2;                        <command>max_fn_examples=1000)</command>
+</programlisting>
+      </note>
 
     </section> <!-- ChunkScore -->
 
