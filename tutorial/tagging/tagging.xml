@@ -998,11 +998,9 @@ John/nn saw/vb the/at book/nn on/in the/at table/nn ./end  He/nn sighed/vb ./end
     Now that we can load a significant quantity of tagged text, we can process it
     and extract items of interest.  The following code iterates over the fifteen
     genres of the Brown Corpus (accessed using <literal>brown.groups()</literal>).
-    The material for each genre is stored in a set of files (accessed using
-    <literal>brown.items()</literal>).  We tokenize each file and then iterate
-    over the tokens.  For each token having the tag <literal>md</literal> we
-    normalise the token's text.  The final step is to increment the count for
-    the word in question.
+    The material for each genre lives in a set of files (accessed using
+    <literal>brown.items()</literal>).  Each of these is
+    tokenized in turn, and stored to <literal>text_token</literal>.
   </para>
 
 <programlisting><![CDATA[
@@ -1012,17 +1010,31 @@ John/nn saw/vb the/at book/nn on/in the/at table/nn ./end  He/nn sighed/vb ./end
 >>> for genre in brown.groups():                   # each genre
 ...     for item in brown.items(genre):            # each file
 ...         text_token = brown.tokenize(item)      # tokenize
-...         for token in text_token['SUBTOKENS']:  # each token
-...             if token['TAG'] == 'md':           # modals
-...                 word = token['TEXT'].lower()   # normalized word
-...                 cfdist[genre].inc(word)        # increment count
 ]]></programlisting>
 
   <para>
-    The resulting data structure is a map from each genre to the
+    The next step is to construct a list of the modals that
+    were found.  To do this we extract and normalize the text
+    from each token found to have the <literal>md</literal> tag.
+    For each of these words we increment a count.  This uses the
+    conditional frequency distribution, where the condition is the
+    current genre, and the event is the modal.
+  </para>
+
+<programlisting><![CDATA[
+...         found = [token['TEXT'].lower()                 # normalize
+...                  for token in text_token['SUBTOKENS']  # each token
+...                  if token['TAG'] == 'md']              # that's a modal
+...         for modal in found:
+...             cfdist[genre].inc(modal)                   # increment count
+]]></programlisting>
+
+  <para>
+    The conditional frequency distribution is nothing more than
+    a mapping from each genre to the
     distribution of modals in that genre.  The following code
     fragment identifies a small set of modals of interest, and
-    processes the data structure to output the required counts:
+    processes the data structure to output the required counts.
   </para>
 
 <programlisting><![CDATA[
@@ -1058,7 +1070,7 @@ miscellaneous: government & house organs    115     37    152     13     99    2
 ]]></programlisting>
 
   <para>
-    There are some interesting patterns in this data.  For instance,
+    There are some interesting patterns in this table.  For instance,
     compare the rows for government literature and adventure
     literature; the former is dominated by the use of <literal>can, may, must,
     will</literal> while the latter is characterised by the use
@@ -1068,9 +1080,20 @@ miscellaneous: government & house organs    115     37    152     13     99    2
   </para>
 
   <para>
-    Now that we have seen how tags are stored and accessed, we are
-    ready to take a look at how they are created.
+    Now that we have seen how tagged tokens and tagged corpora are
+    created and accessed, we are ready to take a look at automatic
+    tagging.
   </para>
+
+  <important><para>
+    In NLTK, tokenization and tagging are operations which
+    <emphasis>annotate</emphasis> existing data.  For instance,
+    when a document is stored in a single text token, then tokenized
+    to create a set of subtokens, the original text is still available
+    via the <literal>TEXT</literal> property.  Note that the default
+    printing method for tokenized text simply does not print this material.
+  </para></important>
+
 
 </section> <!-- Tagged Tokens and Tagged Corpora -->
 
