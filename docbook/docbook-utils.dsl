@@ -258,13 +258,13 @@
 				     ("width" "88") ("height" "26")
 				     ("border" "0") ("alt" "SourceForge")
 				     ("align" "top")))))))))
-(define ($html-body-start$) 
-  (make sequence
-    %nltk-navbar%
+(define ($html-body-start$) %nltk-navbar%)
+(define ($html-body-content-start$)
+  (make sequence    
     (make formatting-instruction data: "&#60;")
     (literal "div class=\"body\"")
     (make formatting-instruction data: "&#62;")))
-(define ($html-body-end$) 
+(define ($html-body-content-end$) 
   (make sequence
     (make formatting-instruction data: "&#60;")
     (literal "/div")
