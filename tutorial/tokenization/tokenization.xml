@@ -578,47 +578,52 @@ example of its use:
 
 </section> <!-- Regexp tokenizer -->
 
+<!------------------------------------------------------------------------>
+
 <section id="frequency">
-<title> Word Frequency and Text Categorization </title>
+<title> Counting Tokens </title>
 
-<para>INTRO</para>
-
-    <para> A <glossterm>frequency distribution</glossterm> records the
-    number of times each outcome of an experiment has occured.  For
-    example, a frequency distribution could be used to record the
-    frequency of each word type in a document.  Frequency
-    distributions are encoded by the <ulink
-    url="&refdoc;/nltk.probability.FreqDist-class.html"
-    ><literal>FreqDist</literal></ulink> class, which is defined by
-    the <ulink url="&refdoc;/nltk.probability-module.html"
-    ><literal>nltk.probability</literal> module</ulink>. </para>
-
-    <section id="FreqDist.constructing"> 
-      <title> Constructing a Frequency Distribution </title>
-
-      <para> Frequency distributions are generally initialized by
-      repeatedly running an experiment, and incrementing the count for
-      a sample every time it is an outcome of the experiment.  For
-      example, the following code will produce a frequency
-      distribution that records how often each word type occurs in a
-      text: </para>
+  <para>Perhaps the simplest thing to do once we have pulled tokens
+    out of text is to count them.  We can do this as follows, to
+    compare the lengths of the English and Finnish translations of
+    the book of Genesis:
+  </para>
 
 <programlisting><![CDATA[
->>> freq_dist = FreqDist()
->>> for token in document['SUBTOKENS']:
-...     freq_dist.inc(token['TEXT'])
+>>> from nltk.corpus import genesis
+>>> corpus = genesis.tokenize('english-kjv.txt')
+>>> print len(corpus['SUBTOKENS'])
+38240
+>>> corpus = genesis.tokenize('finnish.txt')
+>>> print len(corpus['SUBTOKENS'])
+26595
 ]]></programlisting>
 
-    </section> <!-- Constructing a FreqDist -->
+    <para> We can do more sophisticated counting using
+    a <glossterm>frequency distribution</glossterm>.  In general,
+    a frequency distribution records the
+    number of times each outcome of an experiment has occured.  For
+    instance, a frequency distribution could be used to record the
+    frequency of each word in a document.
+    Frequency distributions are generally initialized by
+    repeatedly running an experiment, and incrementing the count for
+    a sample every time it is an outcome of the experiment.
+    The following program produces a frequency
+    distribution that records how often each word occurs in a
+    text, and prints the most frequently occurring word:</para>
 
-    <section id="FreqDist.using"> 
-      <title> Using a Frequency Distribution </title>
+<programlisting><![CDATA[
+>>> fd = FreqDist()
+>>> for token in document['SUBTOKENS']:
+...     fd.inc(token['TEXT'])
+>>> print fd.max()
+'the'
+]]></programlisting>
 
-      <para> Once we construct a frequency distribution that records
+    <para> Once we construct a frequency distribution that records
       the outcomes of an experiment, we can use it to examine a number
-      of interesting properties of the experiment.  This section
-      describes the most important accessors that are defined for
-      frequency distributions. </para>
+      of interesting properties of the experiment.  These properties
+      are summarized in <xref linkend="table.freqdist"/>.</para>
 
 <table id="table.freqdist"> 
   <title>Frequency Distribution Module</title> 
@@ -683,38 +688,36 @@ example of its use:
 </tgroup>
 </table>
 
-    </section> <!-- Using Frequency Distributions -->
-
-    <section id="FreqDist.example"> 
-      <title> Example: Word Lengths </title>
-
-      <para> In this section, we use a <literal>FreqDist</literal> to
+    <para> We can use a <literal>FreqDist</literal> to
       examine the distribution of word lengths in a corpus.
       We construct a frequency distribution whose
-      samples are word lengths; and plot the results. </para>
-
-      <para> To begin, we import the classes we'll be using, and
+      samples are word lengths; and plot the results.
+      To begin, we import the classes we'll be using, and
       load a corpus from a text file:</para>
-
-      <para> We examine each token
-        in the corpus, and find the length of its text.  This length
-        is the "outcome" for our experiment, so we use
-        <literal>inc()</literal> to increment its count in a frequency
-        distribution. </para>
 
 <programlisting><![CDATA[
 >>> from nltk.probability import FreqDist 
 >>> from nltk.corpus import genesis
+]]></programlisting>
 
+      <para> Next, we define a function which takes the name of a
+        text as its argument, and prints the distribution of
+        wordlengths of the text.  For each word, we find its length,
+        and increment the count for words of this length.</para>
+
+<programlisting><![CDATA[
 >>> def length_dist(text):
-...     freq_dist = FreqDist()
-...     corpus = genesis.tokenize(text)
-...     for token in corpus['SUBTOKENS']:
-...         freq_dist.inc(len(token['TEXT']))
-...     for i in range(15):
-...         print "%2d" % int(100*freq_dist.freq(i)),
+...     fd = FreqDist()                    # initialize an empty frequency distribution
+...     corpus = genesis.tokenize(text)    # tokenize the text
+...     for token in corpus['SUBTOKENS']:  # for each token
+...         fd.inc(len(token['TEXT']))     # found another word with this length
+...     for i in range(15):                # for each length from 0 to 14
+...         print "%2d" %                  # print a 2-digit number:
+...           int(100*fd.freq(i)),         # the percentage of words with this length
 ...     print
+]]></programlisting>
 
+<programlisting><![CDATA[
 >>> length_dist('english-kjv.txt')
 0  2 14 28 21 13  7  5  2  2  0  0  0  0  0
 >>> length_dist('finnish.txt')
@@ -760,9 +763,7 @@ example of its use:
 ...     Plot(points).mainloop()
 ]]></programlisting>
 
-      <para>PICTURES</para>
-
-    </section> <!-- Example -->
+  </section> <!-- ConditionalFreqDist -->
 
     <section id="predicting"> 
       <title> Predicting the Next Word </title>
@@ -821,7 +822,7 @@ example of its use:
           token in a text does not follow any word.  In these cases,
           we must decide what context to use.  For this example, we
           use <literal>None</literal> as the context for the first
-          token.  Another option would be to simply discard the first
+          token.  Another option would be to discard the first
           token. </para>
         </note>
 
@@ -845,18 +846,8 @@ living creature that he said, I will not be a wife of the land of the land of th
         above.  A more advanced approach would be to randomly choose
         each word, with more frequent words chosen more often. </para>
 
-        <note><para> Some of the contexts that we are interested in may not
-        be represented in the training corpus.  For example, if the
-        training corpus does not contain the word "mango," then the
-        conditional frequency distribution cannot predict which words
-        are likely to follow it.  If a conditional frequency
-        distribution has no information about a context, then the
-        <literal>max</literal> method of that context's distribution
-        returns <literal>None</literal>.</para></note>
-
     </section> <!-- Predicting -->
 
-  </section> <!-- ConditionalFreqDist -->
 
 
 <section id="pos">
@@ -1396,13 +1387,9 @@ John/nn saw/vb the/at book/nn on/in the/at table/nn ./end  He/nn sighed/vb ./end
   <para>The subtokens are the individual words of interest, and they are accessed
     using the <literal>SUBTOKENS</literal> property.  Each subtoken has a
     <literal>TEXT</literal> and <literal>TAG</literal> property.
+    A list of all properties defined for a token can be obtained using
+    the <literal>properties()</literal> function.
   </para>
-
-  <important><para>
-    The <literal>properties</literal> member function of a token can be
-    used to list the properties defined for that token, in case there is
-    any doubt about which property names have been used:
-  </para></important>
 
 <programlisting><![CDATA[
 >>> print text_token['SUBTOKENS'][1]
