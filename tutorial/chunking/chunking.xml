@@ -354,6 +354,43 @@ AbstractChunkRule(r'(&lt;.*&gt;*)', r'{\1}', right = r'&lt;VB.*&gt;')
 
     </section> <!-- Chunk Rules and Abstract Chunk Rules -->
 
+    <section> <title> Chunk Rules and Token Strings </title>
+
+      <para>Chunk Rules are general regular expressions which manipulate token
+      strings.  In order to keep token strings well-formed, and corresponding to
+      the input, a chunk rule must only add, move or delete chunk delimiters.
+      Moreover, the chunk delimiters must be matching and non-nested.  Here is
+      an example of a pair of rules which violate this constraint:</para>
+
+<programlisting>
+AbstractChunkRule(r'(&lt;NN&gt;)', r'{\1}', doc='chunk NNs'),
+AbstractChunkRule(r'(&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc='chunk NPs'),
+</programlisting>
+
+      <para>The first rule chunks single <literal>NN</literal>s, while the second
+      rule tries to chunk whole noun phrases.  However, these two rules interact
+      in an unintended way.  To see why this is the case, suppose the sequence to
+      be chunked includes a determiner, adjective and noun in sequence:
+      <literal>&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;</literal>.  The first rule will chunk
+      the noun, producing <literal>&lt;DT&gt;&lt;JJ&gt;{&lt;NN&gt;}</literal>.
+      The second rule cannot now match on the three tags, since there is now an
+      open brace between the <literal>&lt;JJ&gt;</literal> and the
+      <literal>&lt;NN&gt;</literal> which was not accounted for in the rule's
+      target expression.  The second rule still applies to the
+      <literal>&lt;NN&gt;</literal>, and produces
+      <literal>&lt;DT&gt;&lt;JJ&gt;{{&lt;NN&gt;}}</literal>.
+      This is illegal and will cause the parser to throw an exception.
+      In order to diagnose the problem, set the debug flag and step through
+      the execution of the parser.</para>
+
+      <para>The problem with the above pair of rules is that they do not form part
+      of a legal chunking <emphasis>strategy</emphasis>.  Once a chunk delimiter is
+      inserted beside a tag, the only legal operations are to move or delete it.
+      For more discussion about how to combine rules into strategies, see the
+      section on chunking strategies below.</para>
+
+    </section> <!-- Chunk Rules and Token Strings -->
+
     <section> <title> The REChunkParser Class </title>
 
     <para>The
