@@ -180,7 +180,7 @@
     (make element gi: "center"
           (make element
                 gi: "a"
-                attributes: (list (list "HREF" ".."))
+                attributes: (list (list "href" "../index.html"))
                 (literal "NLTK Tutorials"))))
 (define (nav-up elemnode) %nltk-tutorial-footer%)
 (define (nav-up? elemnode) #t)
@@ -201,6 +201,58 @@
                    (if (node-list-empty? binfo) clist binfo)
                    ainfo)))
     (element-title-sosofo (node-list-first info))))
+
+;; Use the NLTK stylesheet
+(define %stylesheet% "../../nltk.css")
+
+;; Add the standard navbar at the top of tutorials
+(define %nltk-navbar%
+  (make element gi: "table"
+    attributes: '(("width" "100%") ("class" "navbox") ("cellpadding" "1")
+                  ("cellspacing" "0"))
+    (make element gi: "tr"
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                   attributes: '(("class" "nav") ("href" "index.html"))
+                   (literal "Home")))
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                   attributes: '(("class" "nav") ("href" "install.html"))
+                   (literal "Installation")))
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                   attributes: '(("class" "nav") ("href" "docs.html"))
+                   (literal "Documentation")))
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                   attributes: '(("class" "nav") ("href" "teach.html"))
+                   (literal "Teaching")))
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                   attributes: '(("class" "nav") ("href" "contrib.html"))
+                   (literal "Contributing")))
+       (make element gi: "td"
+             attributes: '(("align" "center") ("width" "16.6%")
+                           ("class" "navbutton"))
+             (make element gi: "a"
+                 attributes: '(("href" "http://sourceforge.net/projects/nltk"))
+		 (make empty-element gi: "img"
+		       attributes: '(("src" "../../sflogo.png")
+				     ("width" "88") ("height" "26")
+				     ("border" "0") ("alt" "SourceForge")
+				     ("align" "top"))))))))
+(define (nav-banner elemnode) %nltk-navbar%)
+(define (nav-banner? elemnode) #t)
 
 ; === Books only ===
 
