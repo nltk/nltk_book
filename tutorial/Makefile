@@ -10,7 +10,7 @@
 ##############################################
 ##  A list of all the technical reports
 REPORTS = probability introduction advpython tagging \
-	writing_classes parsing chunking
+	writing_classes parsing chunking classifying
 
 ##############################################
 ##  You shouldn't have to change anything below here.
