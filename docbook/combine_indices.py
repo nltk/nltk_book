@@ -38,6 +38,7 @@ tut = None
 def add_entry(match):
     s = url_re.sub('url="%s/' % tut, match.group(0))
     entries.append(s)
+    return ''
 
 def combine(inputs, output):
     global tut
