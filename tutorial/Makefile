@@ -45,13 +45,13 @@ usage:
 	@echo "    make pdf         -- Build PDF output"
 	@echo "    make clean       -- Remove all built files"
 
-all: $(ALL) index
+all: $(ALL) $(TUTORIAL_INDEX.html)
 dvi: $(DVI)
 ps: $(PS)
 pdf: $(PDF)
 clean: $(CLEAN)
-html: $(HTML) index
-index: $(TUTORIAL_INDEX.html)
+html: $(HTML) $(TUTORIAL_INDEX.html)
+index: $(INDEX) $(TUTORIAL_INDEX.html)
 
 %.all: %
 	$(MAKE) -C $< all
@@ -74,17 +74,12 @@ index: $(TUTORIAL_INDEX.html)
 %/index.xml: %
 	$(MAKE) -C $< index.xml
 
-# Build a docbook document containing a unified index
-$(TUTORIAL_INDEX.xml): $(INDEX) $(COMBINE_INDICES)
+# Build a docbook document containing a unified index 
+$(TUTORIAL_INDEX.xml): $(COMBINE_INDICES)
 	$(PYTHON) $(COMBINE_INDICES) $(INDEX) $(TUTORIAL_INDEX.xml)
 
 # Compile the unified index to HTML
 $(TUTORIAL_INDEX.html): $(TUTORIAL_INDEX.xml) $(DOCBOOK_DSSSL)
-#	mkdir -p tutorial_index.tempdir
-#	(cd tutorial_index.tempdir && \
-#	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
-#	      -c ../$(DOCBOOK_CATALOG) \
-#	      ../$(XML_DECL) ../$(TUTORIAL_INDEX.xml))
 	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
 	     -c $(DOCBOOK_CATALOG) \
 	     $(XML_DECL) $(TUTORIAL_INDEX.xml) \
