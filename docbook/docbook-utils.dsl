@@ -98,12 +98,14 @@
 
 ;;What depth should the table of contents generate?
 ;;!Only top level of appendixes!
-(define (toc-depth nd)
+(define (toc-depth nd) 
   (if (string=? (gi nd) (normalize "book"))
       3
-      (if (string=? (gi nd) (normalize "appendix"))
-        0
-        1)))
+      (if (string=? (gi nd) (normalize "article"))
+          3 
+          (if (string=? (gi nd) (normalize "appendix"))
+            0
+            1))))
 
 ;;Do you want a table of contents for the element part?
 (define %generate-part-toc% 
@@ -388,6 +390,31 @@
 	    adm-title)
 	  (process-children))))))
 
+;; For some reason, the default table-of-contents definition includes
+;; lists.  But since I usually don't title my lists, they just come 
+;; out as random-looking numbers in the TOC.  The following is copied
+;; verbatim from html/dbautoc.dsl, except that I commented out the
+;; list-element-list from the list of things to filter by.
+(define (build-toc nd depth #!optional (first? #t) (level 1))
+  (let* ((toclist (toc-list-filter
+                   (node-list-filter-by-gi (children nd)
+                                           (append (division-element-list)
+                                                   (component-element-list)
+                                                   ; No lists in the TOC:
+		 				   ; (list-element-list)
+                                                   (section-element-list))))))
+    (if (or (<= depth 0)
+            (node-list-empty? toclist))
+        (empty-sosofo)
+        (make sequence
+          (toc-title first?)
+          (let loop ((nl toclist))
+            (if (node-list-empty? nl)
+                (empty-sosofo)
+                (sosofo-append
+                  ($toc-entry$ (node-list-first nl) level)
+                  (build-toc (node-list-first nl) (- depth 1) #f (+ level 1))
+                  (loop (node-list-rest nl)))))))))
 
 ;;======================================
 ;;Non-printing Elements
@@ -539,12 +566,14 @@
 
 ;;What depth should the table of contents generate?
 ;;!Only top level of appendixes!
-(define (toc-depth nd)
+(define (toc-depth nd) 
   (if (string=? (gi nd) (normalize "book"))
       3
-      (if (string=? (gi nd) (normalize "appendix"))
-        0
-        1)))
+      (if (string=? (gi nd) (normalize "article"))
+          3 
+          (if (string=? (gi nd) (normalize "appendix"))
+            0
+            1))))
 
 ;;What elements should have an LOT?
 (define ($generate-book-lot-list$)
