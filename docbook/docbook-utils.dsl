@@ -48,7 +48,7 @@
 (define %two-side% #t)
 
 ;; Decrease the indentation for section contents.
-(define %body-start-indent% 2pi)
+(define %body-start-indent% 0pi)   ;; was 2pi
 
 ;; Place footnotes at the bottom of the page.
 (define bop-footnotes #t)
@@ -75,6 +75,9 @@
         (normalize "copyright")
         (normalize "legalnotice")))
 
+(define %title-font-family% "Times New Roman")
+(define %line-spacing-factor% 1.2)
+
 ; === Media objects ===
 
 ;; this magic allows to use different graphical formats for printing
@@ -94,6 +97,7 @@
 
 ;; not much whitespace after orderedlist head
 (define %head-after-factor% 0.2)
+(define %head-before-factor% 0.2)
 
 ;; more whitespace after paragraph than before
 (define ($paragraph$)
@@ -103,7 +107,7 @@
                                  %para-indent%)
     space-before: (* %para-sep% 2)
     space-after: (/ %para-sep% 4)
-    quadding: %default-quadding%
+    quadding: 'justify ;; %default-quadding%
     hyphenate?: %hyphenation%
     language: (dsssl-language-code)
     (process-children)))
