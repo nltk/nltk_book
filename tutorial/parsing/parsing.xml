@@ -221,14 +221,14 @@ S -> NP VP *
 
     <para>Another way to construct a <literal>DottedRule</literal> is from
     a <literal>Rule</literal>.  The <literal>Rule</literal> class has a
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#dotted">
-    <literal>dotted</literal></ulink> member function which returns the
+    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#drule">
+    <literal>drule</literal></ulink> member function which returns the
     dotted version of the rule (with position 0).
     </para>
 
 <programlisting>
 &prompt;<command> rule1 = Rule('S', ('NP', 'VP'))</command>
-&prompt;<command> rule1.dotted()</command>
+&prompt;<command> rule1.drule()</command>
 S ->  * NP VP
 </programlisting>
 
@@ -539,8 +539,155 @@ def buparse(sent):
 
   <section> <title> Chart Parsing </title>
 
-    <para>
+    <para>The elementary parsers discussed above suffer from a major
+    efficiency problem.  During processing, they typically build and
+    discard the same structure many times over.  The standard solution
+    to this general kind of problem involves dynamic programming in
+    which intermediate results are kept on a blackboard (the chart) for
+    later reuse.
     </para>
+
+    <para>In general, a parser hypothesizes constituents based on the
+    the grammar and on the current state of its knowledge about the
+    constituents which are already attested.  Any given constituent may
+    be proposed during the search of a blind alley; there is no way of
+    knowing at the time whether the constituent will be used in any of
+    the final parses which are reported.  Locally, what we know about a
+    constituent is the C{Rule} which licenses its node and immediate
+    daughter nodes (i.e. the "local tree").  Also, in the case of chart
+    parsing (which is related to bottom-up parsing), we know the whole
+    subtree of this node, how it connects to the tokens of the sentence
+    being parsed, and its span within the sentence (i.e. location).
+    In a chart parser, these these three things: rule, subtree and location,
+    are stored in a special structure called an edge.</para>
+
+    <section> <title> Edges </title>
+
+      <para>In order to understand how edges work, it is first necessary to
+      recall NLTK's notion of <literal>Location</literal>.  A location in
+      a list of tokens is analgous to a Python slice.  The third token has
+      the location <literal>@[2:3]</literal>.  It is helpful to think of the numbers as
+      referring not to tokens but to imaginary points between the tokens
+      (the "interstices").  Each location is then like an edge connecting
+      two adjacent points.  This is where the name "edge" comes from.
+      </para>
+
+      <para>It is easy to generalize the idea of edges.  The location which
+      spans the third and fourth tokens <literal>@[2:4]</literal>, is essentially
+      a longer edge which connects non-adjacent points.</para>
+
+      <para>The notion of an edge is best communicated graphically.  The following
+      code sample creates some edges for the phrase <literal>the park</literal>,
+      displaying them in text on the screen, and also using tkinter.</para>
+
+<programlisting>
+from nltk.chartparser import *
+
+tok_sent = [Token('the', 0), Token('park', 1)]
+loc = Location(0,2)
+chart = Chart(loc)
+
+dr0 = DottedRule('Det', ('the',), 1)
+tt0 = TreeToken(dr0.lhs(), tok_sent[0])
+edge0 = Edge(dr0, tt0, Location(0))
+chart.insert(edge0)
+    
+dr1 = DottedRule('N', ('park',), 1)
+tt1 = TreeToken(dr1.lhs(), tok_sent[1])
+edge1 = Edge(dr1, tt1, Location(1))
+chart.insert(edge1)
+    
+dr2 = DottedRule('NP', ('Det','N'), 2)
+tt2 = TreeToken(dr2.lhs(), tt0, tt1)
+edge2 = Edge(dr2, tt2, Location(0,2))
+chart.insert(edge2)
+    
+chart.draw()
+
+from nltk.draw.chart import *
+ChartView(Tkinter.Tk(), chart, tok_sent)
+Tkinter.mainloop()
+</programlisting>
+
+      <para>The purpose of an edge is to store a <emphasis>hypothesis</emphasis>
+      about the syntactic structure of the sentence.  Such hypotheses may be
+      either complete or partial.  A complete hypothesis is represented as an
+      edge decorated with a <literal>DottedRule</literal> where the dot position is
+      on the right edge of the rule.  This means that the entire right-hand side
+      has been processed and that the associated <literal>TreeToken</literal> is
+      complete.  A partial hypothesis is represented as an edge decorated with
+      a rule where the dot position is in an internal position, e.g.
+      <literal>NP -&gt; Det * N</literal>.  This means that only part of the
+      right-hand side has been processed and that the associated tree is
+      incomplete.  The symbol immediately to the right of the
+      dot position is the next symbol (terminal or non-terminal) to be processed for
+      this edge.</para>
+
+      <para>There is a special case where edges have zero width.  Such an edge is
+      actually a self-loop, starting and ending at the same index position.
+      Zero-width edges represent the hypothesis that a syntactic constituent
+      <emphasis>begins</emphasis> at this location.</para>
+
+      <para>In the process of chart parsing, edges are combined with other edges to
+      form new edges which are then added to the chart.  (Note that nothing is ever
+      removed from the chart, and nothing is ever modified once it is in the chart.)
+      The most important way that edges are combined is known as the
+      <emphasis>Fundamental Rule</emphasis>.  Suppose that an edge
+      <replaceable>e<subscript>1</subscript></replaceable> has a dotted
+      rule whose next symbol is <replaceable>X</replaceable>.  Suppose that
+      a second edge <replaceable>e<subscript>2</subscript></replaceable>,
+      immediately to the right of
+      <replaceable>e<subscript>1</subscript></replaceable>,
+      represents a complete <replaceable>X</replaceable> constituent.
+      Then the Fundamental Rule states that we must add a new edge
+      <replaceable>e<subscript>3</subscript></replaceable> spanning both
+      <replaceable>e<subscript>1</subscript></replaceable> and
+      <replaceable>e<subscript>2</subscript></replaceable>, in which
+      the dot is moved one position to the right.  In other words,
+      <replaceable>e<subscript>1</subscript></replaceable> was looking for
+      an <replaceable>X</replaceable> to its right, which it found on
+      <replaceable>e<subscript>2</subscript></replaceable>, and we record
+      this fact on <replaceable>e<subscript>3</subscript></replaceable>.
+      </para>
+
+      <para>The <literal>Edge</literal> class has a
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.Edge.html#FR">
+      <literal>FR</literal></ulink> method which applies the fundamental
+      rule to a pair of edges.  The operation of the rule is accomplished
+      in four lines:</para>
+
+<programlisting>
+def FR(self, edge):
+    loc = self._loc.union(edge.loc())
+    dr = self._drule.shift()
+    tree = TreeToken(self._tree.node(), *(self._tree.children() + (edge.tree(),)))
+    return Edge(dr, tree, loc)                                                       
+</programlisting>
+
+      <para>First we create a new location which is the union of the locations
+      of the two existing edges.  Next we create a new dotted rule, just the same
+      as the existing one but with the dot position shifted one to the right.
+      Next we take the existing tree <literal>self._tree</literal>, break it
+      apart, and incorporate the tree from the other edge.  Finally, we construct
+      a new edge from the new dotted rule, new tree, and new location.</para>
+      
+    </section> <!-- Edges -->
+
+    <section> <title> Charts </title>
+
+      <para>A chart is a set of edges and a location...</para>
+
+      <para>For full details see
+      <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.Chart.html">Chart</ulink>.
+      </para>
+
+    </section> <!-- Charts -->
+
+    <section> <title> Parsing Strategies </title>
+
+      <para></para>
+
+    </section> <!-- Parsing Strategies -->
 
   </section> <!-- Chart Parsing -->
 
