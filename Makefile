@@ -22,6 +22,8 @@ CONTRIB_REFDOC_DIR = contrib_ref
 # Options for epydoc.  Consider switching to --inheritance=included
 # later.
 EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL)
+EPYDOC_CONTRIB_OPTS = -n nltk_contrib -u $(NLTK_URL) \
+                      --navlink "nltk $(NLTK_VERSION): Contributions"
 
 # The location of extra (static) html files to include in the
 # webpage.
@@ -29,8 +31,8 @@ STATIC_HTML_DIR = webpage
 
 # The output location for the constructed webpage.
 WEBPAGE_DIR = built_webpage
-WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/ref
-WEBPAGE_CONTRIB_REF_DIR = $(WEBPAGE_DIR)/contrib
+WEBPAGE_REF_DIR = $(WEBPAGE_DIR)/api-$(NLTK_VERSION)
+WEBPAGE_CONTRIB_REF_DIR = $(WEBPAGE_DIR)/contrib-$(NLTK_VERSION)
 WEBPAGE_TECH_DIR = $(WEBPAGE_DIR)/tech
 WEBPAGE_TUTORIAL_DIR = $(WEBPAGE_DIR)/tutorial
 WEBPAGE_PSET_DIR = $(WEBPAGE_DIR)/psets
@@ -49,6 +51,7 @@ EPYDOC = epydoc
 # The Python source files for which reference documentation should
 # be built.
 SOURCES = $(shell find ../src/nltk -name '*.py')
+CONTRIB_SOURCES = $(shell find ../src/nltk_contrib -name '*.py')
 
 # Find the tutorial documents & technical documents.
 TUTORIAL_DOCS = $(basename $(notdir $(wildcard tutorial/*/*.info)))
@@ -155,6 +158,7 @@ _copy_reference:
 	@echo "[Copying reference documentation]"
 	@cp -R $(REFDOC_DIR)/* $(WEBPAGE_REF_DIR)
 	@cp -R $(CONTRIB_REFDOC_DIR)/* $(WEBPAGE_CONTRIB_REF_DIR)
+	@ln -s api-$(NLTK_VERSION) $(WEBPAGE_DIR)/api-devel
 
 _copy_psets:
 	@echo "[Copying problem sets]"
