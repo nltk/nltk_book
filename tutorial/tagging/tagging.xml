@@ -30,14 +30,14 @@
     Many natural language expressions are ambiguous, and we need to
     draw on other sources of information to aid interpretation.  For
     instance, our preferred interpretation of <literal>fruit flies like a
-    banana</literal> depends on the presence of context cues that
+    banana</literal> depends on the presence of contextual cues that
     cause us to expect <literal>flies</literal> to be a noun or a
     verb.  Before we can even address such issues, we need to be able
     to represent the required linguistic information.  Here is a
     possible representation:
   </para>
 
-      <table>
+      <table id="table.fruit1">
         <title/>
         <tgroup cols="5">
           <colspec colwidth='1.5cm'/>
@@ -47,11 +47,11 @@
           <colspec colwidth='1.5cm'/>
           <tbody>
             <row>
-              <entry>Fruit</entry>
-              <entry>flies</entry>
-              <entry>like</entry>
-              <entry>a</entry>
-              <entry>banana</entry>
+	    <entry><literal>Fruit</literal></entry>
+	    <entry><literal>flies</literal></entry>
+	    <entry><literal>like</literal></entry>
+	    <entry><literal>a</literal></entry>
+	    <entry><literal>banana</literal></entry>
             </row>
             <row>
               <entry>noun</entry>
@@ -64,7 +64,7 @@
         </tgroup>
       </table>
 
-      <table>
+      <table id="table.fruit2">
         <title/>
         <tgroup cols="5">
           <colspec colwidth='1.5cm'/>
@@ -74,11 +74,11 @@
           <colspec colwidth='1.5cm'/>
           <tbody>
             <row>
-              <entry>Fruit</entry>
-              <entry>flies</entry>
-              <entry>like</entry>
-              <entry>a</entry>
-              <entry>banana</entry>
+	    <entry><literal>Fruit</literal></entry>
+	    <entry><literal>flies</literal></entry>
+	    <entry><literal>like</literal></entry>
+	    <entry><literal>a</literal></entry>
+	    <entry><literal>banana</literal></entry>
             </row>
             <row>
               <entry>noun</entry>
@@ -93,36 +93,47 @@
 
   <para>
     Most language processing systems must recognize and interpret the
-    linguistic structures that exist in a sequence of words.  This
-    task is virtually impossible if all we know about each word is its
-    text representation.  To recognize structures such as noun
-    phrases, we do not want to be forced to list them all out.
-    Instead we want to be able to generalize over whole classes of
-    words, such as determiners, adjectives and nouns.  Conversely, to
-    interpret words we need to be able to discriminate between
-    different usages, such as <literal>deal</literal> as a noun or a
-    verb.  The process of augmenting each word in this way is known
-    as <glossterm>part-of-speech tagging</glossterm>,
+    linguistic structures that exist in a sequence of words.  This task
+    is virtually impossible if all we know about each word is its text
+    representation.  To determine whether a given string of words has
+    the structure of, say, a noun phrase, it is unfeasible to check
+    through a (possiby infinite) list of all strings which can be
+    classed as noun phrases.  Instead we want to be able to generalize
+    over <emphasis>classes</emphasis> of words. These <firstterm>word
+    classes</firstterm> are commonly given labels such as 'determiner',
+    'adjective' and 'noun'.  Conversely, to interpret words we need to
+    be able to discriminate between different usages, such as
+    <literal>deal</literal> as a noun or a verb.  The process of
+    classifying words in this way, and labeling them accordingly, is
+    known as <glossterm>part-of-speech tagging</glossterm>,
     <glossterm>POS-tagging</glossterm>, or simply
-    <glossterm>tagging</glossterm>.
-    The collection of tags used for a
+    <glossterm>tagging</glossterm>.  The collection of tags used for a
     particular task is known as a <glossterm>tag set</glossterm>.
   </para>
 
   <para>
-    We now consider three kinds of language analysis where tags play
+    In the following sections, we will give a more detailed account of
+    the linguistic and practical issues that arise in the course of
+    part-of-speech tagging, and then survey how tagging is carried out
+    in NLTK. Before launching into this, however, we will give the
+    reader a flavour of the uses of tagging. That is,
+    we consider three kinds of language analysis where tags play
     an important role: parsing, morphological analysis, and
     stylistics.
   </para>
 
+<!--
   <para>
-    Most natural language parsers depend on <glossterm>part-of-speech tags</glossterm>.
-    Instead of writing rules like <literal>NP &rarr; the dog</literal>
-    and <literal>NP &rarr; three red cars</literal>, we can write
-    <literal>NP &rarr; DT JJ* NN</literal>.
-    In this way, the terminal symbols of the grammar can be word categories,
-    instead of words, greatly reducing the size of the grammar.
+    Most natural language parsers depend on <glossterm>part-of-speech
+    tags</glossterm>.  Instead of writing rules like <literal>NP &rarr;
+    the dog</literal> and <literal>NP &rarr; three red cars</literal>,
+    we can write <literal>NP &rarr; DT JJ* NN</literal>.  In this way,
+    the terminal symbols of the grammar can be word categories, instead
+    of words, greatly reducing the size of the grammar.
+
   </para>
+
+
 
   <para>
     <glossterm>Morphological analysis</glossterm> is also assisted by part-of-speech tags.
@@ -137,23 +148,44 @@
     <literal>deals/NN</literal> or <literal>deals/VB</literal>
     to process.
   </para>
-
+-->
   <para>
-    Tags can be stored with their associated text,
-    as shown in the following sentence from the Brown Corpus:
+    We earlier presented <xref linkend="table.fruit1"/> and <xref
+    linkend="table.fruit2"/> as an examples of how a string of word tokens can
+    be augmented with information about the word classes that the words
+    belong to. In effect, we carried out tagging for the string
+    <literal>fruit flies like a banana</literal>. However, tags are more
+    usually attached inline to the text they are associated with. This
+    is illustrated in the following sentence from
+    the Brown Corpus:
     <literal>
       The/at Pantheon's/np$ interior/nn ,/, still/rb in/in its/pp$
       original/jj form/nn ,/, is/bez truly/ql majestic/jj and/cc an/at
       architectural/jj triumph/nn ./.
-    </literal>
-    Here, the word <literal>The</literal> is tagged
+    </literal> 
+<!-- *** According to our table later on, ./. should actually be ./end -->
+    Here, the sequence <literal>The/at</literal> means that
+    the word token <literal>The</literal> is tagged
     <literal>at</literal>, which is the Brown Corpus tag for
-    "article".  Such tagged corpora may be used in the study
-    of patterns of word usage in different genres (<glossterm>stylistics</glossterm>).
-    For example, we can use
-    the tags to identify all words of a certain class, such as modals, then tabulate
-    their frequency of occurrence in different genres, as shown in
-    <xref linkend="table.stylistics"/>.
+    article.<footnote>
+	<para>The reader may be initially puzzled by strings
+    like <literal>,/,</literal>. This just means that the tag for a
+    comma is '<literal>,'</literal>.</para>
+	
+      </footnote>
+    We can think of tagging as one way of
+    <firstterm>annotating</firstterm> a text corpus. Annotation is a way
+    of adding information to a text &mdash; indeed, we might like to
+    think of it as a way of making explicit information which is already
+    implicitly present in the text.
+  </para>
+  <para>
+    What is the value of annotating a text in this way? One illustration
+    is the use of tagged corpora to study patterns of word
+    usage in different genres (<glossterm>stylistics</glossterm>).  For
+    example, we can use the tags to identify all words of a certain
+    class, such as modals, then tabulate their frequency of occurrence
+    in different genres, as shown in <xref linkend="table.stylistics"/>.
   </para>
 
 
@@ -221,8 +253,10 @@
     Words can be tagged with sense numbers, indicating which sense
     of the word was used.  Words can also be tagged with morphological
     features.  Examples of each of these kinds of tags are shown in
-    <xref linkend="table.taggingexamples"/>.  (Note that for space
-    reasons, we only show the tag on a single italicized word.)
+    <xref linkend="table.taggingexamples"/>.  Note that for space
+    reasons, we only show the tag on a single italicized word. Note also
+    that the first two examples use XML-style tags, where elements in
+    angle brackets enclose the word that is tagged.
   </para>
 
 <table id="table.taggingexamples">
@@ -232,12 +266,13 @@
     <tbody>
       <row>
         <entry>Speech Synthesis Markup Language (W3C SSML)</entry>
-        <entry>That is a <emphasis>&lt;emphasis>big&lt;/emphasis></emphasis> car!</entry>
+        <entry>That is a
+        &lt;emphasis><emphasis>big</emphasis>&lt;/emphasis> car!</entry>
       </row>
       <row>
         <entry>SemCor: Brown Corpus tagged with WordNet senses</entry>
         <entry>Space in any
-          <emphasis>&lt;wf pos=NN lemma=form wnsn=4>form&lt;/wf></emphasis>
+          &lt;wf pos="NN" lemma="form" wnsn="4"><emphasis>form</emphasis>&lt;/wf>
           is completely measured by the three dimensions.
           <emphasis>
             (Wordnet form/NN sense 4: "shape, form, configuration,
@@ -249,7 +284,7 @@
         <entry>Morphological tagging, from the Turin University Italian Treebank</entry>
         <entry>
           E' italiano , come progetto e realizzazione , il
-          <emphasis>primo (PRIMO ADJ ORDIN M SING)</emphasis>
+          <emphasis>primo</emphasis> (PRIMO ADJ ORDIN M SING)
           porto turistico dell' Albania .
         </entry>
       </row>
@@ -270,9 +305,9 @@ X.2 linguistic overview (for non-linguist readers)
 
   <para>
     There is a long tradition within linguistics of classifying words
-    into categories called <firstterm>parts of speech</firstterm>. These
-      are sometimes also called <firstterm>lexical
-	categories</firstterm> or just <firstterm>word classes</firstterm>.
+    into categories called parts of speech. As we have seen,  these
+      are sometimes also called  word classes or <firstterm>lexical
+	categories</firstterm>.
     Familiar examples are <type>noun</type>, <type>verb</type>,
     <type>preposition</type>, <type>adjective</type> and
     <type>adverb</type>.  In this section we present the standard
@@ -291,8 +326,11 @@ X.2 linguistic overview (for non-linguist readers)
     the internal structure of a word. For example,
     <literal>-ness</literal> is a suffix which combines with an
     adjective to produce a noun. Examples are <literal>happy</literal>
-    &rarr; <literal>happiness</literal>, <literal>ill</literal> &rarr;
-    <literal>illness</literal>. So if we encounter a word which ends
+    &gt; <literal>happiness</literal>, <literal>ill</literal> &gt;
+    <literal>illness</literal>.<footnote>
+	  <para>We use '&gt:' to mean 'is derived from'.</para>
+	</footnote>
+So if we encounter a word which ends
     in <literal>-ness</literal>, this is very likely to be a noun.
 </para>
 
@@ -370,11 +408,11 @@ X.2 linguistic overview (for non-linguist readers)
 
   <para>
     Linguists commonly recognize four major categories of open class
-    wprds in English, namely nouns, verbs, adjectives and adverbs.  Nouns generally refer
-    to people, places, things, or concepts, e.g.: <emphasis>woman,
-    Scotland, book, intelligence</emphasis>.  In the context of a
-    sentence, nouns can appear after determiners and adjectives, and can
-    be the subject or object of the verb:
+    words in English, namely nouns, verbs, adjectives and adverbs.
+    Nouns generally refer to people, places, things, or concepts, e.g.:
+    <emphasis>woman, Scotland, book, intelligence</emphasis>.  In the
+    context of a sentence, nouns can appear after determiners and
+    adjectives, and can be the subject or object of the verb:
   </para>
 
   <table id="table.nouns">
