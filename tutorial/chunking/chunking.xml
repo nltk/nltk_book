@@ -405,28 +405,74 @@ input:   &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;
 
     <section> <title> Chunking Strategies </title>
 
-    <para>brute force vs iterative</para>
+      <para>There are a surprising number of different ways to chunk a
+      sentence.  The chunk rules can add, shift and remove chunk delimiters
+      in many ways, and the chunk rules can be combined in many ways.
+      One can use a small number of very complex rules, or a long sequence of
+      much simpler rules.  This section gives a brief overview of the main
+      approaches.</para>
 
-    <para>Notes: in the brute force approach we construct complex
-    regular expressions which create the desired chunks in a single step.
-    In the iterative approach we create chunks, then successively merge
-    and split them, until we get the desired result.</para>
+      <section> <title> Static vs Iterative Chunking </title>
 
-    <para>chunking vs chinking</para>
+        <para>In static chunking we write a single regular expression which
+        accomplishes the chunking of a certain type of phrase in a single step.
+        We have already seen an example of this, which is repeated below:</para>
 
-    <para>Notes: chunking begins with an unchunked sentence and adds chunk
-    delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
-    begins with the entire sentence in a single chunk, then removes pieces.
-    For example, we could chunk the whole sentence then
-    chink the verbs using the following rule:</para>
+<programlisting>
+AbstractChunkRule(r'(&lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc="chunking &lt;DT&gt;&lt;JJ&gt;*&lt;NN&gt;")
+</programlisting>
+
+        <para>This single rule identifies a particular kind of noun phrase chunk
+        using a single regular expression.</para>
+
+        <para>It is possible to do the same thing iteratively.  We start by chunking
+        nouns, then move the left delimiter leftwards:</para>
+
+<programlisting>
+AbstractChunkRule(r'(&lt;NN.*&gt;)', r'{\1}', doc="chunking NN")
+AbstractChunkRule(r'(&lt;DT|JJ&gt;){', r'{\1', right=r'&lt;JJ|NN.*&gt;', doc="shifting delimiter left"
+</programlisting>
+
+        <note><para>The second rule is unable to apply to its own output.
+        To apply this maximally it is necessary to invoke it many times over.</para></note>
+
+        <para>Another iterative approach which is easier to use begins by
+        putting everything into its own chunk, then removing chunk boundaries:</para>
+
+<programlisting>
+AbstractChunkRule(r'(&lt;.*&gt;)', r'{\1}', doc="chunking every tag")
+DT_JJ_NNX = r'&lt;DT|JJ|NN.*&gt;'
+AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
+                  doc="chunk any groups of &lt;DT&gt; &lt;JJ&gt; and &lt;NNX&gt;")
+</programlisting>
+
+    </section> <!-- Static vs Iterative Chunking -->
+
+    <section> <title> Chunking vs Chinking </title>
+
+      <para>Chunking begins with an unchunked sentence and adds chunk
+      delimiters.  The dual approach, known as <emphasis>chinking</emphasis>
+      begins with the entire sentence in a single chunk then removes,
+      or <emphasis>unchunks</emphasis>, pieces which cannot be part of a
+      chunk.  This is convenient in situations where it is relatively
+      easy to specify those tags and sequences of tags which
+      <emphasis>cannot</emphasis> be in a chunk.</para>
+
+      <para>For example, we could chunk a whole sentence then
+      chink the verbs using the following rules:</para>
 
 <programlisting>
 AbstractChunkRule(r'(.*)', r'{\1}', doc='chunk the entire sentence')
 AbstractChunkRule(r'(&lt;VB.*&gt;)', r'}\1{', doc='chink the verbs')
 </programlisting>
 
-    <para>Note the directionality of the braces in the second argument
-    of the second constructor.</para>
+      <para>Note the directionality of the braces in the second argument
+      of the second constructor - they face outwards.  Thus, the closing
+      brace closes the chunk which started at the beginning of the sentence
+      (or after the previous verb).  Similarly, the opening brace begins
+      a new chunk which goes to the end of the sentence (or the next verb).</para>
+
+    </section> <!-- Chunking vs Chinking -->
     
   </section> <!-- Chunking Strategies -->
 
