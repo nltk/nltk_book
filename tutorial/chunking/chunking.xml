@@ -5,6 +5,10 @@
 <!ENTITY refdoc "http://nltk.sourceforge.net/ref">
 ]>
 
+<!-- In this tutorial, I'm experimenting with using a flatter 
+section hierarchy.  I think this may make the web version easier
+to read (each top-level section is a single web-page). -->
+
 <article>
   <articleinfo>
     <author><firstname>Steven</firstname><surname>Bird</surname></author>
@@ -68,23 +72,23 @@
 ]
 </screen>
 
-    <para> Before we give a more precise definition of chunk parsing,
-    we will define some "abstract types," or names for data
-    structures: </para>
+    <para> We can define chunk structure as follows: </para>
 
+    <!-- This looks horrible in pdf; how to fix it? -->
     <informaltable>
       <tgroup cols="3">
-        <tbody>
+        <thead>
+          <row>
+            <entry>Term</entry><entry></entry>
+            <entry>Definition</entry>
+          </row>
+        </thead>
+        <tbody colsep="0" rowsep="0">
           <row>
             <entry><glossterm>tagged token</glossterm></entry>
             <entry>:=</entry>
             <entry>a <literal>Token</literal> whose type is 
                    a <literal>TaggedType</literal></entry>
-          </row>
-          <row>
-            <entry><glossterm>tagged text</glossterm></entry>
-            <entry>:=</entry>
-            <entry>list of <emphasis>tagged tokens</emphasis></entry>
           </row>
           <row>
             <entry><glossterm>chunk</glossterm></entry>
@@ -102,9 +106,10 @@
     </informaltable>
 
     <note>
-      <para> Although the terms <emphasis>tagged text</emphasis> and
-      <emphasis>chunk</emphasis> have the same definition, they are
-      used in different contexts. </para>
+      <para> Although the terms <emphasis>chunk</emphasis> and
+      <emphasis>tagged text</emphasis> have the same definition
+      (namely, a list of tagged tokens), they are used in different
+      contexts. </para>
     </note>
 
     <para> Chunk parsers are defined by the 
@@ -116,23 +121,37 @@
     the chunks in a tagged text, by returning a chunk structure that
     corresponds to the text. </para>
 
-    <note><para>The current definition of chunk structure is too weak
-    to express a more general kind of chunking which associates a type
-    with each chunk.  For example, there are chunkers which can
-    identify both NP and VP chunks.  For these it is necessary to
-    define a more expressive representation.  For this and other
-    reasons, we may eventually change the
-    <literal>ChunkParserI</literal> to use the
-    
-    <ulink url="&refdoc;/nltk.tree.TreeToken.html"
-    ><literal>TreeToken</literal></ulink> class instead of chunk
-    structures.</para>
-    </note>
-
     <para>All chunk parsers, including the
-    <literal>REChunkParser</literal> class discussed below, should
+    <literal>REChunkParser</literal> class discussed below, must 
     inherit from <literal>ChunkParserI</literal>, and reimplement its
     <literal>parse</literal> method. </para>
+
+    <note>
+      <para> In general, chunk parsers can be defined to use any kind
+      of token (not just tagged token).  In the general case, a
+      <emphasis>chunk</emphasis> would be defined as <emphasis>a list
+      of <literal>Token</literal>s</emphasis>, and a <emphasis>chunk
+      structure</emphasis> as <emphasis>a list of
+      (<literal>Token</literal> or chunk)</emphasis>.  However, the
+      only chunk parser currently implemented by nltk operates on
+      tagged tokens; and in general, most chunk parsers that have been
+      created operate on tagged tokens.  So for the purposes of this
+      tutorial, we will assume that chunk parsers are defined to use
+      tagged tokens. </para>
+    </note>
+
+    <note>
+      <para>The current definition of chunk structure is too weak to
+      express a more general kind of chunking which associates a type
+      with each chunk.  For example, there are chunkers which can
+      identify both NP and VP chunks.  For these it is necessary to
+      define a more expressive representation.  For this and other
+      reasons, we may eventually change the
+      <literal>ChunkParserI</literal> to use the <ulink
+      url="&refdoc;/nltk.tree.TreeToken.html"
+      ><literal>TreeToken</literal></ulink> class instead of chunk
+      structures.</para>
+    </note>
 
   </section> <!-- The Chunk Parser Interface -->
 
@@ -142,9 +161,7 @@
     follows:</para>
 
 <screen>
-[ the/DT little/JJ cat/NN ] 
-sat/VBD on/IN 
-[ the/DT mat/NN ]
+    [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
 </screen>
 
     <para>It is often useful to be able to tokenize
@@ -157,7 +174,7 @@ sat/VBD on/IN
     ><literal>ChunkTaggedTokenizer</literal></ulink>.</para>
 
 <programlisting>
-    &prompt; <command>from nltk.chunkparser import ChunkedTaggedTokenizer</command>
+    &prompt; <command>from nltk.chunkparser import *</command>
     &prompt; <command>correct_sent = """
     [ the/DT little/JJ cat/NN ]
     sat/VBD on/IN
@@ -176,7 +193,7 @@ sat/VBD on/IN
       <literal>nltk.chunkparser</literal> module, 
       <ulink url="&refdoc;/nltk.chunkparser.html#unchunk"
       ><literal>unchunk</literal></ulink>, will convert a chunk
-      structure to a chunked text by removing all chunking: </para>
+      structure to a tagged text by removing all chunking: </para>
 
 <programlisting>
     &prompt; <command>unchunked_sent = unchunk(correct_chunks)</command>
@@ -196,8 +213,9 @@ sat/VBD on/IN
       sentences, one per line: </para>
 
 <programlisting>
+    &prompt; <command>from nltk.token import LineTokenizer</command>
     &prompt; <command>text = open('corpus.txt').read()</command>
-    &prompt; <command>sentences = LineTokenizer.tokenize(text)</command>
+    &prompt; <command>sentences = LineTokenizer().tokenize(text)</command>
     &prompt; <command>ctt = ChunkedTaggedTokenizer()</command>
     &prompt; <command>for sentence in sentences:</command>
     &prompt2;     <command>chunked_sent = ctt.tokenize(sentence, source=sentence.loc())</command>
@@ -219,12 +237,21 @@ sat/VBD on/IN
 
     <para> <literal>REChunkParser</literal> works by manipluating a
     <glossterm>chunking hypothesis</glossterm>, which records a
-    particular chunking of the text.  The
-    <literal>REChunkParser</literal> begins with a chunking hypothesis
-    where no tokens are chunked.  Each rule is then applied, in turn,
-    to the chunking hypothesis.  After the all of the rules have been
-    applied, the chunk structure corresponding to the final chunking
-    hypothesis is returned. </para>
+    particular chunking of the text:</para>
+
+    <orderedlist>
+      <listitem> <para> The <literal>REChunkParser</literal> begins
+      with a chunking hypothesis where no tokens are chunked. </para>
+      </listitem>
+      <listitem> <para> Each rule is then applied, in turn, to the
+      chunking hypothesis.  Applying a rule to a chunking hypothesis
+      updates the chunking encoded by the hypothesis. </para>
+      </listitem>
+      <listitem> <para> After the all of the rules have been applied,
+      the chunk structure corresponding to the final chunking
+      hypothesis is returned. </para>
+      </listitem>
+    </orderedlist>
 
     <para> New <literal>REChunkParser</literal>s are constructed from
     a list of rules, using the 
@@ -365,14 +392,13 @@ sat/VBD on/IN
 
   </section> <!-- Rules: intro -->
 
-  <section> <title> ChunkRule </title>
+  <section id="section.chunkrule"> <title> ChunkRule </title>
 
     <para> The simplest type of rule is 
     <ulink url="&refdoc;/nltk.rechunkparser.ChunkRule.html"
     ><literal>ChunkRule</literal></ulink>.  A
     <literal>ChunkRule</literal> chunks anything that matches a given
     tag pattern.  <literal>ChunkRule</literal>s are created with the
-    
     <ulink url="&refdoc;/nltk.rechunkparser.ChunkRule.html#__init__"
     ><literal>ChunkRule</literal> constructor</ulink>, which takes a
     tag pattern and a description string.  For example, the following
@@ -381,8 +407,8 @@ sat/VBD on/IN
     "<literal>NN</literal>" or "<literal>DT</literal>": </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;NN|DT&gt;+',
-                          'Chunk sequences of NN and DT')</command>
+    &prompt; <command>rule1 = ChunkRule('&lt;NN|DT&gt;+',</command>
+    &prompt2;<command>                   'Chunk sequences of NN and DT')</command>
     &prompt; <command>chunkparser = REChunkParser( [rule1] )</command>
     &prompt; <command>chunkparser.parse(unchunked_sent)</command>
     [['the'/'DT'@[0w]], 
@@ -399,8 +425,8 @@ sat/VBD on/IN
     single noun of any type ("<literal>NN.*</literal>"). </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;?&lt;JJ.*&gt;*&lt;NN.*&gt;',
-                    'Chunk optional det, zero or more adj, and a noun')</command>
+    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;?&lt;JJ.*&gt;*&lt;NN.*&gt;',</command>
+    &prompt2;<command>                   'Chunk optional det, zero or more adj, and a noun')</command>
     &prompt; <command>chunkparser = REChunkParser([rule1])</command>
     &prompt; <command>chunkparser.parse(unchunked_sent)</command>
     [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
@@ -414,19 +440,20 @@ sat/VBD on/IN
     consecutive nouns, then the first two nouns will be chunked: </para>
 
 <programlisting>
+    &prompt; <command>from nltk.tagger import *</command>
     &prompt; <command>noun_str = "dog/NN cat/NN mouse/NN"</command>
     'dog/NN cat/NN mouse/NN'
     &prompt; <command>three_nouns = TaggedTokenizer().tokenize(noun_str)</command>
     ['dog'/'NN'@[0w], 'cat'/'NN'@[1w], 'mouse'/'NN'@[2w]]
-    &prompt; <command>rule1 = ChunkRule('&lt;NN&gt;&lt;NN&gt;',
-                    'Chunk two consecutive nouns')</command>
+    &prompt; <command>rule1 = ChunkRule('&lt;NN&gt;&lt;NN&gt;',</command>
+    &prompt2;<command>                   'Chunk two consecutive nouns')</command>
     &prompt; <command>chunkparser = REChunkParser([rule1])</command>
     &prompt; <command>chunkparser.parse(three_nouns)</command>
     [['dog'/'NN'@[0w], 'cat'/'NN'@[1w]], 
      'mouse'/'NN'@[2w]]
 </programlisting>
 
-    <section> <title> Tracing Parsing </title>
+    <section> <title> Tracing </title>
 
       <para> The <literal>parse</literal> method of
       <literal>REChunkParser</literal> takes an optional
@@ -448,6 +475,14 @@ sat/VBD on/IN
      ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
 </programlisting>
 
+      <note>
+        <para> In the tracing output, chunking is indicated by braces
+        ("{" and "}"), instead of the more conventional square
+        brackets ("[" and "]").  The reasons for this will be
+        discussed when we cover general transformational rules. </para>
+        <!-- Add a specific ref? -->
+      </note>
+
     </section> <!-- Tracing -->
 
     <section> <title> Cascading Rules </title>
@@ -462,10 +497,10 @@ sat/VBD on/IN
       "<literal>DT</literal>" or "<literal>NN</literal>".  </para>
 
 <programlisting>
-    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;',
-                          'Chunk det+adj+noun')</command>
-    &prompt; <command>rule2 = ChunkRule('&lt;DT|NN&gt;+',
-                          'Chunk sequences of NN and DT')</command>
+    &prompt; <command>rule1 = ChunkRule('&lt;DT&gt;&lt;JJ&gt;&lt;NN&gt;',</command>
+    &prompt2;<command>                   'Chunk det+adj+noun')</command>
+    &prompt; <command>rule2 = ChunkRule('&lt;DT|NN&gt;+',</command>
+    &prompt2;<command>                   'Chunk sequences of NN and DT')</command>
     &prompt; <command>chunkparser = REChunkParser( [rule1, rule2] )</command>
 
     <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
@@ -497,7 +532,7 @@ sat/VBD on/IN
                     &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
     Chunk sequences of NN and DT:
                    {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
-    Chunk: Det+adj+noun:
+    Chunk det+adj+noun:
                    {&lt;DT&gt;} &lt;JJ&gt; {&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 
     [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
@@ -505,34 +540,425 @@ sat/VBD on/IN
      ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
 </programlisting>
 
-      <para> Here, rule 2 did not find any chunks, since all chunks
-      that matched its tag pattern overlapped with chunks that were
-      already in the hypothesis. </para>
+      <para> Here, rule 2 ("chunk det+adj+noun") did not find any
+      chunks, since all chunks that matched its tag pattern overlapped
+      with chunks that were already in the hypothesis. </para>
 
     </section> <!-- Cascading Rules -->
 
-    
-    
-
-    <!--
-    A rule specifying how to add chunks to a C{ChunkString}, using a
-    matching tag pattern.  When applied to a C{ChunkString}, it will
-    find any substring that matches this tag pattern and that is not
-    already part of a chunk, and create a new chunk containing that
-    substring.
-    -->
-
   </section> <!-- ChunkRule -->
 
+  <section> <title> ChinkRule and UnChunkRule</title>
+
+    <para> Sometimes it is easier to define what we
+    <emphasis>don't</emphasis> want to include in a chunk than it is
+    to define what we <emphasis>do</emphasis> want to include.  In
+    these cases, it may be easier to build a chunk parser using
+    <literal>UnChunkRule</literal> and
+    <literal>ChinkRule</literal>. </para>
+
+    <section> <title> ChinkRule </title>
+      
+      <para> A <glossterm>chink</glossterm> is a sequence of tokens
+      that is not included in a chunk. In the following example,
+      "sat/VBD on/IN" is a chink. </para>
+
+<screen>
+    [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+</screen>
+
+      <para> <glossterm>Chinking</glossterm> is the process of
+      removing a sequence of tokens from a chunk.  If the sequence of
+      tokens spans an entire chunk, then the whole chunk is removed;
+      if the sequence of tokens is in the middle of the chunk, two new
+      chunks are formed; and if the sequence is at the beginning or
+      end of the chunk, one new chunk is formed.  These three
+      possibilities are illustrated in the following figure: </para>
+
+      <informaltable>
+        <tgroup cols="4">
+          <thead>
+            <row>
+              <entry></entry>
+              <entry> Chink an entire chunk </entry>
+              <entry> Chink the middle of a chunk </entry>
+              <entry> Chink the end of a chunk </entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry><emphasis>Input</emphasis></entry>
+              <entry>[a/DT  big/JJ  cat/NN]</entry>
+              <entry>[a/DT  big/JJ  cat/NN]</entry>
+              <entry>[a/DT  big/JJ  cat/NN]</entry>
+            </row>
+            <row>
+              <entry><emphasis>Operation</emphasis></entry>
+              <entry>Chink "a/DT big/JJ cat/NN"</entry>
+              <entry>Chink "big/JJ" </entry>
+              <entry>Chink "cat/DT" </entry>
+            </row>
+            <row>
+              <entry><emphasis>Output</emphasis></entry>
+              <entry> a/DT  big/JJ  cat/NN </entry>
+              <entry>[a/DT] big/JJ [cat/NN]</entry>
+              <entry>[a/DT  big/JJ] cat/NN </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </informaltable>
+
+      <para> A <ulink url="&refdoc;/nltk.rechunkparser.ChinkRule.html"
+      ><literal>ChinkRule</literal></ulink> chinks anything that
+      matches a given tag pattern.  <literal>ChinkRule</literal>s are
+      created with the <ulink
+      url="&refdoc;/nltk.rechunkparser.ChinkRule.html#__init__"
+      ><literal>ChinkRule</literal> constructor</ulink>, which takes a
+      tag pattern and a description string.  For example, the
+      following rule will chink any sequence of tokens whose tags are
+      all "<literal>VBD</literal>" or "<literal>IN</literal>": </para>
+
+<programlisting>
+    &prompt; <command>chink_rule = ChinkRule('&lt;VBD|IN&gt;+',</command>
+    &prompt2;                        <command>'Chink sequences of VBD and IN')</command>
+</programlisting>
+
+      <para> Remember that <literal>REChunkParser</literal> begins
+      with a chunking hypothesis where nothing is chunked.  So before
+      we apply our chink rule, we'll apply another rule that puts the
+      entire sentence in a single chunk: </para>
+
+<programlisting>
+    &prompt; <command>chunkall_rule = ChunkRule('&lt;.*&gt;+',</command>
+    &prompt2;                           <command>'Chunk everything')</command>
+</programlisting>
+
+      <para> Finally, we can combine these two rules to create a chunk
+      parser: </para>
+
+<programlisting>
+    &prompt; <command>chunkparser = REChunkParser( [chunkall_rule, chink_rule] )</command>
+
+    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+    Input:
+                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+    Chunk everything:
+                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt;}
+    Chink sequences of VBD and IN:
+                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+
+    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
+     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
+     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+</programlisting>
+
+      <para> If a tag pattern matches at multiple overlapping
+      locations, the first match takes precedence. </para>
+
+      <section> <title> Cascading Rules </title>
+
+        <para> <literal>REChunkParser</literal>s can use any number of
+        <literal>ChunkRule</literal>s and
+        <literal>ChinkRules</literal>, in any order.  As was discussed
+        in the <xref linkend="section.chunkrule"></xref>,
+        <literal>ChunkRule</literal>s only create chunks that do not
+        partially overlap with chunks already in the chunking
+        hypothesis.  Similarly, <literal>ChinkRule</literal>s only
+        create chinks that do not partially overlap with chinks that
+        are already in the hypothesis.</para>
+
+      </section> <!-- Cascading Rules -->
+
+    </section> <!-- ChinkRule -->
+
+    <section> <title> UnChunkRule </title>
+    
+      <para> An <ulink
+      url="&refdoc;/nltk.rechunkparser.UnChunkRule.html"
+      ><literal>UnChunkRule</literal></ulink> removes any chunk that
+      matches a given tag pattern.  <literal>UnChunkRule</literal> is
+      very similar to <literal>ChinkRule</literal>; but it will only
+      remove a chunk if the tag pattern matches the entire chunk.  In
+      contrast, <literal>ChinkRule</literal> can remove sequences of
+      tokens from the middle of a chunk. </para>
+
+      <para> <literal>UnChunkRule</literal>s are created with the
+      <ulink
+      url="&refdoc;/nltk.rechunkparser.UnChunkRule.html#__init__"
+      ><literal>UnChunkRule</literal> constructor</ulink>, which takes
+      a tag pattern and a description string.  For example, the
+      following rule will unchunk any sequence of tokens whose tags
+      are all "<literal>NN</literal>" or "<literal>DT</literal>":
+      </para>
+
+<programlisting>
+    &prompt; <command>unchunk_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
+    &prompt2;<command>                            'Unchunk sequences of NN and DT')</command>
+</programlisting>
+
+      <para> We can combine this rule with a chunking rule to form a
+      chunk parser: </para>
+
+<programlisting>
+    &prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
+    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+    &prompt; <command>chunkparser = REChunkParser( [chunk_rule, unchunk_rule] )</command>
+
+    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+    Input:
+                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+    Chunk sequences of NN, JJ, and DT:
+                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+    Unchunk sequences of NN and DT:
+               {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+
+    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
+     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
+</programlisting>
+
+      <para> Note that we would get a different result if we used a
+      <literal>ChinkRule</literal> with the same tag pattern (instead
+      of an <literal>UnChunkRule</literal>), since
+      <literal>ChinkRule</literal>s can remove pieces of a chunk:
+      </para>
+
+<programlisting>
+    &prompt; <command>unchink_rule = UnChunkRule('&lt;NN|DT&gt;+',</command>
+    &prompt2;<command>                            'Chink sequences of NN and DT')</command>
+    &prompt; <command>chunk_rule = ChunkRule('&lt;NN|DT|JJ&gt;+',</command>
+    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+    &prompt; <command>chunkparser = REChunkParser( [chunk_rule, chink_rule] )</command>
+
+    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+    Input:
+                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+    Chunk sequences of NN, JJ, and DT:
+                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+    Chink sequences of NN and DT:
+                    &lt;DT&gt; {&lt;JJ&gt;} &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+
+    ['the'/'DT'@[0w], 
+     ['little'/'JJ'@[1w]], 
+     'cat'/'NN'@[2w]], 'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
+     'the'/'DT'@[5w], 'mat'/'NN'@[6w]]
+     
+</programlisting>
+
+    </section> <!-- UnChunkRule -->
+
+  </section> <!-- ChinkRule and UnChunkRule -->
+
+  <section> <title> MergeRule and SplitRule </title>
   
+    <para> When constructing complex chunk parsers, it is often
+    convenient to perform operations other than chunking, chinking,
+    and unchunking.  In this section, we discuss two more complex
+    rules, which can be used to merge and split chunks. </para>
+
+    <section> <title>MergeRule</title>
+
+      <para> <ulink url="&refdoc;/nltk.rechunkparser.MergeRule.html"
+      ><literal>MergeRule</literal></ulink>s are used to merge two
+      contiguous chunks.  Each <literal>MergeRule</literal> is
+      paramaterized by two tag patterns: a <glossterm>left
+      pattern</glossterm> and a <glossterm>right pattern</glossterm>.
+      A <literal>MergeRule</literal> will merge two contiguous chunks
+      <replaceable>C<subscript>1</subscript></replaceable> and
+      <replaceable>C<subscript>2</subscript></replaceable> if the end
+      of <replaceable>C<subscript>1</subscript></replaceable> matches
+      the left pattern, and the beginning of
+      <replaceable>C<subscript>2</subscript></replaceable> matches the
+      right pattern. For example, consider the following chunking
+      hypothesis: </para>
+
+<screen>
+    [the/DT little/JJ][cat/NN]
+</screen>
+
+      <para> Where
+      <replaceable>C<subscript>1</subscript></replaceable> is
+      <literal>[the/DT little/JJ]</literal> and
+      <replaceable>C<subscript>2</subscript></replaceable> is
+      <literal>[cat/NN]</literal>.  If the left pattern is
+      "<literal>JJ</literal>", and the right pattern is
+      "<literal>NN</literal>", then
+      <replaceable>C<subscript>1</subscript></replaceable> and
+      <replaceable>C<subscript>2</subscript></replaceable> will be
+      merged to form a single chunk:</para>
+
+<screen>
+    [the/DT little/JJ cat/NN]
+</screen>
+
+      <para> <literal>MergeRule</literal>s are created with the <ulink
+      url="&refdoc;/nltk.rechunkparser.MergeRule.html#__init__"
+      ><literal>MergeRule</literal> constructor</ulink>, which takes a
+      left tag pattern, a right tag pattern, and a description string.
+      For example, the following rule will merge two contiguous chunks
+      if the first one ends in a determiner, noun or adjective; and
+      the second one begins in a determiner, noun, or adjective: </para>
+
+<programlisting>
+    &prompt; <command>merge_rule = MergeRule('&lt;NN|DT|JJ&gt;', '&lt;NN|DT|JJ&gt;',</command>
+    &prompt2;<command>                       'Merge NNs + DTs + JJs')</command>
+</programlisting>
+
+      <para> To illustrate this rule, we will use a combine it with a
+      chunking rule that chunks each individual token, and an
+      unchunking rule that unchunks verbs and prepositions: </para>
+
+<programlisting>
+    &prompt; <command>chunk_rule = ChunkRule('&lt;.*&gt;',</command>
+    &prompt2;<command>                     'Chunk all individual tokens')</command>
+    &prompt; <command>unchunk_rule = UnChunkRule('&lt;IN|VB.*&gt;',</command>
+    &prompt2;<command>                         'Unchunk VBs and INs')</command>
+    &prompt; <command>rules = [chunk_rule, unchunk_rule, merge_rule]</command>
+    &prompt; <command>chunkparser = REChunkParser(rules)</command>
+
+    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+    &prompt; <command>chunkparser.parse(unchunked_sent, 1)</command>
+    Input:
+                    &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;  &lt;NN&gt; 
+    Chunk all individual tokens:
+                   {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;}{&lt;VBD&gt;}{&lt;IN&gt;}{&lt;DT&gt;}{&lt;NN&gt;}
+    Unchunk VBs and INs:
+                   {&lt;DT&gt;}{&lt;JJ&gt;}{&lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;}{&lt;NN&gt;}
+    Merge NNs + DTs + JJs:
+                   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
+    
+    [['the'/'DT'@[0w], 'little'/'JJ'@[1w], 'cat'/'NN'@[2w]], 
+     'sat'/'VBD'@[3w], 'on'/'IN'@[4w], 
+     ['the'/'DT'@[5w], 'mat'/'NN'@[6w]]]
+</programlisting>
+
+    </section> <!-- MergeRule -->
+
+    <section> <title> SplitRule </title>
+
+      <para> <ulink url="&refdoc;/nltk.rechunkparser.SplitRule.html"
+      ><literal>SplitRule</literal></ulink>s are used to split a
+      single chunk into two smaller chunks.  Each
+      <literal>SplitRule</literal> is paramaterized by two tag
+      patterns: a <glossterm>left pattern</glossterm> and a
+      <glossterm>right pattern</glossterm>.  A
+      <literal>SplitRule</literal> will split a chunk at any point
+      <replaceable>p</replaceable>, where the left pattern matches the
+      chunk to the left of <replaceable>p</replaceable>, and the right
+      pattern matches the chunk to the right of
+      <replaceable>p</replaceable>.  For example, consider the
+      following chunking hypothesis: </para>
+
+<screen>
+    [the/DT little/JJ cat/NN the/DT dog/NN]
+</screen>
+
+      <para> If the left pattern is "<literal>NN</literal>", and the
+      right pattern is "<literal>DT</literal>", then the chunk will be
+      split in two between "<literal>cat</literal>" and
+      "<literal>dog</literal>", to form two smaller chunks:
+
+<screen>
+    [the/DT little/JJ cat/NN] [the/DT dog/NN]
+</screen>
+
+      <para> <literal>SplitRule</literal>s are created with the <ulink
+      url="&refdoc;/nltk.rechunkparser.SplitRule.html#__init__"
+      ><literal>SplitRule</literal> constructor</ulink>, which takes a
+      left tag pattern, a right tag pattern, and a description string.
+      For example, the following rule will split any chunk at a
+      location that has "<literal>NN</literal>" to the left and
+      "<literal>DT</literal>" to the right: </para>
+
+<programlisting>
+    &prompt; <command>split_rule = SplitRule('&lt;NN&gt;', '&lt;DT&gt;',</command>
+    &prompt2;<command>                     'Split NN followed by DT')</command>
+</programlisting>
+
+      <para> To illustrate this rule, we will use a combine it with a
+      chunking rule that chunks sequences of noun phrases, adjectives,
+      and determiners: </para>
+
+<programlisting>
+    <emphasis># Tokenize a new test text</emphasis>
+    &prompt; <command>from nltk.tagger import *</command>
+    'Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'
+    &prompt; <command>sent='Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD'</command>
+    ['Bob'/'NNP'@[0w], 'saw'/'VBD'@[1w], 'the'/'DT'@[2w], 'man'/'NN'@[3w], 
+     'the'/'DT'@[4w], 'cat'/'NN'@[5w], 'chased'/'VBD'@[6w]]
+    &prompt; <command>ttoks = TaggedTokenizer().tokenize(sent)</command>
+
+    <emphasis># Create the chunk parser</emphasis>
+    &prompt; <command>chunk_rule = ChunkRule('&lt;NN.*|DT|JJ&gt;+',</command>
+    &prompt2;<command>                        'Chunk sequences of NN, JJ, and DT')</command>
+    &prompt; <command>chunkparser = REChunkParser([chunk_rule, split_rule])</command>
+
+    <emphasis># Parse unchunked_sent with tracing turned on.</emphasis>
+    &prompt; <command>chunkparser.parse(ttoks, 1)</command>
+    Input:
+                   &lt;NNP&gt;  &lt;VBD&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;  &lt;VBD&gt; 
+    Chunk sequences of NN, JJ, and DT:
+                  {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;  &lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
+    Split NN followed by DT:
+                  {&lt;NNP&gt;} &lt;VBD&gt; {&lt;DT&gt;  &lt;NN&gt;}{&lt;DT&gt;  &lt;NN&gt;} &lt;VBD&gt; 
+    
+    [['Bob'/'NNP'@[0w]], 
+     'saw'/'VBD'@[1w], 
+     ['the'/'DT'@[2w], 'man'/'NN'@[3w]], 
+     ['the'/'DT'@[4w], 'cat'/'NN'@[5w]], 
+     'chased'/'VBD'@[6w]]
+
+</programlisting>
+
+    </section> <!-- SplitRule -->
+
+  </section> <!-- Merge/Split -->
+
+  <section> <title> Transformational Rules </title>
+  
+    <para> <ulink
+    url="&refdoc;/nltk.rechunkparser.REChunkParserRule.html"
+    ><literal>REChunkParserRule</literal></ulink>s can be used to
+    define more complex and elaborite kinds of rules.
+    <literal>REChunkParserRule</literal> is more powerful than any of
+    the rules we have discussed; in fact, all of the rules we have
+    discussed are implemented using
+    <literal>REChunkParserRule</literal>. </para>
+
+    <note>
+      <para> This section will be completed later; for now, see the
+      <ulink url="&refdoc;/nltk.rechunkparser.REChunkParserRule.html"
+      >reference documentation</ulink> for more information on
+      <literal>REChunkParserRule</literal>.  </para>
+    </note>
+
+  </section> <!-- XForm Rules -->
+
+  <section> <title> Defining New Rules </title>
+  
+    <note>
+      <para> This section will be completed later; if you are
+      interested, you can look at the implementations of
+      <literal>ChunkRule</literal>, <literal>ChinkRule</literal>,
+      <literal>UnChunkRule</literal>, <literal>MergeRule</literal>,
+      and <literal>SplitRule</literal>.  They are all relatively
+      streight forward specializations of
+      <literal>REChunkParserRule</literal>.</para>
+    </note>
+
+  </section> <!-- XForm Rules -->
+
+  <section> <title> Evaluating Chunk Parsers </title>
+
+    <para></para>
+
+  </section>
 
 
 
-<!-- ==================================================== -->
-<!-- ==================================================== -->
-<!-- ==================================================== -->
-
-
+<!-- ==================================================== 
   <section> <title> OLD STUFF: Process Me! </title>
 
 
@@ -617,7 +1043,7 @@ sat/VBD on/IN
     make it easier to express chunk rules and chunk parsers.  The
     rest of the section discusses these.</para>
 
-    </section> <!-- The String Representation of Tokenized Sequences -->
+    </section> <!-- The String Representation of Tokenized Sequences --%%%>
 
     <section> <title> Chunk Rules and Abstract Chunk Rules </title>
 
@@ -755,7 +1181,7 @@ AbstractChunkRule(r'(&lt;.*&gt;*)', r'{\1}', right = r'&lt;VB.*&gt;')
     cases where the context of some rule later becomes the target of a
     separate instance of the same rule.</para></note>
 
-    </section> <!-- Chunk Rules and Abstract Chunk Rules -->
+    </section> <!-- Chunk Rules and Abstract Chunk Rules --%%%>
 
     <section> <title> Chunk Rules and Token Strings </title>
 
@@ -792,7 +1218,7 @@ AbstractChunkRule(r'(&lt;DT&gt;?&lt;JJ&gt;*&lt;NN&gt;)', r'{\1}', doc='chunk NPs
       For more discussion about how to combine rules into strategies, see the
       section on chunking strategies below.</para>
 
-    </section> <!-- Chunk Rules and Token Strings -->
+    </section> <!-- Chunk Rules and Token Strings --%%%>
 
     <section> <title> The REChunkParser Class </title>
 
@@ -841,7 +1267,7 @@ input:   &lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;  &lt;VBD&gt;  &lt;IN&gt;  &lt;DT&gt;
    -&gt;   {&lt;DT&gt;  &lt;JJ&gt;  &lt;NN&gt;} &lt;VBD&gt;  &lt;IN&gt; {&lt;DT&gt;  &lt;NN&gt;}
 </programlisting>
 
-    </section> <!-- The REChunkParser Class -->
+    </section> <!-- The REChunkParser Class --%%%>
 
     <section> <title> Chunking Strategies </title>
 
@@ -886,7 +1312,7 @@ AbstractChunkRule('('+DT_JJ_NNX+')}{', r'\1', right=DT_JJ_NNX,
                   doc="chunk any groups of &lt;DT&gt; &lt;JJ&gt; and &lt;NNX&gt;")
 </programlisting>
 
-    </section> <!-- Static vs Iterative Chunking -->
+    </section> <!-- Static vs Iterative Chunking --%%%>
 
     <section> <title> Chunking vs Chinking </title>
 
@@ -912,9 +1338,9 @@ AbstractChunkRule(r'(&lt;VB.*&gt;)', r'}\1{', doc='chink the verbs')
       (or after the previous verb).  Similarly, the opening brace begins
       a new chunk which goes to the end of the sentence (or the next verb).</para>
 
-    </section> <!-- Chunking vs Chinking -->
+    </section> <!-- Chunking vs Chinking --%%%>
     
-  </section> <!-- Chunking Strategies -->
+  </section> <!-- Chunking Strategies --%%%>
 
   <section> <title> Evaluating Chunk Parsers </title>
 
@@ -940,8 +1366,8 @@ score(correct_chunks, chunked_sent)
     combined score, the F-measure (the harmonic mean of precision and recall).
     </para>
 
-  </section> <!-- Evaluating Chunk Parsers -->
+  </section> <!-- Evaluating Chunk Parsers --%%%>
 
-  </section>
-
+  </section>-->
+  
 </article>
