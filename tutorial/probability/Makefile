@@ -25,17 +25,17 @@ html: $(INDEX) $(HTMLNOCHUNKS)
 pdf: $(PDF)
 
 $(HTMLDIR):
-        mkdir $(HTMLDIR) 2>/dev/null || true
+	mkdir $(HTMLDIR) 2>/dev/null || true
 
 $(INDEX): $(DOCBOOK) $(HTMLDIR)
-        jw -f docbook -b html -o $(HTMLDIR) $(DOCBOOK)
+	jw -f docbook -b html -o $(HTMLDIR) $(DOCBOOK)
 
 $(HTMLNOCHUNKS): $(DOCBOOK) $(HTMLDIR)
-        jw -f docbook -b html -u $(DOCBOOK) >$(HTMLNOCHUNKS)
+	jw -f docbook -b html -u $(DOCBOOK) >$(HTMLNOCHUNKS)
 
 $(PDF):
-        jw -f docbook -b pdf $(DOCBOOK)
+	jw -f docbook -b pdf $(DOCBOOK)
 
 clean:
-        rm -rf $(HTMLDIR) $(PDF)
+	rm -rf $(HTMLDIR) $(PDF)
 
