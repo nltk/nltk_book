@@ -1,0 +1,216 @@
+# Natural Language Toolkit: Tutorial Report Master Makefile
+#
+# Copyright (C) 2001 University of Pennsylvania
+# Author: Edward Loper <edloper@gradient.cis.upenn.edu>
+# URL: <http://nltk.sf.net>
+# For license information, see LICENSE.TXT
+#
+# $Id$
+#
+# This makefile is imported by the makefiles in each tutorial; it
+# defines rules for building the tutorials from docbook, and for
+# converting images to appropriate formats.  It also defines some
+# standard make targets: help, all, clean, html, pdf, and ps.
+#
+
+##############################################
+##  Images used by the tutorial.
+##  Currently, only *.gif and *.ps images are supported.
+IMAGES = $(wildcard images/*.gif) $(wildcard images/*.ps)
+
+##############################################
+##  Programs; change these if necessary.
+
+# DSSSL processors (for reading/converting docbook)
+JADE = jade
+JADETEX = jadetex
+PDFJADETEX = pdfjadetex
+
+# Perl, for creating the index.
+PERL = perl
+
+# Latex format files.  Used by ps (?)
+JTFMT = /usr/share/texmf/web2c/jadetex
+PJTFMT = /usr/share/texmf/web2c/pdfjadetex
+
+# Image conversion programs.
+PSTOPNM = pstopnm
+PS2PDF = ps2pdf
+GIFTOPNM = giftopnm
+PNMTOPNG = pnmtopng
+PBMTOEPSI = pbmtoepsi
+PNMROTATE = pnmrotate
+PNMTOPS = pnmtops
+PS2EPS = ps2eps -q
+
+# I installed ps2eps from:
+# <http://www.telematik.informatik.uni-karlsruhe.de/~bless/ps2eps.html>
+
+##############################################
+##  Other variables (You shouldn't need to change these)
+
+# Transformed images.
+IMAGE_BASENAMES := $(basename $(IMAGES))
+EPS_IMAGES := $(IMAGE_BASENAMES:=.eps) # Image format for HTML output
+PNG_IMAGES := $(IMAGE_BASENAMES:=.png) # Image format for PDF output
+
+# DSSSL sheets
+COLLATEINDEX = ../../docbook/collateindex.pl
+XML_DECL = ../../docbook/xml.dcl
+HTML_DSSSL = ../../docbook/docbook-utils.dsl\#html
+PRINT_DSSSL = ../../docbook/docbook-utils.dsl\#print
+DOCBOOK_CATALOG = ../../docbook/catalog
+
+# Input file
+DOCBOOK = $(REPORT).xml
+
+# Output directory
+HTML_DIR = $(REPORT)
+
+# Output files.
+HTML_NOCHUNKS = $(HTML_DIR)/nochunks.html
+HTML_CHUNKS = $(HTML_DIR)/index.html
+PDF = $(REPORT).pdf
+PS = $(REPORT).ps
+TEX = $(REPORT).tex
+
+# Intermediate files.
+LOG = $(REPORT).log
+AUX = $(REPORT).aux
+TEMP = $(REPORT).temp
+OUT = $(REPORT).out
+
+# Use the file "html/images.up2date" to keep track of whether the HTML
+# images have been copied to the HTML directory.  The "if" expression
+# checks whether there are any images; if not, then don't bother
+# thrying to copy them.
+HTML_IMAGES = $(if $(strip $(IMAGES)), $(HTML_DIR)/images/.up2date)
+
+##############################################
+##  Declare which targets are not files.
+.PHONY: help usage all clean html pdf ps 
+
+##############################################
+## Notes on make targets:
+##
+## Unfortunately, (open)jade doesn't let us specify an output directory
+## for the html stylesheets; so we have to do some acrobatics: change
+## directory into the desired directory; then use ../ to fix up the
+## relative paths.
+##
+## I also use '||' do clean up in some places.  "A||B" means "do A; and
+## if that fails, then do B.  This is important, e.g., to keep
+## index.xml from thinking that it succeeded if only the first call to
+## collateindex succeeded.
+
+##############################################
+##  Basic Build targets
+
+help: usage
+usage:
+	@echo "Usage:"
+	@echo "    make all         -- Build HTML & PDF output"
+	@echo "    make html        -- Build HTML output"
+	@echo "    make pdf         -- Build PDF output"
+	@echo "    make ps          -- Build Postscript output"
+	@echo "    make clean       -- Remove all built files"
+
+all: index.xml html pdf
+clean:
+	rm -rf $(HTML_DIR)
+	rm -f $(PDF) index.xml $(LOG) $(TEX) $(AUX)
+	rm -f $(TEMP) $(OUT) $(PNG_IMAGES) $(EPS_IMAGES)
+
+##############################################
+##  Index creation
+index.xml: $(DOCBOOK)
+	mkdir -p $(HTML_DIR)
+	$(PERL) $(COLLATEINDEX) -o index.xml -N
+	(cd $(HTML_DIR) && \
+	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
+	      -c ../$(DOCBOOK_CATALOG) \
+	      ../$(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
+	$(PERL) $(COLLATEINDEX) -o index.xml $(HTML_DIR)/HTML.index
+	rm $(HTML_DIR)/HTML.index
+
+##############################################
+##  HTML output generation
+html: $(HTML_CHUNKS) $(HTML_NOCHUNKS) $(HTML_IMAGES)
+
+# Create the multi-file version of the tutorial.
+$(HTML_CHUNKS): $(DOCBOOK) index.xml
+	mkdir -p $(HTML_DIR)
+	(cd $(HTML_DIR) && \
+	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
+	      -c ../$(DOCBOOK_CATALOG) \
+	      ../$(XML_DECL) ../$(DOCBOOK))
+
+# Create the single-file version of the tutorial.
+$(HTML_NOCHUNKS): $(DOCBOOK) index.xml
+	mkdir -p $(HTML_DIR)
+	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
+	     -c $(DOCBOOK_CATALOG) \
+	     $(XML_DECL) $(DOCBOOK) \
+	     > $(HTML_NOCHUNKS)
+
+# Copy the images.
+$(HTML_IMAGES): $(PNG_IMAGES)
+	mkdir -p $(HTML_DIR)/images
+	cp $(PNG_IMAGES) $(HTML_DIR)/images
+	touch $(HTML_IMAGES)
+
+##############################################
+##  PDF output generation
+pdf: $(PDF)
+
+$(PDF): $(DOCBOOK) $(EPS_IMAGES) index.xml
+	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
+	     -c $(DOCBOOK_CATALOG) \
+	     $(XML_DECL) $(DOCBOOK)
+	$(PDFJADETEX) $(TEX) > $(TEMP) || \
+	        (cat $(TEMP); rm $(TEMP); false)
+	rm $(TEMP)
+	$(PDFJADETEX) $(TEX) >/dev/null
+	$(PDFJADETEX) $(TEX) >/dev/null
+	rm $(LOG) $(AUX) $(TEX) $(OUT)
+
+##############################################
+##  Postscript output generation
+ps: $(PS)
+
+$(PS): $(DOCBOOK) index.xml
+	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
+	     -c $(DOCBOOK_CATALOG) \
+	     $(XML_DECL) $(DOCBOOK)
+	$(JADETEX) $(TEX) > $(TEMP) || \
+	        (cat $(TEMP); rm $(TEMP); false)
+	rm $(TEMP)
+	$(JADETEX) -fmt=$(JTFMT) $(TEX) >/dev/null
+	$(JADETEX) -fmt=$(JTFMT) $(TEX) >/dev/null
+	dvips -o $(PS) $(DVI)
+	rm $(LOG) $(AUX) $(TEX) 
+
+##############################################
+##  Image conversion.
+
+# Image conversion routines: convert from postscript
+%.pnm: %.ps
+	($(PSTOPNM) -stdout $< | $(PNMROTATE) -90 >$@) || (rm $@; false)
+%.pdf: %.ps
+	$(PS2PDF) $< $@
+%.eps: %.ps
+	$(PS2EPS) <$< >$@
+
+# Image conversion routines: convert from GIF
+%.pnm: %.gif
+	$(GIFTOPNM) $< >$@ || (rm $@; false)
+
+# Image conversion routines: shared (pnm -> png/eps/pdf)
+%.png: %.pnm
+	$(PNMTOPNG) $< >$@ || (rm $@; false)
+%.eps: %.pnm.ps # Don't use .ps; it would give a circular dependancy
+	$(PS2EPS) <$< >$@ || (rm $@; false)
+%.pdf: %.pnm.ps # Don't use .ps; it would give a circular dependancy
+	$(PS2PDF) $< $@
+%.pnm.ps: %.pnm
+	$(PNMTOPS) $< >$@ || (rm $@; false)
