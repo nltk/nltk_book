@@ -177,8 +177,9 @@
 
 ;;Defines the general size of the text in the document. normal(10),
 ;;presbyopic(12), and large-type(24). 
+;; (I'd like 11 point.. what's that? :))
 (define %visual-acuity%
- "normal")
+ "presbyopic")
 
 ;;What font would you like for titles?
 (define %title-font-family% 
@@ -223,7 +224,7 @@
 (define %bottom-margin% 
  (if (equal? %visual-acuity% "large-type")
       7.5pi 
-      2pi))
+      4pi))
 
 ;;Define the text width. (Change the elements in the formula rather
 ;;than the formula itself)
@@ -252,7 +253,7 @@
 ;;Admon Graphics
 ;;======================================
 
-;;Do you want admonition graohics on? (e.g., for warnings & infos)
+;;Do you want admonition graphics on? (e.g., for warnings & infos)
 (define %admon-graphics%
  #f)
 
@@ -609,7 +610,7 @@
 ;;Add arrows to navigation (comment these 
 ;;out if you want admon graphics here)
 (define (gentext-en-nav-prev prev) 
-  (make sequence (literal "<<< Previous")))
+  (make sequence (literal "<<< Prev")))
 
 ;;Add arrows to navigation (comment these 
 ;;out if you want admon graphics here)
