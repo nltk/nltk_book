@@ -18,8 +18,9 @@ WEBHOST_DIR = /home/groups/n/nl/nltk/htdocs
 # (Local) output directory for reference (API) documentation.  
 REFDOC_DIR = reference
 
-# Options for epydoc.  
-EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL) 
+# Options for epydoc.  Consider switching to --inheritance=included
+# later.
+EPYDOC_OPTS = -n nltk --navlink "nltk $(NLTK_VERSION)" -u $(NLTK_URL)
 
 # The location of extra (static) html files to include in the
 # webpage.
@@ -122,6 +123,7 @@ _copy_tutorial: $(TUTORIAL_DOCS)
 	@echo "[Copying tutorial documentation]"
 	@$(PYTHON) $(INDEXGEN) tutorial tutorial \
 	       $(WEBPAGE_TUTORIAL_DIR)/index.html
+	@cp tutorial/tutorial_index.html $(WEBPAGE_TUTORIAL_DIR)
 $(TUTORIAL_DOCS): 
 	@cp -R tutorial/$@/$@ $(WEBPAGE_TUTORIAL_DIR)
 	@cp tutorial/$@/$@.pdf $(WEBPAGE_TUTORIAL_DIR)
