@@ -454,6 +454,7 @@
   </para>
 
 <programlisting><![CDATA[
+>>> from nltk.tokenizer import *
 >>> text_token = Token(TEXT="John saw 3 polar bears .")
 >>> WhitespaceTokenizer().tokenize(text_token)
 >>> print text_token
@@ -472,6 +473,7 @@
     </para>
 
 <programlisting><![CDATA[
+>>> from nltk.tagger import *
 >>> my_tagger = DefaultTagger('nn')
 >>> my_tagger.tag(text_token)
 >>> print text_token
@@ -552,9 +554,9 @@
     # Tokenize ten texts from the Brown Corpus
 >>> train_tokens = []
 >>> for item in brown.items()[:10]:
-...     train_tokens.append(brown.tokenize(item))
+...     train_tokens.append(brown.read(item))
     # Initialise and train a unigram tagger
->>> mytagger = UnigramTagger()
+>>> mytagger = UnigramTagger(SUBTOKENS='WORDS')
 >>> for tok in train_tokens: mytagger.train(tok)
 ]]></programlisting>
 
@@ -565,7 +567,7 @@
 
 <programlisting><![CDATA[
 >>> text_token = Token(TEXT="John saw the book on the table")
->>> WhitespaceTokenizer().tokenize(text_token)
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token)
 >>> mytagger.tag(text_token)
 >>> print text_token
 <[<John/np>, <saw/vbd>, <the/at>, <book/None>, <on/in>, <the/at>, <table/nn>]>
@@ -657,10 +659,10 @@
 <programlisting><![CDATA[
 >>> train_tokens = []
 >>> for item in brown.items()[:10]:    # texts 0-9
-...     train_tokens.append(brown.tokenize(item))
+...     train_tokens.append(brown.read(item))
 >>> unseen_tokens = []
 >>> for item in brown.items()[10:12]:  # texts 10-11
-...     unseen_tokens.append(brown.tokenize(item))
+...     unseen_tokens.append(brown.read(item))
 ]]></programlisting>
 
   <para>
@@ -713,10 +715,10 @@ Accuracy = 64.6%
 >>> for gold_doc in unseen_tokens:
 ...     test_doc = gold_doc.exclude('TAG')     # remove tags
 ...     mytagger.tag(test_doc)                 # tag the unseen text
-...     for i in range(len(tokens)):           # iterate over each token
-...         if test_doc['SUBTOKENS'][i] != gold_doc['SUBTOKENS'][i]:    # an error
-...             test_context = [tok['TAG'] for tok in test_doc['SUBTOKENS'][i-1:i+1]]
-...             gold_context = [tok['TAG'] for tok in gold_doc['SUBTOKENS'][i-1:i+1]]
+...     for i in range(len(test_doc['WORDS'])):     # iterate over each token
+...         if test_doc['WORDS'][i] != gold_doc['WORDS'][i]:    # an error
+...             test_context = [tok['TAG'] for tok in test_doc['WORDS'][i-1:i+1]]
+...             gold_context = [tok['TAG'] for tok in gold_doc['WORDS'][i-1:i+1]]
 ...             if None not in test_context:   # did we tag all words in the context?
 ...                 pair = (tuple(test_context), tuple(gold_context))   # save context
 ...                 errors[pair] = errors.get(pair, 0) + 1
@@ -817,7 +819,7 @@ from nltk.tagger import *
 from nltk.corpus import brown
 train_tokens = []
 for item in brown.items()[:10]:
-    train_tokens.append(brown.tokenize(item))
+    train_tokens.append(brown.read(item))
 mytagger = NthOrderTagger(1)
 for tok in train_tokens: mytagger.train(tok)
 words = '''ask Congress to increase grants to states'''.split()
@@ -910,9 +912,10 @@ for tag in tags:
   </para>
 
 <programlisting><![CDATA[
->>> TaggedTokenizer().tokenize(text_token)
->>> tagger = NthOrderTagger(3)                    # 3rd order tagger
->>> tagger.train(tagged_text_token)
+>>> tagger = NthOrderTagger(3, SUBTOKENS='WORDS')       # 3rd order tagger
+>>> for item in brown.items()[:10]:
+...     tok = brown.read(item)
+...     tagger.train(tok)
 ]]></programlisting>
 
   <para>
@@ -985,14 +988,15 @@ for tag in tags:
   </para>
 
 <programlisting><![CDATA[
->>> TaggedTokenizer().tokenize(text_token)
 # Construct the taggers
->>> tagger1 = NthOrderTagger(1)              # first order tagger
->>> tagger2 = UnigramTagger()                # zeroth order tagger
->>> tagger3 = RegexpTagger([(r'^[0-9]+(.[0-9]+)?$', 'cd'), (r'.*', 'nn')])
+>>> tagger1 = NthOrderTagger(1, SUBTOKENS='WORDS')       # first order tagger
+>>> tagger2 = UnigramTagger(SUBTOKENS='WORDS')           # zeroth order tagger
+>>> tagger3 = RegexpTagger([(r'^[0-9]+(.[0-9]+)?$', 'cd'), (r'.*', 'nn')],
+...                SUBTOKENS='WORDS')
 # Train the taggers
->>> tagger1.train(train_toks)
->>> tagger2.train(train_toks)
+>>> for tok in train_tokens:
+...     tagger1.train(tok)
+...     tagger2.train(tok)
 # Combine the taggers
 >>> tagger = BackoffTagger([tagger1, tagger2, tagger3])
 ]]></programlisting>
@@ -1009,7 +1013,6 @@ for tag in tags:
   </para>
 
 <programlisting><![CDATA[
->>> TaggedTokenizer().tokenize(text_token)
 >>> tagger.tag(text_token)
 >>> print text_token
 <[<John/NN>, <saw/VB>, <the/AT>, <book/NN>, <on/IN>, <the/AT>, ...]>
@@ -1022,23 +1025,23 @@ for tag in tags:
 <programlisting><![CDATA[
 >>> train_tokens = []
 >>> for item in brown.items()[:20]:
-...     train_tokens.append(brown.tokenize(item))
+...     train_tokens.append(brown.read(item))
 >>> unseen_tokens = []
 >>> for item in brown.items()[20:30]:
-...     unseen_tokens.append(brown.tokenize(item))
+...     unseen_tokens.append(brown.read(item))
 
->>> subtagger1 = UnigramTagger()
->>> subtagger2 = NthOrderTagger(1)     # bigram tagger
->>> subtagger3 = NthOrderTagger(2)     # trigram tagger
+>>> subtagger1 = UnigramTagger(SUBTOKENS='WORDS')
+>>> subtagger2 = NthOrderTagger(1, SUBTOKENS='WORDS')     # bigram tagger
+>>> subtagger3 = NthOrderTagger(2, SUBTOKENS='WORDS')     # trigram tagger
 
 >>> for tok in train_tokens:
 ...     subtagger1.train(tok)
 ...     subtagger2.train(tok)
 ...     subtagger3.train(tok)
 
->>> tagger1 = BackoffTagger([subtagger1])
->>> tagger2 = BackoffTagger([subtagger2, subtagger1])
->>> tagger3 = BackoffTagger([subtagger3, subtagger2, subtagger1])
+>>> tagger1 = BackoffTagger([subtagger1], SUBTOKENS='WORDS')
+>>> tagger2 = BackoffTagger([subtagger2, subtagger1], SUBTOKENS='WORDS')
+>>> tagger3 = BackoffTagger([subtagger3, subtagger2, subtagger1], SUBTOKENS='WORDS')
 
 >>> accuracy1 = tagger_accuracy(tagger1, unseen_tokens)
 >>> accuracy2 = tagger_accuracy(tagger2, unseen_tokens)
