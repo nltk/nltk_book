@@ -1,0 +1,2041 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" 
+"../../docbook/sgml/docbook/xml-dtd-4.2/docbookx.dtd" [
+<!-- Base URL for the reference & tutorial documentation -->
+<!ENTITY refdoc "../../api/public">
+<!ENTITY tutdoc "..">
+
+<!-- Index -->
+<!ENTITY index SYSTEM "index.xml">
+
+<!-- Copyright & License -->
+<!ENTITY copyright SYSTEM "../copyright.xml">
+
+<!-- Version & Date -->
+<!ENTITY versiondate SYSTEM "versiondate.xml">
+
+<!-- Prompts for Python code samples -->
+<!ENTITY prompt "<prompt>&gt;</prompt><prompt>&gt;</prompt><prompt>&gt;</prompt>">
+<!ENTITY prompt2 "<prompt>...</prompt>">
+]>
+
+<article>
+  <articleinfo>
+    <author><firstname>Ewan</firstname><surname>Klein</surname></author>
+    <authorinitials>ek</authorinitials>
+    <author><firstname>Edward</firstname><surname>Loper</surname></author>
+    <authorinitials>edl</authorinitials>
+    <author><firstname>Steven</firstname><surname>Bird</surname></author>
+    <authorinitials>sb</authorinitials>
+    <title>Fundamentos de processamento lingüístico: Tokenização de texto and classificação de palavras</title>
+    &versiondate; &copyright;
+  </articleinfo>
+
+<!------------------------------------------------------------------------>
+
+<section id="intro"><title>Introdução</title>
+
+<para>
+Textos são geralmente representados em computadores por meio de arquivos que
+conteem uma seqüência potencialmente longa de caracteres. Para a maioria dos
+tipos de processamento lingüístico, é necessário identificar e categorizar
+as palavras de um texto. Esta se revela uma tarefa nada trivial. Neste
+capítulo iremos introduzir os <emphasis>tokens</emphasis> como sendo os
+blocos constituíntes dos textos e mostraremos como os textos podem ser
+<emphasis>tokenizados</emphasis> (isto é, como divir um texto em tokens).
+A seguir, iremos considerar a categorização dos tokens de acordo com sua
+função gramatical/sintática e realizaremos uma exploração preliminar do
+Brown Corpus, uma coleção de mais de um milhão de palavras em língua
+inglesa com <emphasis>tags</emphasis> (informações sobre a categorização 
+das mesmas). Ao longo do caminho iremos abordar algumas aplicações
+interessantes: geração aleatória de texto, classificação automática de
+palavras e análise dos verbos modais em textos de diferentes categorias
+(sempre em língua inglesa).
+</para>
+
+</section> <!-- Introduction -->
+
+<!------------------------------------------------------------------------>
+
+<section id="token"><title>Tokens: os blocos constituíntes do texto</title>
+
+<para>Como podemos saber que determinada parte de um texto constitui uma
+<glossterm>palavra</glossterm>, e como podemos representar as palavras e
+as informações associadas a estas em uma máquina? Pode parecer excessivamente
+pedante pedir para definir o que é uma palavra. Não podemos dizer simplesmente
+que se trata de uma seqüência de caracteres com um espaço em branco antes
+e depois? Com o evoluir do estudo, o problema se revela mais complexo.
+Para termos uma idéia mais clara, vamos considerar o seguinte texto retirado
+do Wall Street Journal:
+<example id="wsj_0034">
+<title>Parágrafo 12 do arquivo <filename>wsj_0034</filename></title>
+<literallayout><literal>
+It's probably worth paying a premium for funds that invest in markets
+that are partially closed to foreign investors, such as South Korea,
+some specialists say.  But some European funds recently have
+skyrocketed; Spain Fund has surged to a startling 120% premium.  It has
+been targeted by Japanese investors as a good long-term play tied to
+1992's European economic integration.  And several new funds that aren't
+even fully invested yet have jumped to trade at big premiums.
+
+"I'm very alarmed to see these rich valuations," says Smith Barney's
+Mr. Porter.
+</literal></literallayout>
+</example>
+</para>
+
+<para>
+Vamos começar pela string <literal>aren't</literal>. De acordo com nossa
+definição simplista, ela constitui apenas uma palavra. Mas vamos
+considerar a situação em que desejamos verificar se todas as palavras
+encontradas em nosso texto possuem definição em um diciónario e nosso
+dicionário possui definições para <literal lang="en">are</literal> e
+<literal lang="en">not</literal>, mas não para 
+<literal lang="en">aren't</literal>. Neste caso, seria muito mais
+favorável à nossa pesquisa reconhecer em <literal>aren't</literal>
+uma contração de duas palavras distintas.
+
+<!--We can make a similar point about
+<literal>1992's</literal>. We might want to run a small program over our
+text to extract all words which express dates. In this case, we would
+get achieve more generality by first stripping oexcept in this case, we
+would not expect to find <literal>1992</literal> in a dictionary.--> 
+
+Se tomarmos nossa definição simplista de palavra literalmente (como deveríamos,
+se estamos pensando em implementar código), então nos deparamos com outros
+menores mas sempre reais problemas. Por exemplo, assumindo que nosso arquivo
+seja constituído por linhas separadas, como em <xref linkend="wsj_0034"/>,
+então todas as palavras que estiver no início de uma linha não serão
+reconhecidas pela ausência de um espaço antes da palavra (a menos que
+consideremos o caractere de "nova linha" como um espaço). Segundo, de acordo
+com nosso critério, símbolos de pontuação irão fazer parte das palavras;
+ou seja, uma string como <literal>investors,</literal> também será considerada
+uma palavra, já que não há nenhum espaço entre <literal>investors</literal> e
+a vírgula que o segue. Conseqüentemente, corremos o risco de não conseguir
+reconhecer em <literal>investors,</literal> (com a vírgula final) um token
+do mesmo tipo de <literal>investors</literal> (sem a vírgula final). Mais
+importante, podemos desejar que os sinais de pontuação funcionem como
+<quote>first-class citizen</quote> para a tokenização e a para os processamentos
+subseqüentes. Por exemplo, podemos desejar implementar uma regra para
+especificar que uma palavra seguida de um ponto é provavelmente uma
+abreviatura se a palavra que a segue inicia-se por letra minúscula.
+Porém, para formular este tipo de regra, é necessário que possamos identificar
+o ponto como um token isolado.
+</para>
+
+<para>
+Um desafio um pouco diferente é apresentado por exemplos como os
+seguintes (provenientes do MedLine [ref] corpus):
+<orderedlist>
+<listitem>
+<para>This is a alpha-galactosyl-1,4-beta-galactosyl-specific adhesin.
+</para>
+</listitem>
+<listitem>
+<para>The corresponding free cortisol fractions in these sera were 4.53
++/- 0.15% and 8.16 +/- 0.23%, respectively.
+</para>
+</listitem>
+</orderedlist>
+Nestes casos, encontramos termos que dificilmente seriam encontrados em
+qualquer dicionário ou vocabulário não-específico da língua inglesa. Além
+disso, não teríamos sucesso ao tentar analisar sintaticamente estas strings
+utilizando uma gramática padrão do inglês. Para determinadas finalidades,
+seria conveniente agrupar expressões como
+<literal>alpha-galactosyl-1,4-beta-galactosyl-specific adhesin</literal>
+e <literal>4.53 +/- 0.15%</literal> para que fossem percebidas pelo
+<emphasis>parser</emphasis> como átomos não-analisáveis. Para isto,
+deveremos tratá-las como <quote>palavras</quote> únicas para qualquer
+finalidades dos processamentos subseqüentes. O resultado geral disto tudo
+é que, mesmo que nos atenhemos a uma única língua como o inglês, a questão
+de como definir uma palavra depende muito de quais são nossas finalidades.
+</para>
+
+<note><para>
+Caso nos voltemos para outras línguas que não o inglês, a segmentação das
+palavras pode ser ainda mais desafiadora. Por exemplo, na ortografia chinês os
+caracteres correspondem a morfemas monosilábicos. Muitos morfemas constituem
+por si próprios uma palavra, mas várias palavras conteem mais de um morfema;
+a maioria é constituída por dois morfemas. Apesar disso, não há nenhuma
+representação visual dos limites das palavras em um texto em chinês.
+</para></note>
+
+<para>
+Vamos dar uma olhada mais detalhada ao <xref linkend="wsj_0034"/>.
+Suponhamos que vamos utilizar espaços em branco como delimitadores de
+palavras e que a lista de todas as palavras do texto tenha sido colocada
+em ordem alfabética; poderíamos esperar um resultado como o seguinte:
+<informalexample>
+<programlisting>
+120, 1992, And, Barney, But, European, European, Fund, I, It, It, Japanese, Korea, 
+Mr, Porter, Smith, South, Spain, a, a, a, ...  
+</programlisting>
+</informalexample>
+
+<!--
+Words according to the Unix <command>wc</command>:
+<programlisting><![CDATA[
+wc -w wsj_0034_pars12-13
+    90 wsj_0034_pars12-13
+]]></programlisting>
+-->
+A esta altura, se pedirmos a um programa que nos informe quantas palavras
+há no texto, ele provavelmente forneceria como resposta 90.
+<indexterm><primary>word token</primary></indexterm>
+<indexterm><primary>word type</primary></indexterm>
+Esta resposta é devida ao fato que cada uma das três ocorrências da palavra
+<literal>a</literal> está sendo considerada uma palavra isolada. Mas o que
+significa dizer que determinado objeto <literal>a</literal> ocorre três
+vezes? Estamos na presença de três palavras <literal>a</literal> ou de uma
+única palavra repetida três vezes? Podemos responder "na presença de ambos"
+se traçarmos uma distinção entre um <emphasis>token</emphasis> de palavra e um
+<emphasis>tipo</emphasis> de palavra. Um tipo de palavra é algo abstrato;
+é àquilo ao qual nos referimos quando dizemos que conhecemos o significado
+da palavra <literal>deprecate</literal> ou quando dizemos que as palavras
+<literal>barf</literal> e <literal>vomit</literal> são sinônimos. Por outro
+lado, um token de palavra é algo que existe no tempo e no espaço. Por exemplo,
+podemos nos referir à minha pronunciação da palavra <literal>grunge</literal>
+em Edinburgo no dia 14 de julho de 2003; da mesma forma, podemos dizer que
+o segundo token em <xref linkend="wsj_0034"/> é um token do tipo de palavra
+<literal>probably</literal> ou que há dois tokens do tipo 
+<literal>European</literal> no texto. Em termos mais gerais, podemos dizer
+que há 90 tokens de palavras em <xref linkend="wsj_0034"/> mas apenas 76
+tipos de palavras.
+</para>
+
+<para>
+Os termos <glossterm>token</glossterm> e <glossterm>tipo</glossterm>
+também podem ser aplicados a outras entidades lingüísticas. Por exemplo, um
+<glossterm>token de sentença</glossterm> é uma ocorrência individual de uma
+determinada sentença; mas um <glossterm>tipo de sentença</glossterm> é uma
+sentença em termos abstratos, sem contexto. Se alguém repete uma sentença,
+este alguém pronunciou dois tokens de sentença, mas apenas um tipo de
+sentença. Quando a categoria de token ou tipo for óbvia a partir do contexto,
+utilizaremso apenas os termos <glossterm>token</glossterm> e 
+<glossterm>tipo</glossterm>.
+</para>
+
+<!-- SUBSECTION: Strings -->
+<section id="token.representing">
+<title>Representando tokens</title>
+
+<para>Quando a linguagem escrita é armazenada em um arquivo de computador,
+ela é normalmente representada por meio de uma seqüência ou
+<glossterm>string</glossterm> de caracteres. Isto é, em arquivo de texto
+padrão, as palavras são strings, as sentenças são strings e o próprio
+texto é, na verdade, apenas uma longa string. Os caracteres de uma string
+não precisam ser necessariamente alfanuméricos; uma string também pode
+incluir caracteres especiais que representam os espaços, as tabulações,
+os sinais de nova linha, etc.</para>
+
+<para>Muito do processamento computacional é realizado acima do plano dos
+caracteres. Quando compilamos uma linguagem de programação, por exemplo, o
+compilador espera que o <emphasis>input</emphasis> (os dados de entrada) seja
+uma seqüência de tokens com os quais ele seja capaz de lidar; por exemplo,
+as classes dos identificadores, constantes textuais e alfanuméricas.
+De forma análoga, um parser espera que seu input seja uma seqüência de tokens
+de palavras e não uma seqüência de caracteres individuais. Na sua forma
+mais simples, portanto, a <glossterm>tokenização</glossterm> de um texto
+envolve a busca pelas posições da string que conteem caracteres em branco
+(espaços, tabulações ou sinais de nova linha) ou sinais de pontuação
+específicos, separando a string em tokens nestas posições. Por exemplo,
+suponhamos que estejamos trabalhando com um arquivo que contenha as
+duas seguintes linhas:
+</para>
+<programlisting>
+<![CDATA[
+The cat climbed
+the tree.
+]]>
+</programlisting>
+<para>Do ponto de vista do parses, este arquivo é meramente uma string
+de caracteres:</para>
+<programlisting>
+'The&blank;cat&blank;climbed\n&blank;the&blank;tree.'
+</programlisting>
+<para>Notem que utilizamos apóstrofos para delimitar as strings
+"&blank;" para representar espaços em branco e "\n" para representar um
+sinal de nova linha.</para>
+
+<para>
+Como acabamos de dizer, para tokenizar este texto e permitir sua utilização
+pelo parser, é necessário indicar explicitamente quais substrings são palavras.
+Uma forma conveniente de se fazer isto em Python é dividir a string em uma
+<emphasis>lista</emphasis> de palavras, onde cada palavra é uma string, como
+em <literal>'dog'</literal>.<footnote>
+<para>Dissemos que é<quote>conveniente</quote> pois o Python facilita a interação
+em uma lista, processando seus itens um a um.</para>
+</footnote>
+
+Em Python, uma lista é representada como uma série de objetos (neste caso,
+strings) separados por vírgulas, delimitada por conchetes:</para>
+
+<programlisting><![CDATA[
+>>> words = ['the', 'cat', 'climbed', 'the', 'tree']
+>>> words
+['the', 'cat', 'climbed', 'the', 'tree']
+]]></programlisting>
+
+<para>
+Note que introduzimos uma nova variável chamada <literal>words</literal>,
+à qual é atribuída a lista, e que fornecemos o nome da variável em uma nova
+linha para verificar seu conteúdo. No futuro, iremos pular esta última
+etapa na listagem de nossos programas de exemplo e simplesmente apresentar
+o resultado, como a seguir:
+ </para>
+<programlisting><![CDATA[
+>>> words = ['the', 'cat', 'climbed', 'the', 'tree']
+['the', 'cat', 'climbed', 'the', 'tree']
+]]></programlisting>
+
+
+<para>Em resumo, acabamos de mostrar como, em sua forma mais simples, a
+tokenização de um texto pode ser realizada convertendo uma única string
+representando o texto em uma lista de strings, onde cada elementos
+representa uma palavra.</para>
+
+<para>Apesar disto, há alguns problemas com nossa visão simplista em que
+um token de palavra é considerado uma mera seqüencia de caracteres. Primeiro,
+esta visão torna difícil associar outras informações (como a classe
+gramatical da palavra) com o token. Segundo, ela não nos permite distinguir
+entre tipos de palavras e tokens de palavras. Mostraremos agora como podemos
+solucionar ambos os problemas.</para>
+
+<para>
+No NLTK, normalmente representamos os tokens de palavras como membros da classe
+<ulink url="&refdoc;/nltk.token.Token-class.html"><literal>Token</literal></ulink>.
+Os <literal>token</literal>s podem ser criados a partir de strings de palavras
+utilizando o <ulink url="&refdoc;/nltk.token.Token-class.html#__init__">construtor
+de <literal>token</literal>s</ulink>, que é definido pelo módulo
+<ulink url="&refdoc;/nltk.token-module.html"><literal>nltk.token</literal></ulink>.
+Eis um exemplo simples das utilização deste construtor.
+</para>
+
+<programlisting><![CDATA[
+>>> from nltk.token import * 
+>>> my_word_type = 'dog' 
+'dog'
+>>> first_word_token = Token(TEXT=my_word_type) 
+<dog>
+>>> second_word_token = Token(TEXT='cat')
+<cat>
+]]></programlisting>
+
+<para>Para o leitor lingüisticamente orientado que está familiarizado
+com gramáticas baseadas em features (propriedades), pode ser útil
+pensar em um <literal>Token</literal> como um tipo de estrututura
+atributo-valor. Ou seja, a expressão <literal>Token(TEXT='cat')</literal>
+nos diz que construímos um objeto <literal>Token</literal> que possui o
+atributo <literal>TEXT</literal> e que o valor deste atributo é a string
+<literal>'cat'</literal>. Intuitivamente, pensamos no atributo
+<literal>TEXT</literal> como aquele que define o tipo de token. Para o
+leitor computacionalmente orientado, um <literal>Token</literal> pode
+ser pensado como um tipo de diciónario da linguagem Python; veja [XREF].
+A vantagem de trabalhar com tokens desta forma é que podemos facilmente
+associar uma variedade de propriedades adicionais a 
+<literal>Token</literal> &mdash; a escolha dos atributos será determinada
+pelas necessidades particulares de cada pesquisa. Por exemplo, podemos
+desejar especificar atributos para a <emphasis>tag</emphasis> (informação)
+referente à classe gramatica ou para uma referência semântica:
+</para>
+
+<programlisting><![CDATA[
+>>> my_word_token['TAG'] = 'Noun' 
+'Noun'
+>>> my_word_token['REFERENT'] = 'entity123' 
+'entity123'
+]]></programlisting>
+
+<para>
+Nada disto, porém, nos permite distinguir duas ocorrências de um mesmo
+tipo de palavra. Para isto, utilizamos as <emphasis>localizações</emphasis>,
+que veremos a seguir.
+</para>
+</section><!--Representing Tokens-->
+
+<section id="token.locations">
+<title> Localicações </title>
+
+    <para> <glossterm>Localizações de índice</glossterm> ('index locations',
+    em inglês) especificam posições
+    dentro de um texto. A localização da quarta palavra de um texto seria
+    realizada da seguinte forma:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.token import * 
+>>> WordIndexLocation(3) 
+[3w]
+]]></programlisting>
+
+<para> <glossterm>Localizações de intervalo</glossterm> ('span locations',
+      em inglês) especificam partes de textos, utilização um 
+      <glossterm>índice inicial</glossterm> e um
+      <glossterm>índice final</glossterm>.  A localização de uma seqüência
+      de texto que se inicie no caractere de índice
+      <replaceable>s</replaceable> e que termine no caractere de índice
+      <replaceable>e</replaceable> é escrita da forma
+      <literal>@[</literal><replaceable>s</replaceable><literal>:</literal><replaceable>e</replaceable><literal>c]</literal>.
+      Esta localização especifica uma região do texto que se inicia em
+      <replaceable>s</replaceable> e inclui todos os caracteres até (mas não
+      incluíndo) <replaceable>e</replaceable>.
+      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html"
+      ><literal>CharSpanLocations</literal></ulink> são criadas por meio do
+      <ulink url="&refdoc;/nltk.token.CharSpanLocation-class.html#__init__"
+      >construtor de <literal>CharSpanLocation</literal>s</ulink>, que é
+      definido no módulo <ulink url="&refdoc;/nltk.token-module.html"
+      ><literal>nltk.token</literal></ulink>:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.token import * 
+>>> my_loc = CharSpanLocation(1, 5) 
+[1:5c]
+]]></programlisting>
+
+<para>Note que uma localização textual <emphasis>não</emphasis> inclui
+o texto em seu índice final. Esta convenção pode parecer pouco intuitiva de
+início, mas ela apresenta uma série de vantagems. Primeiro, está de acordo
+com a notação de intervalos da linguagem Python (por exemplo,
+<literal>x[1:3]</literal> especifica os elementos 1 e 2 de
+<literal>x</literal>).
+
+<footnote><para>Ao contrário dos intervalos da linguagem Python slices, 
+as localizações textuais <emphasis>não</emphasis> permitem índices
+negativos.</para></footnote> 
+
+Segundo, ela permite que as localizações textuais especifiquem pontos
+<emphasis>entre</emphasis> os tokens, ao invés de apenas intervalos. Por
+exemplo, <literal>Location(3,3)</literal> especifica o ponto anterior
+ao texto de índice 3. Por último, ela simplifica a aritmética dos
+índices; por exemplo, o comprimento de <literal>Location(5,10)</literal> é
+<literal>10-5</literal> e duas localizações são contíguas se o início de
+uma for igual ao final da outra.</para>
+
+<para>Uma localização textual pode incluir em uma tag informações sobre a
+<glossterm>fonte</glossterm>, que nos indica de onde provêm o texto. Um
+exemplo típico de fonte seria o nome do arquivo a partir do qual o texto
+foi lido.<footnote><para> Os índices das localizações são
+baseados em zero, portanto à primeira sentença é atribuído o índice zero
+e não um.</para></footnote>
+</para>
+
+<programlisting><![CDATA[
+>>> my_loc = CharSpanLocation(1, 5, 'foo.txt') 
+[1:5c]
+>>> my_loc.srource()
+'foo.txt'
+]]></programlisting>
+
+<para> Como discutido acima, uma token de texto representa uma única
+      ocorrência de uma seqüência de texto. No NLTK, um token é definido
+      por um tipo, além da localização onde dado tipo ocorre. Um token
+      com o texto <replaceable>t</replaceable> e a localização
+      <literal>@[<replaceable>l</replaceable>]</literal> pode ser
+      escrito como
+      <literal>&lt;<replaceable>t</replaceable>>@[<replaceable>l</replaceable>]</literal>.
+      Esta informação de localização pode ser utilizada para distinguir
+      duas ocorrências do mesmo texto. Os Tokens são construídos com o <ulink
+      url="&refdoc;/nltk.token.Token-class.html#__init__"
+      >construtor de <literal>Token</literal>s</ulink>: </para>
+
+<programlisting><![CDATA[
+>>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
+<hello>@[0,5c]
+>>> token2 = Token(TEXT='world', LOC=CharSpanLocation(6, 11)) 
+<world>@[6,11c]
+]]></programlisting>
+
+<para> Dois tokens serão iguais somente se eles forem iguais em todos seus
+atributos, neste caso <literal>text</literal> e <literal>loc</literal>.
+</para>
+
+<programlisting><![CDATA[
+>>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5)) 
+<hello>@[0,5c]
+>>> token2 = Token(TEXT='hello', LOC=CharSpanLocation(6, 11)) 
+<hello>@[6,11c]
+>>> token1 == token2 
+False
+>>> token1['TEXT'] == token2['TEXT'] 
+True
+]]></programlisting>
+
+<note>
+<para> Quando a localização de um token é desconhecida ou irrelevante, esta
+pode ser omitida. Porém, a distinção entre um token de palavra e um tipo de
+palavra não é perdida neste caso.
+</para>
+</note>
+
+<note>
+<para> O índice inicial, o índice final e a fonte de localização podem
+      ser lidos utilizando as funções-membro <literal>start()</literal>, 
+      <literal>end()</literal>, and <literal>source()</literal>:
+<programlisting><![CDATA[
+>>> token1 = Token(TEXT='hello', LOC=CharSpanLocation(0, 5, 'corpus.txt')) 
+>>> loc1 = token1['LOC']
+[0:5c]
+>>> loc1.start()
+0
+>>> loc1.end()
+5
+>>> loc1.source()
+'corpus.txt'
+]]></programlisting>
+</para>
+</note>
+
+</section> <!-- Locations -->
+
+</section>  <!-- Tokens -->
+
+<!------------------------------------------------------------------------>
+
+<section> <title> Tokenização </title>
+
+<para> Muitas tarefas do processamento de linguagem natural envolvem a
+      análise de textos de dimensões variadas, indo de uma única sentença até
+      corpora extensos. Há várias formas para se representar textos usando o
+      NLTK. A forma mais simples é por meio de uma única <literal>string</literal>.
+      Estas strings podem ser lidas diretamente de arquivos></para>
+
+<programlisting><![CDATA[
+>>> text_str = open('corpus.txt').read() 
+'Hello world.  This is a test file.\n'
+]]></programlisting>
+
+<para> Porém, como notamos em <xref linkend="token.representing"/>, é
+normalmente preferível representar um texto como uma <literal>lista</literal>
+de <literal>Token</literal>s. Estas <literal>lista</literal>s são usualmente
+criadas utilizando-se um <glossterm>tokenizador</glossterm>, como o
+<ulink url="&refdoc;/nltk.tokenizer.WhitespaceTokenizer-class.html">
+<literal>WhitespaceTokenizer</literal></ulink> (que separa as strings em
+palavras a cada espaço em branco)></para>
+
+<programlisting><![CDATA[
+>>> from nltk.tokenizer import *
+>>> text_token = Token(TEXT='Hello world.  This is a test file.')
+<Hello world.  This is a test file.>
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token)
+>>> print text_token 
+<[<Hello>, <world.>, <This>, <is>, <a>, <test>, <file.>]>
+]]></programlisting>
+
+<note>
+<para>Por <quote>espaço em branco</quote> devemos entender não apenas
+o espaço entre as palavras, mas também as marcas de tabulação e os
+finais de linha.</para>
+</note>
+<para> Observe que o <literal>text_token</literal> contém, inicialmente,
+um único token para o texto inteiro. Sucessivamente, tokenizamos este único
+token nos tokens de palavra que o compõem, e o resultado final é armazenado como
+um atributo do token original. Em outras palavras, o token-fonte original e
+os tokens de palavra resultantes são armazenados juntos, como o código a
+seguir demonstra:<footnote><para>O método padrão para exibir o conteúdo de um
+token contendo subtokens é a simples exibição dos subtokens.</para></footnote>
+</para>
+
+<programlisting><![CDATA[
+>>> print text_token['TEXT'] 
+<Hello world.  This is a test file.>
+>>> print text_token['WORDS'] 
+[<Hello>, <world.>, <This>, <is>, <a>, <test>, <file.>]
+]]></programlisting>
+
+<para> Se quisermos que todos os tokens contenham informações sobre suas
+localizações, é necessário especificar a opção <literal>add_locs</literal>:</para>
+
+<programlisting><![CDATA[
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token, add_locs=True) 
+>>> print text_token 
+<[<Hello>@[0:5c], <world.>@[6:12c], <This>@[14:18c], <is>@[19:21c], <a>@[22:23c],
+<test>@[24:28c], <file.>@[29:34c]]>
+]]></programlisting>
+
+<note>
+<para> A tokenização pode normalizar um texto, convertendo todos as letras das
+palavras para minúsculas, expandindo contrações e, possivelmente, realizando o
+<emphasis>stemming</emphasis> das palavras. Um exemplo em que o stemming é
+utilizado é apresentado abaixo:
+<programlisting><![CDATA[
+>>> text_token = Token(TEXT='stemming can be fun and exciting') 
+>>> WhitespaceTokenizer(SUBTOKENS='WORDS').tokenize(text_token) 
+>>> from nltk.stemmer.porter import * 
+>>> stemmer = PorterStemmer() 
+>>> for word_token in text_token['WORDS']: 
+...     stemmer.stem(word_token)
+>>> print text_token 
+<[<TEXT='stemming', STEM='stem'>, <TEXT='can', STEM='can'>, <TEXT='be', STEM='be'>,
+<TEXT='fun', STEM='fun'>, <TEXT='and', STEM='and'>, <TEXT='exciting', STEM='excit'>]>
+]]></programlisting>
+</para>
+</note>
+
+<para>Dissemos em <xref linkend="intro"/> que a tokenização baseada apenas
+em espaços em branco é demasiado simplista para a maioria das finalidades;
+entre outros, ela não separa a última palavra de uma frase ou de uma
+sentença de caracteres de pontuação, como a vírgula, o ponto, o ponto de
+exclamação e o ponto de interrogação. Como seu nome sugere, o
+<literal>RegexpTokenizer</literal> emprega uma expressão regular para
+determinar como um texto deve ser dividido. Esta expressão regular
+especifica os caracteres que podem ser incluídos em uma palavra válida. Para
+definir um tokenizador que processe sinais de pontuação como tokens
+separados, poderíamos usar:</para>
+
+<programlisting><![CDATA[
+>>> regexp = r'\w+|[^\w\s]+'
+'\w+|[^\w\s]+'
+>>> tokenizer = RegexpTokenizer(regexp, SUBTOKENS='WORDS')
+>>> tokenizer.tokenize(text_token)
+>>> print text_token
+<[<Hello>, <.>, <Isn>, <'>, <t>, <this>, <fun>, <?>]>
+]]></programlisting>
+<tip>
+<para>Lembre-se que <literal>\w+|[^\w\s]+</literal> é uma disjunção de duas
+subexpressões, <literal>w+</literal> e <literal>[^\w\s]+</literal>. A primeira
+destas aceita um ou mais caracteres <quote>de palavra</quote>; ou seja,
+caracteres que não sejam espaços em branco ou sinais de pontuação. O segundo
+padrão é uma expressão negada; ela aceita um ou mais caracteres que não sejam
+caracteres de palavra (ou seja, não aceita o conjunto <literal>\w</literal> ou
+espaços em branco (ou seja, não aceita o conjunto <literal>\s</literal>).</para>
+</tip>
+<para> A expressão regular deste exemplo irá aceita uma seqüência que seja
+constituída por um ou mais caracteres de palavra <literal>\w+</literal>.
+Também irá aceitar uma seqüência que seja constituída por um ou mais sinais
+de pontuação (ou caracteres não-palavra e não-espaço,
+<literal>[^\w\s]+</literal>).
+</para>
+
+<para> Há várias formas por meio das quais podemos melhorar esta expressão
+       regular. Por exemplo, em sua versão atual ela separa a string
+       "$22.50" em quatro tokens distintos; mas podemos desejar que ela
+       identifique neste tipo de string um único token. A solução para isto
+       é modificar a expressão regular, adicionado uma nova subexpressão
+       para tratar especificamente de strings neste formato: </para>
+
+<programlisting><![CDATA[
+>>> text_token = Token(TEXT='That poster costs $22.40.') 
+>>> regexp = r'(\w+)|(\$\d+\.\d+)|([^\w\s]+)'
+'(\w+)|(\$\d+\.\d+)|([^\w\s]+)'
+>>> tokenizer = RegexpTokenizer(regexp, SUBTOKENS='WORDS')
+>>> tokenizer.tokenize(text_token)
+>>> print text_token
+<[<That>, <poster>, <costs>, <$22.40>, <.>]>
+]]></programlisting>
+
+<para>Certas vezes, é mais conveniente escrever uma expressão regular que
+aceite o que é encontrado <emphasis>entre</emphasis> os tokens, como os
+espaços em branco ou os sinais de pontuação. O construtor do 
+<literal>RegexpTokenizer</literal> aceita um parâmetro opcional
+<literal>negative</literal>, que inverte o significado de uma expressão
+regular. Por exemplo, os dois tokenizadores a seguir são eqüivalentes em
+termos de função:
+<literal>RegexpTokenizer(r'[^\s]+')</literal>,
+<literal>RegexpTokenizer(r'\s+', negative=1)</literal>.
+</para>
+
+<para> 
+O módulo <literal>nltk.corpus</literal> possibilita o trabalho com vários
+corpora incluídos no NLTK, bem como tokenizadores específicos. Eis um
+exemplo de sua utilização:
+<programlisting><![CDATA[
+>>> from nltk.corpus import gutenberg 
+>>> print gutenberg.read('milton-paradise.txt')
+<[<**This>, <is>, <the>, <Project>, <Gutenberg>,
+<Etext>, <of>, <Paradise>, <Lost(Raben)**> ... ]>
+]]></programlisting>
+Note como <literal>gutenberg.read</literal> não apenas carrega o conteúdo
+relevante em uma string; ele também utiliza um tokenizador específico,
+apropriados para os textos do corpus Gutenberg.
+</para>
+
+</section> <!-- Regexp tokenizer -->
+
+<!------------------------------------------------------------------------>
+
+<section id="frequency">
+<title> Contando tokens </title>
+
+  <para>Talvez a coisa mais fácil que se possa fazer com os tokens, uma vez 
+  que os tenhamos extraído de um texto, é contá-los. Podemos fazer isto
+  como mostrado a seguir, quando iremos comparar o comprimento das traduções
+  em inglês e finlandês do livro do Gênesis:
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.corpus import genesis
+>>> corpus = genesis.read('english-kjv.txt')
+>>> print len(corpus['WORDS'])
+38240
+>>> corpus = genesis.read('finnish.txt')
+>>> print len(corpus['WORDS'])
+26595
+]]></programlisting>
+
+    <para> Podemos fazer uma contagem mais sofisticada usando uma
+    <glossterm>distribuição de freqüência</glossterm>. Geralmente,
+    uma distribuição de freqüência armazena o número de vezes que
+    cada valor determinado de um experiência ocorre. Neste caso, podemos
+    utilizar uma distribuição de freqüência para armazenar a freqüência
+    de cada palavra em um documento. Distribuições de freqüência são
+    geralmente inicializadas executando repetidamente uma experiência e
+    incrementando a contagem para determinado valor toda vez que
+    este resultar da experiência. O programa a seguir produz uma distribuição
+    de freqüência que armazena o número de vezes que cada palavra ocorre em
+    um texto, exibindo ao final a palavra mais freqüente:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.probability import FreqDist
+>>> fd = FreqDist()
+>>> for token in corpus['WORDS']:
+...     fd.inc(token['TEXT'])
+>>> print fd.max()
+'the'
+]]></programlisting>
+
+    <para> Uma vez que tenhamos construído uma distribuição de freqüência que
+    armazene os resultados de uma experiência, podemos utilizá-la para examinar
+    uma série de propriedades interessantes desta experiência. Estas propriedades
+    são resumidas em <xref linkend="table.freqdist"/>.</para>
+
+<table id="table.freqdist"> 
+  <title>Módulo de Distribuição de Freqüência</title> 
+  <tgroup cols="2">
+    <colspec colwidth='2cm'/>
+    <colspec colwidth='6cm'/>
+    <colspec colwidth='6cm'/>
+    <thead> 
+      <row> 
+        <entry>Nome</entry> 
+        <entry>Código de exemplo</entry> 
+        <entry>Descrição</entry> 
+      </row> 
+    </thead> 
+
+    <tbody>
+      <row><entry>Contagem</entry><entry>
+<programlisting><![CDATA[
+>>> fd.count('the')
+6
+]]></programlisting>
+</entry>
+<entry><para>O número de vezes em que determinado resultado ocorreu
+</para></entry></row>
+
+      <row><entry>Freqüência</entry><entry>
+<programlisting><![CDATA[
+>>> fd.freq('the')
+0.012
+]]></programlisting>
+</entry>
+<entry><para>A freqüência para o resultado dado
+</para></entry></row>
+
+      <row><entry>N</entry><entry>
+<programlisting><![CDATA[
+>>> fd.N()
+500
+]]></programlisting>
+</entry>
+<entry><para>O número de resultados diferentes
+</para></entry></row>
+
+      <row><entry>Resultados</entry><entry>
+<programlisting><![CDATA[
+>>> fd.samples()
+['happy', 'but', 'the',
+'in', 'of', ...]
+]]></programlisting>
+</entry>
+<entry><para>Todos os resultados distintos que foram armazenados
+</para></entry></row>
+
+      <row><entry>Max</entry><entry>
+<programlisting><![CDATA[
+>>> fd.max()
+'the'
+]]></programlisting>
+</entry>
+<entry><para>O resultado com o maior número de ocorrências
+</para></entry></row>
+</tbody>
+</tgroup>
+</table>
+
+    <para> Podemos utilizar uma <literal>FreqDist</literal> para
+      examinar a distribuição do comprimento das palavras em um
+      corpus. Para isto, construiremos uma distribuição de freqüência cujos
+      resultados serão o comprimento das palavras, plotando o resultado
+      ao final. Para iniciar, devemos importar as classes que usaremos e
+      carregar um corpus a partir de um arquivo de texto:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.probability import FreqDist 
+>>> from nltk.corpus import genesis
+]]></programlisting>
+
+      <para> A seguir, iremos definir uma função que recebe o nome de um
+      texto como seu argumento e exibe a distibuição dos comprimentos de
+      palavra deste texto. Para cada palavra, calculamos seu comprimento e
+      incrementamos a contagem de palavras para este comprimento.
+</para>
+
+<programlisting><![CDATA[
+>>> def length_dist(text):
+...     fd = FreqDist()                        # Inicializa um distribuição de freqüência vazia
+...     corpus = genesis.read(text)            # tokeniza o texto
+...     for token in corpus['WORDS']:          # para cada texto
+...         fd.inc(len(token['TEXT']))         # encontra outra palavra com este comprimento
+...     for i in range(15):                    # para os comprimentos entre 0 e 14
+...         print "%2d" % int(100*fd.freq(i)), # exibe a porcentagem de palavras com este comprimento
+...     print
+]]></programlisting>
+
+
+<programlisting><![CDATA[
+>>> length_dist('english-kjv.txt')
+0  2 14 28 21 13  7  5  2  2  0  0  0  0  0
+>>> length_dist('finnish.txt')
+0  0  9  6 11 16 16 12  9  6  3  2  2  1  0
+]]></programlisting>
+
+    <para> Uma <glossterm>condição</glossterm> especifica que o contexto em
+    que uma experiência foi realizada. Normalmente nos interessaremos nos
+    efeitos que as condições produzem no resultado de uma experiência. Por
+    exemplo, podemos querer examinar como a distribuição do comprimento de
+    uma palavra (o resultado) é influenciado pela letra inicial desta
+    palavra (a condição). Distribuições de freqüência condicionais fornecem
+    uma ferramente para explorar este tipo de questão.</para>
+
+    <para> Uma <glossterm>distribuição de freqüência condicional</glossterm> é uma
+    coleção de distribuições de freqüência para uma mesma experiência, executada
+    sob condições diferentes. As distribuições de freqüência individuais são
+    indexas por sua condição.</para>
+
+<programlisting><![CDATA[
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.corpus import genesis
+>>> from nltk.draw.plot import Plot 
+
+>>> cfdist = ConditionalFreqDist()
+
+>>> for text in genesis.items():
+...     corpus = genesis.read(text)
+...     for token in corpus['WORDS']:
+...         cfdist[text].inc(len(token['TEXT']))
+]]></programlisting>
+
+        <para> Para plotar os resultados, construímos uma lista de pontos, onde
+	a coordenada X é o comprimento das palavras e a coordenada y é a
+	freqüência com a qual este comprimento de palavra é utilizado:</para>
+
+<programlisting><![CDATA[
+>>> for cond in cfdist.conditions():
+...     wordlens = cfdist[cond].samples()
+...     wordlens.sort()
+...     points = [(i, cfdist[cond].freq(i)) for i in wordlens]
+...     Plot(points).mainloop()
+]]></programlisting>
+
+    <section id="frequency.predicting"> 
+      <title> Uma aplicação prática: prever a palavra sucessiva </title>
+
+      <para> Distribuições de freqüência condicionais são muitas vezes utilizadas
+      para prever certos comportamentes. <glossterm>Previsão</glossterm>, neste
+      sentido, significa fornecer um resultado plausível à execução de determinada
+      experiência. A decisão de qual resultado fornecer é normalmente uma função
+      do contexto no qual a experiência é realizada. Por exemplo, podemos tentar
+      prever uma palavra de um texto (o resultado) baseados no texto que
+      antecede esta palavra (contexto). </para>
+      
+      <para> Para prever os resultados de uma experiência, é necessário que,
+      primeiramente, examinemos um <glossterm>corpus de treinamento</glossterm>
+      representativo, no qual o contexto e o resultado para cada execução da
+      experiência são conhecidos. Quando apresentados a uma nova execução da
+      experiência, podemos, por exemplo, escolher o resultado que ocorreu mais
+      freqüentemente naquele determinado contexto. </para>
+
+      <para> Podemos utilizar um <literal>ConditionalFreqDist</literal> para
+      encontrar a ocorrência mais freqüente para cada contexto. Primeiro,
+      armazenamos cada resultado do corpus de treinamento, utilizando o contexto
+      no qual a experiência é executada como condição. Então, podemos acessar
+      a freqüência de distribuição para cada dado contexto com este em função
+      de índice, e utilizar o método <literal>max()</literal> para encontrar
+      o resultado mais provável. </para>
+      
+      <para> Abaixo, usaremos um <literal>ConditionalFreqDist</literal> para
+      encontrar a palavra mais provável em um texto. Para iniciar, carregaremos
+      um corpus a partir de um arquivo de texto e criaremos um
+      <literal>ConditionalFreqDist</literal> vazio:</para>
+
+<programlisting><![CDATA[
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.corpus import genesis
+>>> corpus = genesis.read('english-kjv.txt')
+>>> cfdist = ConditionalFreqDist()
+]]></programlisting>
+
+        <para> A seguir, examinaremos cada token neste corpus, incrementando
+	a contagem apropriada para cada um. A variável <literal>prev</literal>
+	é utilizada para se armazenar a palavra anterior.</para>
+	
+<programlisting><![CDATA[
+>>> prev = None
+>>> for token in corpus['WORDS']:
+...     word = token['TEXT']
+...     cfdist[prev].inc(word)
+...     prev = word
+]]></programlisting>
+
+        <note> 
+          <para> Certas vezes, o contexto de uma experiência não pode ser
+	  conhecido ou não existe. Por exemplo, no caso do primeiro token
+	  não há nenhum texto que anteceda. Em situações como esta, somos
+	  obrigados a decidir qual contexto utilizar. Neste exemplo,
+	  utilizamos o <literal>None</literal> (nada) como contexto para o
+	  primeiro token. Outra opção teria sido descartar as informações
+	  do primeiro token. </para>
+        </note>
+
+        <para> Uma vez que tenhamos construído uma distribuição de freqüência
+	condicional para o corpus de treinamento, podemos utilizá-la para
+	encontrar a palavra mais provável para um dado contexto. Por exemplo,
+	tomando a palavra <literal>living</literal> como nosso contexto, é
+	possível inspecionar todas as palavras que ocorreram neste contexto.
+
+<programlisting><![CDATA[
+>>> word = 'living'
+>>> cfdist['living'].samples()
+['creature,', 'substance', 'soul.', 'thing', 'thing,', 'creature']
+]]></programlisting>
+
+        Poderíamos criar um loop (ciclo) simples para gerar o texto: determinamos
+	um contexto inicial, escolhemos a palavra mais provável para este
+	contexto e passamos a usá-la como nosso novo contexto: </para>
+	
+<programlisting><![CDATA[
+>>> word = 'living'
+>>> for i in range(20):
+...     print word,
+...     word = cfdist[word].max()
+living creature that he said, I will not be a wife of the land of the land of the land
+]]></programlisting>
+
+        <para> Esta abordagem simplista para a geração de texto tende a se
+	prender em ciclos repetitivos, como demostrado pelo texto gerado acima.
+	Uma abordagem mais avançada poderia escolher aleatoriamente cada palavra,
+	com as palavras de maior ocorrência escolhidas mais freqüentemente. </para>
+
+    </section> <!-- Predicting -->
+  </section> <!-- ConditionalFreqDist -->
+
+
+<section id="pos">
+  <title>Classes de palavras e partes do discurso</title>
+
+<para>Nas seções anteriores tratamos todas as palavras de uma forma muito
+semelhante: cada coisa era ou não era um token. Porém, para muitas aplicações,
+é importante que possamos distinguir entre <emphasis>tipos diferentes</emphasis>
+de tokens. Por exemplo, podemos querer marcar explicitamente que determinada
+string é um item lexical comum, que outra constitui uma expressão numérica e
+que outra ainda é um sinal de pontuação. Além disto, podemos querer distinguir
+entre os diferentes tipos de itens lexicais: há uma longa tradição no campo
+da lingüística de se classificar as palavras em categorias chamadas
+<firstterm>partes do discurso</firstterm>. Estas também podem ser chamadas
+de classes de palavras ou de <firstterm>categorias lexicais</firstterm>.
+Exemplo familiares são <type>substantivo</type>, <type>verbo</type>,
+<type>preposição</type>, <type>adjetivo</type> e <type>advérbio</type>.
+Nesta seção apresentaremos os critérios padrão para a categorização de
+palavras desta forma, discutindo as principais classes de palavras da
+língua inglesa.
+  </para>
+
+<section id="pos.categorise">
+  <title>Categorizando palavras</title>
+
+  <para>
+  Como decidimos a qual categoria uma palavra deve pertencer? Em geral,
+  os lingüistas valem-se de três tipos de avaliações para tomar esta decisão:
+  uma de termos formais, uma sintática (ou distributiva) e uma conceitualista (ou
+  de semântica). Uma avaliação <firstterm>formal</firstterm> é aquela que
+  analisa a estrutura interna de uma palavra. Por exemplo, <literal>-ness</literal>
+  é um sufixo que é combinado a um adjetivo para produzir um substantivo.
+  Exemplos são <literal>happy</literal>
+  &gt; <literal>happiness</literal>, <literal>ill</literal> &gt;
+  <literal>illness</literal>.
+  
+  <footnote>
+  <para>Utilizamos <markup>&gt;</markup> com o significado de 'deriva em'.</para>
+  </footnote>
+  
+  Assim, ao encontrarmos uma palavra que termine em <literal>-ness</literal>,
+  provavelmente podermos identificá-la como um substantivo.
+  </para>
+
+  <para>
+  Uma avaliação <firstterm>sintática</firstterm> refere-se aos contextos
+  sintáticos nos quais uma palavra pode ocorrer. Por exemplo, vamos assumir que
+  já definimos a categoria dos substantivos. Podemos dizer que uma avaliação
+  sintática para um adjetivo em língua inglesa é aquela palavra que ocorre
+  imediatamente antes de um substantivo ou que imediatamente segue as palavras
+  <literal>be</literal> ou <literal>very</literal>. De acordo com estes testes,
+  <literal>near</literal> deveria ser categorizada como um adjetivo:
+  </para>
+    
+    <orderedlist>
+      <listitem><para>the near window</para></listitem>
+      <listitem><para>The end is (very) near.</para></listitem>
+    </orderedlist>
+
+  <para>
+  Um exemplo de avaliação <firstterm>conceitualista</firstterm> é que um
+  substantivo é um <quote>nome de uma pessoa, lugar ou coisa</quote>. Dentro
+  da lingüística moderna, avaliações por definição para classes de palavras
+  têm sido vistas com consideráveis desconfiança, principalmente devido ao
+  fato dos conceitos serem formalizados com dificuldade. Apesar disto,
+  avaliações conceitualistas são a base de muitas de nossas intuições sobre
+  classes de palavras e nos permitem estimar com uma boa probabilidade de
+  acerto quanto à categorização de palavras em línguas a nós desconhecidas;
+  isto é, se por exemplo soubermos apenas que em holandês 
+  <literal>verjaardag</literal> significa o mesmo que a palavra inglesa
+  <literal>birthday</literal> ou a portuguesa <literal>aniversário</literal>,
+  podemos supor que <literal>verjaardag</literal> seja um substantivo
+  também em holandês. Porém, é necessária cautela: mesmo que possamos
+  traduzir <literal>zij is van dag jarig</literal> como <literal>it's her
+  birthday today</literal> ou <literal>é o seu (dela) aniversário hoje</literal>,
+  a palavra <literal>jarig</literal> é na verdade um adjetivo em holandês
+  e não há uma eqüivalência exata em inglês ou português.
+  </para>
+
+<!--http://www.askoxford.com/pressroom/archive/odelaunch/-->
+
+  <para>
+  Todas as línguas adquirem novos itens lexicais. A lista de palavras que
+  recentemente foi adicionada ao Oxford Dictionary of English inclui
+  <literal>cyberslacker, fatoush, blamestorm, SARS, cantopop, bupkis,
+  noughties, muggle</literal> e <literal>robata</literal>. Note que todas
+  estas palavras são substantivos; isto se reflete no fato dos substantivos
+  serem considerados uma <glossterm>classe aberta</glossterm>. Em contraste,
+  as preposições são consideradas uma <glossterm>classe fechada</glossterm>, ou
+  seja, há um conjunto limitado de palavras que pertence a tal classe (por
+  exemplo, <literal>above, along, at, below, beside, between, during, for, 
+  from, in, near, on, outside, over, past, through, towards, under, up, 
+  with</literal>) e mudanças ocorrem muito gradualmente ao longo do tempo.
+
+<!--    
+    Some word classes consist of a limited set of so-called
+    <firstterm>function</firstterm>
+    words. Prepositions are one such class, comprising items like
+     etc.  These are called
+    <glossterm>closed classes</glossterm>, in the sense that although
+    languages acquire new lexical items.  Content words such as
+    nouns are not limited in this way, and are continually being
+    extended with the invention of new words.  These are called
+    <glossterm>open classes</glossterm>.
+-->
+  </para>
+
+</section>
+
+<section id="pos.english">
+  <title>Classes de palavras em inglês</title>
+
+  <para>
+    Esta seção apresenta uma breve visão geral sobre as classe de palavras
+    na língua inglesa. Leitores interessados em maiores detalhes são
+    aconselhados a consultar uma gramática da língua.
+  </para>
+
+  <para>
+    Os lingüistas normalmente reconhecem quatro categorias principais de
+    classes abertas de palavras em inglês, sendo estas substantivos, verbos,
+    adjetivos e advérbios. Substantivos referem-se, geralmente, a pessoas,
+    lugares, coisas ou conceitos, como em 
+    <emphasis>woman, Scotland, book, intelligence</emphasis>. No contexto
+    da sentença, os substantivos podem aparecer após determinantes e
+    adjetivos e podem ser o sujeito ou o objeto de um verbo:
+  </para>
+
+  <table id="table.nouns">
+    <title>Padrões sintáticos envolvendo alguns substantivos</title>
+    <tgroup cols="3">
+      <colspec colwidth='2cm'/>
+      <thead>
+        <row>
+          <entry>Palavra</entry>
+          <entry>Após um determinante</entry>
+          <entry>Sujeito de um verbo</entry>
+        </row>
+      </thead>
+      <tbody>
+        <row>
+          <entry>woman</entry>
+          <entry><emphasis>the</emphasis> woman who I saw yesterday ...</entry>
+          <entry>the woman <emphasis>sat</emphasis> down</entry>
+        </row>
+        <row>
+          <entry>Scotland</entry>
+          <entry><emphasis>the</emphasis> Scotland I remember as a child ...</entry>
+          <entry>Scotland <emphasis>has</emphasis> five million people</entry>
+        </row>
+        <row>
+          <entry>book</entry>
+          <entry><emphasis>the</emphasis> book I bought yesterday ...</entry>
+          <entry>this book <emphasis>recounts</emphasis> the colonisation of Australia</entry>
+        </row>
+        <row>
+          <entry>intelligence</entry>
+          <entry><emphasis>the</emphasis> intelligence displayed by the child ...</entry>
+          <entry>Mary's intelligence <emphasis>impressed</emphasis> her teachers</entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+
+  <para>
+    Substantivos em inglês podem ser morfologicamente complexos. Por exemplo,
+    palavras como <literal>books</literal> e <literal>women</literal> estão
+    no plural. Como vimos anteriormente, palavras terminadas com o sufixo
+    <literal>-ness</literal> são substantivos derivados de adjetivos, como
+    <literal>happiness</literal> e <literal>illness</literal>. O sufixo
+    <literal>-ment</literal> é encontrado em alguns substantivos derivados
+    de verbos, como <literal>government</literal> e 
+    <literal>establishment</literal>.
+  </para>
+
+  <para>
+    Substantivos são geralmente divididos em <glossterm>substantivos
+    comuns</glossterm> e <glossterm>substantivos próprios</glossterm>.
+    Substantivos próprios identificam índividuos ou entidades em
+    particular, como <literal>Moses</literal> e 
+    <literal>Scotland</literal>, enquanto substantivos comuns são todos
+    os restantes. Outra distinção importante existe entre 
+    <glossterm>substantivos contáveis</glossterm> e <glossterm>substantivos
+    incontáveis</glossterm>. Substantivos contáveis são pensados como
+    entidades distintas que podem ser contadas, como <literal>pig</literal>
+    (por exemplo, <literal>one pig, two pigs, many pigs</literal>). Eles
+    não podem ocorrer com a palavra <literal>much</literal> (como em
+    *<literal>much pigs</literal>). Substantivos contáveis, por outro
+    lado, não são vistos como entidades distintas (por exemplo,
+    <literal>sand</literal>). Eles não podem ser pluralizados e não
+    podem ocorrer com numerias (por exemplo, *<literal>two sands</literal>,
+    *<literal>many sands</literal>). Por outro lado, eles podem ocorrer
+    com <literal>much</literal> (como em <literal>much sand</literal>).
+  </para>
+    
+  <para>
+    Verbos são palavras que descrevem eventos e ações, por exemplo
+    <literal>fall</literal> e <literal>eat</literal>. No contexto da
+    sentença, verbos expressam a relação envolvendo os referentes de uma
+    ou mais frases nominais.
+  </para>
+
+
+  <table id="table.verbs">
+    <title>Padrões sintáticos envolvendo alguns verbos</title>
+    <tgroup cols="3">
+      <colspec colwidth='2cm'/>
+      <colspec colwidth='5cm'/>
+      <thead>
+        <row>
+          <entry>Palavra</entry>
+          <entry>Simples</entry>
+          <entry>Com modificadores e adjuntos (em itálico)</entry>
+        </row>
+      </thead>
+      <tbody>
+        <row>
+          <entry>fall</entry>
+<!-- probably more plausible to think of "last week" as a sentence
+modifier -->
+          <entry>Rome fell</entry>
+	      <entry>Last week, dot com stocks
+	      <emphasis>suddenly</emphasis> fell <emphasis>like a
+	      stone</emphasis></entry>
+        </row>
+        <row>
+          <entry>eat</entry>
+          <entry>Mice eat cheese</entry>
+          <entry>John ate the pizza <emphasis>with gusto</emphasis></entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+
+  <para>
+    Verbos podem ser classificados de acordo com o número de argumentos
+    (geralmente frases nominais) que co-ocorrem com estes. A palavra
+    <literal>fall</literal> (cair) é <glossterm>intransitiva</glossterm>, requerendo
+    apenas um argumento (a entidade que cai). A
+    palavra <literal>eat</literal> (comer) é <glossterm>transitiva</glossterm>,
+    requerendo dois argumentos (o comedor e o comido). Outros verbos
+    são mais complexos; por exemplo <literal>put</literal> (colocar)
+    requer três argumentos, o agente que está realizando a ação de colocar,
+    a entidade que está sendo colocada em algum lugar e a sua localização
+    final. O sufixo <literal>-ing</literal> é encontrado em substantivos
+    derivados de verbos, como <literal>the falling of the leaves</literal>
+    (o que é conhecido como <glossterm>gerúndio</glossterm>).
+  </para>
+
+  <para>
+    Em inglês, verbos podem ser morfologicamente complexos. Por exemplo, o
+    <glossterm>particípio presente</glossterm> de um verbo termina em
+    <literal>-ing</literal> e expressa a idéia de estar em execução, de uma
+    ação incompleta (como <literal>falling</literal> e 
+    <literal>eating</literal>). O <glossterm>particípio passado</glossterm>
+    de um verbo geralmente termina em <literal>-ed</literal> e expressa a
+    idéia de uma ação concluída (como <literal>fell</literal> e
+    <literal>ate</literal>).
+  </para>
+
+  <para>
+    Duas outras importantes classes são os <glossterm>adjetivos</glossterm>
+    e <glossterm>advérbios</glossterm>. Adjetivos descrevem substantivos e
+    podem ser utilizados como modificadores (por exemplo, <literal>large</literal>
+    em <literal>the large pizza</literal>) ou em predicados (por exemplo,
+    <literal>the pizza is large</literal>). Em inglês, adjetivos podem ser
+    morfologicamente complexos (como 
+    <literal>fall<subscript>V</subscript>+ing</literal> em
+    <literal>the falling stocks</literal>).
+    Advérbios modificam verbos para especificar o tempo, o modo, o lugar ou
+    a direção do evento descrito pelo verbo
+    (como. <literal>quickly</literal> em <literal>the stocks fell quickly</literal>).
+    Advérbios também podem modificar adjetivos (como <literal>really</literal>
+    em <literal>Mary's teacher was really nice</literal>).
+  </para>
+
+  <para>
+    O inglês possui várias categorias de classes fechadas de palavras além
+    das preposições e cada dicionário e gramática as classifica diferentemente.
+    <xref linkend="table.closed_class"/> fornece um exemplo de classes
+    fechadas de palavras, seguido pela classificação do Brown Corpus.
+    
+    <footnote>
+      <para>Note que as tags quanto à função gramatical podem ser apresentadas
+      seja em letras maiúsculas que minúsculas &mdash; não há nenhuma
+      significação resultante desta diferença.</para>
+     </footnote>
+  </para>
+
+
+<table id="table.closed_class">
+  <title>Algumas classes fechadas de palavras em inglês, com as tags do conjunto Brown</title>
+  <tgroup cols="3">
+    <colspec colwidth='1.5cm'/>
+    <colspec colwidth='6cm'/>
+    <tbody>
+      <row>
+        <entry> ap </entry>
+        <entry> determiner/pronoun, post-determiner </entry>
+        <entry> many other next more last former little several enough
+                 most least only very few fewer past same </entry>
+      </row>
+      <row>
+        <entry> at </entry>
+        <entry> article </entry>
+        <entry> the an no a every th' ever' ye </entry>
+      </row>
+      <row>
+        <entry> cc </entry>
+        <entry> conjunction, coordinating </entry>
+        <entry> and or but plus & either neither nor yet 'n' and/or minus an' </entry>
+      </row>
+      <row>
+        <entry> cs </entry>
+        <entry> conjunction, subordinating </entry>
+        <entry> that as after whether before while like because if since for
+                than until so unless though providing once lest
+                till whereas whereupon supposing albeit then </entry>
+      </row>
+      <row>
+        <entry> in </entry>
+        <entry> preposition </entry>
+        <entry> of in for by considering to on among at through with under
+                into regarding than since despite ... </entry>
+      </row>
+      <row>
+        <entry> md </entry>
+        <entry> modal auxiliary </entry>
+        <entry> should may might will would must can could shall ought need 
+                 wilt </entry>
+      </row>
+      <row>
+        <entry> pn </entry>
+        <entry> pronoun, nominal </entry>
+        <entry> none something everything one anyone nothing nobody everybody
+                everyone anybody anything someone no-one nothin' </entry>
+      </row>
+      <row>
+        <entry> ppl </entry>
+        <entry> pronoun, singular, reflexive </entry>
+        <entry> itself himself myself yourself herself oneself ownself </entry>
+      </row>
+      <row>
+        <entry> pp$ </entry>
+        <entry> determiner, possessive </entry>
+        <entry> our its his their my your her out thy mine thine </entry>
+      </row>
+      <row>
+        <entry> pp$$ </entry>
+        <entry> pronoun, possessive </entry>
+        <entry> ours mine his hers theirs yours </entry>
+      </row>
+      <row>
+        <entry> pps </entry>
+        <entry> pronoun, personal, nominative, 3rd person singular </entry>
+        <entry> it he she thee </entry>
+      </row>
+      <row>
+        <entry> ppss </entry>
+        <entry> pronoun, personal, nominative, not 3rd person singular </entry>
+        <entry> they we I you ye thou you'uns </entry>
+      </row>
+      <row>
+        <entry> wdt </entry>
+        <entry> WH-determiner </entry>
+        <entry> which what whatever whichever</entry>
+      </row>
+      <row>
+        <entry> wps </entry>
+        <entry> WH-pronoun, nominative </entry>
+        <entry> that who whoever whosoever what whatsoever </entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>
+
+</section>
+
+<section id="tagging">
+  <title> Conjuntos de tags das funções gramaticais </title>
+
+  <para>
+    A maior parte dos conjuntos de tags das funções gramaticais utiliza
+    as mesmas categorias básicas, como substantivo, verbo, adjetivo e
+    preposição. Porém, estes conjuntos de tags diferem seja na forma
+    em que as palavras são divididas em categorias que na forma como estas
+    últimas são definidas. Por exemplo, <literal>is</literal> pode
+    receber a tag de verbo em um conjunto mas pode ser uma forma distinta
+    de <literal>to be</literal> em outro &mdash; de fato, acabamos de
+    verificar esta situação no conjunto de tags do Brown Corpus. Não há
+    como livrar-se desta variação nos conjuntos de tags, já que estas
+    etiquetas de informação quanto à função gramatical são usadas de
+    diferentes formas em diferentes tarefas. Em outras palavras, não há
+    uma "forma certa" de se atribuir tags, apenas há formas mais apropriadas
+    e menos apropriadas, dependendo dos objetivos de cada um.
+<!--
+  <note><para> There are several part-of-speech tag sets in widespread
+  use, because there are different schemes for classifying words
+  (owing to the different weight given to formal, syntactic and
+  notional criteria), and because different processing tasks call for
+  finer or coarser classification.</para></note>
+-->
+  </para>
+
+  <para>
+    Observe que o processo de tagging descarta distinções (por exemplo,
+    a identidade lexical é geralmente perdida quando todos os pronomes
+    pessoais recebem uma tag <literal>prp</literal> comum a todos) e
+    introduz distinções removendo ambigüidades (por exemplo, 
+    <literal>deal</literal> recebe ou a tag de <literal>vb</literal> ou
+    a tag de <literal>nn</literal>). Esta forma de funcionamento facilita
+    a classificação e predição. Observe que quando introduzimos distinções
+    mais específicas no conjunto de tags obtemos uma melhor informação
+    quanto ao contexto lingüístico, mas precisamos de um esforço maior para
+    classificar cada token (há um numero maior de tags possíveis entre as quais
+    escolher a correta). Da mesma forma, com um menor nível de distinção,
+    temos menos trabalho para classificar cada token, mas menos informações
+    quanto ao contexto são repassadas.
+  </para>
+
+    <para>
+      Neste tutorial, usaremos as seguintes tags:
+      <literal>at</literal> (artigo)
+      <literal>nn</literal> (substantivo),
+      <literal>vb</literal> (verbo),
+      <literal>jj</literal> (adjetivo),
+      <literal>in</literal> (preposição),
+      <literal>cd</literal> (numeral), and
+      <literal>end</literal> (pontuação de final de sentença).
+      Como dissemos, esta é uma versão radicalmente simplificada do conjunto de
+      tags do Brown Corpus, o qual em versão integral apresenta 87 tags de base
+      além de várias combinações. Uma lista completa é fornecida no apêndice
+      do tutorial do tagging.
+    </para>
+
+  </section> <!-- part-of-speech tagsets -->
+
+</section> <!-- Word Classes and Parts of Speech -->
+
+
+<section id="basics.representation">
+  <title> Representando tokens com tags e corpora com tags </title>
+
+  <para>
+    Nas seções anteriores foi discutida a natureza e a utilização das
+    tags no processamento lingüístico. Nesta seção apresentaremos a
+    representação computacional de tags. Primeiro iremos considerar os
+    tokens com tags individualmente, mostrando como eles são criados
+    e como podem ser acessados; finalmente nos interessaremos pelos
+    corpora com tags.
+  </para>
+
+  <para>
+    Lembre-se que um token do NLTK é uma espécie de dicionário da linguagem
+    Python e que podemos associar propriedades arbitrárias adicionais com cada
+    token. Por convenção, um token com tag é representado adicionando-se
+    a propriedade <literal>TAG</literal> ao token em questão. Isto pode ser
+    efetuado durante a construção do token, como mostrado a seguir:
+  </para>
+
+<programlisting><![CDATA[
+>>> tok = Token(TEXT='fly', TAG='nn')
+>>> print tok
+<fly/nn>
+]]></programlisting>
+
+  <para>
+    Podemos acessar as propriedades deste token da maneira usual, como
+    mostrado abaixo:
+  </para>
+
+<programlisting><![CDATA[
+>>> print tok['TEXT']
+fly
+>>> print tok['TAG']
+nn
+]]></programlisting>
+
+  <para>
+    Certas vezes podemos desejar adicionar uma tag para um token já existente
+    que não possui nenhuma tag. Isto pode ser feito como mostrado a seguir:
+    primeiro criamos um token que consiste apenas de texto e em seguida
+    adicionamos a tag:
+  </para>
+
+<programlisting><![CDATA[
+>>> tok = Token(TEXT='fly')
+<fly>
+>>> tok['TAG'] = 'nn'
+>>> print tok
+<fly/NN>
+]]></programlisting>
+
+  <para>
+    Vários corpora extensos (como o Brown Corpus e a partes do Wall Street
+    Journal) passaram por um processo de tagging manual, recebendo tags
+    referentes às funções gramaticais. Antes que possamos utilizar estes
+    corpora, é necessário que os leiamos a partir dos arquivos e que os
+    tokenizemos:
+  </para>
+
+  <para> 
+    Textos com tags são geralmente armazenados em arquivos como seqüências
+    de tokens separados por espaços em branco, onde cada token é representado
+    na forma <literal>texto/tag</literal>, como mostrado abaixo em uma
+    seqüência extraída do Brown Corpus.  
+  </para>
+
+<para><literal>
+The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
+other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
+Fulton/np-tl County/nn-tl purchasing/vbg departments/nns which/wdt it/pps
+said/vbd ``/`` are/ber well/ql operated/vbn and/cc follow/vb generally/rb
+accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
+interest/nn of/in both/abx governments/nns ''/'' ./.
+</literal></para>
+
+  <para>
+    &Eacute; possível utilizar o módulo <literal>nltk.corpus</literal> para ler e
+    tokenizar dados lidos de um corpus com tags, como mostrado abaixo:
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.corpus import brown
+>>> tok = brown.read('ca01')
+>>> print tok['WORDS']
+[<The/at>, <Fulton/np-tl>, <County/nn-tl>, <Grand/jj-tl>, <Jury/nn-tl>,
+<said/vbd>, <Friday/nr>, <an/at>, <investigation/nn>, <of/in>, <Atlanta's/np$>,
+<recent/jj>, <primary/nn>, <election/nn>, <produced/vbd>, <``/``>, <no/at>,
+<evidence/nn>, <''/''>, <that/cs>, <any/dti>, <irregularities/nns>, <took/vbd>,
+<place/nn>, <./.>, ...]
+]]></programlisting>
+
+  <para>
+    Observe que a tokenização de um texto com tags resulta em um token único
+    que contém a seqüência de tokens com tags, armazenados em sua propriedade
+    <literal>WORDS</literal>. Eis outro exemplo que constrói um único token
+    para uma string de texto e chama a função 
+    <literal>TaggedTokenReader()</literal> para adicionar os subtokens.
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.token import *
+>>> from nltk.tokenreader.tagged import TaggedTokenReader
+>>> text_str = """
+... John/nn saw/vb the/at book/nn on/in the/at table/nn ./end  He/nn sighed/vb ./end
+... """
+>>> reader = TaggedTokenReader(SUBTOKENS='WORDS')
+>>> text_token = reader.read_token(text_str)
+>>> print text_token['WORDS']
+[<John/nn>, <saw/vb>, <the/at>, <book/nn>, <on/in>, <the/at>, 
+ <table/nn>, <./end>, <He/nn>, <sighed/vb>, <./end>]
+]]></programlisting>
+
+  <important><para> Se o <literal>TaggedTokenReader</literal> encontra uma
+  palavra sem tag, ele irá atribuir à palavra a tag de default 
+  <literal>None</literal>
+  </para></important>
+
+  <para>Os subtokens são as palavras individuais e são acessados utilizando-se
+  a propriedade <literal>WORDS</literal>. Cada palavra possui uma propriedade
+  <literal>TEXT</literal> e uma propriedade <literal>TAG</literal>. Uma lista
+  de todas as propriedades definidas para um token pode ser obtida utilizando-se
+  a função <literal>properties()</literal>.
+  </para>
+
+<programlisting><![CDATA[
+>>> print text_token['WORDS'][1]
+<saw/vb>
+>>> print text_token['WORDS'][1]['TAG']
+'vb'
+>>> print text_token.properties()
+['TEXT', 'WORDS']
+>>> print text_token['WORDS'][1].properties()
+['TEXT', 'TAG']
+]]></programlisting>
+
+</section> <!-- Tagged Tokens and Tagged Corpora -->
+
+<section id="more-applications">
+
+  <title>Mais aplicações</title>
+
+  <para>Agora que podemos acessar um texto com tags, é possível realizar uma
+  variedades de diferentes tarefas de processamento. Iremos considerar aqui
+  apenas duas: estimar a tag de função gramatical de uma palavra e explorar
+  a distribuição de freqüência de verbos modais de acordo com o gênero de
+  cada texto.
+  </para>
+
+<section id="more-applications.classifying">
+  <title>Classificando palavras automaticamente</title>
+
+  <para>
+    Um corpus com tags pode ser utilizado para <emphasis>treinar</emphasis>
+    um classificador simples que pode ser utilizado para estimar a tag
+    de palavras ainda não classificadas. Para cada palavra, iremos contar o
+    número de vezes que ela recebe cada tag. Por exemplo, a palavra
+    <literal>deal</literal> recebe 89 a tag <literal>nn</literal> e 41
+    vezes a tag <literal>vb</literal>. Baseados nisso, se tivéssemos de
+    estimar uma tag para a palavra <literal>deal</literal> iríamos escolher
+    <literal>nn</literal>, e estaríamos corretos mais de dois terços das
+    vezes. O programa a seguir executa esta tarefa de tagging, quando
+    treinado com uma seção de Brown Corpus (a chamada 
+    <emphasis>belles lettres</emphasis>, literatura criativa avaliada de
+    acordo com seu conteúdo estético).
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.corpus import brown
+>>> cfdist = ConditionalFreqDist()
+
+>>> for item in brown.items('belles-lettres'):
+...     text_token = brown.read(item)
+...     for word_token in text_token['WORDS']:
+...         word = word_token['TEXT']
+...         tag = word_token['TAG']
+...         cfdist[word].inc(tag)
+
+>>> for word in "John saw 3 polar bears".split():
+...     print word, cfdist[word].max()
+John np
+saw vbd
+3 cd-tl
+polar jj
+bears vbz
+]]></programlisting>
+    
+    <para>
+      Note que <literal>bears</literal> recebeu incorretamente a tag de
+      forma na terceira pessoa do singular de um verbo, já que esta
+      palavra é encontrada mais freqüentemente como um verbo que como
+      um substantivo na literatura estética.
+    </para>
+
+    <para>
+      Um problema com esta abordagem é que ele cria um extenso modelo, com
+      uma entrada para cada combinação possível de palavra e tag. Para
+      certas taregas, é possível construir modelos razoavelmente bem
+      sucedidos que, em comparação, são muito menores. Por exemplo, vamos
+      tentar estimar se uma palavra é um verbo, um substantivo ou um
+      adjetivo analisando apenas sua letra final. Podemos fazer isto da
+      seguinte forma:
+    </para>      
+
+<programlisting><![CDATA[
+>>> from nltk.probability import ConditionalFreqDist
+>>> from nltk.corpus import brown
+
+>>> tokens = []
+>>> for item in brown.items('belles-lettres'):
+...     for tok in brown.read(item)['WORDS']:
+...         if tok['TAG'] in ['nn', 'jj'] and len(tok['TEXT']) > 3:
+...             tokens.append(tok)
+
+>>> split = len(tokens)*9/10
+>>> train, test = tokens[:split], tokens[split:]
+
+>>> cfdist = ConditionalFreqDist()
+
+>>> def condition(tok):
+...     return tok['TEXT'][-1]
+
+>>> for tok in train:
+...     cond = condition(tok)
+...     cls = tok['TAG']
+...     cfdist[cond].inc(cls)
+
+>>> correct = total = 0
+>>> for tok in test:
+...     cond = condition(tok)
+...     cls = tok['TAG']
+...     if cls == cfdist[cond].max():
+...         correct += 1
+...     total += 1
+
+>>> print correct*100/total
+71
+]]></programlisting>
+
+    <para>
+      Este resultado de 71% é marginalmente melhor que o resultado de
+      65% que obteríamos se atribuíssemos a tag <literal>nn</literal>
+      a todas as palavras. Podemos inspecionar o modelo para ver qual
+      tag é atribuída a cada palavra em função de sua letra final.
+      Desta forma, podemos aprender que as palavras que terminam em
+      <literal>c</literal> ou <literal>l</literal> têm mais probabilidade
+      de serem adjetivos que substantivos.
+    </para>
+
+<programlisting><![CDATA[
+>>> print [(c, cfdist[c].max()) for c in cfdist.conditions()]
+[..., ('a', 'nn'), ('c', 'jj'), ('b', 'nn'), ('e', 'nn'), ('d', 'nn'),
+('m', 'nn'), ('l', 'jj'), ('o', 'nn'), ('n', 'nn'), ('p', 'nn'), ...]
+]]></programlisting>
+
+</section> <!-- classifying words automatically -->
+
+  <section id="more-applications.modals">
+  <title>Explorando gêneros textuais</title>
+
+  <para>
+    Agora que podemos carregar uma quantidade significativa de texto com tags,
+    podemos processá-lo e extrair destes informações de interesse. O código a
+    seguir interage nos quinze gêneros do Brown Corpus (acessado utilizando-se
+    a função <literal>brown.groups()</literal>). O material para cada gênero
+    está dentro de um conjunto de arquivos (acessado utilizando-se a função
+    <literal>brown.items()</literal>). Cada um destes é tokenizado em série
+    e armazenado em <literal>text_token</literal>.
+  </para>
+
+<programlisting><![CDATA[
+>>> from nltk.corpus import brown
+>>> from nltk.probability import ConditionalFreqDist
+>>> cfdist = ConditionalFreqDist()
+>>> for genre in brown.groups():               # cada gênero
+...     for item in brown.items(genre):        # cada arquivo
+...         text_token = brown.read(item)      # tokeniza
+]]></programlisting>
+
+  <para>
+    O próximo passo é construir uma lista com todos os verbos modais
+    que foram encontrados. Para isto, extraímos e normalizamos o texto
+    de cada token que possuir a tag <literal>md</literal>. Para cada
+    uma destas palavras incrementaremos uma contagem. Este exemplo
+    utiliza a distribuição condicional de freqüência, na qual a
+    condição é o gênero atual e o evento é o verbo modal.
+  </para>
+
+<programlisting><![CDATA[
+...         found = [token['TEXT'].lower()             # normaliza
+...                  for token in text_token['WORDS']  # cada token
+...                  if token['TAG'] == 'md']          # que for um modal
+...         for modal in found:
+...             cfdist[genre].inc(modal)               # incrementa a contagem 
+]]></programlisting>
+
+  <para>
+    A distribuição condicional de freqüência nada mais é que um mapeamento
+    entre cada gênero e a distribuição dos verbos modais em cada gênero. O
+    fragmento de código a seguir identifica um pequeno conjunto de verbos
+    modais de interesse e processa as estruturas de dados para exibir como
+    resultado as contagens requeridas.
+  </para>
+
+<programlisting><![CDATA[
+>>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+
+>>> print "%40s" % 'Genre',              # gera os cabeçalhos de coluna
+>>> for modal in modals:
+...     print "%6s" % modal,
+>>> print
+
+>>> for genre in cfdist.conditions():    # gera as colunas
+...     print "%40s" % genre,
+...     for modal in modals:
+...         print "%6d" % cfdist[genre].count(modal),
+...     print
+
+                                   Genre    can  could    may  might   must   will
+                       skill and hobbies    273     59    130     22     83    259
+                                   humor     17     33      8      8      9     13
+                            popular lore    168    142    165     45     95    163
+                          belles-lettres    249    216    213    113    169    222
+                        fiction: science     16     49      4     12      8     16
+                        press: reportage     94     86     66     36     50    387
+miscellaneous: government & house organs    115     37    152     13     99    237
+                      fiction: adventure     48    154      6     58     27     48
+                        fiction: mystery     44    145     13     57     31     17
+                        fiction: romance     79    195     11     51     46     43
+                                religion     84     59     79     12     54     64
+                                 learned    366    159    325    126    202    330
+                          press: reviews     44     40     45     26     18     56
+                        press: editorial    122     56     74     37     53    225
+                        fiction: general     39    168      8     42     55     50
+]]></programlisting>
+
+  <para>
+    Há alguns padrões interessantes nesta tabela. Por exemplo, compare as
+    colunas para literatura governamental e literatura de aventura; a
+    primeira é dominada pelo uso de <literal>can, may, must e will</literal>
+    enquanto a última é caracterizada pelo uso de <literal>could</literal>
+    e <literal>might</literal>. Com algum esforço adicional é possível
+    adivinhar o gênero de cada novo texto automaticamente, de acordo com sua
+    distribuição de verbos modais.
+  </para>
+
+  <para>
+    Agora que vimos como tokens com tags e corpora com tags são criados e
+    acessados, estamos porntos para dar uma olhada na categorização
+    automática de palavras.
+  </para>
+
+  <important><para>
+    No NLTK, a tokenização e o tagging são operações que 
+    <emphasis>anotam</emphasis> os dados existentes. Assim, quando um
+    documento é armazenado como um único token de texto, quando tokenizado
+    para criar um conjunto de subtokens o texto original continua disponível
+    por meio da propriedade <literal>TEXT</literal>. Note que o método
+    padrão para exibição de texto tokenizado simplesmente não exibe este
+    conteúdo.
+  </para></important>
+
+
+</section> <!-- Exploring text genres -->
+
+</section>  <!-- More applications -->
+
+<section id="reading">
+  <title>Leituras adicionais</title>
+
+<para>John Hopkins Center for Language and Speech Processing, 1999
+Summer Workshop on Normalization of Non-Standard Words<ulink
+url="http://www.clsp.jhu.edu/ws99/projects/normal/report.pdf"><citetitle>Final
+Report</citetitle></ulink>.
+</para>
+
+  <para>SIL Glossary of Linguistic Terms:
+    http://www.sil.org/linguistics/GlossaryOfLinguisticTerms/
+  </para>
+
+  <para>
+    Language Files: Materials for an
+    Introduction to Language and Linguistics (Eighth Edition),
+    The Ohio State University Department of Linguistics,
+    http://www.ling.ohio-state.edu/publications/files/
+  </para>
+
+</section>
+
+<section id="exercises">
+  <title>Exercícios</title>
+
+  <orderedlist>
+
+    <listitem>
+      <formalpara>
+        <title> Acessar e tokenizar um arquivo de texto </title>
+        <para> Obter algum texto puro (como visitando uma página da web e
+	salvando seu conteúdo como texto puro) e armazer no arquivo
+	'corpus.txt'.</para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+          Utilizando as funções <literal>open()</literal> e
+          <literal>read()</literal>, carregar o texto em uma variável
+	  tipo string e exibí-la.
+        </para></listitem>
+        <listitem><para>
+	  Agora, inicialize um novo token com <literal>Token()</literal>,
+	  utilizando este texto. Tokenize o texto com o
+          <literal>WhitespaceTokenizer</literal> e especifique que
+	  o rsultado resultado deverá ser armazenado na propriedade
+	  <literal>WORDS</literal>. Exiba o resultado.
+        </para></listitem>
+        <listitem><para>
+	  A seguir, calcule o numero de toknes utilizando a função
+          <literal>len()</literal> e exiba o resultado.
+        </para></listitem>
+        <listitem><para>
+	  Finalmente, discuta as falhas deste método de tokenização de um
+	  texto. Em particular, identifique qualquer conteúdo que não tenha
+	  sido corretamente tokenizado (talvez seja necessário utilizar
+	  algum texto mais complexo).
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Tokenizar um texto utilizando expressões regulares </title>
+        <para> Obtenha algum texto puro (por exemplo, visitando uma página da
+	web e salvando seu conteúdo como texto puro) e armazene-o no
+	arquivo 'corpus.txt' para que possas responder às seguintes questões.
+	</para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+	  Processadores de texto normalmente dividem em sílabas as palavras
+	  nas quebras de linhas. Quando um documento processado por estes
+	  programas é convertido para texto puro, estas partes geralmente não
+	  são recombinadas. &Eacute; fácil reconhecer estes casos procurando na
+	  web por palavras quebradas, como <literal>depart- ment</literal>.
+	  Crie um <literal>RegexpTokenizer</literal> que trate este tipo
+	  de palavra quebrada como um token único.
+        </para></listitem>
+        <listitem><para>
+	  Considere o seguinte título de um livro:
+          <emphasis>This Is the Beat Generation: New York-San Francisco-Paris</emphasis>
+	  (Esta é a Geração Beat: Nova Iorque-São Francisco-Paris). O que seria
+	  necessário para poder tokenizar estas string de tal forma que cada
+	  nome de cidade fosse armazenado como um único token?
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Trabalhando com texto com tags </title>
+        <para> Escreva um programa que carregue o Brown Corpus e,
+	dada uma palavra, liste todas as tags possíveis para esta com
+	a contagem de freqüência. Por exemplo, para a palavra
+	<literal>strike</literal> o programa irá gerar:
+        <literal>[('nn', 25), ('vb', 21)]</literal>.
+	(Sugestão: esta tarefa envolve ordenar e reverter a lista de
+	tuples que está na forma
+        <literal>[(21, 'vb'), (25, 'nn')]</literal>.
+	Para converter estas listas na forma requerida, use
+        <literal>word_freq = [(y,x) for (x,y) in freq_word]</literal>.)
+        </para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+	  Use seu programa para exibir as tags e suas freqüências para as
+	  seguintes palavras:
+          <literal>can, fox, get, lift, like, but, frank, line, interest</literal>.
+	  Assegure-se que você conhece o significado de cada uma das tags
+	  mais freqüentes.
+        </para></listitem>
+        <listitem><para>
+	  Escreva um programa para encontrar as 20 palavras que possuem a
+	  maior variedade entre os tipos de tags possíveis.
+        </para></listitem>
+        <listitem><para>
+	  Escolha palavras que podem ser tanto substantivos quanto verbos
+	  (como <literal>deal</literal>). Tente adivinhar qual é a tag mais
+	  provável para cada palavra e confira se você está certo.
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Prevendo a próxima palavra </title>
+        <para> O programa para previsão de palavra que vimos neste
+	capítulo prende-se rapidamente em um ciclo. Modifique o programa
+	de forma que a próxima palavra seja escolhida aleatoriamente
+	entre uma lista das <replaceable>n</replaceable> palavras mais
+	prováveis no contexto dado. (Sugestão: armazene as
+	<replaceable>n</replaceable> palavras mais prováveis em uma
+	lista <literal>lwords</literal> e então escolha aleatoriamente
+	uma palavra da lista usando a função 
+	<literal>random.choice()</literal>.)
+        </para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+	  Escolha um gênero particular, como uma seção do Brown Corpus, uma
+	  tradução do livro do Gênesis ou um dos corpora de grupos de
+	  discussão. Treine seu sistema neste corpus e faço gerar texto
+	  aleatoriamente. Você pode experimentar com diferentes palavras
+	  iniciais. Quanto deste texto é compreensível? Examine os pontos
+	  fortes e fracos deste método para geração aleatória de texto.
+        </para></listitem>
+        <listitem><para>
+	  Repita a experiência com diferentes gêneros e com diferentes
+	  quantidades de dados para treinamento. O que você pode observar?
+        </para></listitem>
+        <listitem><para>
+	  Agora, treine seu sistema utilizando dois gêneros distintos e
+	  experimente com a geração de texto de um gênero hibrido. Como
+	  na questão anterior, discuta sobre suas observações.
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+    <listitem>
+      <formalpara>
+        <title> Classificação automática de palavras </title>
+        <para> 
+	  O programa para a classificação de palavras como substantivos ou
+	  adjetivos teve um índice de acerto de 71%. Vamos tentar criar
+	  condições melhores para obter um sistema com índice de acerto
+	  de 80% ou mais.
+        </para>
+      </formalpara>
+      <orderedlist>
+        <listitem><para>
+	  Revise a condição de utilizar-se um sufixo de palavra mais longo ,
+	  como os últimos dois ou três caracteres. O que acontece com o
+	  desempenho? Quais sufixos são reconhecidos como pertinentes aos
+	  adjetivos?
+        </para></listitem>
+        <listitem><para>
+	  Explore outras condições, como o um comprimento variável de prefixos 
+	  de palavra ou o comprimento das próprias palavras ou o número de
+	  vogais em uma palavra.
+        </para></listitem>
+        <listitem><para>
+	  Por último, combine as múltiplas condições em um tuple e explore
+	  quais combinações de condições fornecem os melhores resultados.
+        </para></listitem>
+      </orderedlist>
+    </listitem>
+
+  </orderedlist>
+</section> <!-- Exercises -->
+
+<appendix>
+  <title>Nomes próprios utilizados freqüentemente</title>
+
+<table id="table.properties"> 
+  <title>Nomes próprios utilizados freqüentemente</title> 
+  <tgroup cols="3">
+    <colspec colwidth='3cm'/>
+    <colspec colwidth='6cm'/>
+    <thead> 
+      <row> 
+        <entry>Propriedade</entry> 
+        <entry>Módulo</entry> 
+      </row> 
+    </thead> 
+    <tbody> 
+ 
+      <row>
+        <entry> CHUNK </entry>
+        <entry><literal>parser.chunk</literal></entry>
+      </row>
+
+      <row>
+        <entry> CLASS </entry>
+        <entry><literal>classifier</literal></entry>
+      </row>
+
+      <row>
+        <entry> CLUSTER </entry>
+        <entry><literal>clusterer</literal></entry>
+      </row>
+
+      <row>
+        <entry> CONTEXT </entry>
+        <entry><literal>feature.word, parser.chunk</literal></entry>
+      </row>
+
+      <row>
+        <entry> FEATURES </entry>
+        <entry><literal>clusterer, classifier, feature</literal></entry>
+      </row>
+
+      <row>
+        <entry> LEAF </entry>
+        <entry><literal>parser</literal></entry>
+      </row>
+
+      <row>
+        <entry> LOC </entry>
+        <entry><literal>tokenizer</literal></entry>
+      </row>
+
+      <row>
+        <entry> PROB </entry>
+        <entry><literal>clusterer, classifier, parser</literal></entry>
+      </row>
+
+      <row>
+        <entry> STEM </entry>
+        <entry><literal>stemmer</literal></entry>
+      </row>
+
+      <row>
+        <entry> TAG </entry>
+        <entry><literal>tagger</literal></entry>
+      </row>
+
+      <row>
+        <entry> TEXT </entry>
+        <entry><literal>tokenizer</literal></entry>
+      </row>
+
+      <row>
+        <entry> TREE </entry>
+        <entry><literal>parser</literal></entry>
+      </row>
+
+      <row>
+        <entry> WORDS, LINES </entry>
+        <entry><literal>tokenizer</literal></entry>
+      </row>
+
+    </tbody>
+  </tgroup>
+</table>
+
+</appendix>
+
+&index;
+
+</article>
+
+
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: xml
+adaptive-fill-mode:nil
+sgml-omittag:nil
+sgml-shorttag:nil
+sgml-namecase-general:nil
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:0
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+sgml-default-dtd-file:"/Users/ewan/cvstree/nltk/doc/docbook/xml.ced"
+End:
+-->
+
