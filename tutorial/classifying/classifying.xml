@@ -2116,10 +2116,11 @@ class NBClassifierFreqDist(FreqDistI):
       
 
       <itemizedlist>
-        <listitem><para> &sum;<subscript>&ltext;</subscript> &fdilt;
-        &times; P<subscript>classifier</subscript>(&ltext;) =
-        &sum;<subscript>&ltext;</subscript> &fdilt; &times;
-        freq<subscript>training</subscript>(&ltext;)</para>
+        <listitem><para> &sum;<subscript>&ltext;</subscript>
+        P<subscript>classifier</subscript>(&ltext;) &times; &fdilt; =
+        &sum;<subscript>&ltext;</subscript>
+        freq<subscript>training</subscript>(&ltext;) &times; &fdilt;
+        </para>
         </listitem>
       </itemizedlist>
 
@@ -2498,25 +2499,541 @@ class ConditionalExponentialClassifier(AbstractFeatureClassifier):
     <section id="maxent.training" xref="Training Maximum Entropy Classifiers">
       <title> Training Maximum Entropy Classifiers</title>
 
-      <para> (under construction) </para>
+      <para> The <literal>nltk.classifier.maxent</literal> module
+      defines two <literal>ClassifierTrainer</literal>s that can be
+      used to build maximum entropy classifiers: <ulink
+      url="&refdoc;/nltk.classifier.maxent.GISMaxentClassifierTrainer.html">
+      <literal>GISMaxentClassifierTrainer</literal></ulink> and <ulink
+      url="&refdoc;/nltk.classifier.maxent.IISMaxentClassifierTrainer.html">
+      <literal>IISMaxentClassifierTrainer</literal></ulink>.  Both of
+      these <literal>ClassifierTrainer</literal>s use an iterative
+      algorithm to successively refine a
+      <literal>ConditionalExponentialClassifier</literal> until they
+      converge on the maximum entropy classifier.  The algorithm
+      employed by <literal>GISMaxentClasifierTrainer</literal> is
+      known as <glossterm>generalized iterative scaling</glossterm>;
+      and the algorithm used by
+      <literal>IISMaxentClasifierTrainer</literal> is called
+      <glossterm>improved iterative scaling</glossterm>. </para>
+
+      <para> The next two sections give a brief introduction to each
+      algorithm, and describe how to use their
+      <literal>ClassifierTrainer</literal>s.  A complete explanation
+      of these algorithms is beyond the scope of this tutorial; see
+      <xref linkend="bibliography"></xref> for references to more
+      complete descriptions.
+      </para>
 
     </section> <!-- Training -->
-    
 
+    <section id="maxent.training.gis" xref="Generalized Iterative Scaling">
+      <title> Generalized Iterative Scaling </title>
+
+      <para> Generalized iterative scaling is a procedure to find the
+      <literal>ConditionalExponentialModel</literal> weights that
+      define the maximum entropy classifier for a given feature set
+      and training corpus.  This procedure is guaranteed to converge
+      on the correct weights. </para>
+
+      <para> Generalized iterative scaling places three constraints on
+      the feature set: </para>
+
+      <itemizedlist>
+        <listitem> <para> Feature values must be boolean (i.e., 0 or
+        1). </para>
+        </listitem>
+        <listitem> <para> The feature value list for every
+        <literal>LabeledText</literal> must have at least one feature
+        with a value of 1. </para>
+        </listitem>
+        <listitem>
+          <para> The sum of the feature values for each
+          <literal>LabeledText</literal> must have the same value.  In
+          other words, there must exist a single value C such that:
+          </para> <para> &sum;<subscript>i</subscript> &fdilt; = C
+          </para> <para> for every <literal>LabeledText</literal>
+          &ltext;.  C is known as the <glossterm>correction
+          constant</glossterm>correction>. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> The second constraint can always be satisfied by adding a
+      single feature detector that always returns a value of one.  The
+      third constraint can always be satisfied by adding a
+      "correction" feature that returns
+      C-&sum;<subscript>i</subscript>&fdilt;.</para>
+
+      <note> <para>In general, adding new features can change which
+      classifier is the maximum entropy classifier for a given task.
+      However, these two new features are completely dependant on the
+      other features.  They add no new information, and therefore
+      place no new constraints on the classifier.  As a result, they
+      will not affect which classifier is the maximum entropy
+      classifier. </para> </note>
+      
+
+      <para> Generalized iterative scaling begins by initializing each
+      weight to 1.  It then iteratively updates the weights using the
+      formula: </para>
+
+      <itemizedlist>
+        <listitem> <para> &wi; := &wi; &times;
+        ((&sum;<subscript>&ltext;</subscript>
+        freq<subscript>training</subscript>(&ltext;) &times; &fdilt;)
+        / (&sum;<subscript>&ltext;</subscript>
+        P<subscript>classifier</subscript>(&ltext;) &times; &fdilt;))
+        ** (1/C) </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Where: </para>
+      
+      <itemizedlist>
+        <listitem><para> freq<subscript>training</subscript>(&ltext;)
+        is the frequency of &ltext; in the training data.
+        </para></listitem> <listitem><para>
+        P<subscript>classifier</subscript>(&ltext;) is the
+        classifier's estimated probability for &ltext;.</para>
+        </listitem>
+        <listitem> <para> C is the correction constant. </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> To avoid summing over all values of &ltext; (which would
+      be very inefficient), we can make the following approximation:
+      </para>
+
+      <itemizedlist>
+        <listitem><para> &sum;<subscript>&ltext;</subscript> 
+        P<subscript>classifier</subscript>(&ltext;) &times; &fdilt; &ap;
+        &sum;<subscript>&t;</subscript>
+        &sum;<subscript>&l;</subscript> 
+        freq<subscript>training</subscript>(&t;) &times; 
+        P<subscript>classifier</subscript>(&l;|&t;) &times; &fdiltextlt; 
+        </para></listitem>
+      </itemizedlist>
+
+      <remark> I make the claim that feature values must be boolean --
+      is that true?  Or do they have to be integer?  nonnegative
+      integer?  real?  nonnegative real?  The current implementation
+      assumes binary features; but if the algorithm doesn't make that
+      requirement, I could change the implementation to work with
+      other feature types. </remark>
+
+      <section id="maxent.training.gis.trainer" xref="GISMaxentClassifierTrainer">
+        <title> GISMaxentClassifierTrainer </title>
+          
+        <para> The <literal>nltk.classifier.maxent</literal> module
+        defines <ulink
+        url="&refdoc;/nltk.classifier.maxent.GISMaxentClassifierTrainer.html">
+        <literal>GISMaxentClassifierTrainer</literal></ulink>, a
+        classifier trainer based on the generalized iterative scaling
+        algorithm.  For a given training sets,
+        <literal>GISMaxentClassifierTrainer</literal> creates a
+        <literal>ConditionalExponentialModel</literal> that represents
+        the maximum entropy classifier. </para>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.maxent.GISMaxentClassifierTrainer.html#__init__">
+        <literal>GISMaxentClassifierTrainer</literal>
+        constructor</ulink> takes a single
+        <literal>FeatureDetectorList</literal>, which encodes the
+        features that will be used by the classifiers it creates. </para>
+
+<programlisting>
+    &prompt; <command>classifier = GISMaxentClassifierTrainer(fdlist)</command>
+    &lt;GISMaxentClassifierTrainer: 13318 features&gt;
+ </programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.maxent.GISMaxentClassifierTrainer.html#train">
+        <literal>train</literal></ulink> method is used to train a
+        new classifier from a given set of training tokens: </para>
+
+<programlisting>
+    &prompt; <command>classifier.train(train_toks)</command>
+    &lt;ConditionalExponentialClassifier: 72 labels, 13318 features&gt;
+</programlisting>
+
+        <para> The <literal>train</literal> method takes a number of
+        optional keyword arguments: </para>
+
+        <itemizedlist>
+          <listitem> 
+            <para> <literal>C</literal>: specifies the correction
+            constant.  This constant must satisfy the constraint:
+            </para>
+            <itemizedlist>
+              <listitem> <para> C &ge;
+              &sum;<subscript>i</subscript>&fdilt;</para>
+              </listitem>
+            </itemizedlist>
+            <para> for every <literal>LabeledText</literal> &ltext;.
+            Lower values of <literal>C</literal> cause GIS to converge
+            more quickly.  Thus, you should usually pick the lowest
+            value that you are sure satisfies the above constraint.
+            The default value of <literal>C</literal> is the length of
+            the <literal>FeatureDetectorList</literal>, which is
+            guaranteed to be safe for binary-valued features.
+            However, this default value may result in very slow
+            convergence. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>debug</literal>: specifies whether to
+            output messages describing the trainer's progress.  Higher
+            values result in more verbose output.  The default value
+            is zero, which indicates that no messages should be
+            produced. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>labels</literal>: specifies the set of
+            possible labels.  If none is given, then the set of all
+            labels attested in the training data will be used. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>iterations</literal>: specifies the
+            maximum number of iterations for the GIS algorithm. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>accuracy_cutoff</literal>: specifies
+            what accuracy value should be taken to indicate
+            convergence.  If the accuracy becomes closer to one
+            than the specified value, then GIS will terminate.  The
+            default value is <literal>None</literal>, which indicates
+            that no accuracy cutoff should be used. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>delta_accuracy_cutoff</literal>:
+            specifies what change in accuracy should be taken to
+            indicate convergence.  If the accuracy changes by
+            less than this value in a single iteration, then GIS will
+            terminate.  The default value is <literal>None</literal>,
+            which indicates that no accuracy-change cutoff should be used. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>log_likelihood_cutoff</literal>: specifies
+            what log-likelihood value should be taken to indicate
+            convergence.  If the log-likelihod becomes closer to zero
+            than the specified value, then GIS will terminate.  The
+            default value is <literal>None</literal>, which indicates
+            that no log-likelihood cutoff should be used. </para>
+          </listitem>
+          <listitem>
+            <para> <literal>delta_log_likelihood_cutoff</literal>:
+            specifies what change in log-likelihood should be taken to
+            indicate convergence.  If the log-likelihood changes by
+            less than this value in a single iteration, then GIS will
+            terminate.  The default value is <literal>None</literal>,
+            which indicates that no log-likelihood-change cutoff
+            should be used. </para>
+          </listitem>
+        </itemizedlist>
+        
+      </section> <!-- GISMaxentClassifierTrainer -->
+
+    </section> <!-- GIS -->
+
+    <section id="maxent.training.iis" xref="Iterative Iterative Scaling">
+      <title> Iterative Iterative Scaling </title>
+      
+      <para> Improved iterative scaling is a procedure to find the
+      <literal>ConditionalExponentialModel</literal> weights that
+      define the maximum entropy classifier for a given feature set
+      and training corpus.  This procedure is guaranteed to converge
+      on the correct weights.  It usually converges more quickly than
+      generalized iterative scaling. </para>
+      
+      <para> Improved iterative scaling begins by initializing each
+      weight to 1.  It then iteratively updates the weights using the
+      formula: </para>
+
+      <itemizedlist>
+        <listitem>
+          <para> &wi; := &wi; &times; e
+          <superscript>&delta;<subscript>i</subscript></superscript></para>
+        </listitem>
+      </itemizedlist>
+
+      <para> Where &delta;<subscript>i</subscript> is the solution to
+      the equation: </para>
+
+      <itemizedlist>
+        <listitem>
+          <para> &sum;<subscript>&ltext;</subscript>
+          freq<subscript>training</subscript>(&ltext;) &times; &fdilt;
+          = &sum; <subscript>&ltext;</subscript>
+          P<subscript>classifier</subscript>(&ltext;) &times; &fdilt;
+          &times; e <superscript> &delta; &times;
+          nf(&ltext;)</superscript></para>
+        </listitem>
+      </itemizedlist>
+
+      <para> To avoid summing over all values of &ltext; (which would
+      be very inefficient), we can make the following approximation:
+      </para>
+
+      <itemizedlist>
+        <listitem><para> &sum;<subscript>&ltext;</subscript>
+        P<subscript>classifier</subscript>(&l;|&t;) &times; &fdilt;
+        &times; e <superscript> &delta; &times;
+        nf(&ltext;)</superscript> &ap; </para> <para>
+        &sum;<subscript>&t;</subscript>
+        &sum;<subscript>&l;</subscript>
+        freq<subscript>training</subscript>(&t;) &times;
+        P<subscript>classifier</subscript>(&l;|&t;) &times;
+        &fdiltextlt; &times; e <superscript> &delta; &times;
+        nf(&ltext;)</superscript> </para>
+        </listitem>
+      </itemizedlist>
+
+      <para> For each iteration, &delta;<subscript>i</subscript> can
+      be found using Newton's method. </para>
+
+      <section id="maxent.training.iis.trainer" xref="IISMaxentClassifierTrainer">
+        <title> IISMaxentClassifierTrainer </title>
+        
+        <para> The <literal>nltk.classifier.maxent</literal> module
+        defines <ulink
+        url="&refdoc;/nltk.classifier.maxent.IISMaxentClassifierTrainer.html">
+        <literal>IISMaxentClassifierTrainer</literal></ulink>, a
+        classifier trainer based on the improved iterative scaling
+        algorithm.  For a given training sets,
+        <literal>IISMaxentClassifierTrainer</literal> creates a
+        <literal>ConditionalExponentialModel</literal> that represents
+        the maximum entropy classifier. </para>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.maxent.IISMaxentClassifierTrainer.html#__init__">
+        <literal>IISMaxentClassifierTrainer</literal>
+        constructor</ulink> takes a single
+        <literal>FeatureDetectorList</literal>, which encodes the
+        features that will be used by the classifiers it creates. </para>
+
+<programlisting>
+    &prompt; <command>classifier = IISMaxentClassifierTrainer(fdlist)</command>
+    &lt;IISMaxentClassifierTrainer: 13318 features&gt;
+ </programlisting>
+
+        <para> The <ulink
+        url="&refdoc;/nltk.classifier.maxent.IISMaxentClassifierTrainer.html#train">
+        <literal>train</literal></ulink> method is used to train a
+        new classifier from a given set of training tokens: </para>
+
+<programlisting>
+    &prompt; <command>classifier.train(train_toks)</command>
+    &lt;ConditionalExponentialClassifier: 72 labels, 13318 features&gt;
+</programlisting>
+
+        <para> The <literal>train</literal> method supports all of the
+        optional keyword arguments that were described for
+        <literal>GISMaxentClassifierTrainer</literal> (except
+        <literal>C</literal>, since IIS does not use a correction
+        constant). </para>
+
+      </section> <!-- IISMaxentClassifierTrainer -->
+      
+    </section> <!-- IIS -->
+    
   </chapter> <!-- Maxent Classifier -->
 
   <chapter id="fselection" xreflabel="Feature Selection"> 
     <title> Feature Selection </title>
 
-    <para> (under construction) </para>
+    <para> Features are used to specify which information is relevant
+    to a classification task.  Unfortunately, it's often difficult to
+    decide which information is relevant.  One possible solution would
+    be to include a large number of features, and let the
+    classification algorithm decide which information is relevant. </para>
+
+    <para> However, this approach has some serious disadvantages.  The
+    number of features affects the classifier's speed.  Including a
+    large number of features can result in long training and
+    classification times.  An even more serious problem arises because
+    the number of model parameters increases with the number of
+    features.  If we use too many features, we may not be able to
+    reliably estimate the correct values for all of these parameters.
+    This can result in <glossterm>overfitting</glossterm>, where the
+    classifier models the idiosyncrasies of the training set, rather
+    than the class of texts that the training set represents.  In an
+    extreme example of overfitting, the classifier might assign a
+    probability of zero to any labeled text not included in the
+    training data. </para>
+
+    <para> A more promising approach is to begin with a large number
+    of features, and use statistical techniques to decide which
+    features are relevant.  A classifier can then be constructed from
+    this reduced set of features.  This task of deciding which
+    features are relevant for a classification task is known as
+    <glossterm>feature selection</glossterm>. </para>
+
+    <para> The <literal>nltk.classifier.featureselection</literal>
+    module defines interfaces and classes for performing feature
+    selection.  Currently, this module only provides the basic
+    framework for performing feature selection, and a few simple
+    feature selectors; it does not implement any advanced feature
+    selection techniques.  However, we plan to add new feature
+    detectors to this module in the near future. </para>
+
+    <section id="fselection.featureselector" xreflabel="FeatureSelectorI"> 
+      <title> FeatureSelectorI </title>
+
+      <para> The <literal>nltk.classifier.featureselection</literal>
+      module defines <ulink
+      url="&refdoc;/nltk.classifier.featureselection.FeatureSelectorI.html">
+      <literal>FeatureSelectorI</literal></ulink>, a general interface
+      for performing feature selection.  It requires that classifiers
+      define a single method, <ulink
+      url="&refdoc;/nltk.classifier.featureselection.FeatureSelectorI.html#select">
+      <literal>select</literal></ulink>, which takes a
+      <literal>FeatureDetectorList</literal>, and decides which
+      features are releveant for classification.  It returns a new
+      <literal>FeatureDetectorList</literal> that includes the feature
+      detectors for the relevant features. </para>
+
+<programlisting>
+    &prompt; <command>print fdlist</command>
+    &lt;FeatureDetectorList with 26193 features&gt;
+    &prompt; <command>selected_fdlist = feature_selector.select(fdlist)</command>
+    &lt;FeatureDetectorList with 1827 features&gt;
+</programlisting>
+
+    </section> <!-- FeatureSelectorI -->
+
+    <section id="fselection.selectedfdlist" xreflabel="SelectedFDList"> 
+      <title> SelectedFDList </title>
+
+      <para> Feature selectors decide which features are relevant for
+      a particular classification task; and return a new
+      <literal>FeatureDetectorList</literal> containing those
+      features' detectors.  <ulink
+      url="&refdoc;/nltk.classifier.featureselection.SelectedFDList.html">
+      <literal>SelectedFDList</literal></ulink> provides feature
+      selectors with a convenient way of building this new
+      <literal>FeatureDetectorList</literal>.  </para>
+
+      <para> A <literal>SelectedFDList</literal> consists of a subset
+      of the feature detectors defined by a <glossterm>base
+      <literal>FeatureDetectorList</literal></glossterm>.  The <ulink
+      url="&refdoc;/nltk.classifier.featureselection.SelectedFDList.html#__init__">
+      <literal>SelectedFDList</literal> constructor</ulink> takes a
+      base <literal>FeatureDetectorList</literal> and a list of
+      feature ids, specifying which features should be included:
+      </para>
+
+<programlisting>
+    &prompt; <command>print fdlist</command>
+    &lt;FeatureDetectorList with 26193 features&gt;
+
+    <emphasis># Select every 50th feature. </emphasis>
+    &prompt; <command>ids = range(0, 26193, 50)</command>
+    [0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, ...]
+    &prompt; <command>selected_fdlist = SelectedFDList(fdlist, ids) </command>
+    &lt;FeatureDetectorList with 524 features&gt;
+</programlisting>
+
+      <para> Internally, <literal>SelectedFDList</literal> maintains a
+      dictionary mapping from old feature ids to new feature ids.
+      When the <literal>SelectedFDList</literal> is applied to a text,
+      it first applies its base <literal>FeatureDetectorList</literal>
+      to the text.  Then, it uses its dictionary to transform the
+      resulting <literal>FeatureValueList</literal>. </para>
+      
+    </section> <!-- SelectedFDList -->
+
+    <section id="fselection.selectors" xreflabel="Feature Selectors"> 
+      <title> Feature Selectors </title>
+
+      <para> For information about the feature selectors currently
+      available, see the reference documentation for the <ulink
+      url="&refdoc;/nltk.classifier.featureselection.html">
+      <literal>nltk.classifier.featureselection</literal>
+      module</ulink>. </para>
+
+    </section> <!-- Feature Selectors -->
 
   </chapter> <!-- Feature Selection -->
 
-  <chapter id="bibliography" xreflabel="Bibliography"> 
+  <!-- I'm really not sure how you're supposed to use the bibliography -->
+  <!-- docbook elements.  I tried looking up info about it on the web, -->
+  <!-- but it didn't make a whole lot of sense to me.  So this is my best -->
+  <!-- guess, partially driven by making sure that it produces reasonable -->
+  <!-- output. -->
+  <bibliography id="bibliography" xreflabel="The Bibliography">
     <title> Bibliography </title>
 
-    <para> (under construction) </para>
+    <biblioentry>
+      <authorgroup>
+        <author>
+          <firstname>Adam</firstname>
+          <surname>Berger</surname>
+        </author>
+      </authorgroup>
+      <title>The Improved Iterative Scaling Algorithm: A Gentle Introduction</title>
+      <date> December, 1997</date>
+      <citetitle><ulink url="http://citeseer.nj.nec.com/31826.html">http://citeseer.nj.nec.com/31826.html</ulink></citetitle>
+    </biblioentry>
 
-  </chapter> <!-- Bibliography -->
+    <biblioentry>
+      <authorgroup>
+        <author>
+          <firstname>Adam</firstname>
+          <surname>Berger</surname>
+        </author>
+        <author>
+          <firstname>Stephen</firstname>
+          <surname>Della Pietra</surname>
+        </author>
+        <author>
+          <firstname>Vincent</firstname>
+          <surname>Della Pietra</surname>
+        </author>
+      </authorgroup>
+      <title>A Maximum Entropy Approach to Natural Language Processing</title>
+      <citetitle>Computational Linguistics</citetitle>
+      <volumenum>22</volumenum>
+      <issuenum>1</issuenum>
+      <artpagenums>pp. 39-71</artpagenums>
+      <date> 1996 </date>
+      <citetitle><ulink url="http://citeseer.nj.nec.com/berger96maximum.html">http://citeseer.nj.nec.com/berger96maximum.html</ulink></citetitle>
+    </biblioentry>
 
+    <biblioentry>
+      <authorgroup>
+        <author>
+          <firstname>Kamal</firstname>
+          <surname>Nigam</surname>
+        </author>
+        <author>
+          <firstname>John</firstname>
+          <surname>Lafferty</surname>
+        </author>
+        <author>
+          <firstname>Andrew</firstname>
+          <surname>McCallum</surname>
+        </author>
+      </authorgroup>
+      <title>Using Maximum Entropy for Text Classification</title>
+      <citetitle>IJCAI-99 Workshop on Machine Learning for
+        Information Filtering</citetitle>
+      <artpagenums>pp. 61-67</artpagenums>
+      <date> 1999 </date> 
+      <citetitle><ulink url="http://citeseer.nj.nec.com/nigam99using.html">http://citeseer.nj.nec.com/nigam99using.html</ulink></citetitle>
+    </biblioentry>
+
+    <biblioentry>
+      <authorgroup>
+        <author>
+          <firstname>Adwait</firstname>
+          <surname>Ratnaparkhi</surname>
+        </author>
+      </authorgroup>
+      <title>A Simple Introduction to Maximum Entropy Models for Natural Langauge Processing</title>
+      <citetitle>Technical Report 97-08, Institute for Research in
+      Cognitive Science, University of Pennsylvania</citetitle>
+      <date> 1997 </date> 
+      <citetitle><ulink url="http://citeseer.nj.nec.com/128751.html">http://citeseer.nj.nec.com/128751.html</ulink></citetitle>
+    </biblioentry>
+
+  </bibliography>
 </book>
+
