@@ -8,8 +8,8 @@
 # $Id$
 
 ##############################################
-##  A list of all the technical reports
-REPORTS = proposal reptypes printing classification
+##  Automatically find technical reports.
+REPORTS = $(shell ls */*.info |sed 's/[/][^/]*\.info//')
 
 ##############################################
 ##  You shouldn't have to change anything below here.

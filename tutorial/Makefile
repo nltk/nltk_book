@@ -8,9 +8,8 @@
 # $Id$
 
 ##############################################
-##  A list of all the technical reports
-REPORTS = probability introduction advpython tagging \
-	writing_classes parsing chunking classifying
+##  Automatically find tutorial reports.
+REPORTS = $(shell ls */*.info |sed 's/[/][^/]*\.info//')
 
 ##############################################
 ##  You shouldn't have to change anything below here.
