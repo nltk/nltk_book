@@ -1,5 +1,14 @@
 <?xml version="1.0"?>
-<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" [
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+"../../docbook/sgml/docbook/xml-dtd-4.2/docbookx.dtd" [
+<!-- Base URL for the reference & tutorial documentation -->
+<!ENTITY refdoc "http://nltk.sourceforge.net/api/public">
+<!ENTITY tutdoc "http://nltk.sourceforge.net/tutorial">
+
+<!-- Index -->
+<!ENTITY index SYSTEM "index.xml">
+
+<!-- Prompts for Python code samples -->
 <!ENTITY prompt "<prompt>&gt;</prompt><prompt>&gt;</prompt><prompt>&gt;</prompt>">
 <!ENTITY prompt2 "<prompt>...</prompt>">
 ]>
@@ -13,26 +22,22 @@
     <title>NLTK Tutorial: Chart Parsing</title>
   </articleinfo>
 
-  <section> <title> Introduction </title>
+<!--  <section> <title> Introduction </title>
 
     <para></para>
 
-<!-- 
 X.1 introduction: motivation, background, history
     - why is this an interesting problem for CL?
--->
 
-  </section> <!-- Introduction -->
+  </section>
 
     <section> <title> Linguistic Overview </title>
 
     <para></para>
 
-<!-- 
 X.2 linguistic overview (for non-linguist readers)
     - how have linguists addressed the problem?
     - what are the shortcomings of the non-computational approach?
--->
 
     </section>
 
@@ -40,14 +45,12 @@ X.2 linguistic overview (for non-linguist readers)
 
     <para></para>
 
-<!--
 X.3 computational model (gentle for linguistics ugrads)
     - what are some good data structures and algorithms?
     - just pick one or two approaches, not encyclopedic
     - NLTK demo - watch the execution of the algorithm
       (screen shots to show execution, side bars to say how
        to do it)
--->
 
     </section>
 
@@ -55,159 +58,74 @@ X.3 computational model (gentle for linguistics ugrads)
 
     <para></para>
 
-<!--
 X.4 advanced topics (optional)
     - other approaches, evaluation, problems
     - challenges for particular languages / language families
     - research questions
--->
 
     </section>
 
     <section> <title> Chart Parsing in NLTK </title>
 
-<!--
 X.5 implementation
     - how does NLTK do it?
     - simple problems and worked solutions
     - suggested projects (e.g. for your MSc students)
 -->
 
-    <section> <title> Rules </title>
+<!--  <section> <title> Chart Parsing </title>-->
+   <section id="intro"> <title> Introduction </title>
 
-      <note><para>For the NLTK chart parser, the right-hand side of a rule must
-      be either a tuple of non-terminals, or a tuple consisting of exactly one
-      terminal (e.g. ("the",))</para></note>
+    <para>The simple parsers discussed in <ulink
+    url="&tutdoc;/parsing">the parsing tutorial</ulink> suffer from
+    some significant problems.  The bottom-up shift-reduce parser can
+    only find one parse, and it often fails to find a parse even if
+    one exits.  The top-down recursive-descent parser can be very
+    inefficient, since it often builds and discards the same
+    sub-structure many times over; and if the grammar contains
+    left-recursive rules, it can enter into an infinite loop. </para>
 
-    <note><para>The NLTK chart parser makes two additional assumptions about rules.
-    First, if a terminal symbol occurs on the right hand side of a rule, it must
-    be the only element on the right hand side.  Second, terminal symbols must
-    be Python strings, for they are matched against the <literal>type</literal>
-    attribute of a token.  Thus, the form of "lexical rules" must be
-    <literal>N -&gt; 'cat'</literal>.  Using rules like
-    <literal>NP -&gt; 'the' N</literal> will produce unintended results
-    (either <literal>the</literal> will be treated as the name of a non-terminal,
-    of <literal>N</literal> will be ignored).  In general, this limitation on the
-    form of lexical rules does not pose any problems.
-    </para></note>
+    <para> These completeness and efficiency problems can be addressed
+    by employing a technique called <glossterm>dynamic
+    programming</glossterm>, which stores intermediate results, and
+    re-uses them wen appropriate.  For parsing </para>
 
-    </section> <!-- Rules -->
+    <warning>
+      <para> This tutorial is out of date; for an up-to-date
+      explanation of chart parsing, see the reference documentation
+      for the <ulink url="&refdoc;/nltk.parser.chart-module.html"
+      ><literal>nltk.parser.chart</literal></ulink> module, which
+      defines the chart parser. </para>
 
-    <section> <title> Dotted Rules </title>
-
-      <para>The <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.html"
-      ><literal>nltk.rule</literal></ulink> module defines the
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html"
-      ><literal>DottedRule</literal></ulink> class, which is used to represent
-      the dotted rules used by a chart parser.  A <literal>DottedRule</literal>
-      consists of a left-hand side, a right-hand side, and the dot position.</para>
-
-      <para><literal>DottedRule</literal>s are created with the
-      <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#__init__"
-      ><literal>DottedRule constructor</literal></ulink>, which takes a left-hand side,
-      a right-hand side, and a position:</para>
+      <para> You may also want to explore the chart parser graphical
+      demonstration tool, which supports interactive application of
+      rules and strategies to a chart parser.  The chart parser demo
+      can be invoked from within Python with the following commands:
+      </para>
 
 <programlisting>
-<emphasis># A dotted rule with position 0 (default value omitted):</emphasis>
-&prompt;<command> dr1 = DottedRule('S', ('NP', 'VP'))</command>
-S -> * NP VP
-
-<emphasis># A dotted rule with position 0 (default value supplied):</emphasis>
-&prompt;<command> dr1 = DottedRule('S', ('NP', 'VP'), 0)</command>
-S -> * NP VP
-
-<emphasis># A dotted rule with position 1:</emphasis>
-&prompt;<command> dr2 = DottedRule('S', ('NP', 'VP'), 1)</command>
-S -> NP * VP
-
-<emphasis># A dotted rule with position 2:</emphasis>
-&prompt;<command> dr3 = DottedRule('S', ('NP', 'VP'), 2)</command>
-S -> NP VP *
+&prompt; <command> import nltk.draw.chart</command>
+&prompt; <command> nltk.draw.chart.demo()</command>
 </programlisting>
-
-    <para>Another way to construct a <literal>DottedRule</literal> is from
-    a <literal>Rule</literal>.  The <literal>Rule</literal> class has a
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.Rule.html#drule"
-    ><literal>drule</literal></ulink> member function which returns the
-    dotted version of the rule (with position 0).
-    </para>
-
-<programlisting>
-&prompt;<command> rule1 = Rule('S', ('NP', 'VP'))</command>
-&prompt;<command> rule1.drule()</command>
-S ->  * NP VP
-</programlisting>
-
-    <para><literal>DottedRule</literal> inherits the member functions of
-    <literal>Rule</literal>.  In addition, it defines
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#pos"
-    ><literal>pos</literal></ulink> which returns the dot position,
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#next"
-    ><literal>next</literal></ulink> which returns the next right-hand side
-    element following the dot, and
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#shift"
-    ><literal>shift</literal></ulink>
-    which returns a new rule with the dot shifted one position to the right.
-    </para>
-
-<programlisting>
-&prompt;<command> dr1.pos()</command>
-0
-
-&prompt;<command> dr1.next()</command>
-'NP'
-
-&prompt;<command> dr1.shift()</command>
-S -> NP * VP
-
-&prompt;<command> dr3.shift()</command>
-IndexError: Attempt to move dot position past end of rule
-
-</programlisting>
-
-    <para><literal>DottedRule</literal> defines a function
-    <ulink url="http://nltk.sourceforge.net/ref/nltk.rule.DottedRule.html#complete"
-    ><literal>complete</literal></ulink> which tests to see if the dotted rule
-    is complete (i.e. the dot is in the rightmost position).</para>
-
-<programlisting>
-&prompt;<command> dr1.complete()</command>
-0
-
-&prompt;<command> dr3.complete()</command>
-0
-</programlisting>
-
-
-    </section>
-
-  </section> <!-- Grammars -->
-
-  <section> <title> Chart Parsing </title>
-
-    <para>The elementary parsers discussed above suffer from a major
-    efficiency problem.  During processing, they typically build and
-    discard the same structure many times over.  The standard solution
-    to this general kind of problem involves dynamic programming in
-    which intermediate results are kept on a blackboard (the chart) for
-    later reuse.
-    </para>
+      
+    </warning>
 
     <para>In general, a parser hypothesizes constituents based on the
     the grammar and on the current state of its knowledge about the
-    constituents which are already attested.  Any given constituent may
-    be proposed during the search of a blind alley; there is no way of
-    knowing at the time whether the constituent will be used in any of
-    the final parses which are reported.  Locally, what we know about a
-    constituent is the C{Rule} which licenses its node and immediate
-    daughter nodes (i.e. the "local tree").  Also, in the case of chart
-    parsing (which is related to bottom-up parsing), we know the whole
-    subtree of this node, how it connects to the tokens of the sentence
-    being parsed, and its span within the sentence (i.e. location).
-    In a chart parser, these these three things: rule, subtree and location,
-    are stored in a special structure called an edge.</para>
+    constituents which are already attested.  Any given constituent
+    may be proposed during the search of a blind alley; there is no
+    way of knowing at the time whether the constituent will be used in
+    any of the final parses which are reported.  Locally, what we know
+    about a constituent is the production which licenses its node and
+    immediate daughter nodes (i.e. the "local tree").  Also, in the
+    case of chart parsing (which is related to bottom-up parsing), we
+    know the whole subtree of this node, how it connects to the tokens
+    of the sentence being parsed, and its span within the sentence
+    (i.e. location).  In a chart parser, these these three things:
+    rule, subtree and location, are stored in a special structure
+    called an edge.</para>
 
-    <section> <title> Edges </title>
+    <section id="edges"> <title> Edges </title>
 
       <para>In order to understand how edges work, it is first necessary to
       recall NLTK's notion of <literal>Location</literal>.  A location in
@@ -281,7 +199,7 @@ Tkinter.mainloop()
 
     </section> <!-- Edges -->
 
-    <section> <title> Charts </title>
+    <section id="charts"> <title> Charts </title>
 
       <para>A chart is a set of edges and a location.  The edge set represents
       the state of a chart parser during processing, and new edges can be inserted
@@ -298,7 +216,7 @@ Tkinter.mainloop()
 
     </section> <!-- Charts -->
 
-    <section> <title> Chart Rules and Parsing Strategies </title>
+    <section id="rules"> <title> Chart Rules and Parsing Strategies </title>
 
       <para>The
       <ulink url="http://nltk.sourceforge.net/ref/nltk.chartparser.ChartParserStrategy.html">ChartParserStrategy</ulink>
@@ -353,7 +271,7 @@ def edge_triggered_rule(chart, grammar, basecat, edge):
 
       <para>The main kinds of chart rules are enumerated and discussed below:</para>
 
-      <section> <title> Chart Initialization </title>
+      <section id="rules.init"> <title> Chart Initialization </title>
 
         <para>The first step in parsing a tokenized sentence is to initialize
         the chart with word edges.  For each lexical rule which expands to a given
@@ -364,7 +282,7 @@ def edge_triggered_rule(chart, grammar, basecat, edge):
 
       </section> <!-- Chart Initialization -->
 
-      <section> <title> Fundamental Rule </title>
+      <section id="rules.fr"> <title> Fundamental Rule </title>
 
         <para>
         The most important way that edges are combined is known as the
@@ -426,7 +344,7 @@ def FR(chart, grammar, basecat):
 
     </section> <!-- Fundamental Rule -->
 
-    <section> <title> Top Down Initialization </title>
+    <section id="rules.td"> <title> Top Down Initialization </title>
 
       <para>Top down parsing is initialized by creating a zero-width
       (or self-loop) edges at the leftmost position in the chart.
@@ -449,7 +367,7 @@ def TD_init(chart, grammar, basecat):
 
     </section> <!-- Top Down Initialization -->
 
-    <section> <title> The Top Down Edge-Triggered Rule </title>
+    <section id="rules.td2"> <title> The Top Down Edge-Triggered Rule </title>
 
       <para>Whenever a chart contains an incomplete edge, with an incomplete
       rule having <replaceable>X</replaceable> as the next symbol (to the right
@@ -475,7 +393,7 @@ def TD_edge(chart, grammar, basecat, edge):
 
     </section> <!-- The Top Down Edge-Triggered Rule -->
 
-    <section> <title> Bottom Up Initialization </title>
+    <section id="rules.bu"> <title> Bottom Up Initialization </title>
 
       <para>A bottom up parser builds syntactic structure starting from the
       words in the input.  For each word, it must consider which grammar rules
@@ -495,7 +413,7 @@ def BU_init(chart, grammar, basecat):
 
     </section> <!-- Bottom Up Initialization -->
 
-    <section> <title> Chart Parser Strategies </title>
+    <section id="rules.strategies"> <title> Chart Parser Strategies </title>
 
       <para>Chart parsers use the various rules described above in order
       to emulate top down, bottom up or hybrid parsers.  A policy about
@@ -518,7 +436,7 @@ BU_STRATEGY = ChartParserStrategy([BU_init, FR], [])
 
     </section> <!-- Parsing Strategies -->
 
-    <section> <title> Creating and Using Chart Parsers </title>
+    <section id="using"> <title> Creating and Using Chart Parsers </title>
 
       <para>Here is a simple chart parser, which makes use of
       <literal>grammar</literal> and <literal>lexicon</literal>
@@ -602,7 +520,7 @@ for parse in cp.parses():
 
     </section> <!-- Creating and Using Chart Parsers -->
 
-    <section> <title> The Tk Interface </title>
+    <section id="demo"> <title> The Tk Interface </title>
 
       <note><para>To be written.</para></note>
 
@@ -613,6 +531,8 @@ for parse in cp.parses():
     </section> <!-- The Tk Interface -->
 
   </section> <!-- Chart Parsing -->
-</section> <!-- Chart Parsing in NLTK -->
+</section> <!-- Intro -->
+<!-- </section>  Chart Parsing in NLTK -->
 
+  &index;
 </article>
