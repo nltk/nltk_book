@@ -17,15 +17,10 @@
 <!ENTITY i2 "i<subscript>2</subscript>">
 <!ENTITY inm1 "i<subscript>n-1</subscript>">
 
-<!-- Dot (for dotted rules).  I'd like a bigger dot, but I don't see one. -->
-<!ENTITY dot "&middot;">
+<!-- Dot (for edges). -->
+<!ENTITY dot "&bull;">
 ]>
 
-<!-- ==================================
-This tutorial assumes that they've already read the parsing tutorial;
-but that tutorial still needs a lot of work.  So there are some
-holes, for now.
-=================================== -->
 <!-- ==================================
 TO DO:
   - Learning grammars
@@ -44,7 +39,7 @@ TO DO:
   <section id="intro"> 
     <title> Introduction </title>
 
-    <!-- ==== Remove this after we write the new tutorials ==== -->
+    <!-- ==== Remove this after we write the new tutorials ==== 
     <note> 
       <para> We are currently re-writing the basic parsing tutorials
       to provide more background information.  As a result, this
@@ -62,14 +57,14 @@ TO DO:
       be covered in the re-written basic parsing tutorials.  But for
       now, we refer you to other published discussions of parsing,
       such as Jurafsky and Martin, Chapter 10.  </para>
-    </note>
+    </note> -->
 
     <para> Parsing allows us to find tree structures representing the
     internal organization of a text.  These trees are useful for a
     wide variety of tasks, including semantic interpretation,
     information retrieval, and machine translation.  Unfortunately,
     most texts have a large number of possible structures.  This
-    produces two problems for the symbolic approaches discussed in the
+    causes two problems for the symbolic approaches discussed in the
     <ulink url="&tutdoc;/parsing/index.html">parsing tutorial</ulink>:
     </para>
 
@@ -123,6 +118,9 @@ TO DO:
       children: </para>
 
 <programlisting>
+&prompt; <command>from nltk.token import WSTokenizer</command>
+&prompt; <command>from nltk.tree import *</command>
+          
 <emphasis># Define some text tokens:</emphasis>
 &prompt; <command>words = WSTokenizer().tokenize('He ate my cookie')</command>
 ['He'@[0w], 'ate'@[1w], 'my'@[2w], 'cookie'@[3w]]
@@ -139,10 +137,10 @@ TO DO:
       <para> The probability associated with a
       <literal>ProbabilisticTreeToken</literal> is returned by the
       <ulink url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#p"
-      ><literal>p</literal></ulink> method:</para>
+      ><literal>prob</literal></ulink> method:</para>
 
 <programlisting>
-&prompt; <command>print tree1.p(), tree2.p(), tree3.p() </command>
+&prompt; <command>print tree1.prob(), tree2.prob(), tree3.prob() </command>
 0.3 0.02 0.045
 </programlisting>
 
@@ -150,7 +148,6 @@ TO DO:
       children can be accessed using the same methods that are used
       with <literal>TreeToken</literal>s: </para>
 
-<!-- ==== UPDATE THIS LATER ==== -->
 <programlisting>
 &prompt; <command>tree1.node()</command>
 'NP'
@@ -170,7 +167,7 @@ TO DO:
     </section> <!-- ProbabilisticTreeToken -->
 
     <section id="probparse.interface"> 
-<title> The Probabilistic Parser Interface </title>
+      <title> The Probabilistic Parser Interface </title>
 
       <para> <ulink
       url="&refdoc;/nltk.parser.ProbabilisticParserI-class.html"
@@ -185,18 +182,18 @@ TO DO:
       ><literal>parse_n</literal></ulink> are represented with
       <literal>ProbabilisticTreeToken</literal>s, instead of
       <literal>TreeToken</literal>s.  The
-      <literal>ProbabilisticTreeToken</literal>s' <literal>p</literal>
+      <literal>ProbabilisticTreeToken</literal>s' <literal>prob</literal>
       method can be used to access the probabilities associated with
       each parse. </para>
 
 <programlisting>
-&prompt; <command>parser = ViterbiPCFGParser(grammar) </command>
-&prompt; <command>parse = parser.parse(words)</command>
+&prompt; <command>pcfg_parser = ViterbiPCFGParser(grammar) </command>
+&prompt; <command>parse = pcfg_parser.parse(words)</command>
 ('S': ('NP': 'He') 
       ('VP': ('V': 'saw') 
              ('NP': ('Det': my) 
                     ('N': 'cookie'))))@[0w:4w] (p=0.000282)
-&prompt; <command>parse.p()</command>
+&prompt; <command>parse.prob()</command>
 p=0.000282
 </programlisting>
 
@@ -207,11 +204,16 @@ p=0.000282
       <literal>ProbDist</literal> with <literal>TreeToken</literal>
       samples. </para>
 
-      <!-- ==== ADD EXAMPLE ==== -->
-      <note><para> We are currently cleaning up the
-      <literal>nltk.probability</literal> module; after we have
-      finished, I will add an example use of
-      <literal>parse_dist</literal> here. </para> </note>
+<programlisting>
+&prompt; <command>pdist = pcfg_parser.parse_dist(words)</command>
+&lt;ProbDist with 1 sample&gt;
+&prompt; <command>pdist.prob(pdist.samples()[0])</command>
+0.000282
+</programlisting>
+
+      <para> Note that the probabilities in the distribution returned
+      by <literal>parse_dist</literal> are <emphasis>not</emphasis>
+      required to sum to 1. </para>
       
     </section> <!-- ProbabilisticParserI -->
   </section> <!-- Probabilistic Parsers -->
@@ -224,79 +226,82 @@ p=0.000282
     </indexterm>
     <para> A <glossterm>probabilistic context free grammar</glossterm>
     (or <glossterm>PCFG</glossterm>) is a context free grammar that
-    associates a probability with each of its rules.  It generates the
+    associates a probability with each of its productions.  It generates the
     same set of parses for a text that the corresponding context free
     grammar does, and assigns a probability to each parse.  The
     probability of a parse generated by a PCFG is simply the product
-    of the probabilities of the rules used to generate it.  </para>
+    of the probabilities of the productions used to generate it.  </para>
 
     <para> Probabilistic context free grammars are implemented by the
     <ulink
     url="&refdoc;/nltk.cfg.PCFG-class.html"><literal>PCFG</literal></ulink>
     class, which is defined in the <literal>nltk.cfg</literal> module.
     Like <literal>CFG</literal>s, each <literal>PCFG</literal>
-    consists of a start state and a set of rules.  But the rules are
-    represented by <ulink url="&refdoc;/nltk.cfg.PCFG_Rule-class.html"
-    ><literal>PCFG_Rule</literal></ulink>, a subclass of
-    <literal>CFG_Rule</literal> that associates a probability with a
-    context free grammar rule.</para>
+    consists of a start state and a list of productions.  But the
+    productions are represented by <ulink
+    url="&refdoc;/nltk.cfg.PCFGProduction-class.html"
+    ><literal>PCFGProduction</literal></ulink>, a subclass of
+    <literal>CFGProduction</literal> that associates a probability
+    with a context free grammar production.</para>
 
-    <section id="pcfg.rules"> 
-      <title> PCFG Rules </title>
-
+    <section id="pcfg.productions"> 
+      <title> PCFG Productions </title>
+      
       <indexterm><primary>left-hand side</primary></indexterm>
       <indexterm><primary>right-hand side</primary></indexterm> <para>
-      Like <literal>CFG_Rule</literal>s, each
-      <literal>PCFG_Rule</literal> specifies that a nonterminal (the
+      Like <literal>CFGProduction</literal>s, each
+      <literal>PCFGProduction</literal> specifies that a nonterminal (the
       <glossterm>left-hand side</glossterm>) can be expanded to a
       sequence of terminals and nonterminals (the
       <glossterm>right-hand side</glossterm>).  In addition, each
-      <literal>PCFG_Rule</literal> has a probability associated with
-      it.  <literal>PCFG_Rule</literal>s are created using the <ulink
-      url="&refdoc;/nltk.cfg.PCFG_Rule-class.html#__init__"
-      ><literal>PCFG_Rule</literal> constructor</ulink>, which takes a
+      <literal>PCFGProduction</literal> has a probability associated with
+      it.  <literal>PCFGProduction</literal>s are created using the <ulink
+      url="&refdoc;/nltk.cfg.PCFGProduction-class.html#__init__"
+      ><literal>PCFGProduction</literal> constructor</ulink>, which takes a
       probability, a nonterminal left-hand side, and zero or more
       terminals and nonterminals for the right-hand side. </para>
 
 <programlisting>
+&prompt; <command>from nltk.cfg import *</command>
+        
 <emphasis># Define some nonterminals</emphasis>
-&prompt; <command>(NP, V, VP) = [Nonterminal(s) for s in 'S NP VP'.split()]</command>
+&prompt; <command>S, VP, V, NP = nonterminals('S, VP, V, NP')</command>
 
-<emphasis># Create some PCFG rules</emphasis>
-&prompt; <command>rule1 = PCFG_Rule(0.23, VP, V, NP)</command>
-VP -&gt; NP S (p=0.23)
-&prompt; <command>rule2 = PCFG_Rule(0.12, V, 'saw')</command>
-NP -&gt; 'saw' (p=0.12)
-&prompt; <command>rule3 = PCFG_Rule(0.04, NP, 'cookie')</command>
-S -&gt; 'cookie' (p=0.04)
+<emphasis># Create some PCFG productions</emphasis>
+&prompt; <command>prod1 = PCFGProduction(0.23, VP, V, NP)</command>
+VP -&gt; V NP (p=0.23)
+&prompt; <command>prod2 = PCFGProduction(0.12, V, 'saw')</command>
+V -&gt; 'saw' (p=0.12)
+&prompt; <command>prod3 = PCFGProduction(0.04, NP, 'cookie')</command>
+NP -&gt; 'cookie' (p=0.04)
 </programlisting>
 
       <para> The probability associated with a
-      <literal>PCFG_Rule</literal> is returned by the
-      <ulink url="&refdoc;/nltk.cfg.PCFG_Rule-class.html#p"
-      ><literal>p</literal></ulink> method:</para>
+      <literal>PCFGProduction</literal> is returned by the
+      <ulink url="&refdoc;/nltk.cfg.PCFGProduction-class.html#p"
+      ><literal>prob</literal></ulink> method:</para>
 
 <programlisting>
-&prompt; <command>print rule1.p(), rule2.p(), rule3.p() </command>
+&prompt; <command>print prod1.prob(), prod2.prob(), prod3.prob() </command>
 0.23 0.12 0.04
 </programlisting>
 
-      <para> As with <literal>CFG_Rule</literal>s, the left-hand side
-      of a <literal>PCFG_Rule</literal> is returned by the <ulink
-      url="&refdoc;/nltk.cfg.PCFG_Rule-class.html#lhs"
+      <para> As with <literal>CFGProduction</literal>s, the left-hand side
+      of a <literal>PCFGProduction</literal> is returned by the <ulink
+      url="&refdoc;/nltk.cfg.PCFGProduction-class.html#lhs"
       ><literal>lhs</literal></ulink> method; and the right-hand side
       is returned by the <ulink
-      url="&refdoc;/nltk.cfg.PCFG_Rule-class.html#rhs"
+      url="&refdoc;/nltk.cfg.PCFGProduction-class.html#rhs"
       ><literal>rhs</literal></ulink> method: </para>
 
 <programlisting>
-&prompt; <command>rule1.lhs() </command>
+&prompt; <command>prod1.lhs() </command>
 &lt;VP&gt;
-&prompt; <command>rule1.rhs() </command>
+&prompt; <command>prod1.rhs() </command>
 (&lt;V&gt;, &lt;NP&gt;)
 </programlisting>
 
-    </section> <!-- PCFG_Rule -->
+    </section> <!-- PCFGProduction -->
 
     <section id="pcfg.pcfg"> 
       <title> PCFGs </title>
@@ -304,17 +309,17 @@ S -&gt; 'cookie' (p=0.04)
       <para> <literal>PCFG</literal>s are created using the <ulink
       url="&refdoc;/nltk.cfg.PCFG-class.html#__init__"
       ><literal>PCFG</literal> constructor</ulink>, which takes a start
-      symbol and a list of rules:</para>
+      symbol and a list of productions:</para>
 
 <programlisting>
-&prompt; <command>rules = [PCFG_Rule(1.0, S, VP, NP),
-             PCFG_Rule(0.4, VP, 'saw', NP),
-             PCFG_Rule(0.3, VP, 'ate'),
-             PCFG_Rule(0.3, VP, 'gave', NP, NP),
-             PCFG_Rule(0.8, NP, 'the', 'cookie'),
-             PCFG_Rule(0.2, NP, 'Jack')]</command>
-&prompt; <command>grammar = PCFG(S, rules) </command>
-CFG with 6 rules (start state = S)
+&prompt; <command>prods = [PCFGProduction(1.0, S, VP, NP),
+             PCFGProduction(0.4, VP, 'saw', NP),
+             PCFGProduction(0.3, VP, 'ate'),
+             PCFGProduction(0.3, VP, 'gave', NP, NP),
+             PCFGProduction(0.8, NP, 'the', 'cookie'),
+             PCFGProduction(0.2, NP, 'Jack')]</command>
+&prompt; <command>grammar = PCFG(S, prods) </command>
+CFG with 6 productions (start state = S)
     S -&gt; VP NP (p=1)
     VP -&gt; 'saw' NP (p=0.4)
     VP -&gt; 'ate' (p=0.3)
@@ -325,7 +330,7 @@ CFG with 6 rules (start state = S)
 
       <para> In order to ensure that the trees generated by the
       grammar form a proper probability distribution,
-      <literal>PCFG</literal> imposes the constraint that all rules
+      <literal>PCFG</literal> imposes the constraint that all productions
       with a given left-hand side must have probabilities that sum to
       one: </para>
 
@@ -333,64 +338,66 @@ CFG with 6 rules (start state = S)
           <listitem>
             <para>
               for all <replaceable>lhs</replaceable>:
-              &#8721;<subscript><replaceable>rhs</replaceable></subscript>
-              P(<replaceable>lhs</replaceable>&#8594;<replaceable
+              &sum;<subscript><replaceable>rhs</replaceable></subscript>
+              P(<replaceable>lhs</replaceable>&rarr;<replaceable
                  >rhs</replaceable>) = 1</para>
           </listitem>
         </itemizedlist>
 
       <para> The example grammar given
       above obeys this constraint: for <literal>S</literal>, there is
-      only one rule, with a probability of 1.0; for
+      only one production, with a probability of 1.0; for
       <literal>VP</literal>, 0.4+0.3+0.3=1.0; and for
       <literal>NP</literal>, 0.8+0.2=1.0. </para>
 
-      <para> As with <literal>CFG</literal>s, the start state
+      <para> As with <literal>CFG</literal>s, the start state of a
       <literal>PCFG</literal> is returned by the <ulink
       url="&refdoc;/nltk.cfg.PCFG-class.html#start"
-      ><literal>start</literal></ulink> method; and the are returned by
-      the <ulink url="&refdoc;/nltk.cfg.PCFG-class.html#rules"
-      ><literal>rules</literal></ulink> method:</para>
+      ><literal>start</literal></ulink> method; and the productions
+      are returned by the <ulink
+      url="&refdoc;/nltk.cfg.PCFG-class.html#productions"
+      ><literal>productions</literal></ulink> method:</para>
 
 <programlisting>
 &prompt; <command>grammar.start()</command>
 &lt;S&gt;
-&prompt; <command>grammar.rules()</command>
-[[Rule: S -&gt; VP NP (p=1)], 
- [Rule: VP -&gt; 'saw' NP (p=0.4)],
- [Rule: VP -&gt; 'ate' (p=0.4)],
- [Rule: VP -&gt; VP PP (p=0.2)],
- [Rule: NP -&gt; 'the' 'boy' (p=0.8)],
- [Rule: NP -&gt; 'Jack' (p=0.2)],
- [Rule: PP -&gt; 'under' NP (p=1.0)]]
+&prompt; <command>grammar.productions()</command>
+[[Production: S -&gt; VP NP (p=1)], 
+ [Production: VP -&gt; 'saw' NP (p=0.4)],
+ [Production: VP -&gt; 'ate' (p=0.4)],
+ [Production: VP -&gt; VP PP (p=0.2)],
+ [Production: NP -&gt; 'the' 'boy' (p=0.8)],
+ [Production: NP -&gt; 'Jack' (p=0.2)],
+ [Production: PP -&gt; 'under' NP (p=1.0)]]
 </programlisting>
 
     </section> <!-- PCFG -->
 
   </section> <!-- PCFGs -->
 
+  <!-- ==== TO DO: write this section ==== -->
+  <!--
   <section id="learning"> 
     <title> Learning Grammars </title>
 
-    <!-- ==== TO DO: write this section ==== -->
     <note> <para> Work on defining a processing interface for learning
     grammars from treebanks, and implementations for that interface,
     are currently underway.  This section will be written once that
     work has been completed. </para> </note>
 
-  </section> <!-- PCFGs -->
+  </section> --> <!-- PCFGs -->
 
-  <section id="lexical"> 
+  <!-- ==== TO DO: write this section ==== -->
+  <!-- <section id="lexical"> 
     <title> Lexicalized PCFGs </title>
 
-    <!-- ==== TO DO: write this section ==== -->
     <note> <para> In this section, I will discuss lexicalized PCFGs.
     Producing lexicalized PCFGs requires new classes to derive
     grammars from treebanks, but doesn't require any new parsing
     techniques. </para>
     </note>
 
-  </section> <!-- Lexicalized PCFGs -->
+  </section> --> <!-- Lexicalized PCFGs -->
 
   <section id="impl"> 
     <title> Probabilistic Parser Implementations </title>
@@ -406,13 +413,13 @@ CFG with 6 rules (start state = S)
     parser to expand more likely edges before less likely ones.
     Different queue orderings are used to implement a variety of
     different search strategies.  Both of these algorithms are
-    implemented in the <ulink url="&refdoc;/nltk.pcfgparser-module.html"
-    ><literal>nltk.pcfgparser</literal></ulink> module. </para>
+    implemented in the <ulink url="&refdoc;/nltk.parser.probabilistic-module.html"
+    ><literal>nltk.parser.probabilistic</literal></ulink> module. </para>
 
     <!-- ==== CHANGE NAMES? ==== -->
-    <note> <para> I am considering changing the names for the classes
+    <!-- <note> <para> I am considering changing the names for the classes
     that implement these parsers.  Any suggestions are welcome.</para>
-    </note>
+    </note> -->
 
   </section> <!-- Implementations -->
 
@@ -422,7 +429,7 @@ CFG with 6 rules (start state = S)
     <indexterm><primary>most likely constituents table</primary>
     </indexterm>
     <para> <ulink
-    url="&refdoc;/nltk.pcfgparser.ViterbiPCFGParser-class.html"
+    url="&refdoc;/nltk.parser.probabilistic.ViterbiPCFGParser-class.html"
     ><literal>ViterbiPCFGParser</literal></ulink> is a bottom-up PCFG
     parser that uses dynamic programming to find the single most
     likely parse for a text.  It parses texts by iteratively filling
@@ -432,7 +439,8 @@ CFG with 6 rules (start state = S)
     end index, and node value, recording the most likely subtree that
     spans from the start index to the end index, and has the given
     node value.  For example, after parsing the sentence "I saw John
-    with my cookie," the most likely constituents table might be: </para>
+    with my cookie" with a simple grammar, the most likely
+    constituents table might be: </para>
 
     <informaltable>
       <tgroup cols="3">
@@ -547,7 +555,7 @@ CFG with 6 rules (start state = S)
       larger span than the constituent itself, each entry of the most
       likely constituents table depends only on entries for
       constituents with <emphasis>shorter</emphasis> spans (or equal
-      spans, in the case of unary and null productions). </para>
+      spans, in the case of unary and epsilon productions). </para>
 
       <para> <literal>ViterbiPCFGParser</literal> takes advantage of
       this fact, and fills in the most likely constituent table
@@ -561,41 +569,42 @@ CFG with 6 rules (start state = S)
 
       <para> To find the most likely constituent with a given span and
       node value, <literal>ViterbiPCFGParser</literal> considers all
-      rules that could produce that node value.  For each rule, it
+      productions that could produce that node value.  For each production, it
       checks the most likely constituents table for sequences of
       children that collectively cover the span and that have the node
-      values specified by the rule's right hand side.  If the tree
-      formed by applying the rule to the children has a higher
+      values specified by the production's right hand side.  If the tree
+      formed by applying the production to the children has a higher
       probability than the current table entry, then it updates the
       most likely constituents table with the new tree. </para>
 
       <section id="viterbi.mlc.unary"> 
-        <title> Handling Unary Rules and Null Rules </title>
+        <title> Handling Unary Productions and Epsilon Productions </title>
 
-        <para> A minor difficulty is introduced by unary rules and null
-        rules: an entry of the most likely constituents table might
+        <para> A minor difficulty is introduced by unary productions and epsilon
+        productions: an entry of the most likely constituents table might
         depend on another entry with the same span.  For example, if
-        the grammar contains the rule "<literal>V&rarr;VP</literal>,"
+        the grammar contains the production "<literal>V&rarr;VP</literal>,"
         then the table entries for <literal>VP</literal> depend on the
         entries for <literal>V</literal> with the same span.  This can
         be a problem if the constituents are checked in the wrong
-        order.  For example, if the parser try to find the most likely
+        order.  For example, if the parser tries to find the most likely
         constituent for a <literal>VP</literal> spanning [1:3] before
         it finds the most likely constituents for <literal>V</literal>
         spanning [1:3], then it can't apply the
-        "<literal>V&rarr;VP</literal>" rule. </para>
+        "<literal>V&rarr;VP</literal>" production. </para>
       
         <para> To solve this problem,
         <literal>ViterbiPCFGParser</literal> repeatedly checks each
         span until it finds no new table entries.  Note that cyclic
-        grammar rules will <emphasis>not</emphasis> cause this
-        procedure to enter an infinite loop.  Since all rule
-        probabilities are less than or equal to 1, any constituent
-        generated by a cycle in the grammar will have a probability
-        that is less than or equal to the original constituent; so
+        grammar productions (e.g. <literal>V&rarr;V</literal>) will
+        <emphasis>not</emphasis> cause this procedure to enter an
+        infinite loop.  Since all production probabilities are less
+        than or equal to 1, any constituent generated by a cycle in
+        the grammar will have a probability that is less than or equal
+        to the original constituent; so
         <literal>ViterbiPCFGParser</literal> will discard it. </para>
 
-      </section> <!-- Unary & Null Rules -->
+      </section> <!-- Unary & Epsilon Productions -->
 
     </section> <!-- MLC table -->
 
@@ -603,15 +612,14 @@ CFG with 6 rules (start state = S)
   <section id="usingviterbi"> 
     <title> Using <literal>ViterbiPCFGParser</literal> </title>
 
-    <para> <literal>ViterbiPCFGParser</literal>s are created using the
-    <ulink
-    url="&refdoc;/nltk.pcfgparser.ViterbiPCFGParser-class.html#__init__"
-    ><literal>ViterbiPCFGParser</literal> constructor</ulink>, which
-    takes a <literal>PCFG</literal>: </para>
+    <para> <literal>ViterbiPCFGParser</literal>s are created from
+    PCFGs using the <ulink
+    url="&refdoc;/nltk.parser.probabilistic.ViterbiPCFGParser-class.html#__init__"
+    ><literal>ViterbiPCFGParser</literal> constructor</ulink>: </para>
 
 <programlisting>
 &prompt; <command>viterbi_parser = ViterbiPCFGParser(grammar)</command>
-&lt;ViterbiPCFGParser for &lt;CFG with 16 rules&gt;&gt;
+&lt;ViterbiPCFGParser for &lt;CFG with 16 productions&gt;&gt;
 </programlisting>
 
     <para> <literal>ViterbiPCFGParser</literal> implements all of the
@@ -624,6 +632,8 @@ CFG with 6 rules (start state = S)
 
 <!-- ==== ADD A PARSE_DIST EXAMPLE ==== -->
 <programlisting>
+&prompt; <command>from nltk.parser.probabilistic import *</command>
+      
 &prompt; <command>text1 = WSTokenizer().tokenize('the dog ate my cookie')</command>
 &prompt; <command>text2 = WSTokenizer().tokenize('I saw John with my cookie')</command>
 
@@ -646,7 +656,7 @@ CFG with 6 rules (start state = S)
 </programlisting>
 
     <para> The <ulink
-    url="&refdoc;/nltk.pcfgparser.ViterbiPCFGParser-class.html#trace"
+    url="&refdoc;/nltk.parser.probabilistic.ViterbiPCFGParser-class.html#trace"
     ><literal>trace</literal></ulink> method can be used to set the
     level of tracing output that is generated when parsing a text.
     Trace output displays the constituents that are considered, and
@@ -700,7 +710,7 @@ CFG with 6 rules (start state = S)
 
     <para> The level of tracing output can also be set with an
     optional argument to <ulink
-    url="&refdoc;/nltk.pcfgparser.ViterbiPCFGParser-class.html#__init__"
+    url="&refdoc;/nltk.parser.probabilistic.ViterbiPCFGParser-class.html#__init__"
     ><literal>ViterbiPCFGParser</literal>'s constructor</ulink>.  By
     default, no tracing output is generated.  Tracing output can be
     turned off by calling <literal>trace</literal> with a value of
@@ -737,10 +747,10 @@ CFG with 6 rules (start state = S)
       <literal>BottomUpPCFGChartParser</literal>, a parser for
       <literal>PCFG</literal>s that can find multiple parses for a
       text.  It assumes that you have already read the chart parsing
-      tutorial, and are familiar with the data structures and rules
+      tutorial, and are familiar with the data structures and productions
       used for chart parsing. </para>
 
-      <note> <para> The chart parsing tutorial is under construction
+      <note> <para> The chart parsing tutorial is under construction. 
       Until it is completed, we refer you to the <ulink
       url="&tutdoc;/parsing/index.html">parsing tutorial</ulink> and the reference
       documentation for the
@@ -754,7 +764,7 @@ CFG with 6 rules (start state = S)
       <title> The Basic Algorithm </title>
 
       <para> <ulink
-      url="&refdoc;/nltk.pcfgparser.BottomUpPCFGChartParser-class.html"
+      url="&refdoc;/nltk.parser.probabilistic.BottomUpPCFGChartParser-class.html"
       ><literal>BottomUpPCFGChartParser</literal></ulink> is a
       bottom-up parser for <literal>PCFG</literal>s that uses a <ulink
       url="&refdoc;/nltk.chart.Chart-class.html"
@@ -778,17 +788,17 @@ CFG with 6 rules (start state = S)
 
       <indexterm><primary>probabilistic edge</primary></indexterm>
       
-      <para> An <literal>Edge</literal> associates a dotted rule and a
+      <para> An <literal>Edge</literal> associates a dotted production and a
       location with a (partial) parse tree.  A <glossterm>probabilistic
       edge</glossterm> can be formed by using a
       <literal>ProbabilisticTreeToken</literal>s to encode an edge's
       parse tree.  The <literal>ProbabilisticTreeToken</literal>'s
-      probability is the product of the probability of the rule that
+      probability is the product of the probability of the production that
       generated it and the probabilities of its children.  For
       example, the probability associated with an edge
       [Edge:&nbsp;S&rarr;NP&dot;VP]@[0:2] is the probability of its
-      NP child times the probability of the PCFG rule
-      [Rule:&nbsp;S&rarr;NP&nbsp;VP].  Note that an edge's tree token
+      NP child times the probability of the PCFG production
+      [Production:&nbsp;S&rarr;NP&nbsp;VP].  Note that an edge's tree token
       only includes children for elements to the left of the edge's
       dot.  Thus, the edge's probability does <emphasis>not</emphasis>
       include any probabilities for the elements to the right of the
@@ -800,7 +810,6 @@ CFG with 6 rules (start state = S)
       <title> The Edge Queue </title>
       <indexterm><primary>edge queue</primary></indexterm>
 
-      <!-- Bigger dot than dot?? -->
       <indexterm><primary>token edge</primary></indexterm>
       <para> The edge queue is a sorted list of
       <literal>Edge</literal>s that can be added to the chart.  It is
@@ -815,14 +824,14 @@ CFG with 6 rules (start state = S)
       edges are added to the queue.  There are two ways that it can
       become possible to insert new edges into the chart: </para>
 
-      <indexterm><primary>bottom-up initialization rule</primary></indexterm>
-      <indexterm><primary>fundamental rule</primary></indexterm>
+      <indexterm><primary>bottom-up initialization production</primary></indexterm>
+      <indexterm><primary>fundamental production</primary></indexterm>
       <itemizedlist>
         <listitem> <para> The <glossterm>bottom-up initialization
-        rule</glossterm> can be used to add a self-loop edge whenever
+        production</glossterm> can be used to add a self-loop edge whenever
         an edge whose dot is in position 0 is added to the chart. </para>
         </listitem>
-        <listitem> <para> The <glossterm>fundamental rule</glossterm>
+        <listitem> <para> The <glossterm>fundamental production</glossterm>
         can be used to combine a new edge with edges already
         present in the chart. </para>
         </listitem>
@@ -851,27 +860,27 @@ CFG with 6 rules (start state = S)
       class; and subclasses are used to implement a variety of
       different queue orderings.  Each subclass is required to define
       the <ulink
-      url="&refdoc;/nltk.pcfgparser.BottomUpPCFGChartParser-class.html#sort_queue"
+      url="&refdoc;/nltk.parser.probabilistic.BottomUpPCFGChartParser-class.html#sort_queue"
       ><literal>sort_queue</literal></ulink> method, which sorts a
       given queue.  The remainder of this section describes four
       different subclasses of <literal>BottomUpPCFGChartParser</literal>
-      that are defined in the <literal>nltk.pcfgparser</literal>
+      that are defined in the <literal>nltk.parser.probabilistic</literal>
       module.</para>
 
       <section id="buchart.sorting.inside"> 
         <title> InsidePCFGParser </title>
 
-        <note> <para> I should either explain "inside probabilities"
-        or rename this parser (to
+        <!-- <note> <para> We should either explain "inside
+        probabilities" or rename this parser (to
         <literal>LowestCostFirstPCFGParser</literal>?). </para>
-        </note>
+        </note> -->
 
         <para> The simplest way to order the queue is to sort the
         edges by the probabilities of their tree tokens.  This
         ordering concentrates the efforts of the parser on edges that
         are more likely to be correct descriptions of the texts that
         they span.  This approach is implemented by the <ulink
-        url="&refdoc;/nltk.pcfgparser.InsidePCFGParser-class.html"
+        url="&refdoc;/nltk.parser.probabilistic.InsidePCFGParser-class.html"
         ><literal>InsidePCFGParser</literal></ulink> class. </para>
 
         <indexterm><primary>lowest-cost-first search strategy</primary>
@@ -891,7 +900,7 @@ CFG with 6 rules (start state = S)
 
         <para> However, lowest-cost-first search can be rather
         inefficient.  Since a tree's probability is the product of the
-        probabilities of all the rules used to generate it, smaller
+        probabilities of all the productions used to generate it, smaller
         trees tend to have higher probabilities than larger ones.
         Thus, lowest-cost-first search tends to insert edges with
         small tree tokens before moving on to edges with larger ones.
@@ -918,7 +927,7 @@ CFG with 6 rules (start state = S)
 <command>class InsidePCFGParser(BottomUpPCFGChartParser):</command>
 <command>    def sort_queue(self, queue, chart):</command>
 <emphasis>        # Sort the edges by the probabilities of their tree tokens.</emphasis>
-<command>        queue.sort(lambda e1,e2:cmp(e1.tree().p(), e2.tree().p()))</command>
+<command>        queue.sort(lambda e1,e2:cmp(e1.tree().prob(), e2.tree().prob()))</command>
 </programlisting>
 
         <note> <para> We haven't used <literal>lambda</literal> before
@@ -937,7 +946,7 @@ CFG with 6 rules (start state = S)
         <indexterm><primary>best-first search strategy</primary>
         </indexterm>
         <para> <ulink
-        url="&refdoc;/nltk.pcfgparser.LongestPCFGParser-class.html"
+        url="&refdoc;/nltk.parser.probabilistic.LongestPCFGParser-class.html"
         ><literal>LongestPCFGParser</literal></ulink> sorts its queue
         in descending order of the edges' lengths.  These lengths
         (properly normalized) provide a crude approximations to the
@@ -979,7 +988,7 @@ CFG with 6 rules (start state = S)
         <indexterm><primary>beam</primary></indexterm>
         <indexterm><primary>beam size</primary></indexterm> 
         <para> <ulink
-        url="&refdoc;/nltk.pcfgparser.BeamPCFGParser-class.html"
+        url="&refdoc;/nltk.parser.probabilistic.BeamPCFGParser-class.html"
         ><literal>BeamPCFGParser</literal></ulink> provides a simple
         implementation of a pruning PCFG parser.  It uses the same
         sorting order as <literal>InsidePCFGParser</literal>.  But
@@ -1019,7 +1028,7 @@ CFG with 6 rules (start state = S)
 
 <command>    def sort_queue(self, queue, chart):</command>
 <emphasis>        # Sort the queue.</emphasis>
-<command>        queue.sort(lambda e1,e2:cmp(e1.tree().p(), e2.tree().p()))</command>
+<command>        queue.sort(lambda e1,e2:cmp(e1.tree().prob(), e2.tree().prob()))</command>
 <emphasis>        # Truncate the queue, if necessary.</emphasis>
 <command>        if len(queue) > self._beam_size:</command>
 <command>            queue[:] = queue[len(queue)-self._beam_size:]</command>
@@ -1049,21 +1058,21 @@ CFG with 6 rules (start state = S)
 
 <programlisting>
 <emphasis>        # WRONG: The sort method returns None.</emphasis>
-<command>        return queue.sort(lambda e1,e2:cmp(e1.tree().p(), e2.tree().p()))</command>
+<command>        return queue.sort(lambda e1,e2:cmp(e1.tree().prob(), e2.tree().prob()))</command>
 </programlisting>
         </note>
 
       </section> <!-- BeamPCFGParser -->
       
-      <section id="buchart.sorting.insideoutside"> 
+      <!-- ==== TO DO: write this? ==== -->
+      <!-- <section id="buchart.sorting.insideoutside"> 
         <title> InsideOutsidePCFGParser </title>
 
-        <!-- ==== TO DO: write this? ==== -->
         <note> <para> We plan to add an inside/outside parser; when we
         do, we'll add a description of it to this section. </para>
         </note>
 
-      </section> <!-- InsideOutsidePCFGParser -->
+      </section> --> <!-- InsideOutsidePCFGParser -->
 
     </section> <!-- Sorting the edge queue -->
 
@@ -1078,42 +1087,42 @@ CFG with 6 rules (start state = S)
 
     <itemizedlist>
       <listitem> <para> The <ulink
-      url="&refdoc;/nltk.pcfgparser.InsidePCFGParser-class.html#__init__"
+      url="&refdoc;/nltk.parser.probabilistic.InsidePCFGParser-class.html#__init__"
       ><literal>InsidePCFGParser</literal> constructor</ulink></para>
       </listitem>
       <listitem> <para> The <ulink
-      url="&refdoc;/nltk.pcfgparser.LongestPCFGParser-class.html#__init__"
+      url="&refdoc;/nltk.parser.probabilistic.LongestPCFGParser-class.html#__init__"
       ><literal>LongestPCFGParser</literal> constructor</ulink></para>
       </listitem>
       <listitem> <para> The <ulink
-      url="&refdoc;/nltk.pcfgparser.BeamPCFGParser-class.html#__init__"
+      url="&refdoc;/nltk.parser.probabilistic.BeamPCFGParser-class.html#__init__"
       ><literal>BeamPCFGParser</literal> constructor</ulink></para>
       </listitem>
       <listitem> <para> The <ulink
-      url="&refdoc;/nltk.pcfgparser.RandomPCFGParser-class.html#__init__"
+      url="&refdoc;/nltk.parser.probabilistic.RandomPCFGParser-class.html#__init__"
       ><literal>RandomPCFGParser</literal> constructor</ulink></para>
       </listitem>
     </itemizedlist>
 
     <para> See the reference documentation for the <ulink
-    url="&refdoc;/nltk.pcfgparser.BottomUpPCFGChartParser-class.html"
+    url="&refdoc;/nltk.parser.probabilistic.BottomUpPCFGChartParser-class.html"
     ><literal>BottomUpPCFGChartParser</literal></ulink> module for a
     complete list of subclasses.  Unless a subclass overrides the
     constructor, it takes a single <literal>PCFG</literal>: </para>
 
 <programlisting>
 &prompt; <command>inside_parser = InsidePCFGParser(grammar)</command>
-&lt;InsidePCFGParser for &lt;CFG with 16 rules&gt;&gt;
+&lt;InsidePCFGParser for &lt;CFG with 16 productions&gt;&gt;
 &prompt; <command>longest_parser = LongestPCFGParser(grammar)</command>
-&lt;LongestPCFGParser for &lt;CFG with 16 rules&gt;&gt;
+&lt;LongestPCFGParser for &lt;CFG with 16 productions&gt;&gt;
 &prompt; <command>beam_parser = BeamPCFGParser(20, grammar)</command>
-&lt;BeamPCFGParser for &lt;CFG with 16 rules&gt;&gt;
+&lt;BeamPCFGParser for &lt;CFG with 16 productions&gt;&gt;
 </programlisting>
 
     <warning><para> <literal>BottomUpPCFGChartParser</literal> is an
     abstract class; you should not directly instantiate it.  If you
     try to use it to parse a text, it will raise an exception, since
-    <literal>sort_queue</literal> is will be undefined. </para>
+    <literal>sort_queue</literal> will be undefined. </para>
     </warning>
 
     <para> <literal>BottomUpPCFGChartParser</literal>s implement all
@@ -1151,7 +1160,7 @@ CFG with 6 rules (start state = S)
 </programlisting>
 
     <para> The <ulink
-    url="&refdoc;/nltk.pcfgparser.BottomUpPCFGChartParser-class.html#trace"
+    url="&refdoc;/nltk.parser.probabilistic.BottomUpPCFGChartParser-class.html#trace"
     ><literal>trace</literal></ulink> method can be used to set the
     level of tracing output that is generated when parsing a text.
     Trace output displays edges as they are added to the chart, and
