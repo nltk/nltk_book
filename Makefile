@@ -4,16 +4,16 @@
 # Created [05/24/01 09:54 PM]
 #
 
-all: tutorial ref tech
+all: _tutorial _ref _tech
 
 
-tutorial:
+_tutorial:
 	$(MAKE) -C tutorial
 
-ref:
+_ref:
 	$(MAKE) -C ref
 
-tech:
+_tech:
 	$(MAKE) -C tech
 
 clean:
