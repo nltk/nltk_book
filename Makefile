@@ -7,8 +7,9 @@
 #
 # $Id$
 
-# What's the current version of NLTK?
-NLTK_VERSION = 1.1
+# Get the current version of NLTK
+NLTK_VERSION=$(shell export PYTHONPATH=src; \
+	       python -c 'import nltk; print nltk.__version__')
 
 # Where is the web page hosted on the web?
 NLTK_URL = http://nltk.sourceforge.net
