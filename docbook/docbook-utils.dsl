@@ -202,10 +202,16 @@
                    ainfo)))
     (element-title-sosofo (node-list-first info))))
 
-;; Use the NLTK stylesheet
+;; Use the stylesheet for tutorials
 (define %stylesheet% "../../tutorial.css")
 
-;; Add the standard navbar at the top of tutorials
+;; Add the standard navbar at the top of tutorials; and wrap the
+;; contents of each tutorial in a [div class="body"]...[/div].
+;; To add the navigation bar, we first define its contents (in a
+;; somewhat akward fashion) and store them in %nltk-navbar%.  We
+;; then use $html-body-start$ and $html-body-end$ to insert the
+;; navbar, and to wrap the body in a DIV element with CSS class
+;; "body".
 (define %nltk-navbar%
  (make sequence
    (make element gi: "table"
@@ -251,11 +257,18 @@
 		       attributes: '(("src" "../../sflogo.png")
 				     ("width" "88") ("height" "26")
 				     ("border" "0") ("alt" "SourceForge")
-				     ("align" "top")))))))
-   (make empty-element gi: "br")))
-
-(define (nav-banner elemnode) %nltk-navbar%)
-(define (nav-banner? elemnode) #t)
+				     ("align" "top")))))))))
+(define ($html-body-start$) 
+  (make sequence
+    %nltk-navbar%
+    (make formatting-instruction data: "&#60;")
+    (literal "div class=\"body\"")
+    (make formatting-instruction data: "&#62;")))
+(define ($html-body-end$) 
+  (make sequence
+    (make formatting-instruction data: "&#60;")
+    (literal "/div")
+    (make formatting-instruction data: "&#62;")))
 
 ; === Books only ===
 
@@ -265,13 +278,27 @@
 ;; never generate a chapter TOC in books
 (define ($generate-chapter-toc$) #f)
 
+;; Define the contents of the title page.
+(define (book-titlepage-recto-elements)
+  (list (normalize "title")
+	(normalize "subtitle")
+	(normalize "corpauthor")
+	(normalize "authorgroup")
+	(normalize "author")
+	(normalize "releaseinfo")
+	(normalize "copyright")
+	(normalize "pubdate")
+	(normalize "revhistory")
+	(normalize "abstract")
+        (normalize "legalnotice")))
+
 ; === Articles only ===
 
 ;; Articles include a table of contents & a titlepage.
 (define %generate-article-titlepage% #t)
 (define %generate-article-toc% #t)      
 
-;; Include the Copyright and the legal notice on the titlepage.
+;; Define the contents of the title page.
 (define (article-titlepage-recto-elements)
   (list (normalize "title")
 	(normalize "subtitle")
