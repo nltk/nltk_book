@@ -9,7 +9,7 @@
 
 ##############################################
 ##  Automatically find technical reports.
-REPORTS = $(shell ls */*.info |sed 's/[/][^/]*\.info//')
+REPORTS = $(dir $(wildcard */*.info))
 
 ##############################################
 ##  You shouldn't have to change anything below here.
