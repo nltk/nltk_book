@@ -98,60 +98,6 @@ TO DO:
 
   </section> <!-- Introduction -->
 
-  <section id="probparse"> 
-    <title> Probabilistic Parsers </title>
-
-    <section id="probparse.interface"> 
-      <title> The Probabilistic Parser Interface </title>
-
-      <para> <ulink
-      url="&refdoc;/nltk.parser.probabilistic.ProbabilisticParserI-class.html"
-      ><literal>ProbabilisticParserI</literal></ulink> defines a
-      standard interface for probabilistic parsers.  It extends the
-      <ulink url="&refdoc;/nltk.parser.ParserI-class.html"
-      ><literal>ParserI</literal></ulink> interface in two ways.
-      First, the parse trees returned by <ulink
-      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse"
-      ><literal>parse</literal></ulink> and <ulink
-      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse_n"
-      ><literal>parse_n</literal></ulink> must define the
-      <literal>PROB</literal> property, specifying each tree's
-      probability. </para>
-
-<programlisting><![CDATA[
->>> pcfg_parser = ViterbiPCFGParser(grammar) 
->>> pcfg_parser.parse(sent)
->>> print sent['TREE']
-(S: (NP: <John>)
-    (VP: (V: <baked>) (NP: (Det: <some>) (N: <cookies>))
->>> print sent['TREE']['PROB']
-0.000282
-]]></programlisting>
-
-      <para> Second, <literal>ProbabilisticParser</literal>s are
-      required to implement the <ulink
-      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse_dist"
-      ><literal>parse_dist</literal></ulink> method, which returns a
-      <literal>ProbDist</literal> with <literal>TreeToken</literal>
-      samples. </para>
-
-<programlisting><![CDATA[
->>> pdist = pcfg_parser.parse_dist(words)
-<ProbDist with 1 sample>
->>> pdist.prob(pdist.samples()[0])
-(S: (NP: <John>)
-    (VP: (V: <baked>) (NP: (Det: <some>) (N: <cookies>))
->>> pdist.prob(pdist.samples()[0]['PROB'])
-0.000282
-]]></programlisting>
-
-      <para> Note that the probabilities in the distribution returned
-      by <literal>parse_dist</literal> are <emphasis>not</emphasis>
-      required to sum to 1. </para>
-      
-    </section> <!-- ProbabilisticParserI -->
-  </section> <!-- Probabilistic Parsers -->
-
   <section id="pcfg"> 
     <title> Probabilistic Context Free Grammars </title>
  
@@ -198,11 +144,11 @@ TO DO:
 >>> S, VP, V, NP = nonterminals('S, VP, V, NP')
 
 # Create some PCFG productions
->>> prod1 = PCFGProduction(0.23, VP, V, NP)
+>>> prod1 = PCFGProduction(VP, [V, NP], prob=0.23)
 VP -> V NP (p=0.23)
->>> prod2 = PCFGProduction(0.12, V, 'saw')
+>>> prod2 = PCFGProduction(V, ['saw'], prob=0.12)
 V -> 'saw' (p=0.12)
->>> prod3 = PCFGProduction(0.04, NP, 'cookie')
+>>> prod3 = PCFGProduction(NP, ['cookie'], prob=0.04)
 NP -> 'cookie' (p=0.04)
 ]]></programlisting>
 
@@ -242,12 +188,12 @@ NP -> 'cookie' (p=0.04)
       symbol and a list of productions:</para>
 
 <programlisting><![CDATA[
->>> prods = [PCFGProduction(1.0, S, VP, NP),
-             PCFGProduction(0.4, VP, 'saw', NP),
-             PCFGProduction(0.3, VP, 'ate'),
-             PCFGProduction(0.3, VP, 'gave', NP, NP),
-             PCFGProduction(0.8, NP, 'the', 'cookie'),
-             PCFGProduction(0.2, NP, 'Jack')]
+>>> prods = [PCFGProduction(S, [VP, NP], prob=1.0),
+...          PCFGProduction(VP, ['saw', NP], prob=0.4),
+...          PCFGProduction(VP, ['ate'], prob=0.3),
+...          PCFGProduction(VP, ['gave', NP, NP], prob=0.3),
+...          PCFGProduction(NP, ['the', 'cookie'], prob=0.8),
+...          PCFGProduction(NP, ['Jack'], prob=0.2)]
 >>> grammar = PCFG(S, prods) 
 CFG with 6 productions (start state = S)
     S -> VP NP (p=1)
@@ -304,6 +250,64 @@ CFG with 6 productions (start state = S)
     </section> <!-- PCFG -->
 
   </section> <!-- PCFGs -->
+
+  <section id="probparse"> 
+    <title> Probabilistic Parsers </title>
+
+    <section id="probparse.interface"> 
+      <title> The Probabilistic Parser Interface </title>
+
+      <para> <ulink
+      url="&refdoc;/nltk.parser.probabilistic.ProbabilisticParserI-class.html"
+      ><literal>ProbabilisticParserI</literal></ulink> defines a
+      standard interface for probabilistic parsers.  It extends the
+      <ulink url="&refdoc;/nltk.parser.ParserI-class.html"
+      ><literal>ParserI</literal></ulink> interface in two ways.
+      First, the parse trees returned by <ulink
+      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse"
+      ><literal>parse</literal></ulink> and <ulink
+      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse_n"
+      ><literal>parse_n</literal></ulink> must define the
+      <literal>PROB</literal> property, specifying each tree's
+      probability. </para>
+
+<programlisting><![CDATA[
+>>> from nltk.parser.probabilistic import *
+>>> from nltk.tokenizer import *
+>>> pcfg_parser = ViterbiPCFGParser(grammar)
+>>> sent_token = Token(TEXT='John baked some cookies')
+>>> WhitespaceTokenizer().tokenize(sent_token)
+>>> tree = pcfg_parser.get_parse(sent_token)
+(S: (NP: <John>)
+    (VP: (V: <baked>) (NP: (Det: <some>) (N: <cookies>))
+>>> print tree.prob()
+0.000282
+]]></programlisting>
+
+      <para> Second, <literal>ProbabilisticParser</literal>s are
+      required to implement the <ulink
+      url="&refdoc;/nltk.tree.ProbabilisticTreeToken-class.html#parse_dist"
+      ><literal>parse_dist</literal></ulink> method, which returns a
+      <literal>ProbDist</literal> with <literal>TreeToken</literal>
+      samples. </para>
+
+<programlisting><![CDATA[
+>>> pdist = pcfg_parser.parse_dist(words)
+<ProbDist with 1 sample>
+>>> pdist.prob(pdist.samples()[0])
+(S: (NP: <John>)
+    (VP: (V: <baked>) (NP: (Det: <some>) (N: <cookies>))
+>>> pdist.prob(pdist.samples()[0]['PROB'])
+0.000282
+]]></programlisting>
+
+      <para> Note that the probabilities in the distribution returned
+      by <literal>parse_dist</literal> are <emphasis>not</emphasis>
+      required to sum to 1. </para>
+      
+    </section> <!-- ProbabilisticParserI -->
+  </section> <!-- Probabilistic Parsers -->
+
 
   <!-- ==== TO DO: write this section ==== -->
   <!--
