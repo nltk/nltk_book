@@ -26,12 +26,14 @@ JADE = jade
 JADETEX = jadetex
 PDFJADETEX = pdfjadetex
 
-# Perl, for creating the index.
+# Perl and Python, for creating the index.
 PERL = perl
+PYTHON = python
 
-# Latex format files.  Used by ps (?)
-JTFMT = /usr/share/texmf/web2c/jadetex
-PJTFMT = /usr/share/texmf/web2c/pdfjadetex
+## Latex format files.  Used by ps (?).  I'm commenting these out
+## for now, becaues they don't work for me.
+#JTFMT = -fmt=/usr/share/texmf/web2c/jadetex
+#PJTFMT = -fmt=/usr/share/texmf/web2c/pdfjadetex
 
 # Image conversion programs.
 PSTOPNM = pstopnm
@@ -55,14 +57,18 @@ EPS_IMAGES := $(IMAGE_BASENAMES:=.eps) # Image format for HTML output
 PNG_IMAGES := $(IMAGE_BASENAMES:=.png) # Image format for PDF output
 
 # DSSSL sheets
-COLLATEINDEX = ../../docbook/collateindex.pl
 XML_DECL = ../../docbook/xml.dcl
 HTML_DSSSL = ../../docbook/docbook-utils.dsl\#html
 PRINT_DSSSL = ../../docbook/docbook-utils.dsl\#print
 DOCBOOK_CATALOG = ../../docbook/catalog
 
+# Index creation
+COLLATEINDEX = ../../docbook/collateindex.pl
+INDEX_GLOSSTERMS = ../../docbook/index_glossterms.py
+
 # Input file
 DOCBOOK = $(REPORT).xml
+INDEXED_DOCBOOK = $(REPORT).indexed.xml
 
 # Output directory
 HTML_DIR = $(REPORT)
@@ -125,13 +131,16 @@ clean:
 
 ##############################################
 ##  Index creation
-index.xml: $(DOCBOOK)
+$(INDEXED_DOCBOOK): $(DOCBOOK) $(INDEX_GLOSSTERMS)
+	$(PYTHON) $(INDEX_GLOSSTERMS) $(DOCBOOK) $(INDEXED_DOCBOOK)
+
+index.xml: $(INDEXED_DOCBOOK) $(COLLATEINDEX)
 	mkdir -p $(HTML_DIR)
 	$(PERL) $(COLLATEINDEX) -o index.xml -N
 	(cd $(HTML_DIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) -V html-index \
 	      -c ../$(DOCBOOK_CATALOG) \
-	      ../$(XML_DECL) ../$(DOCBOOK)) || (rm index.xml;false)
+	      ../$(XML_DECL) ../$(INDEXED_DOCBOOK)) || (rm index.xml;false)
 	$(PERL) $(COLLATEINDEX) -o index.xml $(HTML_DIR)/HTML.index
 	rm $(HTML_DIR)/HTML.index
 
@@ -140,19 +149,19 @@ index.xml: $(DOCBOOK)
 html: $(HTML_CHUNKS) $(HTML_NOCHUNKS) $(HTML_IMAGES)
 
 # Create the multi-file version of the tutorial.
-$(HTML_CHUNKS): $(DOCBOOK) index.xml
+$(HTML_CHUNKS): $(INDEXED_DOCBOOK) index.xml
 	mkdir -p $(HTML_DIR)
 	(cd $(HTML_DIR) && \
 	 $(JADE) -t sgml -i html -d ../$(HTML_DSSSL) \
 	      -c ../$(DOCBOOK_CATALOG) \
-	      ../$(XML_DECL) ../$(DOCBOOK))
+	      ../$(XML_DECL) ../$(INDEXED_DOCBOOK))
 
 # Create the single-file version of the tutorial.
-$(HTML_NOCHUNKS): $(DOCBOOK) index.xml
+$(HTML_NOCHUNKS): $(INDEXED_DOCBOOK) index.xml
 	mkdir -p $(HTML_DIR)
 	$(JADE) -t sgml -i html -d $(HTML_DSSSL) -V nochunks \
 	     -c $(DOCBOOK_CATALOG) \
-	     $(XML_DECL) $(DOCBOOK) \
+	     $(XML_DECL) $(INDEXED_DOCBOOK) \
 	     > $(HTML_NOCHUNKS)
 
 # Copy the images.
@@ -165,10 +174,10 @@ $(HTML_IMAGES): $(PNG_IMAGES)
 ##  PDF output generation
 pdf: $(PDF)
 
-$(PDF): $(DOCBOOK) $(EPS_IMAGES) index.xml
+$(PDF): $(INDEXED_DOCBOOK) $(EPS_IMAGES) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
-	     -c $(DOCBOOK_CATALOG) \
-	     $(XML_DECL) $(DOCBOOK)
+	     -c $(DOCBOOK_CATALOG) -V tex-backend\
+	     $(XML_DECL) $(INDEXED_DOCBOOK)
 	$(PDFJADETEX) $(TEX) > $(TEMP) || \
 	        (cat $(TEMP); rm $(TEMP); false)
 	rm -f $(TEMP)
@@ -181,15 +190,15 @@ $(PDF): $(DOCBOOK) $(EPS_IMAGES) index.xml
 ps: $(PS)
 dvi: $(DVI)
 
-$(DVI): $(DOCBOOK) index.xml
+$(DVI): $(INDEXED_DOCBOOK) index.xml
 	$(JADE) -t tex -o $(TEX) -i print -d $(PRINT_DSSSL) \
-	     -c $(DOCBOOK_CATALOG) \
-	     $(XML_DECL) $(DOCBOOK)
+	     -c $(DOCBOOK_CATALOG) -V tex-backend \
+	     $(XML_DECL) $(INDEXED_DOCBOOK)
 	$(JADETEX) $(TEX) > $(TEMP) || \
 	        (cat $(TEMP); rm $(TEMP); false)
 	rm -f $(TEMP)
-	$(JADETEX) -fmt=$(JTFMT) $(TEX) >/dev/null
-	$(JADETEX) -fmt=$(JTFMT) $(TEX) >/dev/null
+	$(JADETEX) $(JTFMT) $(TEX) >/dev/null
+	$(JADETEX) $(JTFMT) $(TEX) >/dev/null
 	rm -f $(LOG) $(AUX) $(TEX)
 
 $(PS): $(DVI)
