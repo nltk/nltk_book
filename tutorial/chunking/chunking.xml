@@ -206,7 +206,7 @@ to read (each top-level section is a single web-page). -->
     <section> <title> LineTokenizer </title>
       <para> The <literal>ChunkTaggedTokenizer</literal> is often
       used in conjunction with the 
-      <ulink url="&refdoc;/nltk.token.html#LineTokenizer"
+      <ulink url="&refdoc;/nltk.token.LineTokenizer.html"
       ><literal>LineTokenizer</literal></ulink> class, which reads a
       file that contains one sentence per line.  For example, the
       following example reads a file containing chunked tagged
@@ -952,14 +952,150 @@ to read (each top-level section is a single web-page). -->
 
   <section> <title> Evaluating Chunk Parsers </title>
 
-    <para></para>
+    <para> A number of different metrics can be used to evaluate chunk
+    parsers.  We will concentrate on a class of metrics that can be
+    derived from two sets: </para>
 
-  </section>
+    <itemizedlist>
+      <listitem> <para> <glossterm>guessed</glossterm>: The set of
+      chunks returned by the chunk parser. </para>
+      </listitem>
+      <listitem> <para> <glossterm>correct</glossterm>: The correct
+      set of chunks, as defined in the test corpus.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para> From these two sets, we can define five useful metrics:
+    </para>
+
+    <itemizedlist>
+      <listitem><para><glossterm>Precision</glossterm>: What
+      percentage of guessed chunks were correct?</para>
+      </listitem>
+      <listitem><para><glossterm>Recall</glossterm>: What percentage
+      of correct chunks were guessed?</para>
+      </listitem>
+      <listitem> <para> <glossterm>F Measure</glossterm>: the harmonic
+      mean of precision and recall. </para>
+      </listitem>
+      <listitem> <para> <glossterm>Missed Chunks</glossterm>:
+      What correct chunks were not guessed?</para>
+      </listitem>
+      <listitem> <para> <glossterm>Incorrect Chunks</glossterm>: What guessed
+      chunks were not correct?</para>
+      </listitem>
+    </itemizedlist>
+
+    <note>
+      <para> Note that these metrics do not assign any credit for
+      chunks that are "almost" right (e.g., chunks that extend one
+      word too long).  It would be possible to design metrics that do
+      assign partial credit for such cases, they would be more
+      complex.  We decided to keep our metrics simple, so that it is
+      easy to understand what a given result means. </para>
+    </note>
+
+    <section> <title> ChunkScore </title>
+
+      <para> <ulink url="&refdoc;/nltk.chunkparser.ChunkScore.html"
+      ><literal>ChunkScore</literal></ulink>is a utility class for
+      scoring chunk parsers.  It can be used to evaluate the output of
+      a chunk parser, using precision, recall, f-measure, missed
+      chunks, and incorrect chunks.  It can also be used to combine
+      the scores from the parsing of multiple texts.  This is quite
+      useful if we are parsing a text one sentence at a time.  </para>
+
+      <para> <literal>ChunkScore</literal>s are created with the
+      <ulink url="&refdoc;/nltk.chunkparser.ChunkScore.html#__init__"
+      ><literal>ChunkScore</literal> constructor</ulink>, which takes
+      no arguments: </para>
+
+<programlisting>
+    &prompt; <command>chunkscore = ChunkScore()</command>
+</programlisting>
+
+      <para> The output of a chunk parser can be evaluated using the
+      <ulink url="&refdoc;/nltk.chunkparser.ChunkScore.html#score"
+      ><literal>score</literal></ulink> method: </para>
+
+<programlisting>
+    &prompt; <command>unchunked = unchunk(correct)</command>
+    &prompt; <command>guess = chunkparser.parse(unchunked)</command>
+    &prompt; <command>chunkscore.score(correct, guess)</command>
+</programlisting>
+
+      <para> The following program listing shows a typical use of the
+      <literal>ChunkScore</literal> class.  In this example,
+      <literal>chunkparser</literal> is being tested on each sentence
+      in the file "<literal>corpus.txt</literal>". </para>
+
+<programlisting>
+    <emphasis># Create a new ChunkScore utility class</emphasis>
+    &prompt; <command>chunkscore = ChunkScore()</command>
+
+    <emphasis># Split the text into sentences </emphasis>
+    &prompt; <command>text = open('corpus.txt').read()</command>
+    &prompt; <command>sentences = LineTokenizer().tokenize(text)</command>
+
+    <emphasis># Run the chunk parser on each sentence, and </emphasis>
+    <emphasis># score the results. </emphasis>
+    &prompt; <command>ctt = ChunkedTaggedTokenizer()</command>
+    &prompt; <command>for sentence in sentences:</command>
+    &prompt2; <command>    correct = ctt.tokenize(sentence.type(), </command>
+    &prompt2; <command>                           source=sentence.loc())</command>
+    &prompt2; <command>    unchunked = unchunk(correct)</command>
+    &prompt2; <command>    guess = chunkparser.parse(unchunked)</command>
+    &prompt2; <command>    chunkscore.score(correct, guess)</command>
+
+    <emphasis># Report the overall results. </emphasis>
+    &prompt; <command>print chunkscore</command>
+    ChunkParser score:
+        Precision:  60.0%
+        Recall:    100.0%
+        F-Measure:  75.0%
+</programlisting>
+
+      <para> The overall results of the evaluation can be viewed by
+      printing the <literal>ChunkScore</literal>.  Each evaluation
+      metric is also returned by an accessor method:</para>
+
+      <itemizedlist>
+        <listitem><para><ulink
+        url="&refdoc;/nltk.chunkparser.ChunkScore.html#precision"
+        ><literal>precision</literal></ulink></para> </listitem>
+
+        <listitem><para><ulink
+        url="&refdoc;/nltk.chunkparser.ChunkScore.html#recall"
+        ><literal>recall</literal></ulink></para> </listitem>
+
+        <listitem><para><ulink
+        url="&refdoc;/nltk.chunkparser.ChunkScore.html#f_measure"
+        ><literal>f_measure</literal></ulink></para> </listitem>
+
+        <listitem><para><ulink
+        url="&refdoc;/nltk.chunkparser.ChunkScore.html#missed"
+        ><literal>missed</literal></ulink></para> </listitem>
+
+        <listitem><para><ulink
+        url="&refdoc;/nltk.chunkparser.ChunkScore.html#incorrect"
+        ><literal>incorrect</literal></ulink></para> </listitem>
+      
+      </itemizedlist>
+
+      <para> The <literal>missed</literal> and
+      <literal>incorrect</literal> methods can be especially useful
+      when trying to improve the performance of a chunk
+      parser. </para>
+
+    </section> <!-- ChunkScore -->
+
+  </section> <!-- Evaluating Chunk Parsers-->
 
 
 
 <!-- ==================================================== 
-  <section> <title> The String Representation of Tokenized Sequences </title>
+<section>
+<title> The String Representation of Tokenized Sequences </title>
 
     <para>Before we can apply a regular expression to a sequence of objects,
     those objects must first be encoded in a string.  This presents a difficulty.
