@@ -48,7 +48,7 @@ TECHNICAL_DOCS = $(shell cd technical;ls */*.info |sed 's/[/][^/]*\.info//')
 .PHONY: all usage help clean tutorial misc technical reference
 .PHONY: webpage
 
-all: tutorial misc technical
+all: tutorial misc technical reference
 
 usage: help
 help: 
