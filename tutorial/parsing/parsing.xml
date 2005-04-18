@@ -25,6 +25,8 @@
     <authorinitials>sb</authorinitials>
     <author><firstname>Edward</firstname><surname>Loper</surname></author>
     <authorinitials>edl</authorinitials>
+    <author><firstname>Ewan</firstname><surname>Klein</surname></author>
+    <authorinitials>ehk</authorinitials>
     <title>NLTK Tutorial: Parsing</title>
     &versiondate; &copyright;
   </articleinfo>
@@ -121,16 +123,17 @@ compact representation in the form of a grammar.
 </para>
 
 <para>
-A well-formed sentence of a language is more than an arbitrary
-sequence of words from the language.  Certain kinds of words usually
-go together.  For instance,
-determiners like <literal>the</literal> are typically
-followed by adjectives or nouns, but not by verbs.  Groups of words form
-intermediate structures called phrases or constituents.  These
-constituents can be identified using standard syntactic tests, such as
-substitution, movement and coordination.  For example, if a sequence
-of words can be replaced with a pronoun, then that sequence is likely
-to be a constituent.  The following example illustrates this test:
+   A well-formed sentence of a language is more than an arbitrary
+   sequence of words from the language.  Certain kinds of words usually
+   go together.  For instance, determiners like <literal>the</literal>
+   are typically followed by adjectives or nouns, but not by verbs.
+   Groups of words form intermediate structures called phrases or
+   <glossterm>constituents</glossterm>.  These constituents can be
+   identified using standard syntactic tests, such as substitution,
+   movement and coordination.  For example, if a sequence of words can
+   be replaced with a pronoun, then that sequence is likely to be a
+   constituent.  According to this test, we can infer that the
+   italicised string in the following example is a constituent:
 </para>
 
 <orderedlist><listitem><para>
@@ -150,11 +153,17 @@ Phenomena of English.
 </para></note>
 
 <para>
-The structure of a sentence may be represented using a
-phrase structure tree, in which the terminal symbols are the words of the sentence,
-the pre-terminal symbols are parts of speech, and the remaining non-terminals
-are syntactic constituents.  An example of such a tree is shown in
-<xref linkend="parse_tree"/>.
+The structure of a sentence may be represented using a phrase structure
+   tree, in which the terminal symbols are the words of the sentence,
+   the pre-terminal symbols are parts of speech, and the remaining
+   non-terminals are syntactic constituents.  An example of such a tree
+   is shown in
+   <xref linkend="parse_tree"/>. For those trained in theoretical
+   linguistics, the lexical categories (i.e., the nonterminal symbols
+   immediately dominating the leafs of the tree) may appear strange.
+   This is because we have used used labels drawn from the Brown Corpus
+   part-of-speech tag set; see XREF(Tagging Chapter: Intro) for
+   discussion.
 </para>
 
 <figure id="parse_tree"><title>Phrase Structure Tree</title>
@@ -165,14 +174,21 @@ are syntactic constituents.  An example of such a tree is shown in
 </figure>
 
 <para>
-A <emphasis>grammar</emphasis> is a formal system which specifies
-which sequences of words are well-formed in the language, and which
-provides one or more phrase structures for the sequence.  We will
-focus our attention on a particular kind of grammar called a
-<emphasis>context-free grammar</emphasis> (CFG),
-which is a collection of productions of the form <literal>S &rarr; NP
-VP</literal>.  (To be well-formed, each non-terminal node and its children
-must correspond to such a production.)
+   A <emphasis>grammar</emphasis> is a formal system which specifies
+   which sequences of words are well-formed in the language, and which
+   provides one or more phrase structures for the sequence.  We will
+   focus our attention on a particular kind of grammar called a
+   <emphasis>context-free grammar</emphasis> (CFG), which is a
+   collection of productions of the form <literal>S &rarr; NP
+    VP</literal>.  We interpret this productions as saying that a
+   constituent of category <literal>S</literal> can consist of
+   subconstituents of categories <literal>NP</literal> and
+   <literal>VP</literal>. Similarly, the production <literal>VB &rarr;
+    'help'</literal> means that the constituent of category
+   <literal>VB</literal> can consist of the string
+   <literal>help</literal>.  For a phrase structure tree to be
+   well-formed relative to a grammar, each non-terminal node and its
+   children must correspond to such a production in the grammar.
 </para>
 
 <para>
@@ -192,26 +208,31 @@ grammars, and describe some simple parsers that work with them.
 Parsing is important in linguistics and natural language processing
 for a variety of reasons.  A parser permits a grammar to be evaluated
 against a potentially large collection of test sentences, helping the
-linguist to identify shortcomings in their analysis.  A parser can be
-used as a model of psycholinguistic processing, and used to explain
+linguist to identify shortcomings in their analysis.  A parser can 
+also be
+used as a model of psycholinguistic processing, with the goal of explaining
 the processing difficulties that humans have with certain syntactic
-constructions (e.g. the so-called "garden path" sentences).  A parser
-can serve as the first stage of processing natural language input for
-a question-answering system.
+constructions (e.g., the so-called "garden path" sentences). 
+There are many NL applications which involve parsing at some point; for
+example, we would expect the natural language input to a
+question-answering system to undergo parsing as an initial step.
 </para>
 
   </section> <!-- Introduction -->
 
-<!--
+
 
     <section id="overview"> <title> Linguistic Overview </title>
 
-X.2 linguistic overview (for non-linguist readers)
-    - how have linguists addressed the problem?
-    - what are the shortcomings of the non-computational approach?
+<!--
 
-- cover structural ambiguity and PP attachment
+X.2 linguistic overview (for non-linguist readers)
+  - how have linguists addressed the problem?
+  - what are the shortcomings of the non-computational approach?
+
+  - cover structural ambiguity and PP attachment
 - cover subcategorization, Levin classes
+
 
 <para>
 Parsing has a long and interesting history in computational
@@ -228,8 +249,9 @@ grammar formalisms and development environments.]
     <para>
       Discussion about how CFGs are created by hand.
     </para>
+-->
 
-    <para>A simple grammar:
+    <para>Let's start off by looking at a simple context-free grammar:
     </para>
 
 <screen>
@@ -244,24 +266,175 @@ PP &rarr; P NP
 NP &rarr; 'I'
 Det &rarr; 'the'
 Det &rarr; 'a'
-N &rarr; 'man'
+N &rarr; 'man' | 'park' | 'dog' | 'telescope'
 V &rarr; 'saw'
-P &rarr; 'in'
-N &rarr; 'park'
-P &rarr; 'with'
-N &rarr; 'dog'
-N &rarr; 'telescope'
+P &rarr; 'in' | 'with'
 </screen>
 
+    <para>
+   The productions are presented in two groups which we will call
+   <glossterm>grammatical productions</glossterm> and <glossterm>lexical
+    productions</glossterm> respectively. The labels in the grammatical
+   productions are all <glossterm>nonterminal symbols</glossterm>: these
+   are the grammatical categories we use to label constituents.  By
+   contrast, <glossterm>terminal symbols</glossterm> are what we call
+   the words whose syntactic behaviour is defined by the grammar. Notice
+   that in the lexical productions, we have used disjunction
+   '<literal>|</literal>' on the righthand side of the productions as an
+   abbreviatory device. For example, <literal>P &rarr; 'in' |
+    'with'</literal> means that a <literal>P</literal> (preposition) can
+   be realized as either <literal>in</literal> or
+   <literal>with</literal>.
+  </para>
+  <note>
+   <para>It is also possible to have disjunctions on the righthand sides
+   of grammatical productions.</para>
+  </note>
+  <para>
+   <xref linkend="parse_tree2"/> illustrates two possible phrase structure
+   analyses of the string <literal>The dog saw the man in the
+    park</literal>:
+  </para>
+
+<figure id="parse_tree2"><title>Structural Ambiguity</title>
+<informaltable frame="all">
+<tgroup cols="2"><tbody>
+      <row>
+       <entry>
+	<graphic fileref="images/parse_tree2" scale="55"/>
+       </entry>
+       <entry>
+	<graphic fileref="images/parse_tree3" scale="55"/>
+       </entry>
+      </row>
+     </tbody>
+    </tgroup>
+</informaltable>
+</figure>
+
+  <para>The fact that our grammar admits two distinct structures for
+   this sentence indicates that the sentence is <glossterm>structurally
+    ambiguous</glossterm>. The ambiguity in question is often called a
+   <glossterm>PP attachment ambiguity</glossterm>, since the issue at
+   hand is how the <literal>PP</literal> (prepositional phrase)
+   <literal>in the park</literal> should be attached to the phrase
+   structure tree. In this case, we can see that the grammar admits just
+   two choices. The <literal>PP</literal> is either attached as a
+   daughter of <literal>VP</literal> or else as a daughter of
+   <literal>NP</literal>. There is also a difference in semantic
+   interpretation associated with the two structures, though the meaning
+   distinction is somewhat subtle in this case. Where the
+   <literal>PP</literal> is attached to  <literal>VP</literal>, the
+   intended interpretation is that the event of seeing took place in the
+   park, while if the  <literal>PP</literal> is attached to
+   <literal>NP</literal>, being in the park is a property of the
+   <literal>NP</literal> referent; that is, the man was in the park, but
+   the agent of the seeing &mdash; the dog &mdash; was somewhere else
+   (e.g., sitting on the balcony of an apartment overlooking the park).
+   As we will see, dealing with ambiguity is a key challenge in parsing.
+
+</para>
+
+
+  <para>We remarked earlier that there is no upper bound on the length
+  of sentences of a natural language. Within context-free grammars, the
+  main mechanism which allows this unboundedness is
+  <glossterm>recursion</glossterm>. A grammar is said to be recursive if
+  a category occurring on the lefthand side of a production also appears
+  on the righthand side of a production. If this dual occurrence takes
+  place in one and the same production, then we have <glossterm>direct
+  recursion</glossterm>; otherwise we have <glossterm>indirect
+  recursion</glossterm>. These two cases are both illustrated in the
+  following grammar:
+  </para>
+
+  <screen>
+S &rarr; NP VP
+NP &rarr; Det N
+NP &rarr; Det N PP
+VP &rarr; VP Conj VP
+VP &rarr; V NP PP
+VP &rarr; V NP
+VP &rarr; V S
+VP &rarr; V
+PP &rarr; P NP
+
+NP &rarr; 'I'
+Det &rarr; 'the'
+Det &rarr; 'a'
+N &rarr; 'man' | 'park' | 'dog' | 'telescope'
+V &rarr; 'saw' | 'barked' | 'said'
+P &rarr; 'in' | 'with'
+Conj &rarr; 'and' | 'or'
+</screen>
+
+  <para>
+   That is, the production <literal>VP &rarr; VP Conj VP</literal>
+   involves direct recursion on the category<literal>VP</literal>,
+   whereas undirect recursion on <literal>S</literal> arises from the
+   combination of two productions, namely <literal>S &rarr; NP VP</literal> and
+   <literal>VP &rarr; V S</literal>.
+  <xref linkend="recursive_parse1"/> shows a phrase structure tree
+   involving coordinated <literal>VP</literal>s:
+  </para>
+
+<figure id="recursive_parse1"><title>Coordinated VP Phrase Structure Tree</title>
+<informaltable frame="all">
+<tgroup cols="1"><tbody>
+      <row>
+       <entry>
+	<graphic fileref="images/recursive_parse1" scale="55"/>
+       </entry>
+
+      </row>
+     </tbody>
+    </tgroup>
+</informaltable>
+</figure>
+
 <para>
+In this chapter, we only consider very small ('toy') context-free
+   grammars, in order to illustrate the key aspects of parsing such
+   grammars. But there is an obvious question as to whether the general
+   approach can be scaled up to cover large corpora of natural languages. How hard
+   would it be to construct such a set of rules by hand? In general, the
+   answer is: Very hard. Even if we allow ourselves to use various
+   formal devices that give much more succinct representations of phrase
+   structure rules (some of which will be discussed in the next
+   chapter), it is still extremely difficult to keep control of the
+   complex interactions between the many rules required to cover the
+   major constructions of a language. That is, it is hard to modularize
+   grammars, so that one portion can be worked on independently of the
+   other parts. This in turn means that it is difficult to distribute
+   the task of
+   grammar writing across a team of linguists. Another difficulty is
+   that as the grammar expands to cover a wider and wider range of
+   constructions,  there is a corresponding increase in the number of
+   analyses which are admitted for any one sentence. In other words,
+   ambiguity increases proportionally with coverage.  
+
+<!--
+that w a broad coverage grammar 
+. But we may want to ask how
 Shortcomings of this approach: unreliable, doesn't scale,
 complex interactions amongst productions makes manual debugging
 almost impossible.  Consequently linguists are unable to
-work with large-coverage grammars.
+work with large-coverage grammars.-->
 </para>
 
+  <para>Despite the problems just alluded to, there are a number of
+  large-scale collaborative projects ongoing which appear to have
+  achieved interesting and often impressive results in developing
+  rule-based grammars for several languages. Examples are the Lexical
+  Functional Grammar (LFG) Pargram project
+  (http://www2.parc.com/istl/groups/nltt/pargram/), the Head-Driven
+  Phrase Structure Grammar (HPSG) LinGO Matrix framework
+  (http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
+  Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
+
+</para>
     </section>
--->
+
 
     <section id="approaches"> <title> Computational Approaches to Parsing </title>
 
