@@ -1,7 +1,8 @@
 # Natural Language Toolkit: Tutorial report Makefile
 #
-# Copyright (C) 2001 University of Pennsylvania
+# Copyright (C) 2001-2005 University of Pennsylvania
 # Author: Edward Loper <edloper@gradient.cis.upenn.edu>
+#         Steven Bird <sb@csse.unimelb.edu.au>
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
 #
