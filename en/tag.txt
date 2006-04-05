@@ -341,8 +341,8 @@ co-occurrence restrictions with neighbouring words. For example,
 
  :: 
 
-  \*Am still!
-  \*Am still is hard.
+  *Am still!
+  *Am still is hard.
 
 These differences between the forms are encoded in their Brown Corpus
 tags: ``be/be, being/beg, am/bem, been/ben`` and ``was/bedz``. This
@@ -352,7 +352,7 @@ carrying out a limited amount of morphological analysis.
 
 In the remainder of this chapter, we will use the following tags: `at`:gc: (article)
 `nn`:gc: (Noun), `vb`:gc: (Verb), `jj`:gc: (Adjective), `in`:gc:
-(Preposition), `cd`:gc: (Number), and `end`:gc: (Sentence-ending
+(Preposition), `cd`:gc: (Number), and `.`:gc: (Sentence-ending
 punctuation).  As we mentioned, this is a radically simplified version
 of the Brown Corpus tag set, which in its entirety has 87 basic tags
 plus many combinations. More details can be found in the `Appendix`_.
@@ -609,7 +609,7 @@ used to tag new text::
 
 As we noted earlier, ``Unigram`` will assign the default tag
 ``None`` to any token that was not encountered in the training data.
-We can instruct it to :dt:`backoff` to our default ``nn_cd_tagger`` when
+We can instruct it to `backoff`:dt: to our default ``nn_cd_tagger`` when
 it cannot assign a tag itself::
 
   >>> unigram_tagger = tag.Unigram(backoff=nn_cd_tagger)
@@ -663,7 +663,10 @@ Evaluating Taggers
 As we experiment with different taggers, it is important to have an
 objective performance measure.  Fortunately, we already have manually
 verified training data (the original tagged corpus), so we can use
-that to evaluate our taggers.
+that to score the accuracy of a tagger, and to perform systematic error analysis.
+
+Scoring Accuracy
+----------------
 
 Consider the following sentence from the Brown Corpus.  The 'Gold
 Standard' tags from the corpus are given in the second column, while
@@ -703,7 +706,7 @@ can test the tagger using the same data it was trained on:
   >>> print 'Accuracy = %4.1f%%' % (100 * acc)
   Accuracy = 84.7%
 
-However, testing a language processing system over its training data.
+However, testing a language processing system over its training data is unwise.
 A system which simply memorized the training data would get a perfect
 score without doing any linguistic modelling.  Instead, we would like
 to reward systems that make good generalizations, so we should test
@@ -736,12 +739,17 @@ Initially, the accuracy score will go up quickly as we fix obvious
 shortcomings of the tagger.  After a while, however, it becomes more
 difficult and improvements are small.
 
+Error Analysis
+--------------
+
 While the accuracy score is certainly useful, it does not tell us how
 to improve the tagger.  For this we need to undertake error analysis.
 For instance, we could construct a *confusion matrix*, with a row and
 a column for every possible tag, and entries that record how often a
 word with tag *T*\ :subscript:`i` is incorrectly tagged as *T*\ :subscript:`j`
-Another approach is to analyse the context of errors.
+Another approach is to analyse the context of the errors, which is what
+we do now.
+
 Consider the following program, which catalogs all errors
 along with the tag on the left and their frequency of occurrence.
 
@@ -819,14 +827,12 @@ tag.
 Bigram Taggers
 --------------
 
-As their name suggests, :dt:`bigram taggers` use two
-pieces of information for each tagging decision.  Usually this
-information is the text of the current word together with the tag of
-the previous word. These two pieces of information constitute the
-:dt:`context` for the token to be tagged. Given the
-context, the tagger assigns the most likely tag.  We can visualize
-this process with the help of the following bigram table, a tiny
-fragment of the internal data structure built by a bigram tagger.
+`Bigram taggers`:dt: use two pieces of contextual information for each
+tagging decision, typically the current word together with the tag of
+the previous word. Given the context, the tagger assigns the most
+likely tag.  We can visualize this process with the help of the
+following bigram table, a tiny fragment of the internal data structure
+built by a bigram tagger.
 
 ====  ====  =========  ====   ========   ======   ====  ======
 Fragment of Bigram Table
@@ -870,19 +876,19 @@ jj                     to                nns      to    nns
        print
     
 The best way to understand the table is to work through an example.
-Suppose we have already processed the sentence `The President will
+Suppose we are processing the sentence `The President will
 ask Congress to increase grants to states for vocational
-rehabilitation .`` as far as ``will/md``.  We can use the table to
+rehabilitation .`` and that we have got as far as ``will/md``.  We can use the table to
 simply read off the tags that should be assigned to the remainder of
-the sentence.  When preceded by ``md``, the tagger guesses that the
-word `ask`` has the tag ``vb`` (italicized in the table).  Moving to
+the sentence.  When preceded by ``md``, the tagger guesses that
+`ask`:lx: has the tag ``vb`` (italicized in the table).  Moving to
 the next word, we know it is preceded by ``vb``, and looking across
-this row we see that `Congress`` is assigned the tag ``np``.  The
+this row we see that `Congress`:lx: is assigned the tag ``np``.  The
 process continues through the rest of the sentence.  When we encounter
-the word `increase``, we correctly assign it the tag ``vb`` (unlike
+the word `increase`:lx:, we correctly assign it the tag ``vb`` (unlike
 the unigram tagger which assigned it ``nn``).  However, the bigram
-tagger mistakenly assigns the infinitival tag to the word `to``
-immediately preceding `states``, and not the preposition tag.  This
+tagger mistakenly assigns the infinitival tag to the word `to`:lx:
+immediately preceding `states`:lx:, and not the preposition tag.  This
 suggests that we may need to consider even more context in order to
 get the correct tag.
 
@@ -892,8 +898,8 @@ N-Gram Taggers
 As we have just seen, it may be desirable to look at more than just
 the preceding word's tag when making a tagging decision.  An `N-gram
 tagger`:dt: is a generalisation of a bigram tagger whose context is
-the current token's text together with the part-of-speech tags of the
-`n`:math: preceding tokens, as shown in the following diagram. It then
+the current word together with the part-of-speech tags of the
+`n-1`:math: preceding tokens, as shown in the following diagram. It then
 picks the tag which is most likely for that context. The tag to be
 chosen, `t`:math:\ `n`:subscript:, is circled, and the context is shaded
 in grey. In this example of an N-gram tagger, we have `n=3`:math:;
@@ -907,10 +913,9 @@ to the current word.
 .. note:: A 1-gram tagger is another term for a unigram tagger: i.e.,
    the context used to tag a token is just the text of the token itself.
    2-gram taggers are also called *bigram taggers*, and 3-gram taggers
-   are called *trigram taggers*.  We have defined bigram and trigram
-   taggers as special cases of N-gram taggers.
+   are called *trigram taggers*.
 
-``tag.Ngram`` uses a tagged training corpus to determine which
+The ``tag.Ngram`` class uses a tagged training corpus to determine which
 part-of-speech tag is most likely for each context.  Here we see
 a special case of N-gram tagger, namely a bigram tagger::
 
@@ -925,23 +930,24 @@ corpora:
   >>> list(bigram_tagger.tag(tokens))
   [('John', 'np'), ('saw', 'vbd'), ('the', 'at'), ('book', 'nn'), ('on', 'in'), ('the', 'at'), ('table', None)]
 
-As with the other taggers considered earlier, N-gram taggers will
+As with the other taggers, N-gram taggers will
 assign the default tag `None`:gc: to any token whose context was not
-encountered in the training data.  Note that as `n`:math: gets larger, the
-specificity of the contexts increases; and with it, the chance that
-the data we wish to tag will contain contexts that were not present in
-the training data. This is sometimes referred to as a *sparse data*
-problem. Thus, there is a trade-off between the accuracy and the
-coverage of our results. This is a common type of trade-off in natural
-language processing. It is closely related to the `precision/recall
-trade-off`:dt: 
-that we'll encounter later when we discuss information
-retrieval.
+seen during training.
+
+As `n`:math: gets larger, the specificity of the contexts increases,
+as does the chance that the data we wish to tag contains contexts that
+were not present in the training data. This is known as the *sparse
+data* problem, and is quite pervasive in NLP. Thus, there is a
+trade-off between the accuracy and the coverage of our results (and
+this is related to the `precision/recall trade-off`:dt: in information
+retrieval.)
 
 .. Note:: N-gram taggers should not consider context that crosses a
    sentence boundary.  Accordingly, NLTK taggers are designed to work
-   with lists of sentences, where each sentence is a list of words, a
-   doubly-nested structure.
+   with lists of sentences, where each sentence is a list of words.  At
+   the start of a sentence, `t`:math:\ `n-1`:subscript: and preceding
+   tags are set to ``None``.
+
 
 Combining Taggers
 -----------------
@@ -954,11 +960,10 @@ a ``nn_cd_tagger``, as follows:
 
 1. Try tagging the token with the bigram tagger.
 2. If the bigram tagger is unable to find a tag for the token, try
-   finding a tag with the unigram tagger.
-3. If the unigram tagger is also unable to find a tag, use a
-   default tagger to find a tag.
+   the unigram tagger.
+3. If the unigram tagger is also unable to find a tag, use a default tagger.
 
-Each NLTK tagger permits a backoff-tagger to be specified.
+Each NLTK tagger other than ``tag.Default`` permits a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger::
 
   >>> t0 = tag.Default('nn')
@@ -969,8 +974,9 @@ The backoff-tagger may itself have a backoff tagger::
 
 .. Note:: We specify the backoff tagger when the tagger is
    initialized, so that training can take advantage of the backing off.
-   Thus, if the bigram tagger and its unigram backoff tagger would assign
-   the same tag in a certain context, the training instance is discarded.
+   Thus, if the bigram tagger would assign
+   the same tag as its unigram backoff tagger in
+   a certain context, the bigram tagger discards the training instance.
    This keeps the bigram tagger model as small as possible.  We can
    further specify that a tagger needs to see more than one instance of a
    context in order to retain it, e.g. ``Bigram(cutoff=2, backoff=t1)``
@@ -1000,15 +1006,7 @@ Exercises
    performance of the tagger?  Why?
 
 #. **Combining taggers**:
-   There is typically a trade-off between the accuracy and coverage
-   for taggers: taggers that use more specific contexts usually
-   produce more accurate results, when they have seen those contexts
-   in the training data; but because the training data is limited,
-   they are less likely to encounter each context. The backoff
-   argument of the tagger initializer permits us to address this
-   problem by trying taggers with more specific contexts first; and
-   falling back to the more general taggers when necessary. Create a
-   default tagger and various unigram and N-gram taggers,
+   Create a default tagger and various unigram and N-gram taggers,
    incorporating backoff, and train them on part of the Brown corpus.
 
    a) Create three different combinations of the taggers. Test the
@@ -1022,21 +1020,22 @@ Exercises
    N-gram taggers choose a tag for a token based on its text and the
    tags of the *n-1* preceding tokens. This is a common context to use
    for tagging, but certainly not the only possible context.
-   Construct a new tagger, subclassed from ``SequentialTagger``, that
-   uses a different context. If your tagger's context contains
-   multiple elements, then you should combine them in a
-   ``tuple``. Some possibilities for elements to include are: (i) the
-   text of the current token, or of a previous token; (ii) the length
-   of the current token's text, or of a previous token's text. (iii)
-   the first letter of the current token's text, or of a previous
-   token's text. (iv) the tag of a previous token.  Try to choose
-   context elements that you believe will help the tagger decide which
-   tag is appropriate. Keep in mind the trade-off between more
-   specific taggers with accurate results; and more general taggers
-   with broader coverage.  Combine your tagger with other taggers
-   using the backoff method.
 
-   a) How does the combined tagger's accuracy compare to the basic tagger? 
+   a) Construct a new tagger, subclassed from ``SequentialTagger``, that
+      uses a different context. If your tagger's context contains
+      multiple elements, then you should combine them in a
+      tuple. Some possibilities for elements to include are: (i)
+      the current word or a previous word; (ii) the length
+      of the current word text or of the previous word; (iii)
+      the first letter of the current word or the previous word;
+      or (iv) the previous tag.  Try to choose
+      context elements that you believe will help the tagger decide which
+      tag is appropriate. Keep in mind the trade-off between more
+      specific taggers with accurate results; and more general taggers
+      with broader coverage.  Combine your tagger with other taggers
+      using the backoff method.
+
+   #) How does the combined tagger's accuracy compare to the basic tagger? 
 
    #) How does the combined tagger's accuracy compare to the combined taggers you
       created in the previous exercise? 
@@ -1045,27 +1044,23 @@ Exercises
    Since sequential taggers tag tokens in order, one at a time, they
    can only use the predicted tags to the *left* of the current token
    to decide what tag to assign to a token. But in some cases, the
-   *right* context can provide more information about what tag should
-   be used. A reverse sequential tagger is a tagger that: (i) assigns
-   tags to one token at a time, starting with the last token of the
-   text, and proceeding in right-to-left order. (ii) decides which tag
-   to assign a token on the basis of that token, the tokens that
-   follow it, and the predicted tags for the tokens that follow it.
+   *right* context may provide more useful information than the left
+   context.  A reverse sequential tagger starts with the last word of the
+   sentence and, proceeding in right-to-left order, assigns tags to words
+   on the basis of the tags it has already predicted to the right.
+   By reversing texts at appropriate times, we can use NLTK's existing
+   sequential tagging classes to perform reverse sequential
+   tagging: reverse the training text before training the tagger;
+   and reverse the text being tagged both before and after.
 
-   There is no need to create new classes to perform reverse
-   sequential tagging.  By reversing texts at appropriate times, we
-   can use sequential tagging classes to perform reverse sequential
-   tagging. In particular, we should reverse the training text before
-   we train the tagger; and reverse the text that we wish to tag both
-   before and after we use the sequential tagger. Use this technique
-   to create a bigram reverse sequential tagger.
+   a) Use this technique to create a bigram reverse sequential tagger.
 
-   a) Measure its accuracy on a tagged section of the Brown corpus. Be
+   #) Measure its accuracy on a tagged section of the Brown corpus. Be
       sure to use a different section of the corpus for testing than you
       used for training.
 
-   b) How does its accuracy compare to a first order sequential
-   tagger, using the same training data and test data?
+   #) How does its accuracy compare to a left-to-right bigram
+      tagger, using the same training data and test data?
         
 #. **Alternatives to backoff**:
    Create a new kind of tagger that combines several taggers using
@@ -1079,25 +1074,27 @@ Exercises
 The Brill Tagger
 ----------------
 
-A potential issue with n-gram taggers is their size.  If tagging is
-to be employed in a variety of language technologies deployed on
-mobile computing devices, it is important to find ways to reduce the
-size of models without overly compromising performance.  An n-gram
-tagger with backoff may store trigram and bigram tables, large sparse
-arrays which may have hundreds of millions of entries.  As we saw in
-the above bigram table, n-gram models only consider the tags of words
-in the context.  A consequence of the size of the models is that it is
-simply impractical for n-gram models to be conditioned on the
-identities of words in the context.  In this section we will examine
-Brill tagging, a statistical tagging method which performs very well
-using models that are only a tiny fraction of the size of n-gram
-taggers.
+A potential issue with n-gram taggers is the size of their n-gram
+table (or language model).  If tagging is to be employed in a variety
+of language technologies deployed on mobile computing devices, it is
+important to strike a balance between model size and tagger
+performance.  An n-gram tagger with backoff may store trigram and
+bigram tables, large sparse arrays which may have hundreds of millions
+of entries.
+
+A second issue concerns context.  The only information an n-gram
+tagger considers from prior context is tags, even though words
+themselves might be a useful source of information.  It is simply
+impractical for n-gram models to be conditioned on the identities of
+words in the context.  In this section we examine Brill tagging,
+a statistical tagging method which performs very well using models
+that are only a tiny fraction of the size of n-gram taggers.
 
 Brill tagging is a kind of *transformation-based learning*.  The
 general idea is very simple: guess the tag of each word, then go back
 and fix the mistakes.  In this way, a Brill tagger successively
-transforms a bad tagging of a text into a good one.  As with n-gram
-tagging this is a *supervised learning* method, since we need
+transforms a bad tagging of a text into a better one.  As with n-gram
+tagging, this is a *supervised learning* method, since we need
 annotated training data.  However, unlike n-gram tagging, it does
 not count observations but compiles a list of transformational
 correction rules.
@@ -1109,13 +1106,11 @@ background.  Instead of painting the tree first then trying to paint
 blue in the gaps, it is simpler to paint the whole canvas blue, then
 "correct" the tree section by overpainting the blue background.  In
 the same fashion we might paint the trunk a uniform brown before going
-back to overpaint further details with a fine brush.  Brill tagging
-uses the same idea: get the bulk of the painting right with broad
-brush strokes, then fix up the details.  As time goes on, successively
-finer brushes are used, and the scale of the changes becomes
-arbitrarily small.  The decision of when to stop is somewhat
-arbitrary.  The following table illustrates this process, first
-tagging with the unigram tagger, then fixing the errors.
+back to overpaint further details with even finer brushes.  Brill
+tagging uses the same idea: begin with broad brush strokes then fix up
+the details, with successively finer changes.  The following table
+illustrates this process, first tagging with the unigram tagger, then
+fixing the errors.
 
 ==============  =======  ==========  =================================  =============================
 Steps in Brill Tagging
@@ -1140,17 +1135,17 @@ rehabilitation  nn       nn
 ==============  =======  ==========  =================================  =============================
 
 In this table we see two rules.  All such rules are generated from a
-template of the following form: form "replace *T* :subscript:`1` with *T*
-:subscript:`2` in the context *C*".  Typical contexts are the identity
-or the tag of the preceding or following word, or the appearance of a
-tag within 2-3 words of of the current word.  During its training
-phase, the tagger guesses values for *T* :subscript:`1`, *T*
-:subscript:`2` and *C*, to create thousands of candidate rules.  Each
-rule is then assigned a score based on its net benefit: the number of
-incorrect tags that it corrects, less the number of correct tags it
-incorrectly modifies.  This process is best illustrated by a listing
-of the output from the NLTK Brill tagger (here run on tagged Wall
-Street Journal text from the Penn Treebank). [#]_
+template of the following form: form "replace *T*\ :subscript:`1` with
+*T*\ :subscript:`2` in the context *C*".  Typical contexts are the
+identity or the tag of the preceding or following word, or the
+appearance of a specific tag within 2-3 words of of the current word.  During
+its training phase, the tagger guesses values for *T*\ :subscript:`1`,
+*T*\ :subscript:`2` and *C*, to create thousands of candidate rules.
+Each rule is scored according to its net benefit: the
+number of incorrect tags that it corrects, less the number of correct
+tags it incorrectly modifies.  This process is best illustrated by a
+listing of the output from the NLTK Brill tagger (here run on tagged
+Wall Street Journal text from the Penn Treebank). [#]_
 
 .. [#] We are grateful to Christopher Maloof for developing this Brill tagger
        for NLTK.
@@ -1198,8 +1193,8 @@ Exercises
 
 1. Try the Brill tagger demonstration, as follows:
 
-  >>> from nltk_lite.tag import brill
-  >>> brill.demo()
+   >>> from nltk_lite.tag import brill
+   >>> brill.demo()
 
 #. Consult the documentation for the demo function, using ``help(brill.demo)``.
    Experiment with the tagger by setting different values for the parameters.
@@ -1253,21 +1248,21 @@ which words should be emphasized.  Words can be tagged with sense
 numbers, indicating which sense of the word was used.  Words can also
 be tagged with morphological features.  Examples of each of these
 kinds of tags are shown below.
-Note that for space reasons, we only show the tag for a single
-(italicized) word. Note also that the first two examples use XML-style
+For space reasons, we only show the tag for a single
+word. Note also that the first two examples use XML-style
 tags, where elements in angle brackets enclose the word that is
 tagged.
 
 1. *Speech Synthesis Markup Language (W3C SSML):*
-   ``That is a <emphasis>*big*</emphasis> car!``
+   ``That is a <emphasis>big</emphasis> car!``
 #. *SemCor: Brown Corpus tagged with WordNet senses:*
-   ``Space in any <wf pos="NN" lemma="form" wnsn="4">*form*</wf>
+   ``Space in any <wf pos="NN" lemma="form" wnsn="4">form</wf>
    is completely measured by the three dimensions.``
    (Wordnet form/nn sense 4: "shape, form, configuration,
    contour, conformation")
 #. *Morphological tagging, from the Turin University Italian Treebank:*
    ``E' italiano , come progetto e realizzazione , il
-   *primo* (PRIMO ADJ ORDIN M SING) porto turistico dell' Albania .``
+   primo (PRIMO ADJ ORDIN M SING) porto turistico dell' Albania .``
 
 Tagging exhibits several properties that are characteristic of natural
 language processing.  First, tagging involves *classification*: words have
@@ -1281,7 +1276,7 @@ such as conditional frequency distributions and transformation-based learning.
 
 Unfortunately perfect tagging is impossible.  Consider the case of a
 trigram tagger.  How many cases of part-of-speech ambiguity does it
-encounter?
+encounter?  We can determine the answer to this question empirically:
 
   >>> from nltk_lite.corpora import brown
   >>> from nltk_lite.probability import ConditionalFreqDist
@@ -1297,22 +1292,27 @@ encounter?
   ...     if cfdist[cond].B() > 1:
   ...         ambiguous += cfdist[cond].N()
   ...     total += cfdist[cond].N()
-  >>> print 100.0 * ambiguous / total
-  5.09036201939
+  >>> print float(ambiguous) / total
+  0.0509036201939
 
-Thus, 5%, or one out of twenty trigrams, is ambiguous: given the
+Thus, one out of twenty trigrams is ambiguous.  Given the
 current word and the previous two tags, there is more than one tag
-that could be assigned to the current word.  Sometimes more context
-will resolve the ambiguity.  In other cases however, as noted by Abney
-(1996), the ambiguity can only resolved with reference to syntax, or
-to world knowledge.  Despite these imperfections, part-of-speech
-tagging has played a crucial role in the rise of statistical
-approaches to natural language processing.  The surprising accuracy of
-statistical taggers was a striking demonstration that it was possible
-to solve one small part of the language understanding problem, namely
-part-of-speech disambiguation, without reference to deeper sources of
-linguistic knowledge.  Can this idea be pushed further?  In the next
-chapter, on chunk parsing, we shall see that it can.
+that could be legitimately assigned to the current word according to
+the training data.  Assuming we always pick the most likely tag in
+such ambiguous contexts, we can derive an empirical upper bound on
+the performance of a trigram tagger.
+
+Sometimes more context will resolve the ambiguity.  In other cases
+however, as noted by Abney (1996), the ambiguity can only resolved
+with reference to syntax, or to world knowledge.  Despite these
+imperfections, part-of-speech tagging has played a crucial role in the
+rise of statistical approaches to natural language processing.  In the
+early 1990s, the surprising accuracy of statistical taggers was a
+striking demonstration that it was possible to solve one small part of
+the language understanding problem, namely part-of-speech
+disambiguation, without reference to deeper sources of linguistic
+knowledge.  Can this idea be pushed further?  In the next chapter, on
+chunk parsing, we shall see that it can.
 
 
 ---------------
@@ -1358,6 +1358,10 @@ Further Exercises
    Discuss any issues you encounter in applying these methods to the
    language.
         
+#. **Impossibility of exact tagging:**
+   Write a program to determine the upper bound for accuracy of an
+   n-gram tagger.
+
 #. **Impossibility of exact tagging:**
    Consult the Abney reading and review his discussion of the
    impossibility of exact tagging.  Explain why correct tagging of
