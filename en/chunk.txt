@@ -443,7 +443,7 @@ more words tagged as ``DT`` or ``NN`` (i.e. determiners and nouns).
 Now we can define a regular expression chunk parser based on this rule as
 follows:
 
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
 
 Note that ``RegexpChunk`` has optional second and third arguments that
 specify the node labels for chunks and for the top-level node,
@@ -454,13 +454,23 @@ illustrated by the complete program below.
    provides a short explanation of the purpose or the effect of the rule.
    This description is accessed via the ``descr()`` method.
     
-    >>> from nltk_lite import tag
-    >>> sent = tag.string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
-    >>> rule = parse.ChunkRule('<NN|DT>+',
-    ...                  'Chunk sequences of NN and DT')
-    >>> parser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
-    >>> parser.parse(sent)
-    (S: (NP: ('the', 'DT')) ('little', 'JJ') (NP: ('cat', 'NN')) ('sat', 'VBD') ('on', 'IN') (NP: ('the', 'DT') ('mat', 'NN')))
+    >>> from nltk_lite.tag import string2tags
+    >>> from nltk_lite.parse.tree import Tree
+    >>> ttoks = string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> sent = Tree('S', ttoks)
+    >>> rule = parse.ChunkRule('<NN|DT>+', 'Chunk sequences of NN and DT')
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
+    >>> print chunkparser.parse(sent)
+    (S:
+      (NP: ('the', 'DT'))
+      ('little', 'JJ')
+      (NP: ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+Observe that the object being parsed is actually a tree.  It consists
+of an ``S`` root node which dominates all the leaf nodes.
 
 We can also use more complex tag patterns, such as
 ``<DT>?<JJ.*>*<NN.*>``.  This can be used to chunk any sequence of
@@ -473,12 +483,11 @@ match takes precedence.  For example, if we apply a rule that matches
 two consecutive nouns to a text containing three consecutive nouns,
 then the first two nouns will be chunked:
 
-    >>> from nltk_lite import tag
-    >>> text = "dog/NN cat/NN mouse/NN"
-    >>> nouns = tag.string2tags(text)
+    >>> ttoks = string2tags("dog/NN cat/NN mouse/NN")
+    >>> sent = Tree('S', ttoks)
     >>> rule = parse.ChunkRule('<NN><NN>', 'Chunk two consecutive nouns')
-    >>> parser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
-    >>> parser.parse(nouns)
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
+    >>> print chunkparser.parse(sent)
     (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
 
 
@@ -502,10 +511,11 @@ three tokens whose tags are ``DT``, ``JJ``, and ``NN``, and the second
 rule finds any sequence of tokens whose tags are either ``DT`` or
 ``NN``.
       
-    >>> sent = tag.string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> ttoks = string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> sent = Tree('S', ttoks)
     >>> rule1 = parse.ChunkRule('<DT><JJ><NN>', 'Chunk det+adj+noun')
     >>> rule2 = parse.ChunkRule('<DT|NN>+', 'Chunk sequences of NN and DT')
-    >>> chunkparser = parse.RegexpChunk([rule1, rule2], chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([rule1, rule2], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -519,7 +529,7 @@ create chunks that do not partially overlap with chunks already in the
 hypothesis.  Thus, if we apply these two rules in reverse order, we
 will get a different result:
 
-    >>> chunkparser = parse.RegexpChunk([rule2, rule1], chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([rule2, rule1], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -612,8 +622,7 @@ apply another rule that puts the entire sentence in a single chunk:
 
 Finally, we can combine these two rules to create a chunk parser:
 
-    >>> chunkparser = parse.RegexpChunk([chunkall_rule, chink_rule],
-    ...                 chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([chunkall_rule, chink_rule], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -625,7 +634,7 @@ Finally, we can combine these two rules to create a chunk parser:
 If a tag pattern matches at multiple overlapping locations, the first
 match takes precedence.
 
-.. Note: Cascading Rules: ``RegexpChunk`` can use any number of
+.. Note: ``RegexpChunk`` can use any number of
    ``ChunkRules`` and ``ChinkRules``, in any order.  As was discussed
    above, ``ChunkRules`` only create chunks that do not partially overlap
    with chunks already in the chunking hypothesis.  Similarly,
@@ -653,8 +662,7 @@ We can combine this rule with a chunking rule to form a chunk parser:
 
     >>> chunk_rule = parse.ChunkRule('<NN|DT|JJ>+',
     ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, unchunk_rule],
-    ...                 chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([chunk_rule, unchunk_rule], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -671,15 +679,14 @@ chink rules can remove pieces of a chunk:
     ...                            'Chink sequences of NN and DT')
     >>> chunk_rule = parse.ChunkRule('<NN|DT|JJ>+',
     ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, chink_rule],
-    ...                 chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([chunk_rule, chink_rule], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
     Chunk sequences of NN, JJ, and DT:
                    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-    Chink sequences of VBD and IN:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    Chink sequences of NN and DT:
+                    <DT> {<JJ>} <NN>  <VBD>  <IN>  <DT>  <NN> 
 
 The Merge Rule
 --------------
@@ -724,7 +731,7 @@ unchunks verbs and prepositions:
     >>> unchunk_rule = parse.UnChunkRule('<IN|VB.*>',
     ...                         'Unchunk VBs and INs')
     >>> rules = [chunk_rule, unchunk_rule, merge_rule]
-    >>> chunkparser = parse.RegexpChunk(rules, chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk(rules, chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -764,11 +771,11 @@ location that has ``NN`` to the left and ``DT`` to the right:
 To illustrate this rule, we will use a combine it with a chunking rule
 that chunks sequences of noun phrases, adjectives, and determiners:
 
-    >>> sent = tag.string2tags('Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD')
+    >>> ttoks = string2tags('Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD')
+    >>> sent = Tree('S', ttoks)
     >>> chunk_rule = parse.ChunkRule('<NN.*|DT|JJ>+',
     ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, split_rule],
-    ...                 chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([chunk_rule, split_rule], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
     Input:
                    <NNP>  <VBD>  <DT>  <NN>  <DT>  <NN>  <VBD> 
@@ -856,8 +863,8 @@ with the originals, as follows:
     >>> from nltk_lite import parse
     >>> chunkscore = parse.ChunkScore()
     >>> rule = parse.ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+', "Chunk items that often occur in NPs")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
-    >>> guess = chunkparser.parse(correct.leaves())
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
+    >>> guess = chunkparser.parse(correct.flatten())
     >>> chunkscore.score(correct, guess)
     >>> print chunkscore
     ChunkParse score:
@@ -876,10 +883,10 @@ sentence from the Wall Street Journal tagged files.
 
     >>> from itertools import islice
     >>> rule = parse.ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
     >>> chunkscore = parse.ChunkScore()
     >>> for chunk_struct in islice(treebank.chunked(), 10):
-    ...     test_sent = chunkparser.parse(chunk_struct.leaves())
+    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
     ...     chunkscore.score(chunk_struct, test_sent)
     >>> print chunkscore
     ChunkParse score:
@@ -977,16 +984,65 @@ distribution as shown below:
 Now, in the evaluation phase we chunk any sequence of those tags:
 
     >>> rule = parse.ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
+    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
     >>> chunkscore = parse.ChunkScore()
     >>> for chunk_struct in test:
-    ...     test_sent = chunkparser.parse(chunk_struct.leaves())
+    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
     ...     chunkscore.score(chunk_struct, test_sent)
     >>> print chunkscore
     ChunkParse score:
         Precision:  90.7%
         Recall:     94.0%
         F-Measure:  92.3%
+
+
+-----------------
+Cascaded Chunking
+-----------------
+
+So far, our chunk structures have been relatively flat: trees
+consisting of tagged tokens, optionally grouped under a chunk node
+such as ``NP``.  As of NLTK-Lite version 0.6.4, it is possible to
+build chunk structures of arbitrary depth, simply by connecting the
+output of one chunker to the input of another.
+
+First we define several chunkers, e.g. for noun phrases, prepositional
+phrases, verb phrases, and sentences.
+
+    >>> np_chunk = parse.ChunkRule(r'<DT|JJ|NN.*>+', 'Chunk sequences of DT, JJ, NN')
+    >>> np_parse = parse.RegexpChunk([np_chunk], chunk_node='NP')
+    >>> pp_chunk = parse.ChunkRule(r'<IN><NP>', 'Chunk prepositions followed by NP')
+    >>> pp_parse = parse.RegexpChunk([pp_chunk], chunk_node='PP')
+    >>> vp_chunk = parse.ChunkRule(r'<VB.*><NP|PP|S>+$', 'Chunk verbs and arguments/adjuncts')
+    >>> vp_parse = parse.RegexpChunk([vp_chunk], chunk_node='VP')
+    >>> s_chunk = parse.ChunkRule(r'<NP><VP>$', 'Chunk NP, VP')
+    >>> s_parse = parse.RegexpChunk([s_chunk], chunk_node='S')
+    >>> chunkparsers = [np_parse, pp_parse, vp_parse, s_parse, vp_parse, s_parse]
+
+Next, we create some tagged data and chunk it:
+
+    >>> text = """John/NNP thinks/VBZ Mary/NN saw/VBD the/DT cat/NN
+    ...           sit/VB on/IN the/DT mat/NN"""
+    >>> ttoks = string2tags(text)
+    >>> sent = Tree('S', ttoks)
+    >>> for chunkparser in chunkparsers:
+    ...     sent = chunkparser.parse(sent)
+    >>> print sent
+    (S:
+      (NP: ('John', 'NNP'))
+      ('thinks', 'VBZ')
+      (S:
+        (NP: ('Mary', 'NN'))
+        (VP:
+          ('saw', 'VBD')
+          (S:
+            (NP: ('the', 'DT') ('cat', 'NN'))
+            (VP:
+              ('sit', 'VB')
+              (PP: ('on', 'IN') (NP: ('the', 'DT') ('mat', 'NN'))))))))
+
+.. Note:: At present there is no systematic way of evaluating these
+   cascading chunkers in NLTK.
 
 ----------
 Conclusion
@@ -1038,6 +1094,10 @@ In: Ken Church, Steve Young, and Gerrit Bloothooft (eds.),
 Kluwer Academic Publishers, Dordrecht.
 ``http://www.vinartus.net/spa/95a.pdf``
 
+Abney's Cass system:
+   ``http://www.vinartus.net/spa/97a.pdf``
+
+
 ---------
 Exercises
 ---------
@@ -1079,8 +1139,4 @@ Exercises
    (in English).  It would appear that the same information is being maintained in
    two places.  Is this likely to become a problem as the size of the rule sets grows?
    If so, speculate about any ways that this problem might be addressed.
-
-#. (Advanced) **Cascased Chunking:**
-   Develop a system for cascaded chunking, cf Abney's Cass system
-   ``http://www.vinartus.net/spa/97a.pdf``
 
