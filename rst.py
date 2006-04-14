@@ -31,6 +31,12 @@ from docutils.writers import Writer
 from docutils.writers.html4css1 import HTMLTranslator, Writer as HTMLWriter
 from docutils.writers.latex2e import LaTeXTranslator, Writer as LaTeXWriter
 
+LATEX_DPI = 130
+"""The scaling factor that should be used to display bitmapped images
+   in latex/pdf output (specified in dots per inch).  E.g., if a
+   bitmapped image is 100 pixels wide, it will be scaled to
+   100/LATEX_DPI inches wide for the latex/pdf output."""
+
 ######################################################################
 #{ HTML Output
 ######################################################################
@@ -113,6 +119,18 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def _markup_pysrc(self, s, tag):
         return '\\pysrc%s{%s}' % (tag, self.encode(s))
+
+    def visit_image(self, node):
+        """So image scaling manually"""
+        # Images are rendered using \includegraphics from the graphicx
+        # package.  By default, it assumes that bitmapped images
+        # should be rendered at 72 DPI; but we'd rather use a
+        # different scale.  So adjust the scale attribute & then
+        # delegate to our parent class.
+        node.attributes['scale'] = (node.attributes.get('scale', 1) *
+                                    100 * 72.0/LATEX_DPI)
+        print node.attributes['scale']
+        return LaTeXTranslator.visit_image(self, node)
         
 ######################################################################
 #{ Source Code Highlighting
