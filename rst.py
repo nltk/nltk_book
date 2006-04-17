@@ -224,11 +224,16 @@ def colorize_doctestblock(s, markup_func):
 def chapter_numbers(out_file):
     f = open(out_file).read()
     # LaTeX
-    c = re.search(r'pdftitle={(\d+)\.', f)
+    c = re.search(r'pdftitle={(\d+)\. ([^}]+)}', f)
     if c:
-        chapter = c.group(1)
-        f = re.sub(r'(pdfbookmark\[\d+\]{)', r'\g<1>'+chapter+'.', f)
-        f = re.sub(r'(section\*{)', r'\g<1>'+chapter+'.', f)
+        chnum = c.group(1)
+        chtitle = c.group(2)
+        f = re.sub(r'(pdfbookmark\[\d+\]{)', r'\g<1>'+chnum+'.', f)
+        f = re.sub(r'(section\*{)', r'\g<1>'+chnum+'.', f)
+        f = re.sub(r'(\\begin{document})',
+                   r'\def\chnum{'+chnum+r'}\n' +
+                   r'\def\chtitle{'+chtitle+r'}\n' +
+                   r'\g<1>', f)
         open(out_file, 'w').write(f)
     # HTML
     c = re.search(r'<h1 class="title">(\d+)\.', f)
