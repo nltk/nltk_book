@@ -71,7 +71,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
 
 LATEX_SETTINGS = {
     'output_encoding': 'utf-8',
-    'output_encoding_error_handler': 'backslahsreplace',
+    'output_encoding_error_handler': 'backslashreplace',
     'use_latex_docinfo': True,
     'font_encoding': 'C10,T1',
     'stylesheet': '../definitions.sty'
