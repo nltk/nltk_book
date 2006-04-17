@@ -61,6 +61,16 @@ class CustomizedHTMLTranslator(HTMLTranslator):
 
     def depart_doctest_block(self, node):
         pass
+
+    def visit_literal(self, node):
+        """Process text to prevent tokens from wrapping."""
+        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc, True)
+        self.body.append(
+	    self.starttag(node, 'tt', '', CLASS='doctest'))
+	self.body.append('<span class="pre">%s</span>' % pysrc)
+        self.body.append('</tt>')
+        # Content already processed:
+        raise docutils.nodes.SkipNode
                           
     def _markup_pysrc(self, s, tag):
         return '<span class="pysrc-%s">%s</span>' % (tag, self.encode(s))
@@ -97,15 +107,19 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\usepackage{alltt}
             % Python source code: Prompt
             \\newcommand{\\pysrcprompt}[1]{\\textbf{#1}}
+            \\newcommand{\\pysrcmore}[1]{\\textbf{#1}}
             % Python source code: Source code
             \\newcommand{\\pysrckeyword}[1]{\\textbf{#1}}
+            \\newcommand{\\pysrcbuiltin}[1]{\\textbf{#1}}
             \\newcommand{\\pysrcstring}[1]{\\textit{#1}}
             \\newcommand{\\pysrcother}[1]{\\textbf{#1}}
             % Python source code: Comments
             \\newcommand{\\pysrccomment}[1]{\\textrm{#1}}
-            % Python source code: Output
+	    % Python interpreter: Traceback message
+            \\newcommand{\\pysrcexcept}[1]{\\textbf{#1}}
+            % Python interpreter: Output
             \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
-        
+
     def visit_doctest_block(self, node):
         pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
         self.body.append('\\begin{alltt}\n')
@@ -115,6 +129,21 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def depart_doctest_block(self, node):
         pass
+
+    def visit_literal(self, node):
+        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc, True)
+        self.body.append('\\texttt{%s}' % pysrc)
+        raise docutils.nodes.SkipNode
+
+    def depart_literal(self, node):
+	pass
+
+    def visit_doctest_block(self, node):
+        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
+        self.body.append('\\begin{alltt}\n')
+        self.body.append(pysrc)
+        self.body.append('\\end{alltt}\n')
+        raise docutils.nodes.SkipNode
 
     def _markup_pysrc(self, s, tag):
         return '\\pysrc%s{%s}' % (tag, self.encode(s))
@@ -136,27 +165,45 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 ######################################################################
 
 # Regular expressions for colorize_doctestblock
-_KEYWORDS = ["del", "from", "lambda", "return", "and", "or", "is", 
-             "global", "not", "try", "break", "else", "if", "elif", 
-             "while", "class", "except", "import", "pass", "raise",
-             "continue", "finally", "in", "print", "def", "for"]
-_KEYWORD = '|'.join([r'(\b%s\b)' % _KW for _KW in _KEYWORDS])
+# set of keywords as listed in the Python Language Reference 2.4.1
+# added 'as' as well since IDLE already colorizes it as a keyword.
+# The documentation states that 'None' will become a keyword
+# eventually, but IDLE currently handles that as a builtin.
+_KEYWORDS = """
+and       del       for       is        raise    
+assert    elif      from      lambda    return   
+break     else      global    not       try      
+class     except    if        or        while    
+continue  exec      import    pass      yield    
+def       finally   in        print
+as
+""".split()
+_KEYWORD = '|'.join([r'\b%s\b' % _KW for _KW in _KEYWORDS])
+
+_BUILTINS = [_BI for _BI in dir(__builtins__) if not _BI.startswith('__')]
+_BUILTIN = '|'.join([r'\b%s\b' % _BI for _BI in _BUILTINS])
+
 _STRING = '|'.join([r'("""("""|.*?((?!").)"""))', r'("("|.*?((?!").)"))',
                     r"('''('''|.*?[^\\']'''))", r"('('|.*?[^\\']'))"])
 _COMMENT = '(#.*?$)'
-_PROMPT = r'^\s*(?:>>>|\.\.\.)(?:\s|$)'
+_PROMPT1 = r'^\s*>>>(?:\s|$)'
+_PROMPT2 = r'^\s*\.\.\.(?:\s|$)'
 
-PROMPT_RE = re.compile('(%s)' % _PROMPT, re.MULTILINE | re.DOTALL)
+PROMPT_RE = re.compile('(%s|%s)' % (_PROMPT1, _PROMPT2),
+		       re.MULTILINE | re.DOTALL)
+PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
 '''The regular expression used to find Python prompts (">>>" and
 "...") in doctest blocks.'''
 
-DOCTEST_RE = re.compile(
-    '(?P<STRING>%s)|(?P<COMMENT>%s)|(?P<KEYWORD>%s)|(?P<PROMPT>%s)|.+?' %
-    (_STRING, _COMMENT, _KEYWORD, _PROMPT), re.MULTILINE | re.DOTALL)
+_EXCEPT = r'^Traceback (most recent call last):.*?(?=>>>)'
+
+DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|(?P<EXCEPT>%s)|.+?""" %
+  (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2, _EXCEPT),
+  re.MULTILINE | re.DOTALL)
 '''The regular expression used by L{_doctest_sub} to colorize doctest
 blocks.'''
 
-def colorize_doctestblock(s, markup_func):
+def colorize_doctestblock(s, markup_func, inline=False):
     """
     Colorize the given doctest string C{s} using C{markup_func()}.
     C{markup_func()} should be a function that takes a substring and a
@@ -166,10 +213,13 @@ def colorize_doctestblock(s, markup_func):
         ...     return '<span class="%s">%s</span>' % (tag, s)
 
     The tags that will be passed to the markup function are: 
-        - C{prompt} -- a Python prompt (>>> or ...)
+        - C{prompt} -- the Python PS1 prompt (>>>)
+	- C{more} -- the Python PS2 prompt (...)
         - C{keyword} -- a Python keyword (for, if, etc.)
+        - C{builtin} -- a Python builtin name (abs, dir, etc.)
         - C{string} -- a string literal
         - C{comment} -- a comment
+	- C{except} -- an exception traceback (up to the next >>>)
         - C{output} -- the output from a doctest block.
         - C{other} -- anything else (does *not* include output.)
     """
@@ -179,23 +229,35 @@ def colorize_doctestblock(s, markup_func):
     out = result.append
 
     def subfunc(match):
-        if match.group('PROMPT'):
+        if match.group('PROMPT1'):
             return markup_func(match.group(), 'prompt')
+	if match.group('PROMPT2'):
+	    return markup_func(match.group(), 'more')
         if match.group('KEYWORD'):
             return markup_func(match.group(), 'keyword')
+        if match.group('BUILTIN'):
+            return markup_func(match.group(), 'builtin')
         if match.group('COMMENT'):
             return markup_func(match.group(), 'comment')
+	if match.group('EXCEPT'):
+	    return markup_func(match.group(), 'except')
         if match.group('STRING') and '\n' not in match.group():
             return markup_func(match.group(), 'string')
         elif match.group('STRING'):
             # It's a multiline string; colorize the string & prompt
             # portion of each line.
-            pieces = [markup_func(s, ['string','prompt'][i%2])
-                      for i, s in enumerate(PROMPT_RE.split(match.group()))]
+            pieces = [markup_func(s, ['string','more'][i%2])
+                      for i, s in enumerate(PROMPT2_RE.split(match.group()))]
             return ''.join(pieces)
         else:
             return markup_func(match.group(), 'other')
-    
+
+    if inline:
+	pysrc = DOCTEST_RE.sub(subfunc, s)
+	return pysrc.strip()
+
+    # need to add a third state here for correctly formatting exceptions
+
     for line in s.split('\n')+['\n']:
         if PROMPT_RE.match(line):
             pysrc.append(line)
