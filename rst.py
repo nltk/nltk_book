@@ -74,7 +74,7 @@ LATEX_SETTINGS = {
     'output_encoding_error_handler': 'backslashreplace',
     'use_latex_docinfo': True,
     'font_encoding': 'C10,T1',
-    'stylesheet': '../definitions.sty'
+    'stylesheet': '../definitions.sty',
     }
 
 class CustomizedLaTeXWriter(LaTeXWriter):
@@ -84,8 +84,7 @@ class CustomizedLaTeXWriter(LaTeXWriter):
 
 class CustomizedLaTeXTranslator(LaTeXTranslator):
     
-    # Not sure why we need this, but the old Makefile did it so I will
-    # to:
+    # Not sure why we need this, but the old Makefile did it so I will too:
     encoding = '\\usepackage[%s,utf8x]{inputenc}\n'
     
     def __init__(self, document):
@@ -218,6 +217,29 @@ def colorize_doctestblock(s, markup_func):
     return '\n'.join(result)
 
 ######################################################################
+#{ Chapter numbering
+######################################################################
+
+# Add chapter numbers; docutils doesn't handle (multi-file) books
+def chapter_numbers(out_file):
+    f = open(out_file).read()
+    # LaTeX
+    c = re.search(r'pdftitle={(\d+)\.', f)
+    if c:
+        chapter = c.group(1)
+        f = re.sub(r'(pdfbookmark\[\d+\]{)', r'\g<1>'+chapter+'.', f)
+        f = re.sub(r'(section\*{)', r'\g<1>'+chapter+'.', f)
+        open(out_file, 'w').write(f)
+    # HTML
+    c = re.search(r'<h1 class="title">(\d+)\.', f)
+    if c:
+        chapter = c.group(1)
+        f = re.sub(r'(<h\d><a[^>]*>)', r'\g<1>'+chapter+'.', f)
+        open(out_file, 'w').write(f)
+    
+
+
+######################################################################
 #{ Main Script
 ######################################################################
 
@@ -259,6 +281,7 @@ def main():
                                    destination_path=out_file,
                                    writer=writer,
                                    settings_overrides=settings)
+        chapter_numbers(out_file)
 
 if __name__ == '__main__':
     main()
