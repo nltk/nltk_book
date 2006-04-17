@@ -294,7 +294,7 @@ calculating the ratio of word types and word tokens, as
 shown in the following table.  (Genres with lower diversity
 have a higher number of tokens per type.)
 
-==================  ==========  ===========  =====
+==================  ===========  ==========  =====
 Word Types and Tokens in Brown Corpus, by Genre
 --------------------------------------------------
 Genre               Token Count  Type Count  Ratio
@@ -305,7 +305,7 @@ fiction: science    14470        3233        4.5
 press: reportage    100554       14394       7.0
 fiction: romance    70022        8452        8.3
 religion            39399        6373        6.2
---------------------------------------------------
+==================  ===========  ==========  =====
 
 We can carry out a variety of interesting explorations simply by
 counting words.  In fact, the field of *Corpus Linguistics* focusses
@@ -326,16 +326,20 @@ Exercises
    above.  Include the full set of Brown Corpus genres.  Which genre
    has the lowest diversity.  Is this what you would have expected?
 
-------------
-Tokenization
-------------
+------------------------------
+Tokenization and Normalization
+------------------------------
 
 *Tokenization* is the task of extracting a list of elementary tokens
 that constitute a piece of language data.  As we've seen, tokenization
 based solely on whitespace is too simplistic for most applications.
-More advanced tokenization can be performed by using a regular
-expression to specify which character sequences should be treated as
-words.
+In this section we will take a more sophisticated approach, using
+regular expression to specify which character sequences should be
+treated as words.  We will also consider important ways to normalize
+tokens.
+
+Tokenization with Regular Expressions
+-------------------------------------
 
 .. EL: I don't approve of defining a 'regexp' function inside a
    'regexp' module and then importing it into the parent package
@@ -347,7 +351,7 @@ words.
 The function ``tokenize.regexp()`` takes a text string and a
 regular expression, and returns the list of substrings that match the
 regular expression.  To define a tokenizer that includes punctuation
-as separate tokens, we could use:
+as separate tokens, we could do the following:
 
   >>> from nltk_lite import tokenize
   >>> text = '''Hello.  Isn't this fun?'''
@@ -355,28 +359,33 @@ as separate tokens, we could use:
   >>> list(tokenize.regexp(text, pattern))
   ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
 
-.. Tip:: Recall that ``\w+|[^\w\s]+`` is a disjunction of
-   two subexpressions, namely ``w+`` and ``[^\w\s]+``. The first of
-   these matches one or more "word" characters; i.e., characters other
-   than whitespace or punctuation. The second pattern is a negated
-   range expression; it matches on or more characters which are not
-   word characters (i.e., not a match for ``\w``) and not a whitespace
-   character (i.e., not a match for ``\s``).
-
-.. Tip:: The regular expression in this example will match
-   a sequence consisting of one or more word characters ``\w+``.  It
-   will also match a sequence consisting of one or more punctuation
-   characters (or non-word, non-space characters ``[^\w\s]+``).
+The regular expression in this example will match a sequence
+consisting of one or more word characters ``\w+``.  It will also match
+a sequence consisting of one or more punctuation characters (or
+non-word, non-space characters ``[^\w\s]+``).  This is a negated range
+expression; it matches one or more characters which are not word
+characters (i.e., not a match for ``\w``) and not a whitespace
+character (i.e., not a match for ``\s``).  We use the disjunction
+operator ``|`` to combine these into a single complex expression
+``\w+|[^\w\s]+``.
 
 There are a number of ways we might want to improve this regular
-expression.  For example, it currently breaks the string
-``'$22.50'`` into four tokens; but we might want it to treat this
-as a single token.  One approach to making this change would be
-to add a new clause to the tokenizer's regular expression, which
-is specialized for handling strings of this form:
+expression.  For example, it currently breaks `$22.50`:lx: into four
+tokens; but we might want it to treat this as a single token.
+Similarly, we would want to treat `U.S.A.` as a single token.  We can
+deal with these by adding further clauses to the tokenizer's regular
+expression.  For readability we break it up and insert comments, and
+use the ``re.VERBOSE`` flag, so that Python knows to strip out the
+embedded whitespace and comments.
 
+    >>> import re
     >>> text = 'That poster costs $22.40.'
-    >>> pattern = r'\w+|\$\d+\.\d+|[^\w\s]+'
+    >>> pattern = re.compile(r"""
+    ...     \w+               # sequences of 'word' characters
+    ...   | \$?\d+(\.\d+)?    # currency amounts, e.g. $12.50
+    ...   | ([\A\.])+         # abbreviations, e.g. U.S.A.
+    ...   | [^\w\s]+          # sequences of punctuation
+    ... """, re.VERBOSE)
     >>> list(tokenize.regexp(text, pattern))
     ['That', 'poster', 'costs', '$22.40', '.']
 
@@ -390,135 +399,66 @@ pattern is matched against the gaps.  For example, here is how
     >>> list(tokenize.regexp(text, pattern=r'\s+', gaps=True))
     ['That', 'poster', 'costs', '$22.40.']
 
-.. exercises here
-
----------------
-What is a Word?
----------------
-
-Linguists have devoted considerable effort to distinguishing different
-ways in which the term `word` is used. What we have focussed on so far
-are often called `orthographic words`: strings of characters which can
-be separated by various textual criteria such as the presence of
-whitespace.
-However, for linguists, the spoken word is often
-regarded as having greater primacy, in the sense that natural
-languages have all
-evolved as spoken mediums, and children learn to speak long before
-they can write and read (if indeed they ever do). Subjectively, we
-hear spoken utterances as a succession of words, but it is rarely the
-case that there are perceptible gaps between spoken words in
-conversational speech. Nevertheless, spoken words can and do occur in
-isolation. Using a variety of (sometime language-dependent) criteria,
-certain phonological units are classed as `phonological words`, and
-these units need not correspond to orthographic words: an example is
-the utterance `wanna`:lx: as a contraction of the words `want`:lx: and `to`:lx:.
-Returning to an example
-mentioned before,    note that the form  `n't`:lx: in `didn't`:lx: cannot
-form a phonological word by itself, and is sometimes called a `clitic`
-or `leaner`; it needs to to combine with a 'host' word before it can be
-uttered in normal speech.
-
-Independent of the distinction between spoken and written language,
-an important notion is that of a `lexeme` or `lexical item`. This
-corresponds broadly to the notion of a word that you might look up in
-a dictionary of English or some other language. For example, in order
-to find the meaning of the word `said`:lx:, you need to know first that
-it is a particular `grammatical form` of the lexeme `SAY`:lx:. (We adopt
-the standard convention of representing lexemes with upper-case
-forms.) Similarly,  `say`:lx:, `says`:lx: and `saying`:lx: are also
-grammatical forms of `SAY`:lx:. While `said`:lx:, `says`:lx: and `saying`:lx:
-are morphologically inflected, `say`:lx: lacks any morphological
-inflection and is therefore termed the `base` form. In English, the
-base form is conventionally used as the `lemma` (or `citation form`)
-for a word. It is the lemma that is chosen to represent the
-corresponding lexeme. (For example, the main entry for lexical item
-will be listed under the word's lemma.)
-
-Many of the word-like forms that occur in text have received little
-attention from linguists but are nevertheless so prevalent that they
-need to be dealt with in many NLP applications. These include
-abbreviations such as `Dept.`:lx: or `Mr.`:lx: and acronyms such as `NATO`:lx:,
-`Interpol`:lx: or `SQL`:lx:. Also of interest are symbols such as $ (`dollar`:lx:)
-and @ (`at`:lx:). Unlike ordinary punctuation marks, these symbols
-(sometimes called `logograms`) stand for words, and would be spoken as
-such if the text were read aloud.
-
-
--------------
-Normalisation
+Normalization
 -------------
 
-Earlier in this chapter, we talked about counting occurrences of word
-in a text.  However, we may also be interesting in counting sequences
-of words. Given any sequence of entities (e.g., letters, words,
-numbers), an `N-gram`:dt: is any subsequence of length
-`n`:math:. An N-gram of length 1 is called a `unigram`:dt:, 
-of length 2 is a `bigram`:dt:, of length 3 is a `trigram`:dt:, and so
-on. For example, in the sentence `She sells sea shells on the sea
-shore`:lx:,
-the unigrams are 
-`She`:lx:,
-`sells`:lx:,
-`sea`:lx:,
-`shells`:lx:,
-`on`:lx:,
-`the`:lx:,
-`shore`:lx:;
+Earlier we talked about counting word tokens, and completely ignored
+the 'context' in which these tokens appeared.  For a sentence like `I
+saw the saw`:lx:, we would have treated both `saw`:lx: tokens as
+instances of the same type.  However, one is a form of the verb
+`SEE`:lx:, and the other is the name of a cutting instrument (we use
+uppercase to indicate a `lexeme`:dt:, or `lemma`:dt:).  These two
+forms of `see`:lx: are unrelated, appearing in very different
+contexts, and should never be counted together.  We can distinguish
+such `homographs`:dt: with the help of context; often the previous
+word suffices.  We will explore this idea of context briefly, before
+addressing the main topic of this section.
+
+A `bigram`:dt: is simply a pair of words.
+For example, in the sentence `She sells sea shells by the sea shore`:lx:,
 the bigrams are
 `She sells`:lx:,
 `sells sea`:lx:,
 `sea shells`:lx:,
-`shells on`:lx:,
-`on the`:lx:,
+`shells by`:lx:,
+`by the`:lx:,
 `the sea`:lx:,
-`sea shore`:lx:;
-and the trigrams are
-`She sells sea`:lx:,
-`sells sea shells`:lx:,
-`sea shells on`:lx:,
-`shells on the`:lx:,
-`on the sea`:lx:,
-`the sea shore`:lx:.
+`sea shore`:lx:.
 
 As a first approximation to discovering the distribution of a word, we
-can look all the N-grams it occurs in.  More specifically, let's
-consider all bigrams from the Brown Corpus which have the word
-`often`:lx: as first element; that is, all the words which
-are immediately preceded by `often`:lx:.
-A small selection of these, ordered by their counts, is shown below::
+can look all the bigrams it occurs in.  Let's consider all bigrams
+from the Brown Corpus which have the word `often`:lx: as first
+element.  Here is a small selection, ordered by their counts::
 
-    ,		16
-    a		10
-    in		8
-    than		7
-    the		7
-    been		6
-    do		5
-    called  	4
-    appear	3
-    were		3
-    appeared	2
-    are		2
-    did		2
-    is		2
-    appears	1
-    call   	1
+    often ,		16
+    often a		10
+    often in		8
+    often than		7
+    often the		7
+    often been		6
+    often do		5
+    often called  	4
+    often appear	3
+    often were		3
+    often appeared	2
+    often are		2
+    often did		2
+    often is		2
+    often appears	1
+    often call   	1
 
-We can make a number of inferences from information like this. For
-instance, the fact that `often`:lx: is frequently followed by a comma
-suggests that it frequently occurs at the end of phrases. Not surprisingly, we
-also see that `often`:lx: precedes verbs, presumably as an
-adverbial modifier. Note, however, that although the list shows us how
-many tokens of a specific type follow `often`:lx:, distinct
-grammatical forms are treated as distinct types; for example,
-`been`:lx:, `were`:lx:, `are`:lx: and `is`:lx: are listed
-separately. If we were interested in what verbs can be modified by a
-particular adverb, we might want to `lemmatise`:dt: them; that is,
-replace the inflected forms by their lemma. Applied to the above list,
-lemmatisation would yield the following results, which gives us a more compact
-picture of the distribution of `often`:lx:. (As before, lexemes have
-been represented as upper-case forms.)
+Observe that `often`:lx: is frequently followed by a comma.  This
+suggests that `often`:lx: is common at the end of phrases. We also see
+that `often`:lx: precedes verbs, presumably as an adverbial
+modifier. Thus, `often saw`:lx: is likely to involve the verb
+`SEE`:lx:.  Note that this list includes many forms of the same word:
+`been`:lx:, `were`:lx:, `are`:lx: and `is`:lx: are all forms of
+`BE`:lx:.  It would be useful if we could group these together, or
+`lemmatize`:dt: them, replacing the inflected forms by their lemma.
+Then we could study which *verbs* are typically modified by a
+particular adverb.  Applied to the above list, lemmatization would
+yield the following results, which gives us a more compact picture of
+the distribution of `often`:lx:.
 
   ::
 
@@ -532,56 +472,53 @@ been represented as upper-case forms.)
     APPEAR	6
     CALL   	5
 
-Lemmatisation is a relatively sophisticated process which requires a
-mixture of rules for regular inflections and table look-up for irregular
-morphological patterns. Within NLTK, a simpler approach is offered by
-the Porter stemmer, which strips inflectional suffixes from words, but
-does not attempt, for example, to identify `was`:lx: as a form of the
-lexeme `BE`:lx:. Stemming in this fashion will succeed in collapsing
-the different forms of `APPEAR`:lx: and `CALL`:lx:.
+Lemmatization is a rather sophisticated process which requires a
+mixture of rules for regular inflections and table look-up for
+irregular morphological patterns. Within NLTK, a simpler approach is
+offered by the *Porter Stemmer*, which strips inflectional suffixes
+from words, collapsing the different forms of `APPEAR`:lx: and
+`CALL`:lx:.  (Note that this stemmer does not attempt to identify
+`was`:lx: as a form of the lexeme `BE`:lx:.)  Run the Porter Stemmer
+demonstration as follows::
 
-Lemmatisation and stemming can be regarded as special cases of
-`normalisation`:dt:, in the sense of choosing one linguistic
-expression as the canonical representative of a group of variants.  By
-its nature, normalisation collapses distinctions. An example is case
-normalisation, where all variants are mapped into a single
-format. What counts as the normalised form will vary according to
-context. Often, we convert everything into lower case, so that words
-which were capitalized by virtue of being sentence-initial are treated
-the same as those which occur elsewhere in the sentence. Case
-normlisation will also collapse the `New`:lx: of `New York`:lx: with
-the `new`:lx: of `my new car`:lx:.
+    from nltk_lite.tokenize import porter
+    porter.demo()
 
-Term variation is a particularly pervasive, and challenging, factor in
-biomedical texts. To give just one example, the following are just
-some of the possible
-variants for `nuclear factor kappa B`:lx:, the name for a family of proteins::
+Lemmatization and stemming can be regarded as special cases of
+`normalization`:dt:.  They identify a canonical representative for a
+group of related wordforms.  By its nature, normalization collapses
+distinctions. An example is case normalization, where all variants are
+mapped into a single format. What counts as the normalised form will
+vary according to context. Often, we convert everything into lower
+case, so that words which were capitalized by virtue of being
+sentence-initial are treated the same as those which occur elsewhere
+in the sentence. Case normalization will also collapse the `New`:lx:
+of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
+
+Term variation is a particularly challenging factor in biomedical
+texts. For example, the following are just some of the possible
+variants for `nuclear factor kappa B`:lx:, the name for a family of
+proteins::
 
   nuclear factor kappa B, nuclear factor Kappa-B, nuclear factor kappaB,
   nuclear factor kB, NF-KB, NF-kb, NF-kB, NFKB, NFkB, NF kappa-B
 
 Although work is ongoing to standardise biomedical nomenclature, the
-rate at which new entities are discovered and described vastly
-outstrips these efforts at present.
+rate at which new entities are discovered and described outstrips
+these efforts at present.
 
+Exercises
+---------
 
-.. This section should discuss how we define types.  I.e., how do we
-   decide whether two tokens have the same type or not.  Note that this
-   is a more general concept than normalization & stemming, but it's
-   certainly related.
+1. Save the Wall Street Journal example text from earlier in this
+   chapter into a file \texttt{corpus.txt}.  Write a function ``load(f)``
+   to read the file into a string.  Use ``tokenize.regexp()`` to create a
+   tokenizer which tokenizes the various kinds of punctuation
+   in this text.  Use a single regular expression, with inline comments
+   using the ``re.VERBOSE`` flag.
 
-.. Is this notion of type the same as lexeme, or something else?
-
-.. This section should talk about:
-
-   - normalization (eg case normalization)
-   - stemming
-   - roots & inflection
-   - porter stemmer
-   - morphology?
-
-.. Why is stemming stuff in the tokenization module?  Tokenization 
-   and normalization are two totally separate concepts in my mind.
+2. Use the Porter Stemmer to normalize some tokenized text, calling
+   ``porter.stem()`` on each word.
 
 -----------------
 Lexical Resources
@@ -916,6 +853,55 @@ Exercises
    Design an algorithm to find the statistically improbable
    phrases of a document collection.
    http://www.amazon.com/gp/search-inside/sipshelp.html/
+
+---------------
+What is a Word?
+---------------
+
+Linguists have devoted considerable effort to distinguishing different
+ways in which the term `word`:dt is used. So far we have focussed on
+`orthographic words`:dt strings of characters which can be separated
+by various textual criteria such as the presence of whitespace.
+However, for linguists, the spoken word is often regarded as
+primary, in the sense that natural languages have all evolved
+as spoken mediums, and children learn to speak long before they can
+write and read (if indeed they ever do). Subjectively, we hear spoken
+utterances as a succession of words, but it is rarely the case that
+there are perceptible gaps between spoken words in conversational
+speech. Nevertheless, spoken words can and do occur in
+isolation. Using a variety of (sometime language-dependent) criteria,
+certain phonological units are classed as `phonological words`, and
+these units need not correspond to orthographic words: an example is
+the utterance `wanna`:lx: as a contraction of the words `want`:lx: and
+`to`:lx:.  Returning to an example mentioned before, note that the
+form `n't`:lx: in `didn't`:lx: cannot form a phonological word by
+itself, and is sometimes called a `clitic`:dt: or `leaner`:dt:; it needs to to
+combine with a 'host' word before it can be uttered in normal speech.
+
+Independent of the distinction between spoken and written language,
+an important notion is that of a `lexeme`:dt: or `lexical item`:dt:. This
+corresponds broadly to the notion of a word that you might look up in
+a dictionary of English or some other language. For example, in order
+to find the meaning of the word `said`:lx:, you need to know first that
+it is a particular `grammatical form`:dt: of the lexeme `SAY`:lx:. (We adopt
+the standard convention of representing lexemes with upper-case
+forms.) Similarly,  `say`:lx:, `says`:lx: and `saying`:lx: are also
+grammatical forms of `SAY`:lx:. While `said`:lx:, `says`:lx: and `saying`:lx:
+are morphologically inflected, `say`:lx: lacks any morphological
+inflection and is therefore termed the `base`:dt: form. In English, the
+base form is conventionally used as the `lemma`:dt: (or `citation form`:dt:)
+for a word. It is the lemma that is chosen to represent the
+corresponding lexeme. (For example, the main entry for lexical item
+will be listed under the word's lemma.)
+
+Many of the word-like forms that occur in text have received little
+attention from linguists but are nevertheless so prevalent that they
+need to be dealt with in many NLP applications. These include
+abbreviations such as `Dept.`:lx: or `Mr.`:lx: and acronyms such as `NATO`:lx:,
+`Interpol`:lx: or `SQL`:lx:. Also of interest are symbols such as $ (`dollar`:lx:)
+and @ (`at`:lx:). Unlike ordinary punctuation marks, these symbols
+(sometimes called `logograms`:dt:) stand for words, and would be spoken as
+such if the text were read aloud.
 
 -------
 Summary
