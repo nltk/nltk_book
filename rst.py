@@ -85,7 +85,7 @@ class NumberFiguresVisitor(docutils.nodes.NodeVisitor):
         
     def visit_reference(self, node):
         fid = node.get('refid')
-        if node['refid'] in self.numbering:
+        if fid in self.numbering:
             fig_num = "Figure %s" % self.numbering[fid]
             node.children[:] = [docutils.nodes.Text(fig_num)]
                 
