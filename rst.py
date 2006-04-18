@@ -29,6 +29,7 @@ import docutils.core, docutils.nodes
 from docutils.writers import Writer
 from docutils.writers.html4css1 import HTMLTranslator, Writer as HTMLWriter
 from docutils.writers.latex2e import LaTeXTranslator, Writer as LaTeXWriter
+from docutils.parsers.rst import directives
 
 LATEX_DPI = 100
 """The scaling factor that should be used to display bitmapped images
@@ -36,60 +37,116 @@ LATEX_DPI = 100
    bitmapped image is 100 pixels wide, it will be scaled to
    100/LATEX_DPI inches wide for the latex/pdf output."""
 
+
 ######################################################################
-#{ Figure Numbering & other post-processing
+#{ Example directive
 ######################################################################
 
-class NumberFiguresVisitor(docutils.nodes.NodeVisitor):
+def example_directive(name, arguments, options, content, lineno,
+                      content_offset, block_text, state, state_machine):
+    """
+    Basic use::
+
+        .. example:: John went to the store.
+
+    To refer to examples, use::
+
+        .. _store:
+        .. example:: John went to the store.
+
+        In store_, John performed an action.
+    """
+    text = '\n'.join(content)
+    para = docutils.nodes.paragraph(text, text)
+    item = docutils.nodes.list_item(text, para)
+    lst = docutils.nodes.enumerated_list(text, item, is_example=True)
+    return lst
+
+example_directive.arguments = None
+example_directive.options = {}
+example_directive.content = True
+directives.register_directive('example', example_directive)
+
+######################################################################
+#{ Figure & Example Numbering
+######################################################################
+
+class NumberingVisitor(docutils.nodes.NodeVisitor):
     """
     A transforming visitor that adds figure numbers to all figures,
-    and converts any references to figures to use the text 'Figure #'.
+    and converts any references to figures to use the text 'Figure #';
+    and adds example numbers to all examples, and converts any
+    references to examples to use the text 'Example #'.
     """
     def __init__(self, document, format):
-        self.numbering = {}
-        self.next_num = 1
+        self.figures = {}
+        self.examples = {}
+        self.next_figure_num = 1
+        self.next_example_num = 1
         self.seen = {}
         self.format = format
         docutils.nodes.NodeVisitor.__init__(self, document)
     def unknown_visit(self, node): pass
-    def unknown_departure(self, node): pass
 
-    def visit_figure(self, node):
-        if node in self.seen: return
-        self.seen[node] = 1
-
+    def get_id(self, node):
         node_index = node.parent.children.index(node)
         if node_index>0 and isinstance(node.parent[node_index-1],
                                        docutils.nodes.target):
             target = node.parent[node_index-1]
-            self.numbering[target['refid']] = self.next_num
-            target['ids'] = [target['refid']]
+            refid = target['refid']
+            target['ids'] = [refid]
             del target['refid']
-        
-        if len(node['ids']) == 1:
-            fid = node['ids'][0]
-            self.numbering[fid] = self.next_num
+            return refid
 
+    def visit_enumerated_list(self, node):
+        # Ignore non-example lists.
+        if not node.get('is_example'): return
+            
+        # Don't process an example more than once.
+        if node in self.seen: return
+        self.seen[node] = 1
+        
+        # Get the ID for the example, if it has one.
+        node_id = self.get_id(node)
+        if node_id: self.examples[node_id] = self.next_example_num
+
+        # Mark the example with its number.
+        node['start'] = self.next_example_num
+        self.next_example_num += 1
+
+    def visit_figure(self, node):
+        # Don't process an figure more than once.
+        if node in self.seen: return
+        self.seen[node] = 1
+        
+        # Get the ID for the figure, if it has one.
+        node_id = self.get_id(node)
+        if node_id: self.figures[node_id] = self.next_figure_num
+
+        # Mark the figure with its number.
         if isinstance(node[-1], docutils.nodes.caption):
             if self.format == 'html':
-                fig_num = docutils.nodes.Text("Figure %s: " % self.next_num)
+                fig_num = docutils.nodes.Text("Figure %s: " %
+                                              self.next_figure_num)
                 node[-1].children.insert(0, fig_num)
         else:
             if self.format == 'html':
-                fig_num = docutils.nodes.Text("Figure %s" % self.next_num)
+                fig_num = docutils.nodes.Text("Figure %s" %
+                                              self.next_figure_num)
                 node.append(docutils.nodes.caption('', '', fig_num))
             else:
                 node.append(docutils.nodes.caption()) # empty.
             
-        self.next_num += 1
+        self.next_figure_num += 1
         
     def visit_reference(self, node):
-        fid = node.get('refid')
-        if fid in self.numbering:
-            fig_num = "Figure %s" % self.numbering[fid]
+        node_id = node.get('refid')
+        if node_id in self.figures:
+            fig_num = "Figure %s" % self.figures[node_id]
             node.children[:] = [docutils.nodes.Text(fig_num)]
-                
-                    
+        if node_id in self.examples:
+            example_num = "Example %s" % self.examples[node_id]
+            node.children[:] = [docutils.nodes.Text(example_num)]
 
 ######################################################################
 #{ HTML Output
@@ -107,9 +164,9 @@ class CustomizedHTMLWriter(HTMLWriter):
 
     def translate(self):
         # Do figure numbering.
-        visitor = NumberFiguresVisitor(self.document, 'html')
-        self.document.walkabout(visitor)
-        self.document.walkabout(visitor)
+        visitor = NumberingVisitor(self.document, 'html')
+        self.document.walk(visitor)
+        self.document.walk(visitor)
         # Translate to HTML
         HTMLWriter.translate(self)
 
@@ -137,6 +194,13 @@ class CustomizedHTMLTranslator(HTMLTranslator):
     def _markup_pysrc(self, s, tag):
         return '<span class="pysrc-%s">%s</span>' % (tag, self.encode(s))
 
+    def visit_example(self, node):
+        self.body.append('<ol start="%s"><li>\n' % node['start'])
+
+    def depart_example(self, node):
+        self.body.append('</li></ol>\n')
+
+
 ######################################################################
 #{ LaTeX Output
 ######################################################################
@@ -156,9 +220,9 @@ class CustomizedLaTeXWriter(LaTeXWriter):
 
     def translate(self):
         # Do figure numbering.
-        visitor = NumberFiguresVisitor(self.document, 'latex')
-        self.document.walkabout(visitor)
-        self.document.walkabout(visitor)
+        visitor = NumberingVisitor(self.document, 'latex')
+        self.document.walk(visitor)
+        self.document.walk(visitor)
         # Translate to latex
         LaTeXWriter.translate(self)
         
@@ -229,6 +293,9 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         node.attributes['scale'] = (node.attributes.get('scale', 100) *
                                     72.0/LATEX_DPI)
         return LaTeXTranslator.visit_image(self, node)
+        
+    def depart_example(self, node):
+        self.body.append('</li></ol>\n')
         
 ######################################################################
 #{ Source Code Highlighting
