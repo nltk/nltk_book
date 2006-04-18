@@ -39,7 +39,7 @@ LATEX_DPI = 100
 
 
 ######################################################################
-#{ Example directive
+#{ Directives
 ######################################################################
 
 def example_directive(name, arguments, options, content, lineno,
@@ -61,12 +61,20 @@ def example_directive(name, arguments, options, content, lineno,
     item = docutils.nodes.list_item(text, para)
     lst = docutils.nodes.enumerated_list(text, item, is_example=True)
     return lst
-
-example_directive.arguments = None
-example_directive.options = {}
 example_directive.content = True
 directives.register_directive('example', example_directive)
 
+def doctest_directive(name, arguments, options, content, lineno,
+                      content_offset, block_text, state, state_machine):
+    """
+    Used to explicitly mark as doctest blocks things that otherwise
+    wouldn't look like doctest blocks.
+    """
+    text = '\n'.join(content)
+    return docutils.nodes.doctest_block(text, text)
+doctest_directive.content = True
+directives.register_directive('doctest', doctest_directive)
+    
 ######################################################################
 #{ Figure & Example Numbering
 ######################################################################
