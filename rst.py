@@ -30,7 +30,7 @@ from docutils.writers import Writer
 from docutils.writers.html4css1 import HTMLTranslator, Writer as HTMLWriter
 from docutils.writers.latex2e import LaTeXTranslator, Writer as LaTeXWriter
 
-LATEX_DPI = 130
+LATEX_DPI = 100
 """The scaling factor that should be used to display bitmapped images
    in latex/pdf output (specified in dots per inch).  E.g., if a
    bitmapped image is 100 pixels wide, it will be scaled to
