@@ -255,7 +255,9 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
 
     def visit_doctest_block(self, node):
+        self.literal = True
         pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
+        self.literal = False
         self.body.append('\\begin{alltt}\n')
         self.body.append(pysrc)
         self.body.append('\\end{alltt}\n')
@@ -265,19 +267,14 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         pass
 
     def visit_literal(self, node):
+        self.literal = True
         pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc, True)
+        self.literal = False
         self.body.append('\\texttt{%s}' % pysrc)
         raise docutils.nodes.SkipNode
 
     def depart_literal(self, node):
 	pass
-
-    def visit_doctest_block(self, node):
-        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
-        self.body.append('\\begin{alltt}\n')
-        self.body.append(pysrc)
-        self.body.append('\\end{alltt}\n')
-        raise docutils.nodes.SkipNode
 
     def _markup_pysrc(self, s, tag):
         return '\\pysrc%s{%s}' % (tag, self.encode(s))
