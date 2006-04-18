@@ -82,7 +82,6 @@ class NumberFiguresVisitor(docutils.nodes.NodeVisitor):
                 node.append(docutils.nodes.caption()) # empty.
             
         self.next_num += 1
-        print node
         
     def visit_reference(self, node):
         fid = node['refid']
@@ -156,7 +155,6 @@ class CustomizedLaTeXWriter(LaTeXWriter):
         self.translator_class = CustomizedLaTeXTranslator
 
     def translate(self):
-        print self.document
         # Do figure numbering.
         visitor = NumberFiguresVisitor(self.document, 'latex')
         self.document.walkabout(visitor)
@@ -227,7 +225,6 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         # should be rendered at 72 DPI; but we'd rather use a
         # different scale.  So adjust the scale attribute & then
         # delegate to our parent class.
-        print node
         print node.attributes.get('scale')
         node.attributes['scale'] = (node.attributes.get('scale', 100) *
                                     72.0/LATEX_DPI)
