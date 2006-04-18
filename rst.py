@@ -197,6 +197,8 @@ PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
 EXCEPT_RE = re.compile(r'(.*)(^Traceback \(most recent call last\):.*)',
                        re.DOTALL | re.MULTILINE)
 
+DOCTEST_DIRECTIVE_RE = re.compile(r'#\s*doctest:.*')
+
 DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
                         r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
                         r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|.+?""" %
@@ -205,7 +207,7 @@ DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
 '''The regular expression used by L{_doctest_sub} to colorize doctest
 blocks.'''
 
-def colorize_doctestblock(s, markup_func, inline=False):
+def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
     """
     Colorize the given doctest string C{s} using C{markup_func()}.
     C{markup_func()} should be a function that takes a substring and a
@@ -229,6 +231,9 @@ def colorize_doctestblock(s, markup_func, inline=False):
     pyout = [] # the output part of a doctest block (lines)
     result = []
     out = result.append
+
+    if strip_directives:
+        s = DOCTEST_DIRECTIVE_RE.sub('', s)
 
     def subfunc(match):
         if match.group('PROMPT1'):
