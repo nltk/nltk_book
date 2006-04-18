@@ -121,9 +121,12 @@ identify them, how to analyse their morphology, and how to assign them
 to classes via part-of-speech tags. We have also seen that we can
 identify re-occuring sequences of words in the guise of
 N-grams. Nevertheless, there seem to be linguistic regularities which
-cannot readily be described in terms of N-grams. In addition, we will
-see that there are systematic aspects of meaning which are much easier
-to capture once we have established a level of syntactic structure.
+cannot readily be described in terms of N-grams. In this section, we
+will look a little more deeply into the reasons why it is useful to
+have some kind of syntactic representation of sentences. In particular,
+we will see that there are systematic aspects of meaning which are
+much easier to capture once we have established a level of syntactic
+structure.
 
 
 Syntactic Ambiguity
@@ -147,31 +150,66 @@ It should be obvious to you that there are two distinct
 interpretations of this sentence. How should we account for the
 difference? If you are familiar with propositional logic, you will not
 be surprised at the idea of using brackets to represent semantic
-structure::
+structure:
 
-6. a)  Kim left or (Dana arrived and everyone cheered)
-   b)  (Kim left or Dana arrived) and everyone cheered
+6. a)  Kim arrived or (Dana left and everyone cheered)
+   b)  (Kim arrived or Dana left) and everyone cheered
 
+We can describe this ambiguity in terms of the semantic `scope`:dt: of
+`or`:lx: and `and`:lx:\ : in the
+reading represented by (6a), the operator `or`:lx:  takes
+the conjoined sentence `Dana arrived and everyone cheered`:lx: as one
+of its arguments, and therefore is said to have wider scope than
+`and`:lx:. Conversely, in (6b), the operator `and`:lx: has wider scope than
+`or`:lx:.
+One convenient way of representing this scope difference at a structural
+level is by means of a `tree diagram`:dt:. 
 
+.. image:: ../images/ambig01-a.png
 
-5. Kim and Dana or the kids were responsible for this mess.
+.. image:: ../images/ambig01-b.png
 
-In speech, we would probably use pauses and intonation to make our
-meaning clear, as indi
+In NLTK-Lite, you can easily produce trees like this yourself with the
+following commands:
+ 
+  >>> from nltk_lite.parse import bracket_parse
+  >>> sent = '(S (S Kim arrived)(conj or)(S Dana left))'
+  >>> tree = bracket_parse(sent)
+  >>> tree.draw()
 
-There is another kind of ambiguity which cannot be explained in this way.
+A second example of scope ambiguity involves adjectives: 
+
+7. old men and women
+
+Does `old`:lx: have wider scope than `and`:lx:, or is it the other way
+round? In fact, both interpretations are possible. As an exercise, you can try
+modifying the code above to produce two trees, one for each scope reading. 
+
+For our third illustration of ambiguity, we look at
+prepositional phrases.
 Consider a sentence like: :lx:`I saw the man with a telescope`.  Who
 has the telescope?  To clarify what is going on here, consider the
 following pair of sentences:
 
-5. a) The policeman saw a burglar *with a gun*.       (not some other burglar)
+8. a) The policeman saw a burglar *with a gun*.       (not some other burglar)
    b) The policeman saw a burglar *with binoculars*.  (not with his naked eye)
 
 In both cases, there is a prepositional phrase introduced by
 :lx:`with`.  In the first case this phrase modifies the noun
 :lx:`burglar`, and in the second case it modifies the verb :lx:`saw`.
+We could again think of this in terms of scope: does the prepositional
+phrase (`PP`:gc:) just have scope over the `NP`:gc:
+`a burglar`:lx:, or does it have scope over
+the whole verb phrase? Again, we can represent the difference in terms
+of tree structure:
+
+.. image:: ../images/ambig02.png
+
+.. image:: ../images/ambig03.png
+
 In general, how can we determine whether a prepositional phrase
-modifies the preceding noun or verb?  The :dt:`Prepositional Phrase
+modifies the preceding noun or verb? This problem is often described
+with the label `PP attachment`:dt:.  The :dt:`Prepositional Phrase
 Attachment Corpus`, included with NLTK-Lite as `ppattach`, facilitates
 systematic study of this question.  The corpus is derived from the
 IBM-Lancaster Treebank of Computer Manuals and from the University of
@@ -179,7 +217,7 @@ Pennsylvanai WSJ Treebank, and distills out only the essential
 information about `PP`:gc: attachment. Consider for example the
 following sentence from the WSJ:
 
-6. Four of the five surviving workers have asbestos-related diseases,
+9. Four of the five surviving workers have asbestos-related diseases,
    including three with recently diagnosed cancer.
 
 The corresponding line in the  `ppattach` corpus is this::
@@ -225,8 +263,9 @@ We can access this corpus from NLTK-Lite as follows:
    'sent': '16',
    'verb': 'including'}
 
-From the above examples, it would appear that the attachment of the
-prepositional phrase is determined by the noun it contains.  However,
+If we go back to our first examples of `PP`:gc: attachment ambiguity,
+it appears as though it is the `PP`:gc: itself (e.g., `with a gun`:lx:
+versus `with a telescope`:lx:) that determines the attachment. However,
 we can use this corpus to find examples where other factors come in to play.
 The following program uses ``MinimalSet`` to find pairs of entries in the
 corpus which have different attachments based on the *verb* only.
@@ -250,7 +289,92 @@ This finding gives us clues to a structural difference: the verb
 :lx:`receive` usually comes with two following arguments; we receive
 something *from* someone.  In contrast, the verb :lx:`reject` only
 needs a single following argument; we can reject something without
-needing to say where it originated from.
+needing to say where it originated from. We expect that if you look at
+the data, you will be able to come up with further ideas about the
+factors that influence `PP`:gc: attachment.
+
+Constituency
+------------
+
+We claimed earlier that one of the motivations for building syntactic
+structure was to help make explicit how a sentence says "who did what
+to whom". Let's just focus for a while on the "who" part of this
+story: in other words, how can syntax tell us what the subject of a
+sentence is? At first, you might think this task is rather simple
+|mdash| so simple indeed that we don't need to bother with syntax. In
+a sentence such as
+
+10. The fierce dog bit the man.
+
+we know that it is the dog that is doing the biting. So we could
+say that the noun phrase immediately preceding the verb is the
+subject of the sentence. And we might try to make this more explicit
+in terms of sequences part-of-speech tags.  Let's try to come up with a simple
+definition of `noun phrase`:gc:; we might start off with something
+like this::
+
+   DT JJ* NN
+
+We're using regular expression notation here in the form of
+`JJ*`:gc: to indicate a sequence of zero or more `JJ`:gc:\s. So this
+is intended to say that a noun phrase can consist of a
+determiner, possibly followed by some adjectives, followed by a
+noun. Then we can go on to say that if we can find a sequence of
+tagged words like this that precedes a word tagged as a verb, then
+we've identified the subject. But now think about this sentence:
+
+11. The child with a fierce dog bit the man.
+
+This time, it's the child that is doing the biting. But the tag
+sequence preceding the verb is::
+
+  DT NN IN DT JJ NN
+
+and our previous attempt at identifying the subject would have
+incorrectly come up
+with `the fierce dog`:lx: as the subject.
+
+So our next hypothesis would have to be a bit more complex. For
+example, we might say that the subject can be identified as any string
+matching the following pattern before the verb::
+
+  DT JJ* NN (IN DT JJ* NN)*
+
+In other words, we need to find a noun phrase followed by zero or more sequences
+consisting of a preposition followed by a noun phrase. Now there are
+two unpleasant aspects to this proposed solution. The first is
+aesthetic: we are forced into repeating the sequence of tags (`DT JJ* NN`:gc:) that
+constituted our initial notion of noun phrase, and our initial notion
+was in any case a drastic simplification. More worrying, this approach
+still doesn't work! For consider the following example:
+
+12. The seagull that attacked the child with fierce dog bit the man.
+
+This time the seagull is the culprit, but it won't be detected as subject by our
+attempt to match sequences of tags. So it seems that we need a need a
+richer account of how words are *grouped* together into patterns, and
+a way of referring to these groupings at different points in the
+sentence structure. This idea of grouping is often called
+syntactic `constituency`:dt:.
+
+As we have just seen, a well-formed sentence of a language is more
+than an arbitrary sequence of words from the language.  Certain kinds
+of words usually go together.  For instance, determiners like ``the``
+are typically followed by adjectives or nouns, but not by verbs.
+Groups of words form intermediate structures called phrases or
+:dt:`constituents`.  These constituents can be identified using
+standard syntactic tests, such as substitution, movement and
+coordination.  For example, if a sequence of words can be replaced
+with a pronoun, then that sequence is likely to be a constituent.
+According to this test, we can infer that the italicised string in the
+following example is a constituent, since it can be replaced by
+`they`:lx:\:
+
+13. a) *Ordinary daily multivitamin and mineral supplements* could 
+       help adults with diabetes fight off some minor infections.
+    b) *They* could help adults with diabetes fight off some minor infections.
+
+blah
 
 
 --------------------------------
@@ -259,65 +383,10 @@ Representing Syntactic Structure
 
 We have been discussing structural differences between sentences, and
 we have been probing these structures by substituting words and
-phrases.  In this section we show how sentence structures can be
-represented using :dt:`syntactic trees`.
+phrases.  We have informally shown how sentence structures can be
+represented using syntactic trees, and we will now look at these
+structures in a bit more detail.
 
-Recursion
----------
-
-Observe that sentences can be nested within sentences, with no limit to the depth.
-
- | Jodie won the 100m freestyle
-
- | *The Age* reported that
- |   Jodie won the 100m freestyle
-
- | Sandy said
- |   *The Age* reported that
- |     Jodie won the 100m freestyle
-
- | I think
- |   Sandy said
- |     *The Age* reported that
- |       Jodie won the 100m freestyle
-
-It is quite clear that language exhibits :dt:`recursion`.
-More subtly, note that a sentence can be a :dt:`constituent` of
-a larger sentence.  Next we explore this notion of constituency in more detail.
-
-Constituency
-------------
-
-A well-formed sentence of a language is more than an arbitrary
-sequence of words from the language.  Certain kinds of words usually
-go together.  For instance, determiners like ``the`` are typically
-followed by adjectives or nouns, but not by verbs.  Groups of words
-form intermediate structures called phrases or :dt:`constituents`.
-These constituents can be identified using standard syntactic tests,
-such as substitution, movement and coordination.  For example, if a
-sequence of words can be replaced with a pronoun, then that sequence
-is likely to be a constituent.  According to this test, we can infer
-that the italicised string in the following example is a constituent,
-since it can be replaced by `they`:lx:\:
-
-7. a) *Ordinary daily multivitamin and mineral supplements* could 
-      help adults with diabetes fight off some minor infections.
-   b) *They* could help adults with diabetes fight off some minor infections.
-
-The structure of a sentence may be represented using a phrase
-structure tree, in which the terminal symbols are the words of the
-sentence, the pre-terminal symbols are parts of speech, and the
-remaining non-terminals are syntactic constituents.  An example of
-such a tree is shown below. For those trained in
-theoretical linguistics, the lexical categories (i.e., the nonterminal
-symbols immediately dominating the words of the tree) may appear
-strange.  This is because we have used used labels drawn from the
-Brown Corpus part-of-speech tag set (please see the chapter on tagging
-for discussion).
-
-.. figure:: ../images/parse_tree.png
-
-   _`Example Tree 1`
 
 Phrase Structure Trees
 ----------------------
@@ -385,32 +454,32 @@ written ``(n``:
 
 ``Tree``\ s are created with the ``Tree constructor``, which takes a
 node value and zero or more children.
-Here we see a simple tree with a single child node, itself a token::
+Here we see a simple tree with a single child node, itself a token:
 
   >>> from nltk_lite.parse.tree import Tree
   >>> tree1 = Tree('NP', ['John'])
   >>> tree1
   (NP: 'John')
 
-Here is an example with two children::
+Here is an example with two children:
 
   >>> tree2 = Tree('NP', ['the', 'man'])
   >>> tree2
   (NP: 'the' 'man')
 
 Finally, here is a more complex example, where one of the
-children is itself a tree::
+children is itself a tree:
 
   >>> tree3 = Tree('VP', ['saw', tree2])
   >>> tree3
   (VP: 'saw' (NP: 'the' 'man'))
 
-A tree's root node value is accessed with the ``node`` property:: 
+A tree's root node value is accessed with the ``node`` property: 
 
   >>> tree3.node
   'VP'
 
-A tree's children are accessed by indexing:: 
+A tree's children are accessed by indexing:
 
   >>> tree3[0]
   'saw'
@@ -423,7 +492,7 @@ A tree's children are accessed by indexing::
 
 The printed representation for complex trees can be difficult to read.
 In these cases, the ``draw`` method can be very useful.  This method
-opens a new window, containing a graphical representation of the tree::
+opens a new window, containing a graphical representation of the tree:
 
   tree3.draw()
 
@@ -432,7 +501,7 @@ to collapse and expand subtrees; and to print the graphical
 representation to a postscript file. 
 
 To compare multiple trees in a single window, use the ``draw_trees()``
-method, from the ``nltk_lite.draw.tree`` module::
+method, from the ``nltk_lite.draw.tree`` module:
 
   from nltk_lite.draw.tree import draw_trees
   draw_trees(tree1, tree2, tree3)
@@ -452,7 +521,7 @@ Initializing Trees from Strings
 -------------------------------
 
 A convenient way to initialize a large tree is from a labelled
-bracketing::
+bracketing:
 
   >>> from nltk_lite.parse import bracket_parse
   >>> sent = '(VP (VBD saw) (NP (DT the) (NN man)))'
@@ -628,6 +697,24 @@ Notice that the language accepted by this grammar is finite.
 Recursion
 ---------
 
+Observe that sentences can be nested within sentences, with no limit to the depth::
+
+    Jodie won the 100m freestyle
+
+    'The Age' reported that
+      Jodie won the 100m freestyle
+
+    Sandy said
+      'The Age' reported that
+	Jodie won the 100m freestyle
+
+    I think
+      Sandy said
+	'The Age' reported that
+	  Jodie won the 100m freestyle
+
+It is quite clear that language exhibits :dt:`recursion`.
+
 As we have seen, there is no upper bound on the length of
 sentences of a natural language. The
 main mechanism we use to capture this unboundedness is :dt:`recursion`. A
@@ -751,7 +838,7 @@ Lexical Acquisition
 We have seen increasingly detailed grammars, e.g. identifying different kinds
 of verbs.  How are we to acquire this information in a scalable way?  One method
 is to return to the chunking methods.  For example, we saw in the chunk chapter that
-it is possible to collapse chunks down to the chunk label, thus::
+it is possible to collapse chunks down to the chunk label, thus:
 
   gave NP
   gave up NP in NP
@@ -766,7 +853,7 @@ Context Free Grammars in NLTK-Lite
 
 Context free grammars are encoded by the ``Grammar`` class.  The easiest
 way to construct a grammar object is from the standard string representation
-of grammars::
+of grammars:
 
   >>> from nltk_lite.parse import cfg
   >>> grammar2 = cfg.parse_grammar('''
@@ -870,7 +957,7 @@ interface defines two methods:
    given text.
 
 For example, here is what the recursive descent parser generates for a
-simple sentence and grammar::
+simple sentence and grammar:
 
   >>> from nltk_lite import tokenize
   >>> sent = list(tokenize.whitespace('I saw a man in the park'))
@@ -916,7 +1003,7 @@ is created.  As the above process recursively expands its goals using
 the productions of the grammar, the parse tree is extended downwards
 (hence the name *recursive descent*).  We can see this in action using
 the parser demonstration ``nltk_lite.draw.rdparser``.  To run this
-demonstration, use the following commands::
+demonstration, use the following commands:
 
   >> from nltk_lite.draw import rdparser
   >> rdparser.demo()
@@ -984,7 +1071,7 @@ Recursive descent parsers are created from ``Grammars`` by the
   >>> rd_parser = RecursiveDescent(grammar)
 
 The following example shows the trace output generated by
-``rd_parser`` on a simple sentence::
+``rd_parser`` on a simple sentence:
 
   >>> sent = list(tokenize.whitespace('I saw a man'))
   >>> rd_parser.trace()
@@ -1037,7 +1124,7 @@ operation causes these two items to be replaced with ``NP(Det(the),
 N(dog))``.  This process continues until a parse tree for the entire
 sentence has been constructed.  We can see this in action using the
 parser demonstration ``nltk_lite.draw.srparser``.  To run this
-demonstration, use the following commands::
+demonstration, use the following commands:
 
   from nltk_lite.draw import srparser
   srparser.demo()
@@ -1112,7 +1199,7 @@ Shift reduce parsers are created from ``Grammars`` by the
 ``ShiftReduceParse`` constructor.  The constructor takes an optional
 parameter ``trace``.  As with the recursive descent parser, this value
 specifies how verbosely the parser should describe the steps that it
-takes as it parses a text:: 
+takes as it parses a text: 
 
   >>> sr_parse = parse.ShiftReduce(grammar)
 
@@ -1138,7 +1225,7 @@ The following example shows the trace output generated by
   (S: (NP: 'I') (VP: (V: 'saw') (NP: (Det: 'a') (N: 'man'))))
 
 NLTK also defines a graphical demonstration tool for the
-shift reduce parser::
+shift reduce parser:
 
  from nltk.draw.srparser import demo
  demo()
@@ -1328,3 +1415,10 @@ Rodney D. Huddleston, Geoffrey K. Pullum (2002).
 Cambridge University Press.
 
 .. include:: footer.txt
+
+
+.. 
+
+
+
+  
