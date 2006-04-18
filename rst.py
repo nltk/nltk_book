@@ -8,7 +8,6 @@
 # For license information, see LICENSE.TXT
 
 r"""
-
 This is a customized driver for converting docutils reStructuredText
 documents into HTML and LaTeX.  It customizes the standard writers in
 the following way:
@@ -195,10 +194,13 @@ PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
 '''The regular expression used to find Python prompts (">>>" and
 "...") in doctest blocks.'''
 
-_EXCEPT = r'^Traceback (most recent call last):.*?(?=>>>)'
+EXCEPT_RE = re.compile(r'(.*)(^Traceback \(most recent call last\):.*)',
+                       re.DOTALL | re.MULTILINE)
 
-DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|(?P<EXCEPT>%s)|.+?""" %
-  (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2, _EXCEPT),
+DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
+                        r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
+                        r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|.+?""" %
+  (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2),
   re.MULTILINE | re.DOTALL)
 '''The regular expression used by L{_doctest_sub} to colorize doctest
 blocks.'''
@@ -239,8 +241,6 @@ def colorize_doctestblock(s, markup_func, inline=False):
             return markup_func(match.group(), 'builtin')
         if match.group('COMMENT'):
             return markup_func(match.group(), 'comment')
-	if match.group('EXCEPT'):
-	    return markup_func(match.group(), 'except')
         if match.group('STRING') and '\n' not in match.group():
             return markup_func(match.group(), 'string')
         elif match.group('STRING'):
@@ -262,7 +262,17 @@ def colorize_doctestblock(s, markup_func, inline=False):
         if PROMPT_RE.match(line):
             pysrc.append(line)
             if pyout:
-                result.append(markup_func('\n'.join(pyout).strip(), 'output'))
+                pyout = '\n'.join(pyout).strip()
+                m = EXCEPT_RE.match(pyout)
+                if m:
+                    pyout, pyexc = m.group(1).strip(), m.group(2).strip()
+                    if pyout:
+                        print ('Warning: doctest does not allow for mixed '
+                               'output and exceptions!')
+                        result.append(markup_func(pyout, 'output'))
+                    result.append(markup_func(pyexc, 'except'))
+                else:
+                    result.append(markup_func(pyout, 'output'))
                 pyout = []
         else:
             pyout.append(line)
