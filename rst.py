@@ -155,6 +155,8 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
 HTML_SETTINGS = {
     'stylesheet': '../nltkdoc.css',
     'stylesheet_path': None,
+    'output_encoding': 'ascii',
+    'output_encoding_error_handler': 'xmlcharrefreplace',
     }
 
 class CustomizedHTMLWriter(HTMLWriter):
