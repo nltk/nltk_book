@@ -37,6 +37,62 @@ LATEX_DPI = 100
    100/LATEX_DPI inches wide for the latex/pdf output."""
 
 ######################################################################
+#{ Figure Numbering & other post-processing
+######################################################################
+
+class NumberFiguresVisitor(docutils.nodes.NodeVisitor):
+    """
+    A transforming visitor that adds figure numbers to all figures,
+    and converts any references to figures to use the text 'Figure #'.
+    """
+    def __init__(self, document, format):
+        self.numbering = {}
+        self.next_num = 1
+        self.seen = {}
+        self.format = format
+        docutils.nodes.NodeVisitor.__init__(self, document)
+    def unknown_visit(self, node): pass
+    def unknown_departure(self, node): pass
+
+    def visit_figure(self, node):
+        if node in self.seen: return
+        self.seen[node] = 1
+
+        node_index = node.parent.children.index(node)
+        if node_index>0 and isinstance(node.parent[node_index-1],
+                                       docutils.nodes.target):
+            target = node.parent[node_index-1]
+            self.numbering[target['refid']] = self.next_num
+            target['ids'] = [target['refid']]
+            del target['refid']
+        
+        if len(node['ids']) == 1:
+            fid = node['ids'][0]
+            self.numbering[fid] = self.next_num
+
+        if isinstance(node[-1], docutils.nodes.caption):
+            if self.format == 'html':
+                fig_num = docutils.nodes.Text("Figure %s: " % self.next_num)
+                node[-1].children.insert(0, fig_num)
+        else:
+            if self.format == 'html':
+                fig_num = docutils.nodes.Text("Figure %s" % self.next_num)
+                node.append(docutils.nodes.caption('', '', fig_num))
+            else:
+                node.append(docutils.nodes.caption()) # empty.
+            
+        self.next_num += 1
+        print node
+        
+    def visit_reference(self, node):
+        fid = node['refid']
+        if node['refid'] in self.numbering:
+            fig_num = "Figure %s" % self.numbering[fid]
+            node.children[:] = [docutils.nodes.Text(fig_num)]
+                
+                    
+
+######################################################################
 #{ HTML Output
 ######################################################################
 
@@ -49,6 +105,14 @@ class CustomizedHTMLWriter(HTMLWriter):
     def __init__(self):
         HTMLWriter.__init__(self)
         self.translator_class = CustomizedHTMLTranslator
+
+    def translate(self):
+        # Do figure numbering.
+        visitor = NumberFiguresVisitor(self.document, 'html')
+        self.document.walkabout(visitor)
+        self.document.walkabout(visitor)
+        # Translate to HTML
+        HTMLWriter.translate(self)
 
 class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_doctest_block(self, node):
@@ -91,6 +155,15 @@ class CustomizedLaTeXWriter(LaTeXWriter):
         LaTeXWriter.__init__(self)
         self.translator_class = CustomizedLaTeXTranslator
 
+    def translate(self):
+        print self.document
+        # Do figure numbering.
+        visitor = NumberFiguresVisitor(self.document, 'latex')
+        self.document.walkabout(visitor)
+        self.document.walkabout(visitor)
+        # Translate to latex
+        LaTeXWriter.translate(self)
+        
 class CustomizedLaTeXTranslator(LaTeXTranslator):
     
     # Not sure why we need this, but the old Makefile did it so I will too:
@@ -154,9 +227,10 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         # should be rendered at 72 DPI; but we'd rather use a
         # different scale.  So adjust the scale attribute & then
         # delegate to our parent class.
-        node.attributes['scale'] = (node.attributes.get('scale', 1) *
-                                    100 * 72.0/LATEX_DPI)
-        print node.attributes['scale']
+        print node
+        print node.attributes.get('scale')
+        node.attributes['scale'] = (node.attributes.get('scale', 100) *
+                                    72.0/LATEX_DPI)
         return LaTeXTranslator.visit_image(self, node)
         
 ######################################################################
