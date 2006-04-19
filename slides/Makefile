@@ -22,8 +22,11 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 all: $(PDF) index.html
 
-clean:
-	rm -f $(PDF) *.log *.aux *.snm *.vrb index*.html
+clean:	clean_up
+	rm -f $(PDF) index.html
+
+clean_up:
+	rm -f *.log *.aux *.snm *.vrb index*.html
 
 index.html:	index.txt
 	$(RST2HTML) --stylesheet-path=$(CSS_STYLESHEET_PATH) index.txt > index.html

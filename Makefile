@@ -23,11 +23,17 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 all: html en pt-br slides api
 html: index.html
 
-clean:
+clean:	clean_up
 	rm -rf index.html api
 	$(MAKE) -C en clean
 	$(MAKE) -C pt-br clean
 	$(MAKE) -C slides clean
+
+clean_up:
+	rm -f *.log *.aux *.tex *.out *.errs *~
+	$(MAKE) -C en clean_up
+	$(MAKE) -C pt-br clean_up
+	$(MAKE) -C slides clean_up
 
 .txt.html:
 	$(RST2HTML) --stylesheet-path=$(STYLESHEET_PATH) $< > $@
@@ -45,5 +51,5 @@ api:
 	rm -rf api/*
 	epydoc $(EPYDOC_OPTS) -o api ../nltk_lite
 
-rsync:
+rsync:	all
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/
