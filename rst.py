@@ -71,9 +71,13 @@ def doctest_directive(name, arguments, options, content, lineno,
     wouldn't look like doctest blocks.
     """
     text = '\n'.join(content)
+    if re.match(r'.*\n\s*\n', block_text):
+        print ('WARNING: doctest-ignore on line %d will not be ignored, '
+               'because there is\na blank line between ".. doctest-ignore::"'
+               ' and the doctest example.' % lineno)
     return docutils.nodes.doctest_block(text, text)
 doctest_directive.content = True
-directives.register_directive('doctest', doctest_directive)
+directives.register_directive('doctest-ignore', doctest_directive)
     
 ######################################################################
 #{ Figure & Example Numbering
