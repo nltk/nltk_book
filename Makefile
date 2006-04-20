@@ -20,7 +20,7 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 .PHONY: en pt-br slides api rsync
 
-all: html en pt-br slides api
+all: html en slides api
 html: index.html
 
 clean:	clean_up
