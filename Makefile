@@ -51,5 +51,5 @@ api:
 	rm -rf api/*
 	epydoc $(EPYDOC_OPTS) -o api ../nltk_lite
 
-rsync:	all
+rsync:
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/
