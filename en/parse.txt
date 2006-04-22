@@ -41,7 +41,7 @@ placement in the literature they knew" [languagelog.org].
 
 When reading, we sometimes find that we have to stop and re-read a
 sentence in order to resolve an ambiguity.  Curiously, it seems possible
-to combine unambiguous words to create an ambiguous sentences:
+to combine *unambiguous* words to create an ambiguous sentences:
 
 2. a) Fighting animals could be dangerous.
    b) Visiting relatives can be tiresome.
@@ -49,7 +49,7 @@ to combine unambiguous words to create an ambiguous sentences:
 Perhaps another kind of syntactic variation, word order, is easier to
 understand.  We know that the two sentences `Kim likes Sandy`:lx: and
 `Sandy likes Kim`:lx: have different meanings, and that `likes Sandy
-Kim*`:lx:is simply ungrammatical.  Similarly, we know that the
+Kim`:lx:is simply ungrammatical.  Similarly, we know that the
 following two sentences are equivalent:
 
 3. a) The farmer *loaded* the cart with sand
@@ -93,7 +93,7 @@ rather impressive sentence:
    Piglet is Entirely Surrounded by Water*)
 
 Our ability to produce and understand entirely new sentences, of
-arbitrary length, demonstrates that the set of well-formed sentencesin
+arbitrary length, demonstrates that the set of well-formed sentences in
 English (and any other language) is infinite.
 
 This chapter presents grammars and parsing, as the formal and
@@ -103,7 +103,6 @@ As we shall see, patterns of well-formedness and ill-formedness in a
 sequence of words can be understood with respect to the internal
 :dt:`phrase structure` of the sentences.  We can develop formal
 models of these structures using grammars and parsers.
-
 As before, the motivation is natural language *understanding*.  How
 much more of the meaning of a text can we access when we can reliably
 recognize the linguistic structures it contains?  Having read in a
@@ -119,14 +118,14 @@ What's the Use of Syntax?
 In previous chapters, we have focussed mainly on words: how to
 identify them, how to analyse their morphology, and how to assign them
 to classes via part-of-speech tags. We have also seen that we can
-identify re-occuring sequences of words in the guise of
-N-grams. Nevertheless, there seem to be linguistic regularities which
-cannot readily be described in terms of N-grams. In this section, we
+identify recurring sequences of words in the guise of
+n-grams. Nevertheless, there seem to be linguistic regularities which
+cannot readily be described in terms of n-grams. In this section, we
 will look a little more deeply into the reasons why it is useful to
-have some kind of syntactic representation of sentences. In particular,
-we will see that there are systematic aspects of meaning which are
-much easier to capture once we have established a level of syntactic
-structure.
+have some kind of syntactic representation of sentences. In
+particular, we will see that there are systematic aspects of meaning
+which are much easier to capture once we have established a level of
+syntactic structure.
 
 
 Syntactic Ambiguity
@@ -169,13 +168,24 @@ level is by means of a `tree diagram`:dt:.
 
 .. image:: ../images/ambig01-b.png
 
+Note that linguistic trees grow upside down: the node labeled `S`:gc:
+is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
+labeled with the words.
+
 In NLTK-Lite, you can easily produce trees like this yourself with the
 following commands:
  
-  >>> from nltk_lite.parse import bracket_parse
-  >>> sent = '(S (S Kim arrived)(conj or)(S Dana left))'
-  >>> tree = bracket_parse(sent)
-  >>> tree.draw()
+.. doctest-ignore:
+    >>> from nltk_lite.parse import bracket_parse
+    >>> sent = '(S (S Kim arrived)(conj or)(S Dana left))'
+    >>> tree = bracket_parse(sent)
+    >>> tree.draw()
+
+Conveniently, the resulting tree object supports Python's standard
+array operations for accessing its children:
+
+    >>> tree[0]
+    (S: 'Kim' 'arrived')
 
 A second example of scope ambiguity involves adjectives: 
 
@@ -192,7 +202,7 @@ has the telescope?  To clarify what is going on here, consider the
 following pair of sentences:
 
 8. a) The policeman saw a burglar *with a gun*.       (not some other burglar)
-   b) The policeman saw a burglar *with binoculars*.  (not with his naked eye)
+   b) The policeman saw a burglar *with a telescope*. (not with his naked eye)
 
 In both cases, there is a prepositional phrase introduced by
 :lx:`with`.  In the first case this phrase modifies the noun
@@ -206,6 +216,21 @@ of tree structure:
 .. image:: ../images/ambig02.png
 
 .. image:: ../images/ambig03.png
+
+We can generate these trees in Python as follows:
+
+    >>> sent1 = '(S (NP the policeman)(VP (V saw)(NP (NP the burglar)(PP with a gun))))'
+    >>> sent2 = '(S (NP the policeman)(VP (V saw) (NP the burglar) (PP with a telescope)))'
+    >>> tree1 = bracket_parse(sent1)
+    >>> tree2 = bracket_parse(sent2)
+   
+We can see that they are trees over the same sequence of words, but
+that they have different heights:
+
+    >>> tree1.leaves() == tree2.leaves
+    True
+    >>> tree1.height() == tree2.height()
+    False
 
 In general, how can we determine whether a prepositional phrase
 modifies the preceding noun or verb? This problem is often described
@@ -253,16 +278,16 @@ We can access this corpus from NLTK-Lite as follows:
 
 ..  Have we explained what `extract` does?
 
-  >>> from nltk_lite.corpora import ppattach, extract
-  >>> from pprint import pprint
-  >>> item = extract(16, ppattach.dictionary('devset'))
-  >>> pprint(item)
-  {'attachment': 'N',
-   'noun1': 'three',
-   'noun2': 'cancer',
-   'prep': 'with',
-   'sent': '16',
-   'verb': 'including'}
+    >>> from nltk_lite.corpora import ppattach, extract
+    >>> from pprint import pprint
+    >>> item = extract(16, ppattach.dictionary('devset'))
+    >>> pprint(item)
+    {'attachment': 'N',
+     'noun1': 'three',
+     'noun2': 'cancer',
+     'prep': 'with',
+     'sent': '16',
+     'verb': 'including'}
 
 If we go back to our first examples of `PP`:gc: attachment ambiguity,
 it appears as though it is the `PP`:gc: itself (e.g., `with a gun`:lx:
@@ -271,20 +296,20 @@ we can use this corpus to find examples where other factors come in to play.
 The following program uses ``MinimalSet`` to find pairs of entries in the
 corpus which have different attachments based on the *verb* only.
 
-  >>> from nltk_lite.utilities import MinimalSet
-  >>> ms = MinimalSet()
-  >>> for entry in ppattach.dictionary('training'):
-  ...     target  = entry['attachment']
-  ...     context = (entry['noun1'], entry['prep'], entry['noun2'])
-  ...     display = (target, entry['verb'])
-  ...     ms.add(context, target, display)
-  >>> for context in ms.contexts():
-  ...     print context, ms.display_all(context)
+    >>> from nltk_lite.utilities import MinimalSet
+    >>> ms = MinimalSet()
+    >>> for entry in ppattach.dictionary('training'):
+    ...     target  = entry['attachment']
+    ...     context = (entry['noun1'], entry['prep'], entry['noun2'])
+    ...     display = (target, entry['verb'])
+    ...     ms.add(context, target, display)
+    >>> for context in ms.contexts():
+    ...     print context, ms.display_all(context)
 
 Here is one of the pairs found by the program.
 
-  | received (NP offer) (PP from group)
-  | rejected (NP offer (PP from group))
+    | received (NP offer) (PP from group)
+    | rejected (NP offer (PP from group))
 
 This finding gives us clues to a structural difference: the verb
 :lx:`receive` usually comes with two following arguments; we receive
@@ -411,10 +436,8 @@ notion of a noun phrase in defining the subject of sentence, which in
 turn is a crucial ingredient in determining the "who does what to
 whom" aspect of meaning.
 
-
----------------------------------------------
-Representing Syntactic Structure in NLTK-Lite
----------------------------------------------
+More on NLTK's Trees
+--------------------
 
 We have been discussing structural differences between sentences, and
 we have been probing these structures by substituting words and
@@ -422,16 +445,12 @@ phrases.  We have informally shown how sentence structures can be
 represented using syntactic trees, and we will now look at these
 structures in a bit more detail.
 
-Consider the
-following example:
+Consider the following example:
 
 .. image:: ../images/lee-dog.png
 
 The tree is a set of connected nodes, each of which is labeled with a
-category.  Linguistic trees grow upside down: the node labeled `S`:gc:
-is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
-labeled with the words `Lee`:lx:, `saw`:lx:, `the`:lx: and
-`dog`:lx:. It also common to use a family metaphor to talk about the
+category.  It also common to use a family metaphor to talk about the
 relationships of nodes in a tree: for example, `S`:gc: is the
 `parent`:dt: of `VP`:gc:; conversely `VP`:gc: is a `daughter`:dt: (or
 `child`:dt:) of `S`:gc:.  Also, since `NP`:gc: and `VP`:gc: are both
@@ -454,16 +473,6 @@ The conventions for displaying trees in NLTK are similar::
 
   (S: (NP: 'Lee') (VP: (V: 'saw') (NP: 'the' 'dog')))
 
-.. 
-  The ``nltk_lite.tree`` module defines a number of classes and functions for
-   working with simple trees.
-
-.. 
-   The ``nltk_lite.tree`` module currently has no direct
-   support for representing movement, traces, and co-indexing.  We plan
-   to extend the class to support these features more fully in the
-   future.
-
 In such trees, the node value is a string containing the tree's
 constituent type (e.g., `NP`:gc: or `VP`:gc:), while the children encode
 the hierarchical contents of the tree [#]_.
@@ -474,60 +483,40 @@ the hierarchical contents of the tree [#]_.
    discourse structure).  In the general case, leaves and node values do
    not have to be strings.
 
-A ``Tree`` with node value
-`n` and children
-`c`:subscript:`1`,
-`c`:subscript:`2`, ...
-`c`:subscript:`n` is
-written ``(n``:
-`c`:subscript:`1`
-`c`:subscript:`2` ...
-`c`:subscript:`n`\ ``)``.
+``Trees`` are created with the ``Tree constructor``, which takes a
+node value and a list of zero or more children.  Here's an example of
+a simple NLTK-Lite tree with a single child node, where the latter is
+a token:
 
-``Tree``\ s are created with the ``Tree constructor``, which takes a
-node value and a list of zero or more children.
-Here's an example of a simple NLTK-Lite tree with a single child node,
-where the latter is a token:
-
-  >>> from nltk_lite.parse.tree import Tree
-  >>> tree1 = Tree('NP', ['John'])
-  >>> tree1
-  (NP: 'John')
+    >>> from nltk_lite.parse.tree import Tree
+    >>> tree1 = Tree('NP', ['John'])
+    >>> tree1
+    (NP: 'John')
 
 Here is an example with two children:
 
-  >>> tree2 = Tree('NP', ['the', 'man'])
-  >>> tree2
-  (NP: 'the' 'man')
+    >>> tree2 = Tree('NP', ['the', 'man'])
+    >>> tree2
+    (NP: 'the' 'man')
 
 Finally, here is a more complex example, where one of the
 children is itself a tree:
 
-  >>> tree3 = Tree('VP', ['saw', tree2])
-  >>> tree3
-  (VP: 'saw' (NP: 'the' 'man'))
+    >>> tree3 = Tree('VP', ['saw', tree2])
+    >>> tree3
+    (VP: 'saw' (NP: 'the' 'man'))
 
 A tree's root node value is accessed with the ``node`` property: 
 
-  >>> tree3.node
-  'VP'
-
-A tree's children are accessed by indexing:
-
-  >>> tree3[0]
-  'saw'
-  >>> tree3[1]
-  (NP: 'the' 'man')
-  >>> for child in tree3:
-  ...     print child
-  saw
-  (NP: 'the' 'man')
+    >>> tree3.node
+    'VP'
 
 The printed representation for complex trees can be difficult to read.
 In these cases, the ``draw`` method can be very useful.  This method
 opens a new window, containing a graphical representation of the tree:
 
-  >>> tree3.draw()
+.. doctest-ignore::
+    >>> tree3.draw()
 
 The tree display window allows you to zoom in and out;
 to collapse and expand subtrees; and to print the graphical
@@ -536,61 +525,42 @@ representation to a postscript file.
 To compare multiple trees in a single window, use the ``draw_trees()``
 method, from the ``nltk_lite.draw.tree`` module:
 
-  from nltk_lite.draw.tree import draw_trees
-  draw_trees(tree1, tree2, tree3)
+.. doctest-ignore::
+    >>> from nltk_lite.draw.tree import draw_trees
+    >>> draw_trees(tree1, tree2, tree3)
 
 The ``Tree`` class implements a number of other useful methods.  See
 the ``Tree`` reference documentation for more information about these
 methods.
 
-  >>> tree3.leaves()
-  ['saw', 'the', 'man']
-  >>> tree3.height()
-  3
-
-..  Mention tree positions? -->
-
-
-As we noted earlier in this chapter, a convenient way to initialize a
-large tree is from a labelled bracketing:
-
-  >>> from nltk_lite.parse import bracket_parse
-  >>> sent = '(VP (VBD saw) (NP (DT the) (NN man)))'
-  >>> tree = bracket_parse(sent)
-  >>> tree
-  (VP: (VBD: 'saw') (NP: (DT: 'the') (NN: 'man')))
-
-
-Reading Trees from the Treebank Corpus
---------------------------------------
-
 The ``nltk_lite.corpora`` module defines the ``treebank`` corpus,
 which contains a collection of hand-annotated parse trees for English
-text, derived from the University of
-Pennsylvania WSJ Treebank.
+text, derived from the Penn Treebank.
 
-..  Add a reference to LDC here?
-
-  >>> from nltk_lite.corpora import treebank, extract
-  >>> print extract(0, treebank.parsed())
-  (S:
-    (NP-SBJ:
-      (NP: (NNP: 'Pierre') (NNP: 'Vinken'))
-      (,: ',')
-      (ADJP: (NP: (CD: '61') (NNS: 'years')) (JJ: 'old'))
-      (,: ','))
-    (VP:
-      (MD: 'will')
+    >>> from nltk_lite.corpora import treebank, extract
+    >>> print extract(0, treebank.parsed())
+    (S:
+      (NP-SBJ:
+        (NP: (NNP: 'Pierre') (NNP: 'Vinken'))
+        (,: ',')
+        (ADJP: (NP: (CD: '61') (NNS: 'years')) (JJ: 'old'))
+        (,: ','))
       (VP:
-        (VB: 'join')
-        (NP: (DT: 'the') (NN: 'board'))
-        (PP-CLR:
-          (IN: 'as')
-          (NP: (DT: 'a') (JJ: 'nonexecutive') (NN: 'director')))
-        (NP-TMP: (NNP: 'Nov.') (CD: '29'))))
-    (.: '.'))
+        (MD: 'will')
+        (VP:
+          (VB: 'join')
+          (NP: (DT: 'the') (NN: 'board'))
+          (PP-CLR:
+            (IN: 'as')
+            (NP: (DT: 'a') (JJ: 'nonexecutive') (NN: 'director')))
+          (NP-TMP: (NNP: 'Nov.') (CD: '29'))))
+      (.: '.'))
 
 
+Exercises
+---------
+
+[to be written]
 
 --------------------
 Context Free Grammar
@@ -886,24 +856,24 @@ Context free grammars are encoded by the ``Grammar`` class.  The easiest
 way to construct a grammar object is from the standard string representation
 of grammars:
 
-  >>> from nltk_lite.parse import cfg
-  >>> grammar2 = cfg.parse_grammar('''
-  ...   S -> NP VP
-  ...   VP -> V NP | V NP PP
-  ...   V -> "saw" | "ate"
-  ...   NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
-  ...   Det -> "a" | "an" | "the" | "my"
-  ...   N -> "dog" | "cat" | "cookie"
-  ...   PP -> P NP
-  ...   P -> "on" | "by" | "with"
-  ...   ''')
-
-  >>> from nltk_lite import tokenize, parse
-  >>> sent = list(tokenize.whitespace("Mary saw Bob"))
-  >>> rd_parser = parse.RecursiveDescent(grammar2)
-  >>> for p in rd_parser.get_parse_list(sent):
-  ...      print p
-  (S: (NP: 'Mary') (VP: (V: 'saw') (NP: 'Bob')))
+    >>> from nltk_lite.parse import cfg
+    >>> grammar2 = cfg.parse_grammar('''
+    ...   S -> NP VP
+    ...   VP -> V NP | V NP PP
+    ...   V -> "saw" | "ate"
+    ...   NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
+    ...   Det -> "a" | "an" | "the" | "my"
+    ...   N -> "dog" | "cat" | "cookie"
+    ...   PP -> P NP
+    ...   P -> "on" | "by" | "with"
+    ...   ''')
+  
+    >>> from nltk_lite import tokenize, parse
+    >>> sent = list(tokenize.whitespace("Mary saw Bob"))
+    >>> rd_parser = parse.RecursiveDescent(grammar2)
+    >>> for p in rd_parser.get_parse_list(sent):
+    ...      print p
+    (S: (NP: 'Mary') (VP: (V: 'saw') (NP: 'Bob')))
   
 
 Exercises
@@ -985,27 +955,27 @@ the two methods which all parsers should support:
 For example, here is what the recursive descent parser generates for a
 simple sentence and grammar:
 
-  >>> from nltk_lite import tokenize
-  >>> sent = list(tokenize.whitespace('I saw a man in the park'))
-  >>> from nltk_lite import parse
-  >>> rd_parser = parse.RecursiveDescent(grammar)
-
-  >>> for p in rd_parser.get_parse_list(sent):
-  ...     print p
-  (S:
-    (NP: 'I')
-    (VP:
-      (V: 'saw')
-      (NP:
-        (Det: 'a')
-        (N: 'man')
-        (PP: (P: 'in') (NP: (Det: 'the') (N: 'park'))))))
-  (S:
-    (NP: 'I')
-    (VP:
-      (V: 'saw')
-      (NP: (Det: 'a') (N: 'man'))
-      (PP: (P: 'in') (NP: (Det: 'the') (N: 'park')))))
+    >>> from nltk_lite import tokenize
+    >>> sent = list(tokenize.whitespace('I saw a man in the park'))
+    >>> from nltk_lite import parse
+    >>> rd_parser = parse.RecursiveDescent(grammar)
+  
+    >>> for p in rd_parser.get_parse_list(sent):
+    ...     print p
+    (S:
+      (NP: 'I')
+      (VP:
+        (V: 'saw')
+        (NP:
+          (Det: 'a')
+          (N: 'man')
+          (PP: (P: 'in') (NP: (Det: 'the') (N: 'park'))))))
+    (S:
+      (NP: 'I')
+      (VP:
+        (V: 'saw')
+        (NP: (Det: 'a') (N: 'man'))
+        (PP: (P: 'in') (NP: (Det: 'the') (N: 'park')))))
 
 
 Recursive Descent Parsing 
@@ -1093,16 +1063,16 @@ production.
 Recursive descent parsers are created from ``Grammars`` by the
 ``RecursiveDescent`` constructor.
 
-  >>> from nltk_lite.parse import *
-  >>> rd_parser = RecursiveDescent(grammar)
+    >>> from nltk_lite.parse import *
+    >>> rd_parser = RecursiveDescent(grammar)
 
 The following example shows the trace output generated by
 ``rd_parser`` on a simple sentence:
 
-  >>> sent = list(tokenize.whitespace('I saw a man'))
-  >>> rd_parser.trace()
-  >>> rd_parser.get_parse_list(sent)
-  [(S: (NP: 'I') (VP: (V: 'saw') (NP: (Det: 'a') (N: 'man'))))]
+    >>> sent = list(tokenize.whitespace('I saw a man'))
+    >>> rd_parser.trace()
+    >>> rd_parser.get_parse_list(sent)
+    [(S: (NP: 'I') (VP: (V: 'saw') (NP: (Det: 'a') (N: 'man'))))]
 
 .. note:: The constructor takes an optional parameter ``trace``.  If
           ``trace`` is greater than zero, then the parser will describe the
@@ -1227,35 +1197,35 @@ parameter ``trace``.  As with the recursive descent parser, this value
 specifies how verbosely the parser should describe the steps that it
 takes as it parses a text: 
 
-  >>> sr_parse = parse.ShiftReduce(grammar)
+    >>> sr_parse = parse.ShiftReduce(grammar)
 
 The following example shows the trace output generated by
 ``sr_parser`` on a simple sentence: 
 
-  >>> sent = list(tokenize.whitespace('I saw a man'))
-  >>> sr_parse.trace()
-  >>> sr_parse.parse(sent)
-  Parsing 'I saw a man'
-      [ * I saw a man]
-    S [ 'I' * saw a man]
-    R [ <NP> * saw a man]
-    S [ <NP> 'saw' * a man]
-    R [ <NP> <V> * a man]
-    S [ <NP> <V> 'a' * man]
-    R [ <NP> <V> <Det> * man]
-    S [ <NP> <V> <Det> 'man' * ]
-    R [ <NP> <V> <Det> <N> * ]
-    R [ <NP> <V> <NP> * ]
-    R [ <NP> <VP> * ]
-    R [ <S> * ]
-  (S: (NP: 'I') (VP: (V: 'saw') (NP: (Det: 'a') (N: 'man'))))
+    >>> sent = list(tokenize.whitespace('I saw a man'))
+    >>> sr_parse.trace()
+    >>> sr_parse.parse(sent)
+    Parsing 'I saw a man'
+        [ * I saw a man]
+      S [ 'I' * saw a man]
+      R [ <NP> * saw a man]
+      S [ <NP> 'saw' * a man]
+      R [ <NP> <V> * a man]
+      S [ <NP> <V> 'a' * man]
+      R [ <NP> <V> <Det> * man]
+      S [ <NP> <V> <Det> 'man' * ]
+      R [ <NP> <V> <Det> <N> * ]
+      R [ <NP> <V> <NP> * ]
+      R [ <NP> <VP> * ]
+      R [ <S> * ]
+    (S: (NP: 'I') (VP: (V: 'saw') (NP: (Det: 'a') (N: 'man'))))
 
 NLTK also defines a graphical demonstration tool for the
 shift reduce parser:
 
- from nltk.draw.srparser import demo
- demo()
-
+.. doctest-ignore::
+    >>> from nltk.draw.srparser import demo
+    >>> demo()
 
 Problems with Shift Reduce Parser
 ---------------------------------
