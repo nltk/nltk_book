@@ -185,12 +185,29 @@ def tree_to_image(s, outfile, density=72):
     file format will be automatically determined from C{outfile}'s
     extension.
     """
+    # Check the cache.  If it's already there, do nothing.
+    cachefile = os.path.join(os.path.split(outfile)[0],
+                             'treecache.pickle')
+    if os.path.exists(cachefile):
+        cache = pickle.load(open(cachefile, 'r'))
+        if cache.get(outfile, None) == (s, density):
+            return
+    else:
+        cache = {}
+
+    # Do the conversion.
     psfile = tempfile.mktemp(suffix='.ps')
     w,h = tree_to_ps(s, psfile)
     run([CONVERT,
          '-density', str(density),
          '-crop', '0x0',
          psfile, outfile])
+
+    # Update the cache
+    cache[outfile] = (s, density)
+    out = open(cachefile, 'w')
+    pickle.dump(cache, out)
+    out.close()
 
 def cli():
     if len(sys.argv) != 3:
