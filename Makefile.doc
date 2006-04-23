@@ -53,9 +53,20 @@ clean_up:
 .txt.tex:
 	$(RST2LATEX) $<
 
+# This fairly complex target here will cause pdflatex to only generate
+# output if it fails; and to clean up after itself if it fails.  Also,
+# it will only run a second pass if it detects that it's necessary (by
+# scanning the log file for a warning message).
 .tex.pdf:
-	$(PDFLATEX) $<
-	$(PDFLATEX) $<
+	@echo "pdflatex $< -> $*.pdf (first pass)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+                 (cat $*.log && rm -f $*.pdf && false)
+	@if [ "`grep -i 'Warning.*Rerun' $*.log`" ]; \
+	    then \
+	        echo "pdflatex $< -> $*.pdf (second pass)";\
+	        (true | $(PDFLATEX) $< >/dev/null) || \
+                       (cat $*.log && rm -f $*.pdf && false);\
+	    fi
 
 .txt.errs:
 	$(PYTHON) -c "import doctest; doctest.testfile('$<', optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS)" > $@
