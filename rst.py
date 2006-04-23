@@ -59,6 +59,9 @@ OUTPUT_BASENAME = None
    of the current file (i.e., the filename with its extension
    stripped).  This is used to generate filenames for images."""
 
+TREE_IMAGE_DIR = 'tree_images/'
+"""The directory that tree images should be written to."""
+
 ######################################################################
 #{ Directives
 ######################################################################
@@ -123,7 +126,7 @@ def tree_directive(name, arguments, options, content, lineno,
     else:
         assert 0, 'bad output format %r' % OUTPUT_FORMAT
     try:
-        filename = os.path.join('../images/trees', filename)
+        filename = os.path.join(TREE_IMAGE_DIR, filename)
         tree_to_image(text, filename, density)
     except ValueError, e:
         print 'Error parsing tree: %s\n%s' % (e, text)
@@ -579,6 +582,9 @@ def parse_args():
 def main():
     global OUTPUT_FORMAT, OUTPUT_BASENAME
     options, filenames = parse_args()
+
+    if not os.path.exists(TREE_IMAGE_DIR):
+        os.mkdir(TREE_IMAGE_DIR)
 
     if docutils.writers.html4css1.Image is None:
         print ('WARNING: Cannot scale images in HTML unless Python '
