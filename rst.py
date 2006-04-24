@@ -25,6 +25,11 @@ the following ways:
 
     - A new "tree" directive is defined.
 
+    - New directives "def", "ifdef", and "ifndef", which can be used
+      to conditionally control the inclusion of sections.  This is
+      used, e.g., to make sure that the definitions in 'definitions.txt'
+      are only performed once, even if 'definitions.txt' is included
+      multiple times.
 """
 
 import re, os.path, textwrap
@@ -85,7 +90,7 @@ def example_directive(name, arguments, options, content, lineno,
     text = '\n'.join(content)
     node = example(text)
     state.nested_parse(content, content_offset, node)
-    return node
+    return [node]
 example_directive.content = True
 directives.register_directive('example', example_directive)
 directives.register_directive('ex', example_directive)
@@ -101,7 +106,7 @@ def doctest_directive(name, arguments, options, content, lineno,
         print ('WARNING: doctest-ignore on line %d will not be ignored, '
                'because there is\na blank line between ".. doctest-ignore::"'
                ' and the doctest example.' % lineno)
-    return docutils.nodes.doctest_block(text, text)
+    return [docutils.nodes.doctest_block(text, text)]
 doctest_directive.content = True
 directives.register_directive('doctest-ignore', doctest_directive)
 
@@ -130,15 +135,43 @@ def tree_directive(name, arguments, options, content, lineno,
         tree_to_image(text, filename, density)
     except ValueError, e:
         print 'Error parsing tree: %s\n%s' % (e, text)
-        return example(text, text)
+        return [example(text, text)]
 
     imagenode = docutils.nodes.image(uri=filename, scale=scale, align=align)
-    return imagenode
+    return [imagenode]
 
 tree_directive.arguments = (1,0,1)
 tree_directive.content = True
 tree_directive.options = {'scale': directives.nonnegative_int}
 directives.register_directive('tree', tree_directive)
+
+def def_directive(name, arguments, options, content, lineno,
+                  content_offset, block_text, state, state_machine):
+    state_machine.document.setdefault('__defs__', {})[arguments[0]] = 1
+def_directive.arguments = (1, 0, 0)
+directives.register_directive('def', def_directive)
+    
+def ifdef_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    if arguments[0] in state_machine.document.get('__defs__', ()):
+        node = docutils.nodes.compound('')
+        state.nested_parse(content, content_offset, node)
+        return list(node)
+ifdef_directive.arguments = (1, 0, 0)
+ifdef_directive.content = True
+directives.register_directive('ifdef', ifdef_directive)
+    
+def ifndef_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    if arguments[0] not in state_machine.document.get('__defs__', ()):
+        node = docutils.nodes.compound('')
+        state.nested_parse(content, content_offset, node)
+        return list(node)
+ifndef_directive.arguments = (1, 0, 0)
+ifndef_directive.content = True
+directives.register_directive('ifndef', ifndef_directive)
+    
+    
 
 ######################################################################
 #{ Figure & Example Numbering
