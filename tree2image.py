@@ -195,13 +195,23 @@ def tree_to_image(s, outfile, density=72):
     else:
         cache = {}
 
-    # Do the conversion.
     psfile = tempfile.mktemp(suffix='.ps')
-    w,h = tree_to_ps(s, psfile)
-    run([CONVERT,
-         '-density', str(density),
-         '-crop', '0x0',
-         psfile, outfile])
+    try:
+        # Draw the tree to postscript
+        w,h = tree_to_ps(s, psfile)
+
+        # Convert to the desired format.
+        if outfile.endswith('.ps'):
+            run(['cp', psfile, outfile])
+        else:
+            run([CONVERT,
+                 '-density', str(density),
+                 '-crop', '0x0',
+                 psfile, outfile])
+
+    finally:
+        if os.path.exists(psfile):
+            os.remove(psfile)
 
     # Update the cache
     cache[outfile] = (s, density)
