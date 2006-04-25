@@ -40,6 +40,7 @@ Requires Imagemagick C{convert}.
 import re, sys, os
 from nltk_lite.draw import *
 from nltk_lite.draw.tree import *
+import tkFont
 import tempfile
 
 CONVERT = 'convert'
@@ -117,6 +118,7 @@ def parse_word(s):
     if subscript: raise ValueError, 'expected }'
     yield italic, subscript, piece
 
+metrics = {}
 def word_to_widget(s, canvas, basefont='helvetica', fontsize=12,
                    color='black', bold=False):
     """
@@ -131,13 +133,17 @@ def word_to_widget(s, canvas, basefont='helvetica', fontsize=12,
         # Strip remaining backslashes
         text = re.sub(r'\\(.)', r'\1', text)
         # Decide on a font
-        font = [basefont, -fontsize, '']
-        if subscript: font[1] = font[1]*2/3
-        if italic: font[2] = 'italic'
-        if bold: font[2] = (font[2] + ' bold').strip()
+        size = fontsize
+        if subscript: size = size*2/3
+        slant = italic and 'italic' or 'roman'
+        weight = bold and 'bold' or 'normal'
+        font = tkFont.Font(family=basefont, size=size, weight=weight,
+                           slant=slant)
         # Create the widget.
-        textwidgets.append(TextWidget(canvas, text, font=tuple(font),
-                                      color=color))
+        textwidgets.append(TextWidget(canvas, text, font=font, color=color))
+
+        global metrics
+        metrics[basefont, size, weight, slant] = font.metrics()
 
     # If there's only one widget, return it; otherwise, use a
     # sequencewidget to join them.  Use align=bottom to make
@@ -168,7 +174,25 @@ def tree_to_ps(s, outfile):
     _canvas_frame.print_to_file(outfile)
     bbox = widget.bbox()
     _canvas_frame.destroy_widget(widget)
+
+    # Testing..
+    for (key, val) in metrics.items():
+        print key, '\n  ', val
+    
     return bbox[2:]
+
+# # hmm.. a bit of a hack..  e.g., no backslashing allowed:
+# from nltk_lite.parse.tree import bracket_parse, Tree
+# def tree_to_qtree(s):
+#     return '\Tree %s' % _tree_to_qtree(bracket_parse(s))
+# def _tree_to_qtree(tree):
+#     if isinstance(tree, Tree):
+#         return ('[.{%s} %s ]' %
+#                 (tree.node, ' '.join([_tree_to_qtree(c) for c in tree])))
+#     elif tree.startswith('<') and tree.endswith('>'):
+#         return '\qroof{%s}' % ' '.join([_tree_to_qtree(c) for c in tree])
+#     else:
+#         return tree
 
 def run(cmd):
     try:
