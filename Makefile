@@ -53,3 +53,6 @@ api:
 
 rsync:
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/
+
+rsync-api:
+	rsync $(RSYNC_OPTS) api $(WEB)/doc/
