@@ -12,8 +12,8 @@ RST2HTML = rst2html.py
 
 STYLESHEET_PATH = .
 
-EPYDOC_OPTS = -n nltk-lite --navlink "nltk-lite $(NLTK_VERSION)"\
-              -u $(NLTK_URL) --inheritance=listed
+EPYDOC_OPTS = --name=nltk-lite --navlink="nltk-lite $(NLTK_VERSION)"\
+              --url=$(NLTK_URL) --inheritance=listed
 RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 .SUFFIXES: .txt .html
