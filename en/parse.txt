@@ -249,11 +249,16 @@ We can generate these trees in Python as follows:
     >>> tree1 = bracket_parse(sent1)
     >>> tree2 = bracket_parse(sent2)
    
-We can see that they are trees over the same sequence of words, but
-that they have different heights:
+We can see that they are trees over the same sequence of words (that
+is, the two trees have the same `leaves`:dt:):
 
     >>> tree1.leaves() == tree2.leaves
     True
+
+On the other hand, they have different `heights`:dt: (given by the
+number of nodes in the longest branch of the tree, starting at `S`:gc:
+and descending to the words):
+
     >>> tree1.height() == tree2.height()
     False
 
@@ -389,13 +394,14 @@ matching the following pattern before the verb::
 
   DT JJ* NN (IN DT JJ* NN)*
 
-In other words, we need to find a noun phrase followed by zero or more sequences
-consisting of a preposition followed by a noun phrase. Now there are
-two unpleasant aspects to this proposed solution. The first is
-aesthetic: we are forced into repeating the sequence of tags (`DT JJ* NN`:gc:) that
-constituted our initial notion of noun phrase, and our initial notion
-was in any case a drastic simplification. More worrying, this approach
-still doesn't work! For consider the following example:
+In other words, we need to find a noun phrase followed by zero or more
+sequences consisting of a preposition followed by a noun phrase. Now
+there are two unpleasant aspects to this proposed solution. The first
+is aesthetic: we are forced into repeating the sequence of tags (`DT
+JJ* NN`:gc:) that constituted our initial notion of noun phrase, and
+our initial notion was in any case a drastic simplification. More
+worrying, this approach still doesn't work! For consider the following
+example:
 
 .. ex:: The seagull that attacked the child with the fierce dog bit the man.
 
@@ -477,12 +483,13 @@ Consider the following example:
 .. ex::
   .. tree:: (S (NP Lee) (VP (V saw) (NP the dog)))
 
+**Terminology:**
 The tree is a set of connected nodes, each of which is labeled with a
 category.  It also common to use a family metaphor to talk about the
 relationships of nodes in a tree: for example, `S`:gc: is the
 `parent`:dt: of `VP`:gc:; conversely `VP`:gc: is a `daughter`:dt: (or
 `child`:dt:) of `S`:gc:.  Also, since `NP`:gc: and `VP`:gc: are both
-daughters of `S`:gc:, they are also `sisters`:dt:.
+daughters of `S`:gc:, they are also `sisters`:dt:. 
 
 Although it is helpful to represent trees in a graphical format, for
 computational purposes we usually need a more text-oriented
@@ -534,17 +541,53 @@ children is itself a tree:
     >>> tree3
     (VP: 'saw' (NP: 'the' 'man'))
 
-A tree's root node value is accessed with the ``node`` property: 
+A tree's root node value is accessed with the ``node`` property, and
+its leaves are accessed with the ``leaves()`` method:
 
     >>> tree3.node
     'VP'
+    >>> tree3.leaves()
+    ['saw', 'the', 'man']
+
+One common way of defining the subject of a sentence `S`:gc: in
+English is as *the noun phrase that is the daughter of `S`:gc: and the
+sister of `VP`:gc:*. Although we do not have an explicit method for
+accessing subjects in this sense, in practice we can get something
+similar by using `tree positions`:dt:. Consider ``tree4`` defined as
+follows:
+
+    >>> tree4 = Tree('S', [tree1, tree3])
+    >>> tree4
+    (S: (NP: 'John') (VP: 'saw' (NP: 'the' 'man')))
+
+As we have already noted, the daughters of the root node are specified
+as a list, and as we already know, we can access items in a list using
+indexing. In a similar way, we can use indexing to access the
+daughters of a tree:
+
+    >>> tree4[0]
+    (NP: 'John')
+    >>> tree4[1]
+    (VP: 'saw' (NP: 'the' 'man'))
+
+Since the value of ``tree4[1]`` is itself a tree, we can index into that as well:
+
+    >>> tree4[1][0]
+    'saw'
+    >>> tree4[1][1]
+    (NP: 'the' 'man')
 
 The printed representation for complex trees can be difficult to read.
-In these cases, the ``draw`` method can be very useful.  This method
-opens a new window, containing a graphical representation of the tree:
+In these cases, the ``draw`` method can be very useful. 
 
 .. doctest-ignore::
     >>> tree3.draw()
+
+This method opens a new window, containing a graphical representation
+of the tree:
+
+.. image:: ../images/parse_draw.png
+   :scale: 70
 
 The tree display window allows you to zoom in and out;
 to collapse and expand subtrees; and to print the graphical
@@ -588,7 +631,11 @@ text, derived from the Penn Treebank.
 Exercises
 ---------
 
-[to be written]
+#. Using tree positions, list the subjects of the first 100
+   sentences in the Penn treebank; to make the results easier to view,
+   limit the extracted subjects to subtrees whose height is 2.
+
+[more to be written]
 
 --------------------
 Context Free Grammar
@@ -625,13 +672,13 @@ a production in the grammar.
 A Simple Grammar
 ----------------
 
-Let's start off by looking at a simple context-free grammar, `G1`_:
+Let's start off by looking at a simple context-free grammar:
 
 _`G1`
 
  | S |rarr| NP VP
- | NP |rarr| Det N
  | NP |rarr| Det N PP
+ | NP |rarr| Det N
  | VP |rarr| V NP PP
  | VP |rarr| V NP
  | VP |rarr| V
@@ -673,8 +720,26 @@ a terminal on the right-hand side.
 A special case of non-terminals are the `pre-terminals`:dt:, which
 appear on the left-hand side of lexical productions.
 
-If we were to parse the string `The dog saw a man in the park` using
-`G1`_, we would end up with two distinct analyses, as shown 
+In order to get started with developing simple grammars of your own, you
+will probably find it convenient to play with the Recursive Descent
+Parsing Demo, which is invoked as follows:
+
+.. doctest-ignore:
+  >>> from nltk_lite.draw import rdparser
+  >>> rdparser.demo()
+
+The demo opens a window which displays a list of grammar rules in the
+lefthand pane and the current parse diagram in the central pane:
+
+.. image:: ../images/parse_rdparsewindow.png
+   :scale: 70
+
+The demo come with `G1`_ already loaded. We will discuss the parsing
+algorithm in greater detail below, but for the time being you can get
+a rough idea of how it works by using the *autostep* button.
+
+If we parse the string `The dog saw a man in the park` using
+`G1`_, we end up with two trees, as shown 
 below:
 
 
@@ -689,24 +754,38 @@ below:
 .. |parse_tree2| image:: ../images/parse_tree2.png
 .. |parse_tree3| image:: ../images/parse_tree3.png
 
-Our grammar admits two distinct structures for this sentence, i.e.
-the sentence is :dt:`structurally ambiguous`.  The ambiguity in
-question is often called a :dt:`PP attachment ambiguity`, as we saw earlier
-in this chapter.  It is an ambiguity about attachment since the
-``PP`` (prepositional phrase) `in the park` needs to be attached
-to one of two places in the tree: either
-as a daughter of ``VP`` or else as a daughter of ``NP``.
+Since our grammar assigns two distinct structures, the sentence is
+said to be :dt:`structurally ambiguous`.  The ambiguity in question is called
+a :dt:`PP attachment ambiguity`, as we saw earlier in this chapter.
+As you may recall, it is an ambiguity about attachment since the
+`PP`:gc: `in the park`:lx: needs to be attached to one of two places
+in the tree: either as a daughter of `VP`:gc: or else as a daughter of
+`NP`:gc:.
 
-There is also a subtle difference in interpretation: where the ``PP``
-is attached to ``VP``, the intended interpretation is that the event
-of seeing took place in the park, while if the ``PP`` is attached to
-``NP``, being in the park is a property of the ``NP`` referent; that
-is, the man was in the park, but the agent of the seeing |mdash| the
-dog |mdash| might have been somewhere else (e.g., sitting on the
-balcony of an apartment overlooking the park).  As we will see,
-dealing with ambiguity is a key challenge in parsing.
+As we noted earlier, there is also a difference in interpretation:
+where the `PP`:gc: is attached to `VP`:gc:, the intended interpretation is
+that the event of seeing took place in the park, while if the `PP`:gc:
+is attached to `NP`:gc:, being in the park is a property of the `NP`:gc:
+referent; that is, the man was in the park, but the agent of the
+seeing |mdash| the dog |mdash| might have been somewhere else (e.g.,
+sitting on the balcony of an apartment overlooking the park).  As we
+will see, dealing with ambiguity is a key challenge in parsing.
 
-Notice that the language accepted by this grammar is finite.
+Exercises
+---------
+
+#. In the Recursive Descent Parser Demo, experiment with changing the
+   sentence to be parsed by selecting *Edit Text* in the *Edit* menu.
+
+#. Can `G1`_ be used to describe sentences which are more than 20
+   words in length?
+
+#. You can modify the grammar in the Recursive Descent Parser Demo
+   by selecting *Edit Grammar*  in the *Edit* menu. Change
+   the first expansion rule, namely ``NP -> Det N PP``, to ``NP -> NP
+   PP``. Using the *Step* button, try to build a parse tree. What happens?
+
+
 
 Recursion
 ---------
@@ -725,8 +804,9 @@ said to be :dt:`recursive` if a category occurring on the lefthand
 side of a production (such as `S`:gc: in this case) also appears on
 the righthand side of a production. If this dual occurrence takes
 place in *one and the same production*, then we have :dt:`direct
-recursion`; otherwise we have :dt:`indirect recursion`. These two
-cases are both illustrated in the following grammar:
+recursion`; otherwise we have :dt:`indirect recursion`. There is no
+recursion in `G1`_. However, `G2`_ below illustrates both kinds of
+recursive rule:
 
 _`G2`
  | S  |rarr| NP VP
