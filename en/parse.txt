@@ -367,7 +367,7 @@ in terms of sequences part-of-speech tags.  Let's try to come up with a simple
 definition of `noun phrase`:gc:; we might start off with something
 like this::
 
-   DT JJ* NN
+      DT JJ* NN
 
 We're using regular expression notation here in the form of
 `JJ*`:gc: to indicate a sequence of zero or more `JJ`:gc:\s. So this
@@ -494,15 +494,18 @@ daughters of `S`:gc:, they are also `sisters`:dt:.
 Although it is helpful to represent trees in a graphical format, for
 computational purposes we usually need a more text-oriented
 representation. One standard method is to use a combination of bracket
-and labels to indicate the structure, as shown here::
+and labels to indicate the structure, as shown here:
 
-   (S 
-       (NP  'Lee')
-       (VP 
-             (V 'saw')
-             (NP 
-                   (Det 'the')
-                   (N  'dog'))))
+.. ex::
+  .. parsed-literal::
+
+      (S 
+         (NP  'Lee')
+         (VP 
+               (V 'saw')
+               (NP 
+                     (Det 'the')
+                     (N  'dog'))))
 
 The conventions for displaying trees in NLTK are similar::
 
@@ -810,9 +813,10 @@ recursive rule:
 
 _`G2`
  | S  |rarr| NP VP
- | NP |rarr| Det N
- | NP |rarr| Det N PP
- | VP |rarr| VP Conj VP
+ | NP |rarr| Det Nom
+ | NP |rarr| Det Nom PP
+ | Nom |rarr| Adj Nom
+ | Nom |rarr| N
  | VP |rarr| V NP PP
  | VP |rarr| V NP
  | VP |rarr| V S
@@ -821,25 +825,72 @@ _`G2`
  |
  | Det |rarr| 'the'
  | Det |rarr| 'a'
- | N |rarr| 'man' | 'woman' | 'park' | 'dog' | 'telescope'
- | V |rarr| 'saw' | 'barked' | 'disappeared' | 'said' | 'gave'
- | P |rarr| 'in' | 'with' | 'to'
- | Conj |rarr| 'and' | 'or'
+ | N |rarr| 'man' | 'woman' | 'park' | 'dog' | 'lead' | 'telescope' | 'butterfly'
+ | Adj  |rarr| 'fierce' | 'black' |  'big' | 'European'
+ | V |rarr| 'saw' | 'chased' | 'barked'  | 'disappeared' | 'said' | 'reported'' 
+ | Aux |rarr| 'can' | 'will'
+ | P |rarr| 'in' | 'with' 
 
-That is, the production `VP`:gc: |rarr| `VP Conj VP`:gc: involves direct
-recursion on the category `VP`:gc:\, whereas indirect recursion on `S`:gc:
+That is, the production `Nom`:gc: |rarr| `Adj Nom`:gc: (where
+`Nom`:gc: is the category of nominals) involves direct
+recursion on the category `Nom`:gc:\, whereas indirect recursion on `S`:gc:
 arises from the combination of two productions, namely `S`:gc: |rarr|
-`NP VP`:gc: and `VP`:gc: |rarr| `V S`:gc:.  To illustrate, here is a
-phrase structure tree involving coordinated verb phrases:
+`NP VP`:gc: and `VP`:gc: |rarr| `V S`:gc:.  
+
+To illustrate recursion in this grammar, we show first of all a tree
+involving nested nominal phrases:
 
 .. ex::
   .. tree::
-    (S (NP (Det the) (N dog))
-       (VP (VP (V walked))
-           (Conj and)
-           (VP (VP (V saw) (NP (Det the) (N man)))
-               (Conj and)
-               (VP (V barked)))))
+   (S (NP (Det a) (Nom (Adj fierce)(Nom (Adj black) (N dog))))
+       (VP (V chased)
+          (NP (Det the) (Nom (Adj big)(Nom (Adj European) (N butterfly))))))
+
+Next, we show how we can embed one `S`:gc:  constituent into another:
+
+.. ex::
+  .. tree::
+    (S (NP (Det the) (N man))
+       (VP (V said)
+           (S (NP (Det the) (N woman))
+              (VP (V reported)
+                  (S (NP (Det the) (N dog))
+                           (VP (V barked)))))))
+   
+
+If you did the exercises for the last section, you will have noticed
+that the Recursive Descent Parser fails to deal properly with the
+following rule:
+
+.. ex::  
+  .. parsed-literal:: 
+
+   NP |rarr| NP PP
+
+From a linguistic point of view, this rule is perfectly respectable,
+and will allow us to derive trees like this:
+
+.. ex::
+  .. tree::
+    (S (NP 
+           (NP 
+               (NP (Det the) (N man))
+               (PP (P with) (NP  (Det a) (N dog))))
+            (PP (P in  (NP  (Det the) (N park)))))
+         (VP (V disappeared)))
+
+More schematically, the trees will be of the following shape:
+
+.. _leftrec:
+.. ex::
+  .. tree::
+    <NP <NP <NP <NP Det N> PP> PP> PP>
+
+leftrec_ is an example of a `left recursive`:dt: structure. Such
+structures seem to occur rather frequently in analyses of English, and
+the failure of Recursive Descent Parsers to deal adequately with left
+recursion means that we will need to find alternative approaches, as
+we will discuss later in this chapter.
 
 Heads, Complements and Modifiers
 --------------------------------
