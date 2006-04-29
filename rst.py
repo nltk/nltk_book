@@ -328,7 +328,8 @@ class CustomizedHTMLTranslator(HTMLTranslator):
 
     def visit_example(self, node):
         self.body.append(
-            '<p><table border="0" cellpadding="0" cellspacing="0">'
+            '<p><table border="0" cellpadding="0" cellspacing="0" '
+            'class="example">\n  '
             '<tr valign="top"><td width="30" align="right">'
             '(%s)</td><td width="15"></td><td>' % node['num'])
 
