@@ -368,7 +368,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def __init__(self, document):
         LaTeXTranslator.__init__(self, document)
         # This needs to go before the \usepackage{inputenc}:
-        self.head_prefix.insert(1, '\\usepackage[cjkgb]{ucs}\n')
+        self.head_prefix.insert(1, '\\usepackage[cjkgb,postscript]{ucs}\n')
         # Make sure we put these *before* the stylesheet include line.
         self.head_prefix.insert(-2, textwrap.dedent("""\
             % For Python source code:
