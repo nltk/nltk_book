@@ -349,6 +349,7 @@ class CustomizedLaTeXWriter(LaTeXWriter):
         'use_latex_docinfo': True,
         'font_encoding': 'C10,T1',
         'stylesheet': '../definitions.sty',
+        'documentoptions': '11pt,a4paper',
         'use_latex_footnotes': True,
         })
     
