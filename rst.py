@@ -411,6 +411,22 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def depart_literal(self, node):
 	pass
 
+
+    def visit_literal_block(self, node):
+        if (self.settings.use_verbatim_when_possible and (len(node) == 1)
+              # in case of a parsed-literal containing just a "**bold**" word:
+              and isinstance(node[0], nodes.Text)):
+            self.verbatim = 1
+            self.body.append('\\begin{quote}\\begin{verbatim}\n')
+        else:
+            self.literal_block = 1
+            self.insert_none_breaking_blanks = 1
+            if self.active_table.is_open():
+                self.body.append('\n{\\ttfamily \\raggedright \\noindent \\small\n')
+            else:
+                self.body.append('\\begin{quote}')
+                self.body.append('{\\ttfamily \\raggedright \\noindent \\small\n')
+
     def _markup_pysrc(self, s, tag):
         return '\\pysrc%s{%s}' % (tag, self.encode(s))
 
