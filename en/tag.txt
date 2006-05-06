@@ -475,7 +475,7 @@ noun.
     ('bears', 'nn'), ('.', 'nn')]
 
 This is a simple algorithm, and it performs poorly when used on its
-own. On a typical corpus, it will tag only 20%-30% of the tokens
+own. On a typical corpus, it will tag only 10%-20% of the tokens
 correctly.
 
 Default taggers assign their tag to every single word, even words that
@@ -670,6 +670,59 @@ as an objective measure of the improvements made to the system.
 Initially, the accuracy score will go up quickly as we fix obvious
 shortcomings of the tagger.  After a while, however, it becomes more
 difficult and improvements are small.
+
+Baseline Performance
+--------------------
+
+It is difficult to interpret an accuracy score in isolation.  For
+example, is a person who scores 25% in a test likely to know a quarter
+of the course material?  If the test is made up of 4-way multiple
+choice questions, then this person has not performed any better than
+chance.  Thus, it is clear that we should *interpret* an accuracy
+score relative to a *baseline*.  The choice of baseline is somewhat
+arbitrary, but it usually corresponds to minimal knowledge about the
+domain.
+
+In the case of tagging, a  possible baseline score can be found by
+tagging every word with ``NN``, the most likely tag.
+
+    >>> baseline_tagger = tag.Default('nn')
+    >>> acc = tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> print 'Accuracy = %4.1f%%' % (100 * acc)
+    Accuracy = 13.1%
+
+Unfortunately this is not a very good baseline.  There are many
+high-frequency words which are not nouns.  Instead we could use the standard
+unigram tagger to get a baseline of 75%.  However, this does not seem
+fully legitimate: the unigram's model covers all words seen during
+training, which hardly seems like 'minimal knowledge'.  Instead, let's
+only permit ourselves to store tags for the most frequent words.
+
+The first step is to identify the most frequent words in the corpus,
+and for each of these words, identify the most likely tag:
+
+    >>> from nltk_lite.probability import *
+    >>> wordcounts = FreqDist()
+    >>> wordtags = ConditionalFreqDist()
+    >>> for sent in brown.tagged('a'):
+    ...     for (w,t) in sent:
+    ...         wordcounts.inc(w)    # count the word
+    ...         wordtags[w].inc(t)   # count the word's tag
+    >>> frequent_words = wordcounts.sorted_samples()[:1000]
+
+Now we can create a lookup table (a dictionary) which maps words to
+likely tags, just for these high-frequency words.  We can then define
+a new baseline tagger which uses this lookup table:
+
+    >>> table = dict((word, wordtags[word].max()) for word in frequent_words)
+    >>> baseline_tagger = tag.Lookup(table, tag.Default('nn'))
+    >>> acc = tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> print 'Accuracy = %4.1f%%' % (100 * acc)
+    Accuracy = 72.5%
+
+This, then, would seem to be a reasonable baseline score for a
+tagger.  When we build new taggers, we will only credit ourselves for
+performance exceeding this baseline.
 
 Error Analysis
 --------------
