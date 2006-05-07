@@ -75,11 +75,7 @@ the above diagram could have been found by the expression
 ``<DT>?<JJ>*<NN>`` which matches an optional determiner, followed by
 zero or more adjectives, followed by a noun.  Compare this with the
 way that tokenization and tagging both make use of regular
-expressions.  Third, chunking, like tokenization and tagging, is very
-application-specific.  For example, while linguistic analysis and
-information extraction both need to identify and label extents
-of text, they typically require quite different definitions of those
-extents.
+expressions.
     
 Chunking vs Parsing
 -------------------
@@ -88,35 +84,34 @@ Chunking is akin to parsing in the sense that it can be used to build
 hierarchical structure over text.  There are several important
 differences, however.  First, as noted above, chunking is not
 exhaustive, and typically omits items in the surface string.  Second,
-where parsing constructs nested deeply structures, chunking creates
-structures of fixed depth (typically depth 2), and as fine-grained as
-possible, as shown below::
+where parsing constructs deeply nested structures, chunking creates
+structures of fixed depth (typically depth 2).  Typically, these
+chunks correspond to the lowest level of grouping identified in the
+full parse tree.  These differences are illustrated in
+parsing-chunking_ below:
 
-  1. Parsing:
-  [
-    [ G.K. Chesterton ],
-    [
-      [ author ] of
-      [
-        [ The Man ] who was
-        [ Thursday ]
-      ]
-    ]
-  ]
-
-  2. Chunking:
-  [ G.K. Chesterton ],
-  [ author ] of
-  [ The Man ] who was
-  [ Thursday ]
+.. _parsing-chunking:
+.. ex::
+  .. ex::
+    .. tree:: (NP <NP G.K. Chesterton> ,
+                  (NP <NP author> of
+                      (NP <NP The Man> who was <NP Thursday> ) ) )
+  .. ex::
+    .. tree:: (? <NP G.K. Chesterton> ,
+                 <NP author> of
+                 <NP The Man> who was
+                 <NP Thursday> )
 
 Another significant motivation for chunk parsing is its robustness and
 efficiency relative to so-called full parsing.  The latter approach is
 built around recursive phrase structure grammars, parsing strategies,
 and arbitrary-depth trees.  Full parsing has problems with robustness,
 given the difficulty in getting broad coverage and in resolving ambiguity.
-Full parsing is also relatively inefficient, being O(`n`:superscript:`3`),
-rather than O(n) as for chunk parsing.
+Full parsing is also relatively inefficient: the time taken to parse a
+sentence grows with the cube of the length of the sentence, while the
+time taken to chunk a sentence is linear in the length of the sentence
+(i.e. full parsing is an O(`n`:superscript:`3`) problem, while
+chunking is only an O(n) problem.)
 
 Like tagging, chunking is an example of lightweight methodology in
 natural language processing: how far can we get with identifying
@@ -128,21 +123,12 @@ turned off the spectroroute* without knowing the meaning of
 *spectroroute*; is it a kind of road or a type of device?  Without
 knowing this, we cannot tell whether *off* is part of a prepositional
 phrase indicating direction, or whether *off* is part of the verb-particle
-construction *turn off*::
+construction *turn off*.  This structural ambiguity is shown in spectroroute_.
 
-  1. Prepositional phrase:
-  [
-    [ I ]
-    [ turned ]
-    [ off the spectroroute ]
-  ]
-
-  2. Verb-particle construction:
-  [
-    [ I ]
-    [ turned off ]
-    [ the spectroroute ]
-  ]
+.. _spectroroute:
+.. ex::
+  .. ex:: Prepositional phrase: [ I ] [ turned ] [ off the spectroroute ]
+  .. ex:: Verb-particle construction: [ I ] [ turned off ] [ the spectroroute ]
 
 However, we continue undeterred, to find out just how far we can get
 with this lightweight parsing method.  We begin by considering the
@@ -192,7 +178,6 @@ following chunk structure captures the noun phrases in a sentence:
 |     (NP: 'the' 'big' 'dog')
 |     'on'
 |     (NP: 'the' 'hill'))
-
 
 Chunk parsers often operate on tagged texts, and use the tags to help
 make chunking decisions.  A common string representation for chunked
@@ -471,6 +456,8 @@ then the first two nouns will be chunked:
     >>> print chunkparser.parse(sent)
     (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
 
+.. Note:: If a tag pattern matches at multiple overlapping locations,
+   the first match takes precedence.
 
 Developing Chunk Parsers
 ------------------------
@@ -523,40 +510,13 @@ Here, rule 2 ("chunk det+adj+noun") did not find any chunks, since all
 chunks that matched its tag pattern overlapped with chunks that were
 already in the hypothesis.
 
-
-Exercises
----------
-
-#. **Chunker:**
-   Pick one of the three chunk types in the CoNLL corpus.
-   Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
-   that make up this kind of chunk.  Develop a simple chunker using
-   ``ChunkRule`` and the regular-expression chunk parser ``RegexpChunk``.
-   Discuss any tag sequences that are difficult to chunk reliably.
-
-#. **Automatic Analysis:**
-   Pick one of the three chunk types in the CoNLL corpus.  Write functions
-   to do the following tasks for your chosen type:
-
-   a) List all the tag sequences that occur with each instance of this chunk type.
-   b) Count the frequency of each tag sequence, and produce a ranked list in
-      order of decreasing frequency; each line should consist of an integer (the frequency)
-      and the tag sequence.
-   c) Inspect the high-frequency tag sequences.  Use these as the basis for
-      developing a better chunker.
-
-
--------------------
-More Chunking Rules
--------------------
-
-Sometimes it is easier to define what we *don't* want to include in a
-chunk than it is to define what we *do* want to include.  In these
-cases, it may be easier to build a chunk parser using ``ChinkRule`` and ``UnChunkRule``.
-
 The Chink Rule
 --------------
       
+Sometimes it is easier to define what we *don't* want to include in a
+chunk than it is to define what we *do* want to include.  In these
+cases, it may be easier to build a chunk parser using ``ChinkRule``.
+
 The word *chink* initially meant a sequence of stopwords,
 according to a 1975 paper by Ross and Tukey (cited by Abney in the
 recommended reading for this chapter).
@@ -590,23 +550,20 @@ table:
 |             | cat/NN              | [cat/NN]          | cat/NN           |
 +-------------+---------------------+-------------------+------------------+
 
-A ``ChinkRule`` chinks anything that matches a given tag pattern.
-ChinkRules are created with the ``ChinkRule`` constructor, which
-takes a tag pattern and a description string.  For example, the
-following rule will chink any sequence of tokens whose tags are all
-"``VBD``" or "``IN``":
+A ``ChinkRule`` chinks anything that matches a given tag pattern.  For
+example, the following rule will chink any sequence of tokens whose
+tags are all "``VBD``" or "``IN``":
 
   >>> chink_rule = parse.ChinkRule('<VBD|IN>+',
   ...                        'Chink sequences of VBD and IN')
 
-Remember that ``RegexpChunk`` begins with a chunking hypothesis
-where nothing is chunked.  So before we apply our chink rule, we'll
-apply another rule that puts the entire sentence in a single chunk:
+Before we apply our chink rule, we'll apply a rule that puts the
+entire sentence in a single chunk:
 
     >>> chunkall_rule = parse.ChunkRule('<.*>+',
     ...                           'Chunk everything')
 
-Finally, we can combine these two rules to create a chunk parser:
+Now we can combine these two rules to create a chunk parser:
 
     >>> chunkparser = parse.RegexpChunk([chunkall_rule, chink_rule], chunk_node='NP')
     >>> chunk_tree = chunkparser.parse(sent, trace=1)
@@ -617,164 +574,33 @@ Finally, we can combine these two rules to create a chunk parser:
     Chink sequences of VBD and IN:
                    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 
-If a tag pattern matches at multiple overlapping locations, the first
-match takes precedence.
-
-.. Note: ``RegexpChunk`` can use any number of
-   ``ChunkRules`` and ``ChinkRules``, in any order.  As was discussed
-   above, ``ChunkRules`` only create chunks that do not partially overlap
-   with chunks already in the chunking hypothesis.  Similarly,
-   ``ChinkRules`` only create chinks that do not partially overlap with
-   chinks that are already in the hypothesis.
-
-The Unchunk Rule
-----------------
-    
-An ``UnChunkRule`` removes any chunk that matches a given tag pattern.
-``UnChunkRule`` is very similar to ``ChinkRule``; but it will only
-remove a chunk if the tag pattern matches the entire chunk.  In
-contrast, ``ChinkRule`` can remove sequences of tokens from the middle
-of a chunk.
-
-``UnChunkRule``\ s are created with the ``UnChunkRule`` constructor,
-which takes a tag pattern and a description string.  For example, the
-following rule will unchunk any sequence of tokens whose tags are all
-``NN`` or ``DT``:
-      
-    >>> unchunk_rule = parse.UnChunkRule('<NN|DT>+',
-    ...                        'Unchunk sequences of NN and DT')
-
-We can combine this rule with a chunking rule to form a chunk parser:
-
-    >>> chunk_rule = parse.ChunkRule('<NN|DT|JJ>+',
-    ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, unchunk_rule], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk sequences of NN, JJ, and DT:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-    Unchunk sequences of NN and DT:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
-
-Note that we would get a different result if we used a ``ChinkRule``
-with the same tag pattern (instead of an ``UnChunkRule``), since
-chink rules can remove pieces of a chunk:
-      
-    >>> chink_rule = parse.ChinkRule('<NN|DT>+',
-    ...                            'Chink sequences of NN and DT')
-    >>> chunk_rule = parse.ChunkRule('<NN|DT|JJ>+',
-    ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, chink_rule], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk sequences of NN, JJ, and DT:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-    Chink sequences of NN and DT:
-                    <DT> {<JJ>} <NN>  <VBD>  <IN>  <DT>  <NN> 
-
-The Merge Rule
---------------
-
-When constructing complex chunk parsers, it is often convenient to
-perform operations other than chunking, chinking, and unchunking.  In
-this section and the next, we discuss two more complex rules which can
-be used to merge and split chunks.
-
-``MergeRules`` are used to merge two contiguous chunks.  Each
-``MergeRule`` is parameterized by two tag patterns: a left pattern and
-a right pattern.  A ``MergeRule`` will merge two contiguous chunks
-`C`:subscript:`1` and `C`:subscript:`2` if the end of `C`:subscript:`1`
-matches the left pattern, and the beginning of `C`:subscript:`2`
-matches the right pattern. For example, consider the following
-chunking hypothesis:
-
-  [the/DT little/JJ] [cat/NN]
-
-Where `C`:subscript:`1` is ``[the/DT little/JJ]`` and `C`:subscript:`2`
-is ``[cat/NN]``.  If the left pattern is ``JJ``, and the right
-pattern is ``NN``, then `C`:subscript:`1` and `C`:subscript:`2` will
-be merged to form a single chunk:
-
-  [the/DT little/JJ cat/NN]
-
-``MergeRule``\ s are created with the ``MergeRule`` constructor, which
-takes a left tag pattern, a right tag pattern, and a description
-string.  For example, the following rule will merge two contiguous
-chunks if the first one ends in a determiner, noun or adjective; and
-the second one begins in a determiner, noun, or adjective:
-
-    >>> merge_rule = parse.MergeRule('<NN|DT|JJ>', '<NN|DT|JJ>',
-    ...                       'Merge NNs + DTs + JJs')
-
-To illustrate this rule, we will use a combine it with a chunking rule
-that chunks each individual token, and an unchunking rule that
-unchunks verbs and prepositions:
-
-    >>> chunk_rule = parse.ChunkRule('<.*>',
-    ...                     'Chunk all individual tokens')
-    >>> unchunk_rule = parse.UnChunkRule('<IN|VB.*>',
-    ...                         'Unchunk VBs and INs')
-    >>> rules = [chunk_rule, unchunk_rule, merge_rule]
-    >>> chunkparser = parse.RegexpChunk(rules, chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk all individual tokens:
-                   {<DT>}{<JJ>}{<NN>}{<VBD>}{<IN>}{<DT>}{<NN>}
-    Unchunk VBs and INs:
-                   {<DT>}{<JJ>}{<NN>} <VBD>  <IN> {<DT>}{<NN>}
-    Merge NNs + DTs + JJs:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-
-The Split Rule
---------------
-
-``SplitRule``\ s are used to split a single chunk into two smaller
-chunks.  Each ``SplitRule`` is parameterized by two tag patterns: a
-left pattern and a right pattern.  A ``SplitRule`` will split a chunk
-at any point *p*, where the left pattern matches the chunk to the left
-of *p*, and the right pattern matches the chunk to the right of *p*.
-For example, consider the following chunking hypothesis::
-
-  [the/DT little/JJ cat/NN the/DT dog/NN]
-
-If the left pattern is ``NN``, and the right pattern is ``DT``,
-then the chunk will be split in two between ``cat`` and ``dog``,
-to form two smaller chunks::
-
-  [the/DT little/JJ cat/NN] [the/DT dog/NN]
-
-``SplitRule``\ s are created with the ``SplitRule`` constructor, which
-takes a left tag pattern, a right tag pattern, and a description
-string.  For example, the following rule will split any chunk at a
-location that has ``NN`` to the left and ``DT`` to the right:
-
-  >>> split_rule = parse.SplitRule('<NN>', '<DT>',
-  ...                     'Split NN followed by DT')
-
-To illustrate this rule, we will use a combine it with a chunking rule
-that chunks sequences of noun phrases, adjectives, and determiners:
-
-    >>> ttoks = string2tags('Bob/NNP saw/VBD the/DT man/NN the/DT cat/NN chased/VBD')
-    >>> sent = Tree('S', ttoks)
-    >>> chunk_rule = parse.ChunkRule('<NN.*|DT|JJ>+',
-    ...                        'Chunk sequences of NN, JJ, and DT')
-    >>> chunkparser = parse.RegexpChunk([chunk_rule, split_rule], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                   <NNP>  <VBD>  <DT>  <NN>  <DT>  <NN>  <VBD> 
-    Chunk sequences of NN, JJ, and DT:
-                  {<NNP>} <VBD> {<DT>  <NN>  <DT>  <NN>} <VBD> 
-    Split NN followed by DT:
-                  {<NNP>} <VBD> {<DT>  <NN>}{<DT>  <NN>} <VBD> 
-
+``RegexpChunk`` can use any number of ``ChunkRule``\ s and
+``ChinkRule``\ s, in any order.  NLTK also provides a method for
+merging adjacent chunks, called ``MergeRule``, and a method for
+splitting a chunk in two, called ``SplitRule``.
 
 Exercises
 ---------
 
-#. An early definition of *chunk* was the material that occurs between chinks.
+#. **Simple Chunker:**
+   Pick one of the three chunk types in the CoNLL corpus.
+   Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
+   that make up this kind of chunk.  Develop a simple chunker using
+   ``ChunkRule`` and the regular-expression chunk parser ``RegexpChunk``.
+   Discuss any tag sequences that are difficult to chunk reliably.
+
+#. **Automatic Analysis:**
+   Pick one of the three chunk types in the CoNLL corpus.  Write functions
+   to do the following tasks for your chosen type:
+
+   a) List all the tag sequences that occur with each instance of this chunk type.
+   b) Count the frequency of each tag sequence, and produce a ranked list in
+      order of decreasing frequency; each line should consist of an integer (the frequency)
+      and the tag sequence.
+   c) Inspect the high-frequency tag sequences.  Use these as the basis for
+      developing a better chunker.
+
+#. **Chinking:** An early definition of *chunk* was the material that occurs between chinks.
    Develop a chunker which starts by putting the whole sentence in a single
    chunk, and then does the rest of its work solely using chink rules.
    Determine which tags (or tag sequences) are most likely to make up chinks
@@ -782,11 +608,14 @@ Exercises
    simplicity of this approach relative to a chunker based entirely on
    chunk rules.
 
-#. **Chunker:**
+#. **Complex Chunker:**
    Develop a chunker for one of the chunk types in the CoNLL corpus using the
    regular-expression chunk parser ``RegexpChunk``.  Use any
-   combination of rules.
+   combination of rules (i.e. ``ChunkRule``, ``ChinkRule``,
+   ``MergeRule``,
+   and ``SplitRule``).
         
+
 ------------------------
 Evaluating Chunk Parsers
 ------------------------
@@ -834,19 +663,16 @@ of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
    means.
 
 During evaluation of a chunk parser, it is useful to flatten a chunk
-structure into a list of tokens.  Since chunk structures are just
-trees, we use the ``leaves()`` method to extract this flattened list.
-Note that we must always include location information when evaluating
-a chunk parser.
+structure into a tree consisting only of a root node and leaves:
 
     >>> correct = tree.chunk(
     ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    >>> correct.leaves()
-    [('the', 'DT'), ('little', 'JJ'), ('cat', 'NN'), ('sat', 'VBD'),
-    ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+    >>> correct.flatten()
+    (S: ('the', 'DT') ('little', 'JJ') ('cat', 'NN') ('sat', 'VBD')
+    ('on', 'IN') ('the', 'DT') ('mat', 'NN'))
 
-Now we run a chunker, and then compare the resulting chunked sentences
-with the originals, as follows:
+We run a chunker over this flattened data, and compare the
+resulting chunked sentences with the originals, as follows:
 
     >>> from nltk_lite import parse
     >>> chunkscore = parse.ChunkScore()
@@ -891,47 +717,37 @@ methods can be especially useful when trying to improve the
 performance of a chunk parser.  Here are the missed chunks:
 
 .. doctest-ignore::
-    >>> from random import randint
+    >>> from random import shuffle
     >>> missed = chunkscore.missed()
-    >>> for i in range(15):
-    ...     print missed[randint(0,len(missed)-1)]
-    (('A', 'DT'), ('Lorillard', 'NNP'), ('spokewoman', 'NN'))
-    (('it', 'PRP'),)
-    (('symptoms', 'NNS'),)
-    (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS'))
-    (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS'))
-    (('30', 'CD'), ('years', 'NNS'))
-    (('workers', 'NNS'),)
-    (('preliminary', 'JJ'), ('findings', 'NNS'))
-    (('Medicine', 'NNP'),)
-    (('cancer', 'NN'), ('deaths', 'NNS'))
-    (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP'))
-    (('Medicine', 'NNP'),)
-    (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS'))
-    (('a', 'DT'), ('forum', 'NN'))
-    (('researchers', 'NNS'),)
+    >>> shuffle(missed)
+    >>> print missed[:10]
+    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
+     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
+     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
+     (('30', 'CD'), ('years', 'NNS')),
+     (('workers', 'NNS'),),
+     (('preliminary', 'JJ'), ('findings', 'NNS')),
+     (('Medicine', 'NNP'),),
+     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
+     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
+     (('researchers', 'NNS'),)]
 
 Here are the incorrect chunks:
 
 .. doctest-ignore::
     >>> incorrect = chunkscore.incorrect()
-    >>> for i in range(15):
-    ...     print incorrect[randint(0,len(incorrect)-1)]
-    (('New', 'JJ'), ('York-based', 'JJ'))
-    (('Micronite', 'NN'), ('cigarette', 'NN'))
-    (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ'))
-    (('later', 'JJ'),)
-    (('later', 'JJ'),)
-    (('brief', 'JJ'),)
-    (('preliminary', 'JJ'),)
-    (('New', 'JJ'), ('York-based', 'JJ'))
-    (('resilient', 'JJ'),)
-    (('group', 'NN'),)
-    (('cancer', 'NN'),)
-    (('the', 'DT'),)
-    (('cancer', 'NN'),)
-    (('Micronite', 'NN'), ('cigarette', 'NN'))
-    (('A', 'DT'),)
+    >>> shuffle(incorrect)
+    >> print incorrect[:10]
+    [(('New', 'JJ'), ('York-based', 'JJ')),
+     (('Micronite', 'NN'), ('cigarette', 'NN')),
+     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
+     (('later', 'JJ'),),
+     (('preliminary', 'JJ'),),
+     (('New', 'JJ'), ('York-based', 'JJ')),
+     (('resilient', 'JJ'),),
+     (('group', 'NN'),),
+     (('the', 'DT'),),
+     (('Micronite', 'NN'), ('cigarette', 'NN'))]
 
 .. Note: By default, only the first 100 missed chunks and the first
    100 incorrect chunks will be remembered by the ``ChunkScore``.  You
@@ -943,12 +759,12 @@ Here are the incorrect chunks:
     >>> chunkscore = parse.ChunkScore(max_fp_examples=1000,
     ...                        max_fn_examples=1000)
 
-When evaluating a chunker it is important to score it against the
-baseline performance of a very simple chunker.  Perhaps the most naive
-chunking method is to classify every tag in the training data as to
-whether it occurs inside or outside a chunk more often.  We can do
-this easily using a chunked corpus and a conditional frequency
-distribution as shown below:
+As we saw with tagging, we need to interpret the performance scores
+for a chunker relative to a baseline.  Perhaps the most naive chunking
+method is to classify every tag in the training data as to whether it
+occurs inside or outside a chunk more often.  We can do this easily
+using a chunked corpus and a conditional frequency distribution as
+shown below:
 
     >>> from nltk_lite.probability import ConditionalFreqDist
     >>> from nltk_lite.parse import Tree
@@ -1100,7 +916,11 @@ Exercises
       chunk.demo()  # the chunk parser
 
 #. **Chunker Evaluation:**
-   For any of the chunkers you have developed earlier:
+   Carry out the following evaluation tasks for
+   any of the chunkers you have developed earlier.
+   (Note that most chunking corpora contain some internal
+   inconsistencies, such that any reasonable rule-based approach
+   will produce errors.)
 
    a) Evaluate your chunker on 100 sentences from a chunked corpus,
       and report the precision, recall and F-measure.
