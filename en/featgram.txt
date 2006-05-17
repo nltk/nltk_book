@@ -323,34 +323,236 @@ mother. Combined with srule_, we derive the consequence that if the
 the `num`:feat: value of the `VP`:gc:\ 's head verb.
 
 .. ex::
-   .. tree:: (S (NP[num=pl] (Det[num=pl] these)(N[num=pl] dogs))(VP[num=pl] (V[num=pl] run))) 
+   .. tree:: (S (NP[num=pl] (Det[num=pl] these)(N[num=pl] dogs))(VP[num=pl] (V[num=pl] run)))
 
-Values like `sg`:fval: and `pl`:fval: are said to be `atomic`:dt:
-|mdash| that is, they can't be decomposed into subparts.
+In NLTK, we can use `featuredemo` to parse feature-based grammars;
+feat0cfg_ is a simple example of such a grammar. It illustrates a
+small but important point, namely that a feature annotation on a
+syntactic category can contain more than one specification; for example,
+`IV`:gc:\ [`tense`:feat: = `pres`:fval:, `num`:feat: = `pl`:fval:\ ].
+
+.. _feat0cfg:
+.. ex::
+   ::
+
+     S -> NP[num=?n] VP[num=?n]
+
+     NP[num=?n] -> N[num=?n] 
+     NP[num=?n] -> PropN[num=?n] 
+     NP[num=?n] -> Det[num=?n] N[num=?n] 
+
+     VP[tense=?t, num=?n] -> V[tense=?t, num=?n]
+     VP[tense=?t, num=?n] -> V[tense=?t, num=?n] NP
+
+     Det[num=sg] -> 'this' | 'every'
+     Det[num=pl] -> 'these' | 'all'
+     Det[num=sg] -> 'the' | 'some'
+     Det[num=?n] -> 'the' | 'some'
+
+
+     PropN[num=sg]-> 'Kim' | 'Jody'
+
+     N[num=sg] -> 'dog' | 'girl' | 'car' | 'child'
+     N[num=pl] -> 'dogs' | 'girls' | 'cars' | 'children' 
+
+     V[tense=pres,  num=sg] -> 'disappears' | 'walks'
+     V[tense=pres, num=sg] -> 'sees' | 'likes'
+
+     V[tense=pres,  num=pl] -> 'disappear' | 'walk'
+     V[tense=pres, num=pl] -> 'see' | 'like'
+
+     V[tense=past, num=?n] -> 'disappeared' | 'walked'
+     V[tense=past, num=?n] -> 'saw' | 'liked'
+
+
+
+Parsing `Jody likes these children`:lx: with the grammar in feat0cfg_ yields the following output.
+
+.. ex::
+   ::
+
+     ([INIT]:
+       (Start:
+	 (S:
+	   (NP[num=sg]: (PropN[num=sg]: 'Jody'))
+	   (VP[num=sg, tense=pres]:
+	     (V[num=sg, tense=pres]: 'likes')
+	     (NP[num=pl]: (Det[num=?n]: 'the') (N[num=pl]: 'children'))))))
+
+
 
 Terminology
 -----------
 
 
-Case Government
+So far, we have only seen feature values like `sg`:fval: and
+`pl`:fval. These simple values are usually called `atomic`:dt:
+|mdash| that is, they can't be decomposed into subparts. A special
+case of atomic values are `boolean`:dt: values, that is, values which
+just specify whether a property is true or false of a category. For
+example, we might want to distinguish `auxiliary`:dt: verbs such as
+`can`:lx:, `may`:lx:, `will`:lx: and `do`:lx: with the boolean feature
+`aux`:feat:. Thus, our lexicon for verbs might include entries such as
+the following:
+
+.. ex::
+      .. parsed-literal::
+
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `aux`:feat: = `+`:math:\ ] |rarr| 'can'
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `aux`:feat: = `+`:math:\ ] |rarr| 'may'
+
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `aux`:feat: = `-`:math:\ ] |rarr| 'walks'
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `aux`:feat: = `-`:math:\ ] |rarr| 'likes'
+
+
+A frequently used abbreviation for boolean features allows the value
+to be prepended to the feature:
+
+.. ex::
+      .. parsed-literal::
+
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `+aux`:feat:\ ] |rarr| 'can'
+        `V`:gc:\ [`tense`:feat: = `pres`:fval:, `-aux`:feat:\ ] |rarr| 'walks'
+
+
+We have spoken informally of attaching 'feature annotations' to
+syntactic categories. A more general
+approach is to treat the whole category |mdash| that is, the
+non-terminal symbol plus the annotation |mdash| as a bundle of
+features. Consider, for example, the object we have written as ncat0_.
+
+.. _ncat0:
+.. ex::
+      .. parsed-literal::
+
+        `N`:gc:\ [`num`:feat: = `sg`:fval:\ ] 
+
+The syntactic category `N`:gc:, as we have seen before, provides part
+of speech information. This information can itself be captured as a
+feature specification, as shown in ncat1_.
+
+.. _ncat1:
+.. ex::
+      .. parsed-literal::
+
+        [`pos`:feat: = `N`:fval:, `num`:feat: = `sg`:fval:\ ] 
+
+In fact, we  regard ncat1_ as our 'official' representation of a
+feature-based linguistic category, and
+ncat0_ as a convenient abbreviation.
+A bundle of feature-value pairs is called a `feature structure`:dt:
+or an `attribute value matrix`:dt: (AVM). A feature structure which
+contains a specification for the feature `pos`:feat: is a `linguistic
+category`:dt:. 
+
+In addition to atomic-valued features, we allow features whose values
+are themselves feature structures. For example, we might want to group
+together agreement features (e.g., person, number and gender) as a
+distinguished part of a category, as shown in agr0_.
+
+.. _agr0:
+.. ex::
+      .. avm::
+
+        [pos: N
+         agr: [per: 3
+               num: pl
+               gend: fem]]
+
+
+Subcatorization
 ---------------
 
+In the chapter `Parsing <parse.html>`__, we proposed to augment our
+category labels in order to represent different subcategories of
+verb. More specifically,
+we introduced labels such as `Vitr`:gc: and `Vtr`:gc: for intransitive
+and transitive verbs respectively.  This allowed us to write rules
+like the following:
 
--------------------------
- Features and Categories
--------------------------
+.. _subcatcfg0:
+.. ex::
+   .. parsed-literal::
 
-.. brief history
-   gpsg, hpsg, lfg
+      `VP`:gc:  |rarr| `V_itr`:gc:  
+      `VP`:gc:  |rarr| `V_tr NP`:gc: 
 
-Deconstructing Grammatical Categories
--------------------------------------
+Although it is tempting to think of `V_itr`:gc: and `V_tr`:gc: as two
+kinds of `V`:gc:, this is unjustified: from a formal point of view,
+`V_itr`:gc: has no closer relationship with `V_tr`:gc: than it does,
+say, with `NP`:gc:. As it stands, `V_itr`:gc: and `V_tr`:gc: are
+unanalyzable nonterminal symbols from a CFG. One unwelcome consequence
+is that we do not seem able to say anything about the class of verbs
+in general. For example, we cannot say something like "All lexical
+items of category `V`:gc: can be marked for tense", since `bark`:lx:,
+say, is an item of category `V_itr`:gc:, not `V`:gc:.
 
-.. attribute value pairs
-   atomic values
-   boolean values
-   mention X-bar?
+Using features gives us some useful room for manoeuvre but there is no
+obvious consensus on how to model subcategorization information. One
+approach which has the merit of simplicity is due to Generalized
+Phrase Structure Grammar (GPSG). GPSG stipulates that lexical
+categories may bear a `subcat`:feat: whose values are integers. This
+is illustrated in a modified portion of feat0cfg_, shown in subcatgpsg_.
 
+.. _subcatgpsg:
+.. ex::
+   ::
+
+     VP[tense=?t, num=?n] -> V[subcat=0, tense=?t, num=?n]
+     VP[tense=?t, num=?n] -> V[subcat=1, tense=?t, num=?n] NP
+
+     V[subcat=0, tense=pres,  num=sg] -> 'disappears' | 'walks'
+     V[subcat=1, tense=pres, num=sg] -> 'sees' | 'likes'
+
+     V[subcat=0, tense=pres,  num=pl] -> 'disappear' | 'walk'
+     V[subcat=1, tense=pres, num=pl] -> 'see' | 'like'
+
+     V[subcat=0, tense=past, num=?n] -> 'disappeared' | 'walked'
+     V[subcat=1, tense=past, num=?n] -> 'saw' | 'liked'
+
+When we see a lexical category like `V`:gc:\ [`subcat`:feat: =
+`1`:fval:\ ], we can interpret the `subcat`:feat: specification as a
+pointer to the rule in which `V`:gc:\ [`subcat`:feat: = `1`:fval:\ ]
+is introduced as the head daughter in a `VP`:gc: expansion rule. By
+convention, there is a one-to-one correspondence between
+`subcat`:feat: values and rules which introduce lexical
+heads. Moreover, on this approach, `subcat`:feat: can *only* appear on lexical
+categories; it makes no sense, for example, to specify  a
+`subcat`:feat: value on `VP`:gc:.
+
+An alternative treatment of subcategorization, due originally to a framework
+known as categorial grammar, is represented in feature-based frameworks such as PATR
+and Head-driven Phrase Structure Grammar. Rather than using
+`subcat`:feat: values as a way of indexing rules, the `subcat`:feat:
+value directly encodes the `valency`:dt: of a head, that is, the list of
+arguments that it can combine with. For example, a  verb like
+`put`:lx: which takes  `NP`:gc: and `PP`:gc: complements (`put the
+book on the table`:lx) 
+might be represented as subcathpsg0_:
+
+.. _subcathpsg0:
+.. ex::  `V`:gc:\ [`subcat`:feat: = `<NP, NP, PP>`:fval:\ ] 
+
+This says that the verb can combine with three  arguments. The
+leftmost element in the list is the subject `NP`:gc:, while everything
+else |mdash| an `NP`:gc: followed by a `PP`:gc:  in this case |mdash| comprises the
+subcategorized-for complements. When a verb like `put`:lx: is combined
+with appropriate complements, the requirements which are specified in
+the  `subcat`:feat: are discharged, and only a subject `NP`:gc: is
+needed. This category, which corresponds to what is traditionally
+thought of as `VP`:gc:, might be represented as follows.
+
+.. _subcathpsg1:
+.. ex::  `V`:gc:\ [`subcat`:feat: = `<NP>`:fval:\ ] 
+
+Finally, a sentence is a kind of verbal category which has *no*
+requirements for further arguments, and hence has a `subcat`:feat:
+whose value is the empty list. The tree subcathpsg2_ shows how these
+category assigments combine in a parse of `Kim put the book on the table`:lx:.
+
+.. _subcathpsg2:
+.. ex::
+      .. tree:: (V[subcat=\<\>] (NP Kim)(V[subcat=\<NP\>](V[subcat=\<NP,\ NP,\ VP\>] put)<NP the\ book><PP on\ the\ table>))
 
 
 
@@ -365,6 +567,29 @@ Unbounded Dependency Constructions
 Overview
 --------
 
+One of the goals of linguistic theory is to provide a systematic
+correspondence between form and meaning. One widely adopted approach
+to representing meaning |mdash| or at least, some aspects of meaning
+|mdash| involves translating expressions of natural language in to
+first order logic. From a computational point of view, a strong
+argument in favour of first order logic is that it strikes a
+reasonable balance between expressiveness and logical
+tractability. On the one hand, it is flexible enough to represent many
+aspects of the logical structure of natural language. On the other
+hand, automated theorem proving for first order logic has received
+much attention, and although inference in first order logic is not
+decidable, in practice many reasoning problems are efficiently
+solvable using modern theorem provers.
+
+Standard textbooks on first order logic often contain exercises in
+which the reader is required to translate between English and logic.
+
+.. ex::
+
+   .. ex:: If all whales are mammals, then Moby Dick is not a fish.
+
+   .. ex:: (|forall|\ `x`:math:\ (whale(`x`:math:) |rarr| mammal(`x`:math:)) |rarr| |neg|\ fish(MD))
+
 The lambda calculus
 -------------------
 
@@ -375,6 +600,15 @@ Compositionality
  Further Reading
 -----------------
 
+Gerald Gazdar, Ewan Klein, Geoffrey Pullum and Ivan Sag (1985)
+*Generalized Phrase Structure Grammar*, Basil Blackwell.
+
+Ivan A. Sag and Thomas Wasow (1999) *Syntactic Theory: A Formal
+Introduction*, CSLI Publications.
+
+Patrick Blackburn and Johan Bos
+*Representation and Inference for Natural Language: A First Course in
+Computational Semantics*, CSLI Publications
 
 
 ---------
