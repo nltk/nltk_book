@@ -152,7 +152,7 @@ def avm_directive(name, arguments, options, content, lineno,
     state.nested_parse(content, content_offset, node)
     return [node]
 avm_directive.content = True
-directives.register_directive('avm', example_directive)
+directives.register_directive('avm', avm_directive)
 
 
 def def_directive(name, arguments, options, content, lineno,
