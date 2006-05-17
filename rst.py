@@ -145,6 +145,16 @@ tree_directive.content = True
 tree_directive.options = {'scale': directives.nonnegative_int}
 directives.register_directive('tree', tree_directive)
 
+def avm_directive(name, arguments, options, content, lineno,
+                      content_offset, block_text, state, state_machine):
+    text = '\n'.join(content)
+    node = example(text)
+    state.nested_parse(content, content_offset, node)
+    return [node]
+avm_directive.content = True
+directives.register_directive('avm', example_directive)
+
+
 def def_directive(name, arguments, options, content, lineno,
                   content_offset, block_text, state, state_machine):
     state_machine.document.setdefault('__defs__', {})[arguments[0]] = 1
