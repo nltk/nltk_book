@@ -9,27 +9,94 @@
 Introduction
 ------------
 
-Parsing allows us to find tree structures representing the internal
-organization of a text.  These trees are useful for a wide variety of
-tasks, including semantic interpretation, information retrieval, and
-machine translation.  Unfortunately, most texts have a large number of
-possible structures.  This causes two problems for the symbolic
-approaches discussed in the earlier chapter on parsing.
+As we have seen, parsing builds trees over sentences, according to a
+phrase structure grammar.  However, as the coverage of the grammar
+increases and the length of the input sentence grows, the number of
+parse trees grows rapidly.  In fact, it grows at an astronomical rate.
 
-1. **Ambiguity**: There is no way to decide which of the tree
-   structures are likely to correctly represent the text's internal
-   organization.
+Let's explore this issue with the help of a simple example.
+The word `fish`:lx: is both a noun and a verb.  We can make up the
+nonsense sentence `fish fish fish`:lx:, meaning *fish like to fish for
+other fish*.  (Try this with `police`:lx: if you prefer something more
+sensible.)  Here is a toy grammar for the 'fish' sentences.
 
-2. **Efficiency**: Parsing a text requires searching a very large
-   space of possible tree structures.  With no information about which
-   subtrees are more likely to be included in a complete parse, it can
-   take a long time to find even a single parse.
+    >>> from nltk_lite.parse import cfg, chart
+    >>> grammar = cfg.parse_grammar("""
+    ... S -> NP V NP
+    ... NP -> NP Sbar
+    ... Sbar -> NP V | V NP
+    ... NP -> 'fish'
+    ... V -> 'fish'
+    ... """)
 
-Probabilistic techniques provide tools to address both of these
-problems.  We can assign probabilities to parses, and use them to
-decide which structures are more likely to represent a text's internal
-organization; and we can use probabilities to guide our search of the
-space of possible tree structures.
+Now we can try parsing a longer sentence, `fish fish fish fish
+fish`:lx:, which amongst other things, means *fish that are fished by
+other fish are in the habit of fishing fish themselves*.
+
+    >>> tokens = ["fish"] * 5
+    >>> cp = chart.ChartParse(grammar, chart.TD_STRATEGY)
+    >>> for tree in cp.get_parse_list(tokens):
+    ...     print tree
+    (S:
+      (NP: (NP: 'fish') (Sbar: (V: 'fish') (NP: 'fish')))
+      (V: 'fish')
+      (NP: 'fish'))
+    (S:
+      (NP: (NP: 'fish') (Sbar: (NP: 'fish') (V: 'fish')))
+      (V: 'fish')
+      (NP: 'fish'))
+    (S:
+      (NP: 'fish')
+      (V: 'fish')
+      (NP: (NP: 'fish') (Sbar: (V: 'fish') (NP: 'fish'))))
+    (S:
+      (NP: 'fish')
+      (V: 'fish')
+      (NP: (NP: 'fish') (Sbar: (NP: 'fish') (V: 'fish'))))
+
+As the length of this sentence goes up (3, 5, 7, ...) we get the
+following numbers of parse trees:
+1, 4, 20, 112, 672, 4224, 27456, 183040, 1244672, 8599552, 60196864, 426008576.
+The last of these is for a sentence of length 23, which is the average
+length of sentences in the WSJ section of Penn Treebank.
+This growth is *super-exponential*
+(equal to 2\ `n`:superscript:\ * C(n+1), where
+C(n) is the nth Catalan number (2n)!/(n!(n+1)!).
+No practical NLP system could construct 10\ `8`:superscript:
+trees for a typical sentence, much less choose the appropriate
+one in the context.  Its clear that humans don't do this either.
+
+Note that the problem is not with our choice of example.  As soon as
+we try to construct a broad-coverage grammar, we are forced to make
+lexical entries highly ambiguous for their part of speech.  In a toy
+grammar, `a`:lx: is only a determiner, `dog`:lx is only a noun, and
+`runs`:lx: is only a verb.  However, in a broad-coverage grammar, `a` is
+also a noun (e.g. `part a`:lx:), `dog`:lx: is also a verb (meaning to
+follow closely), and `runs`:lx: is also a noun (e.g. `ski runs`:lx:).
+In fact, all words can be referred to by name:
+e.g. `the verb 'ate' is spelled with three letters`:lx:;
+in speech we do not need to supply quotation marks.
+Furthermore, it is possible to *verb* most nouns.
+Thus a parser for a broad-coverage grammar will overwhelmed with
+ambiguity.  Even complete gibberish will often have a reading,
+e.g. `the a are of I`:lx:.  As Abney (1996) has pointed out, this is not
+word salad but a grammatical noun phrase, in which `are`:lx: is a noun meaning a
+hundredth of a hectare (or 100 sq m), and `a`:lx: and `I`:lx: are
+nouns designating coordinates:
+
+.. figure:: ../images/are.png
+   :scale: 140
+
+   The a are of I
+
+Given this unlikely phrase, a broad-coverage parser should find this
+surprising reading.  Similarly, sentences which seem to be
+unambiguous, such as `John saw Mary`:lx:, turn out to have other
+readings we would not have anticipated (as Abney explains).
+This ambiguity is unavoidable, and leads to horrendous inefficiency
+in parsing seemingly inoccuous sentences.  As we will see in this
+chapter, probabilistic parsing solves these twin problems of ambiguity
+and efficiency.
 
 -----------------------------------
 Probabilistic Context Free Grammars
