@@ -325,60 +325,86 @@ the `num`:feat: value of the `VP`:gc:\ 's head verb.
 .. ex::
    .. tree:: (S (NP[num=pl] (Det[num=pl] these)(N[num=pl] dogs))(VP[num=pl] (V[num=pl] run)))
 
-In general, when we are trying to develop even a very small grammar,
-it is convenient to put the rules in a file where they can be edited
-and revised. feat0cfg_ illustrates some of the ideas we have
-introduced so far in this chapter.  It also adds a small but important
-point, namely that a feature annotation on a syntactic category can
-contain more than one specification; for example, `IV`:gc:\
-[`tense`:feat: = `pres`:fval:, `num`:feat: = `pl`:fval:\ ].
-
+Grammar feat0cfg_ illustrates most of the ideas we have introduced so
+far in this chapter, plus a couple of new ones.
 
 .. _feat0cfg:
 .. ex::
    ::
 
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     % Grammar Rules
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     Start -> S
+
      S -> NP[num=?n] VP[num=?n]
 
+     % NP expansion rules
      NP[num=?n] -> N[num=?n] 
      NP[num=?n] -> PropN[num=?n] 
-     NP[num=?n] -> Det[num=?n] N[num=?n] 
+     NP[num=?n] -> Det[num=?n] N[num=?n]
+     NP[num=pl] -> N[num=pl] 
 
-     VP[tense=?t, num=?n] -> V[tense=?t, num=?n]
-     VP[tense=?t, num=?n] -> V[tense=?t, num=?n] NP
+     % VP expansion rules
+     VP[tense=?t, num=?n] -> IV[tense=?t, num=?n]
+     VP[tense=?t, num=?n] -> TV[tense=?t, num=?n] NP
 
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     % Lexical Rules
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
      Det[num=sg] -> 'this' | 'every'
      Det[num=pl] -> 'these' | 'all'
-     Det[num=sg] -> 'the' | 'some'
      Det[num=?n] -> 'the' | 'some'
-
 
      PropN[num=sg]-> 'Kim' | 'Jody'
 
      N[num=sg] -> 'dog' | 'girl' | 'car' | 'child'
      N[num=pl] -> 'dogs' | 'girls' | 'cars' | 'children' 
 
-     V[tense=pres,  num=sg] -> 'disappears' | 'walks'
-     V[tense=pres, num=sg] -> 'sees' | 'likes'
+     IV[tense=pres,  num=sg] -> 'disappears' | 'walks'
+     TV[tense=pres, num=sg] -> 'sees' | 'likes'
 
-     V[tense=pres,  num=pl] -> 'disappear' | 'walk'
-     V[tense=pres, num=pl] -> 'see' | 'like'
+     IV[tense=pres,  num=pl] -> 'disappear' | 'walk'
+     TV[tense=pres, num=pl] -> 'see' | 'like'
 
-     V[tense=past, num=?n] -> 'disappeared' | 'walked'
-     V[tense=past, num=?n] -> 'saw' | 'liked'
+     IV[tense=past, num=?n] -> 'disappeared' | 'walked'
+     TV[tense=past, num=?n] -> 'saw' | 'liked'
 
-Assuming we have saved feat0cfg_ as the file named 'feat0.cfg', the
-function ``GrammarFile.read_file()`` allows us to read the grammar
-into NLTK, ready for use in parsing.
+First, you will notice that a feature annotation on a syntactic
+category can contain more than one specification; for example,
+`V`:gc:\ [`tense`:feat: = `pres`:fval:, `num`:feat: = `pl`:fval:\
+]. In general, there is no upper bound on the number of features we
+specify as part of our syntactic categories.
 
+Second, we have used feature variables in lexical entries as well
+as grammatical rules. For example, `the`:lx: has been assigned the
+category `Det`:gc:\ [`num`:feat: = `?n`:math:]. Why is this?  Well,
+you know that the definite article `the`:lx: can combine with both
+singular and plural nouns. One way of describing this would be to add
+two lexical entries to the grammar, one each for the singular and
+plural versions of `the`:lx:. However, a more elegant solution is to
+leave the `num`:feat: value `underspecified`:dt: and letting it agree
+in number with whatever noun it combines with.
 
+A final point to note about feat0cfg_ is that we have used ``%`` as an
+escape symbol in order to add comments to the grammar.
+
+In general, when we are trying to develop even a very small grammar,
+it is convenient to put the rules in a file where they can be edited,
+tested and revised. Assuming we have saved feat0cfg_ as a file named
+'feat0.cfg', the function ``GrammarFile.read_file()`` allows us to
+read the grammar into NLTK, ready for use in parsing.
+
+.. doctest-ignore::
     >>> from nltk_lite.contrib.grammarfile import GrammarFile
     >>> from pprint import pprint
     >>> from nltk_lite import tokenize
     >>> g = GrammarFile.read_file('feat0.cfg')
+    >>>
 
 We can inspect the rules and the lexicon.
 
+.. doctest-ignore::
     >>> print g.earley_grammar()
     Grammar with 7 productions (start state = Start[])
 	Start -> S
@@ -386,51 +412,91 @@ We can inspect the rules and the lexicon.
 	NP[num=?n] -> N[num=?n]
 	NP[num=?n] -> PropN[num=?n]
 	NP[num=?n] -> Det[num=?n] N[num=?n]
+        NP[num=pl] -> N[num=pl]
 	VP[num=?n, tense=?t] -> IV[num=?n, tense=?t]
 	VP[num=?n, tense=?t] -> TV[num=?n, tense=?t] NP
     >>> pprint(g.earley_lexicon())
-    {'Jody': [PropN[num=sg]],
-     'Kim': [PropN[num=sg]],
-     'all': [Det[num=pl]],
-     'car': [N[num=sg]],
-     'cars': [N[num=pl]],
-     'child': [N[num=sg]],
-     'children': [N[num=pl]],
-     'disappear': [IV[num=pl, tense=pres]],
-     'disappeared': [IV[num=?n, tense=past]],
-     'disappears': [IV[num=sg, tense=pres]],
-     'dog': [N[num=sg]],
-     'dogs': [N[num=pl]],
-     'every': [Det[num=sg]],
-     'girl': [N[num=sg]],
-     'girls': [N[num=pl]],
-     'like': [TV[num=pl, tense=pres]],
-     'liked': [TV[num=?n, tense=past]],
-     'likes': [TV[num=sg, tense=pres]],
-     'saw': [TV[num=?n, tense=past]],
-     'see': [TV[num=pl, tense=pres]],
-     'sees': [TV[num=sg, tense=pres]],
-     'some': [Det[num=sg], Det[num=?n]],
-     'the': [Det[num=sg], Det[num=?n]],
-     'these': [Det[num=pl]],
-     'this': [Det[num=sg]],
-     'walk': [IV[num=pl, tense=pres]],
-     'walked': [IV[num=?n, tense=past]],
-     'walks': [IV[num=sg, tense=pres]]}
+     {'Jody': [PropN[num=sg]],
+      'Kim': [PropN[num=sg]],
+      'all': [Det[num=pl]],
+      'car': [N[num=sg]],
+      'cars': [N[num=pl]],
+      'child': [N[num=sg]],
+      'children': [N[num=pl]],
+      'disappear': [IV[num=pl, tense=pres]],
+      'disappeared': [IV[num=?n, tense=past]],
+      'disappears': [IV[num=sg, tense=pres]],
+      'dog': [N[num=sg]],
+      'dogs': [N[num=pl]],
+      'every': [Det[num=sg]],
+      'girl': [N[num=sg]],
+      'girls': [N[num=pl]],
+      'like': [TV[num=pl, tense=pres]],
+      'liked': [TV[num=?n, tense=past]],
+      'likes': [TV[num=sg, tense=pres]],
+      'saw': [TV[num=?n, tense=past]],
+      'see': [TV[num=pl, tense=pres]],
+      'sees': [TV[num=sg, tense=pres]],
+      'some': [Det[num=?n]],
+      'the': [Det[num=?n]],
+      'these': [Det[num=pl]],
+      'this': [Det[num=sg]],
+      'walk': [IV[num=pl, tense=pres]],
+      'walked': [IV[num=?n, tense=past]],
+      'walks': [IV[num=sg, tense=pres]]}
+     >>> 
 
-Now we can tokenize a sentence and parse it with the grammar.
+Now we can tokenize a sentence and use the ``parse_n()`` function to
+invoke the Earley chart parser.
 
-     >>> sent = 'Jody likes the children'
+.. doctest-ignore::
+     >>> from nltk_lite import tokenize
+     >>> sent = 'Kim likes children'
      >>> tokens = list(tokenize.whitespace(sent))
+     >>> tokens 
+     ['Kim', 'likes', 'children']
+     >>> cp = g.earley_parser()
+     >>> trees = cp.parse_n(tokens)
+	       |.K.l.c.|
+     Predictor |> . . .| Start -> * S 
+     Predictor |> . . .| S -> * NP[num=?n] VP[num=?n] 
+     Predictor |> . . .| NP[num=?n] -> * N[num=?n] 
+     Predictor |> . . .| NP[num=?n] -> * PropN[num=?n] 
+     Predictor |> . . .| NP[num=?n] -> * Det[num=?n] N[num=?n] 
+     Predictor |> . . .| NP[num=pl] -> * N[num=pl] 
+     Scanner   |[-] . .| PropN[num=sg] -> 'Kim' * 
+     Completer |[-] . .| NP[num=sg] -> PropN[num=sg] * 
+     Completer |[-> . .| S -> NP[num=sg] * VP[num=sg] 
+     Predictor |. > . .| VP[num=?n, tense=?t] -> * IV[num=?n, tense=?t] 
+     Predictor |. > . .| VP[num=?n, tense=?t] -> * TV[num=?n, tense=?t] NP 
+     Scanner   |. [-] .| TV[num=sg, tense=pres] -> 'likes' * 
+     Completer |. [-> .| VP[num=sg, tense=pres] -> TV[num=sg, tense=pres] * NP 
+     Predictor |. . > .| NP[num=?n] -> * N[num=?n] 
+     Predictor |. . > .| NP[num=?n] -> * PropN[num=?n] 
+     Predictor |. . > .| NP[num=?n] -> * Det[num=?n] N[num=?n] 
+     Predictor |. . > .| NP[num=pl] -> * N[num=pl] 
+     Scanner   |. . [-]| N[num=pl] -> 'children' * 
+     Completer |. . [-]| NP[num=pl] -> N[num=pl] * 
+     Completer |. [---]| VP[num=sg, tense=pres] -> TV[num=sg, tense=pres] NP * 
+     Completer |[=====]| S -> NP[num=sg] VP[num=sg] * 
+     Completer |[=====]| Start -> S * 
+     Completer |[=====]| [INIT] -> Start * 
+     >>> 
+
+Finally, we can inspect the resulting parse trees (in this case, a
+single one).
+
+.. doctest-ignore::
+     >>> for tree in trees: print tree
+     ... 
      ([INIT]:
        (Start:
 	 (S:
-	   (NP[num=sg]: (PropN[num=sg]: 'Jody'))
+	   (NP[num=sg]: (PropN[num=sg]: 'Kim'))
 	   (VP[num=sg, tense=pres]:
-	     (V[num=sg, tense=pres]: 'likes')
-	     (NP[num=pl]: (Det[num=?n]: 'the') (N[num=pl]: 'children'))))))
-
-
+	     (TV[num=sg, tense=pres]: 'likes')
+	     (NP[num=pl]: (N[num=pl]: 'children'))))))
+     >>>
 
 Terminology
 -----------
@@ -511,9 +577,46 @@ distinguished part of a category, as shown in agr0_.
                gend: fem]]
 
 
+In this case, we say that the feature `agr`:feat: has a `complex`:dt: value.
 
-Unification
------------
+Feature Structures and Unification
+----------------------------------
+
+Feature structures in NLTK are declared with the
+``FeatureStructure()`` constructor. Atomic eature values can be strings or
+integers.
+
+     >>> from nltk_lite.parse.featurestructure import *
+     >>> fs1 = FeatureStructure(tense='past', num='sg') 
+     [num='sg', tense='past']
+     >>> 
+
+We can think of a feature structure as being like a Python dictionary,
+and access its values by indexing in the usual way.
+
+     >>> fs1 = FeatureStructure(per=3, num='pl', gend='fem')
+     >>> print fs1['gend']
+     fem
+     >>> 
+
+We can also define feature structures which complex values, as
+discussed earlier.
+
+     >>> fs2 = FeatureStructure(pos='N', agr=fs1)
+     >>> print fs2
+     [       [ gend = 'fem' ] ]
+     [ agr = [ num  = 'pl'  ] ]
+     [       [ per  = 3     ] ]
+     [                        ]
+     [ pos = 'N'              ]
+     >>> print fs2['agr']
+     [ gend = 'fem' ]
+     [ num  = 'pl'  ]
+     [ per  = 3     ]
+     >>> print fs2['agr']['per']
+     3
+     >>> 
+
 
 Reentrancy
 
