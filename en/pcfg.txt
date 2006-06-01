@@ -96,12 +96,80 @@ readings we would not have anticipated (as Abney explains).
 This ambiguity is unavoidable, and leads to horrendous inefficiency
 in parsing seemingly inoccuous sentences.  As we will see in this
 chapter, probabilistic parsing solves these twin problems of ambiguity
-and efficiency.
+and efficiency.  However, before we deal with these parsing problems,
+we must first back up and introduce weighted grammars.
 
------------------------------------
-Probabilistic Context Free Grammars
------------------------------------
+-----------------
+Weighted Grammars
+-----------------
  
+We begin by considering the verb `give`:lx:.  This verb requires both
+a direct object (the thing being given) and an indirect object (the
+recipient).  These complements can be given in either order, as
+illustrated in example dative_.  In the "prepositional dative" form,
+the indirect object appears last, and inside a prepositional phrase,
+while in the "double object" form, the indirect object comes first:
+
+.. _dative:
+.. ex::
+   .. ex::
+      Kim gave a bone to the dog
+   .. ex::
+      Kim gave the dog a bone
+
+Using the Penn Treebank sample, we can examine all instances of
+prepositional dative and double object constructions involving
+`give`:lx:, as shown below:
+
+    >>> from nltk_lite.corpora import treebank
+    >>> from string import join
+    >>> give = lambda t: t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
+    ...        and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
+    ...        and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
+    >>> for tree in treebank.parsed():
+    ...     for t in tree.subtrees(give):
+    ...         print "%s [%s: %s] [%s: %s]" %\
+    ...               (join(t[0].leaves()),
+    ...                t[1].node, join(t[1].leaves()),
+    ...                t[2].node, join(t[2].leaves()))
+    gave [NP: the chefs] [NP: a standing ovation]
+    give [NP: advertisers] [NP: discounts for * maintaining or increasing ad spending]
+    give [NP: it] [PP-DTV: to the politicians]
+    gave [NP: them] [NP: similar help]
+    give [NP: them] [NP: *T*-1]
+    give [NP: only French history questions] [PP-DTV: to students in a European history class]
+    give [NP: federal judges] [NP: a raise]
+    give [NP: consumers] [NP: the straight scoop on the U.S. waste crisis]
+    gave [NP: Mitsui] [NP: access to a high-tech medical product]
+    give [NP: Mitsubishi] [NP: a window on the U.S. glass industry]
+    give [NP: much thought] [PP-DTV: to the rates 0 she was receiving *T*-2 , nor to the fees 0
+      she was paying *T*-3]
+    give [NP: your Foster Savings Institution] [NP: the gift of hope and freedom from the federal
+      regulators who *T*-206 want *-1 to close its doors -- for good]
+    give [NP: market operators] [NP: the authority * to suspend trading in futures at any time]
+    gave [NP: quick approval] [PP-DTV: to $ 3.18 billion *U* in supplemental appropriations for
+      law enforcement and anti-drug programs in fiscal 1990]
+    give [NP: the Transportation Department] [NP: up to 50 days 0 * to review any purchase of
+      15 % or more of the stock in an airline *T*-1]
+    give [NP: the president] [NP: such power]
+    give [NP: me] [NP: the heebie-jeebies]
+    give [NP: holders] [NP: the right *RNR*-1 , but not the obligation *RNR*-1 , * to buy -LRB-
+      a call -RRB- or sell -LRB- a put -RRB- a specified amount of an underlying investment by
+      a certain date at a preset price , known * as the strike price]
+    gave [NP: Mr. Thomas] [NP: only a `` qualified '' rating , rather than `` well qualified]
+    give [NP: the president] [NP: line-item veto power]
+
+We can observe a strong tendency for the shortest complement to appear
+first.  However, this does not account for a form like
+``give [NP: federal judges] [NP: a raise]``, where animacy may be
+playing a role.  In fact there turn out to be a large number of contributing
+factors, as surveyed by Bresnan and Hay (2006).
+
+How can such tendencies be expressed in a conventional context free
+grammar?  It turns out that they cannot.  However, we can address the
+problem by adding weights, or probabilities, to the productions of a
+grammar.
+
 A *probabilistic context free grammar* (or *PCFG*) is a context free
 grammar that associates a probability with each of its productions.
 It generates the same set of parses for a text that the corresponding
@@ -835,5 +903,9 @@ Statistical Approaches to Language. MIT Press.
 
 Christopher Manning and Hinrich Schutze (1999).  *Foundations of
 Statistical Natural Language Processing*.  MIT Press.  (esp chapter 12).
+
+Joan Bresnan and Jennifer Hay (2006). *Gradient Grammar: An Effect of
+Animacy on the Syntax of give in Varieties of English*
+http://www-lfg.stanford.edu/bresnan/anim-spokensyntax-final.pdf
 
 .. include:: footer.txt
