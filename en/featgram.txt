@@ -599,6 +599,14 @@ and access its values by indexing in the usual way.
      fem
      >>> 
 
+However, we cannot use this syntax to *assign* values to features:
+
+     >>> fs1[case] = 'acc'
+     Traceback (most recent call last):
+       File "<stdin>", line 1, in ?
+     NameError: name 'case' is not defined
+     >>> 
+
 We can also define feature structures which complex values, as
 discussed earlier.
 
@@ -617,12 +625,104 @@ discussed earlier.
      3
      >>> 
 
+An alternative method of specifying feature structures in NLTK is to
+use the ``parse()`` method of ``FeatureStructure``. This gives us the
+facility to use square bracket notation for embedding one feature
+structure within another.
 
-Reentrancy
+     >>> FeatureStructure.parse("[pos='N', agr=[per=3, num='pl', gend='fem']]")
+     [agr=[gend='fem', num='pl', per=3], pos='N']
 
-Graph-based representation of feature structures
 
-Discuss and illustrate NLTK's `featurestructure` module. 
+Feature structures are not inherently tied to linguistic objects; they are
+general purpose structure for representing knowledge. For example, we
+could represent information about a person as a feature structure:
+
+     >>> person01 = FeatureStructure(name='Lee', telno='650 4426', age=33)
+     >>> person01
+     [age=33, name='Lee', telno='650 4426']
+
+It is sometimes helpful to picture feature structures as graphs; more
+specifically, directed acyclic graphs (DAGs). dag01_ is equivalent to
+the feature structure ``person01`` just shown.
+
+.. _dag01:
+.. ex::
+   .. image:: ../images/dag01.png
+      :scale: 80
+
+The feature names appear as labels on the directed arcs, and feature
+values appear as labels on the nodes which are pointed to by the arcs.
+
+Just as before, feature values can be complex:
+
+.. _dag02:
+.. ex::
+   .. image:: ../images/dag02.png
+      :scale: 80
+
+When we look at such graphs, it is natural to think in terms of
+paths through the graph. A `feature path`:dt: is a sequence of arcs
+that can be followed from the root node. We will represent paths in NLTK as
+tuples. Thus, ``('address', 'street')`` is a feature path whose value
+in dag02_
+is the string 'Rue Mouffetard'.
+
+Now let's consider a situation where Lee has a spouse named 'Kim', and
+Kim's address is the same as Lee's. Rather than repeat the address
+information in the feature structure, we can 'share' the same
+sub-graph between different arcs:
+
+.. _dag03:
+.. ex::
+   .. image:: ../images/dag03.png
+      :scale: 80
+
+In other words, the value of ``('address')`` in dag03_ is identical to
+the value of ``('spouse', 'address')``.
+DAGs such as dag03_ are said to involve `structure sharing`:dt: or
+`reentrancy`:dt:.
+
+There are a number of notations for representing reentrancy in
+matrix-style representations of feature structures. In NLTK, we adopt
+the convention that a feature structure that will be shared is
+prefixed with an integer in parentheses, such as ``(1)``, and any
+coindexing reference to that structre uses the notation
+``->(1)``, as shown below.
+
+     >>> fs=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='Rue Pascal'], spouse=[name='Kim', address->(1)]]")
+     >>> print fs
+     [ address = (1) [ number = 74           ] ]
+     [               [ street = 'Rue Pascal' ] ]
+     [                                         ]
+     [ name    = 'Lee'                         ]
+     [                                         ]
+     [ spouse  = [ address -> (1)  ]           ]
+     [           [ name    = 'Kim' ]           ]
+     >>> 
+
+There can be a number of coindexings within a single feature structure.
+
+     >>> fs = FeatureStructure.parse("[A='a', B=(1)[C='c'], D->(1), E->(1)]")
+     >>> print fs
+     [ A = 'a'             ]
+     [                     ]
+     [ B = (1) [ C = 'c' ] ]
+     [                     ]
+     [ D -> (1)            ]
+     [ E -> (1)            ]
+     >>> fs1 = FeatureStructure.parse("[A=(1)[], B=(2)[], C->(1), D->(2)]")
+     >>> print fs
+     [ A = (1) [] ]
+     [            ]
+     [ B = (2) [] ]
+     [            ]
+     [ C -> (1)   ]
+     [ D -> (2)   ]
+     >>> 
+
+
+.. add stuff on unification
 
 
 Subcatorization
