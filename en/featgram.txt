@@ -579,11 +579,25 @@ distinguished part of a category, as shown in agr0_.
 
 In this case, we say that the feature `agr`:feat: has a `complex`:dt: value.
 
-Feature Structures and Unification
-----------------------------------
+There is no particular significance to the *order* of features in a
+feature structure. So agr0_ is equivalent to agr0_.
+
+.. _agr1:
+.. ex::
+      .. parsed-literal::
+
+        [agr: [num: pl
+               per: 3
+               gend: fem]
+         pos: N]
+
+
+
+Feature Structures in NLTK and Unification
+------------------------------------------
 
 Feature structures in NLTK are declared with the
-``FeatureStructure()`` constructor. Atomic eature values can be strings or
+``FeatureStructure()`` constructor. Atomic feature values can be strings or
 integers.
 
      >>> from nltk_lite.parse.featurestructure import *
@@ -607,7 +621,7 @@ However, we cannot use this syntax to *assign* values to features:
      NameError: name 'case' is not defined
      >>> 
 
-We can also define feature structures which complex values, as
+We can also define feature structures which have complex values, as
 discussed earlier.
 
      >>> fs2 = FeatureStructure(pos='N', agr=fs1)
@@ -632,24 +646,28 @@ structure within another.
 
      >>> FeatureStructure.parse("[pos='N', agr=[per=3, num='pl', gend='fem']]")
      [agr=[gend='fem', num='pl', per=3], pos='N']
+     >>>
 
 
 Feature structures are not inherently tied to linguistic objects; they are
-general purpose structure for representing knowledge. For example, we
-could represent information about a person as a feature structure:
+general purpose structures for representing knowledge. For example, we
+could encode information about a person in a feature structure:
 
-     >>> person01 = FeatureStructure(name='Lee', telno='650 4426', age=33)
-     >>> person01
-     [age=33, name='Lee', telno='650 4426']
+     >>> person01 = FeatureStructure(name='Lee', telno='01 27 86 42 96', age=33)
+     >>> >>> print person01
+     [ age   = 33         ]
+     [ name  = 'Lee'      ]
+     [ telno = '01 27 86 42 96' ]
+     >>> 
 
 It is sometimes helpful to picture feature structures as graphs; more
-specifically, directed acyclic graphs (DAGs). dag01_ is equivalent to
+specifically, `directed acyclic graphs`:dt: (DAGs). dag01_ is equivalent to
 the feature structure ``person01`` just shown.
 
 .. _dag01:
 .. ex::
    .. image:: ../images/dag01.png
-      :scale: 80
+      :scale: 40
 
 The feature names appear as labels on the directed arcs, and feature
 values appear as labels on the nodes which are pointed to by the arcs.
@@ -659,14 +677,14 @@ Just as before, feature values can be complex:
 .. _dag02:
 .. ex::
    .. image:: ../images/dag02.png
-      :scale: 80
+      :scale: 40
 
 When we look at such graphs, it is natural to think in terms of
 paths through the graph. A `feature path`:dt: is a sequence of arcs
 that can be followed from the root node. We will represent paths in NLTK as
 tuples. Thus, ``('address', 'street')`` is a feature path whose value
 in dag02_
-is the string 'Rue Mouffetard'.
+is the string 'rue Pascal'.
 
 Now let's consider a situation where Lee has a spouse named 'Kim', and
 Kim's address is the same as Lee's. Rather than repeat the address
@@ -676,24 +694,25 @@ sub-graph between different arcs:
 .. _dag03:
 .. ex::
    .. image:: ../images/dag03.png
-      :scale: 80
+      :scale: 40
 
 In other words, the value of ``('address')`` in dag03_ is identical to
 the value of ``('spouse', 'address')``.
 DAGs such as dag03_ are said to involve `structure sharing`:dt: or
-`reentrancy`:dt:.
+`reentrancy`:dt:. When two paths have the same value, they are said to
+be `equivalent`:dt:.
 
 There are a number of notations for representing reentrancy in
 matrix-style representations of feature structures. In NLTK, we adopt
-the convention that a feature structure that will be shared is
-prefixed with an integer in parentheses, such as ``(1)``, and any
-coindexing reference to that structre uses the notation
-``->(1)``, as shown below.
+the following convention: the first occurrence of a shared feature structure 
+is prefixed with an integer in parentheses, such as ``(1)``, and any
+subsequent reference to that structure uses the notation
+``'->(1)'``, as shown below.
 
-     >>> fs=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='Rue Pascal'], spouse=[name='Kim', address->(1)]]")
+     >>> fs=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'], spouse=[name='Kim', address->(1)]]")
      >>> print fs
      [ address = (1) [ number = 74           ] ]
-     [               [ street = 'Rue Pascal' ] ]
+     [               [ street = 'rue Pascal' ] ]
      [                                         ]
      [ name    = 'Lee'                         ]
      [                                         ]
@@ -701,7 +720,9 @@ coindexing reference to that structre uses the notation
      [           [ name    = 'Kim' ]           ]
      >>> 
 
-There can be a number of coindexings within a single feature structure.
+The bracketed integer is sometimes called a `tag`:dt: or a
+`coindex`:dt:. The choice of integer is not significant.
+There can be any number of tags within a single feature structure.
 
      >>> fs = FeatureStructure.parse("[A='a', B=(1)[C='c'], D->(1), E->(1)]")
      >>> print fs
@@ -721,9 +742,109 @@ There can be a number of coindexings within a single feature structure.
      [ D -> (2)   ]
      >>> 
 
+It is standard to think of feature structures as providing `partial
+information`:dt: about some object, in the sense that we can order
+feature structures according to how general they are. For example,
+fs01_ is more general (less specific) than fs02_, which in turn is more general than fs03_.
 
-.. add stuff on unification
+.. ex::
+   .. _fs01:
+   .. ex::
+      .. parsed-literal::
 
+         [number: 74]
+
+   .. _fs02:
+   .. ex::
+      .. parsed-literal::
+
+         [number: 74
+          street: 'rue Pascal']
+
+   .. _fs03:
+   .. ex::
+      .. parsed-literal::
+
+         [number: 74
+          street: 'rue Pascal'
+          city: 'Paris']
+
+This ordering is called `subsumption`:dt:; a more general feature
+structure `subsumes`:dt: a less general one. If `FS`:math:\
+:subscript:`0` subsumes `FS`:math:\ :subscript:`1`, then `FS`:math:\
+:subscript:`1` must have all the paths and path equivalences of
+`FS`:math:\ :subscript:`0`, and may have additional paths and
+equivalences as well. Formally, we write the *subsumes* relation as
+`FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
+:subscript:`1`. It should be obvious that subsumption only provides a
+partial ordering on feature structures, since some feature structures
+are incommensurable. For example, fs04_ neither subsumes nor is
+subsumed by fs01_.
+
+
+.. _fs04:
+.. ex::
+   .. parsed-literal::
+
+         [telno = '01 27 86 42 96']
+
+So we have seen that some feature structures are more specific than
+others. How do we go about specialising a given feature structure?
+For example, we might decide that addresses should
+consist of not just a street number and a street name, but also a
+city. That is, we might want to *merge*  graph dag042_ with dag041_ to
+yield dag043_.
+
+.. ex::
+     .. _dag041:
+     .. ex::
+	.. image:: ../images/dag04-1.png
+	   :scale: 40
+
+     .. _dag042:
+     .. ex::
+	.. image:: ../images/dag04-2.png
+	   :scale: 40
+
+     .. _dag043:
+     .. ex::
+	.. image:: ../images/dag04-3.png
+	   :scale: 40
+
+Merging information from two feature structures is called
+`unification`:dt: and in NLTK is supported by the ``unify()`` method
+defined in the ``FeatureStructure`` class.
+
+     >>> fs1 = FeatureStructure(number=74, street='rue Pascal')
+     >>> fs2 = FeatureStructure(city='Paris')
+     >>> fs1.unify(fs2)
+     [city='Paris', number=74, street='rue Pascal']
+     >>> 
+
+Unification is formally defined as a binary operation: `FS`:math:\
+:subscript:`0` |SquareIntersection| `FS`:math:\
+:subscript:`1`. Unification is symmetric, so 
+
+.. ex::
+    `FS`:math:\ :subscript:`0` |SquareIntersection| `FS`:math:\
+    :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareIntersection| `FS`:math:\ :subscript:`0`.
+
+     >>> fs2.unify(fs1)
+     [city='Paris', number=74, street='rue Pascal']
+     >>>
+
+.. but >>> fs1.unify(fs2) is fs2.unify(fs1)
+       False
+   only works with repr()
+
+If we unify two feature structures which stand in the subsumption
+relationship, then the result of unification is the most specific of
+the two:
+
+.. ex::
+    If `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
+    :subscript:`1`,  then `FS`:math:\ :subscript:`0`
+    |SquareIntersection| `FS`:math:\ :subscript:`1` = `FS`:math:\ :subscript:`1` 
 
 Subcatorization
 ---------------
