@@ -10,8 +10,6 @@
 --------------
 
 
-
-
 -----------------
 Agreement in CFGs
 -----------------
@@ -687,7 +685,15 @@ in dag02_
 is the string 'rue Pascal'.
 
 Now let's consider a situation where Lee has a spouse named 'Kim', and
-Kim's address is the same as Lee's. Rather than repeat the address
+Kim's address is the same as Lee's.
+We might represent this as dag04_.
+
+.. _dag04:
+.. ex::
+   .. image:: ../images/dag04.png
+      :scale: 40
+
+However, rather than repeating the address
 information in the feature structure, we can 'share' the same
 sub-graph between different arcs:
 
@@ -696,8 +702,10 @@ sub-graph between different arcs:
    .. image:: ../images/dag03.png
       :scale: 40
 
-In other words, the value of ``('address')`` in dag03_ is identical to
-the value of ``('spouse', 'address')``.
+
+
+In other words, the value of the path ``('address')`` in dag03_ is identical to
+the value of the path ``('spouse', 'address')``.
 DAGs such as dag03_ are said to involve `structure sharing`:dt: or
 `reentrancy`:dt:. When two paths have the same value, they are said to
 be `equivalent`:dt:.
@@ -771,15 +779,16 @@ fs01_ is more general (less specific) than fs02_, which in turn is more general 
 
 This ordering is called `subsumption`:dt:; a more general feature
 structure `subsumes`:dt: a less general one. If `FS`:math:\
-:subscript:`0` subsumes `FS`:math:\ :subscript:`1`, then `FS`:math:\
-:subscript:`1` must have all the paths and path equivalences of
-`FS`:math:\ :subscript:`0`, and may have additional paths and
-equivalences as well. Formally, we write the *subsumes* relation as
+:subscript:`0` subsumes `FS`:math:\ :subscript:`1` (formally, we write
 `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
-:subscript:`1`. It should be obvious that subsumption only provides a
-partial ordering on feature structures, since some feature structures
-are incommensurable. For example, fs04_ neither subsumes nor is
-subsumed by fs01_.
+:subscript:`1`), then `FS`:math:\ :subscript:`1` must have all the
+paths and path equivalences of `FS`:math:\ :subscript:`0`, and may
+have additional paths and equivalences as well. Thus, dag04_ subsumes
+dag03_, since the latter has additional path equivalences.. It should
+be obvious that subsumption only provides a partial ordering on
+feature structures, since some feature structures are
+incommensurable. For example, fs04_ neither subsumes nor is subsumed
+by fs01_.
 
 
 .. _fs04:
@@ -811,14 +820,18 @@ yield dag043_.
 	.. image:: ../images/dag04-3.png
 	   :scale: 40
 
+
+
 Merging information from two feature structures is called
 `unification`:dt: and in NLTK is supported by the ``unify()`` method
 defined in the ``FeatureStructure`` class.
 
      >>> fs1 = FeatureStructure(number=74, street='rue Pascal')
      >>> fs2 = FeatureStructure(city='Paris')
-     >>> fs1.unify(fs2)
-     [city='Paris', number=74, street='rue Pascal']
+     >>> print fs1.unify(fs2)
+     [ city   = 'Paris'      ]
+     [ number = 74           ]
+     [ street = 'rue Pascal' ]
      >>> 
 
 Unification is formally defined as a binary operation: `FS`:math:\
@@ -827,10 +840,15 @@ Unification is formally defined as a binary operation: `FS`:math:\
 
 .. ex::
     `FS`:math:\ :subscript:`0` |SquareIntersection| `FS`:math:\
-    :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareIntersection| `FS`:math:\ :subscript:`0`.
+    :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareIntersection|
+    `FS`:math:\ :subscript:`0`.
 
-     >>> fs2.unify(fs1)
-     [city='Paris', number=74, street='rue Pascal']
+The same is true in NLTK:
+
+     >>> print fs2.unify(fs1)
+     [ city   = 'Paris'      ]
+     [ number = 74           ]
+     [ street = 'rue Pascal' ]
      >>>
 
 .. but >>> fs1.unify(fs2) is fs2.unify(fs1)
@@ -844,7 +862,109 @@ the two:
 .. ex::
     If `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
     :subscript:`1`,  then `FS`:math:\ :subscript:`0`
-    |SquareIntersection| `FS`:math:\ :subscript:`1` = `FS`:math:\ :subscript:`1` 
+    |SquareIntersection| `FS`:math:\ :subscript:`1` = `FS`:math:\
+    :subscript:`1` 
+
+For example, the result of unifying fs02_ with fs03_ is fs03_.
+
+Unification between `FS`:math:\ :subscript:`0` and `FS`:math:\
+:subscript:`1` will fail if the two feature structures share a path |pi|,
+but the value of |pi| in `FS`:math:\ :subscript:`0` is a distinct
+atom from the value of |pi| in `FS`:math:\ :subscript:`1`. In NLTK,
+this is implemented by setting the result of unification to be
+``None``.
+
+     >>> fs0 = FeatureStructure(A='a')
+     >>> fs1 = FeatureStructure(A='b')
+     >>> fs2 = fs0.unify(fs1)
+     >>> print fs2
+     None
+     >>>  
+
+Now, if we look at how unification interacts with structure-sharing,
+things become really interesting. First, let's define the NLTK version
+of dag04_.
+
+     >>> fs0=FeatureStructure.parse("[name='Lee', address=[number=74, street='rue Pascal'], spouse=[name='Kim', address=[number=74, street='rue Pascal']]]")
+     >>> print fs0
+     [ address = [ number = 74           ]               ]
+     [           [ street = 'rue Pascal' ]               ]
+     [                                                   ]
+     [ name    = 'Lee'                                   ]
+     [                                                   ]
+     [           [ address = [ number = 74           ] ] ]
+     [ spouse  = [           [ street = 'rue Pascal' ] ] ]
+     [           [                                     ] ]
+     [           [ name    = 'Kim'                     ] ]
+     >>> 
+
+what happens when we augment Kim's address with a specification
+for `city`:feat:? (Notice that ``fs1`` includes the whole path from the root of
+the feature structure down to `city`:feat:.)
+
+     >>> fs1=FeatureStructure.parse("[spouse = [address = [city = 'Paris']]]")
+     >>> print fs0.unify(fs1)
+     [ address = [ number = 74           ]               ]
+     [           [ street = 'rue Pascal' ]               ]
+     [                                                   ]
+     [ name    = 'Lee'                                   ]
+     [                                                   ]
+     [           [           [ city   = 'Paris'      ] ] ]
+     [           [ address = [ number = 74           ] ] ]
+     [ spouse  = [           [ street = 'rue Pascal' ] ] ]
+     [           [                                     ] ]
+     [           [ name    = 'Kim'                     ] ]
+     >>> 
+
+By contrast, the result is very different if ``fs1`` is unified with
+the structure-sharing version, dag03_.
+
+     >>> fs2=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'], spouse=[name='Kim', address->(1)]]")
+     >>> print fs2.unify(fs1)
+     [               [ city   = 'Paris'      ] ]
+     [ address = (1) [ number = 74           ] ]
+     [               [ street = 'rue Pascal' ] ]
+     [                                         ]
+     [ name    = 'Lee'                         ]
+     [                                         ]
+     [ spouse  = [ address -> (1)  ]           ]
+     [           [ name    = 'Kim' ]           ]
+     >>>
+
+Rather than just updating what was in effect Kim's 'copy' of Lee's address,
+we have now updated *both* their addresses at the same time. More
+generally, if a unification involves specialising the value of some
+path |pi|, then that unification simultaneously specialises the value
+of *any path that is equivalent to* |pi|.
+
+As we have already seen, structure sharing can also be stated in NLTK
+using variables such as ``?x``. 
+
+     >>> fs1=FeatureStructure.parse("[address1=[number=74, street='rue Pascal']]")
+     >>> fs2=FeatureStructure.parse("[address1=?x, address2=?x]")
+     >>> print fs2
+     [ address1 = ?x ]
+     [ address2 = ?x ]
+     >>> print fs2.unify(fs1)
+     [ address1 = (1) [ number = 74           ] ]
+     [                [ street = 'rue Pascal' ] ]
+     [                                          ]
+     [ address2 -> (1)                          ]
+     >>> 
+
+Exercises
+---------
+
+#. List two feature structures which subsume [A=?x, B=?x].
+
+#. Ignoring structure sharing, give an informal algorithm for unifying
+   two feature structures. 
+
+
+---------------------------------
+Extending a Feature-Based Grammar
+---------------------------------
+
 
 Subcatorization
 ---------------
