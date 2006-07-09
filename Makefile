@@ -18,7 +18,7 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 .SUFFIXES: .txt .html
 
-.PHONY: en pt-br slides api rsync
+.PHONY: en pt-br slides api rsync .api.done
 
 all: html en slides api
 html: index.html
@@ -47,9 +47,10 @@ pt-br:
 slides:
 	$(MAKE) -C slides
 
-api:
+api:	.api.done
 	rm -rf api/*
 	epydoc $(EPYDOC_OPTS) -o api ../nltk_lite
+	touch .api.done
 
 rsync:
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/
