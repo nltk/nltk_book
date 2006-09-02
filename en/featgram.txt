@@ -1210,9 +1210,91 @@ Unfortunately, it is not within the scope of this chapter to introduce the synta
 semantics of first order logic, so if you don't already have some
 familiarity with it, we suggest you consult an appropriate source. 
 
+The |lambda|-calculus
+---------------------
 
-Proppositional and First order logic
-------------------------------------
+In a functional programming language, computation can be carried out
+by reducing an expression `E`:math: according to specified rewrite
+rules. This reduction is carried out on subparts of `E`:math:, and
+terminates when no further subexpressions can be reduced. The
+resulting expression `E*`:math: is called the `Normal Form`:dt: of
+`E`:math:. Here is an
+example of reduction involving a simple Python expression (where
+'|DoubleRightArrow|' means 'reduces to'):
+
+.. ex::	
+ +--------------------+---------------------------------------------------------+
+ |                    | ``len(max(['cat', 'zebra', 'rabbit'] + ['gopher']))``   |
+ +--------------------+---------------------------------------------------------+
+ | |DoubleRightArrow| | ``len(max(['cat', 'zebra', 'rabbit', 'gopher']))``      |
+ +--------------------+---------------------------------------------------------+
+ | |DoubleRightArrow| | ``len('zebra')``                                        |
+ +--------------------+---------------------------------------------------------+
+ | |DoubleRightArrow| |  ``5``                                                  |
+ +--------------------+---------------------------------------------------------+
+
+The final expression, ``5``, is considered to be the output of the program.
+This fundamental notion of computation is modeled in an abstract way by
+the |lambda|-calculus. 
+
+The first basic concept in the |lambda|-calculus is `application`:dt:,
+represented by an expression of the form `(F A)`:math:, where
+`F`:math: is considered to be a function, and `A`:math: is considered
+to be an argument (or input) for `F`:math:.  For example, `(walk
+x)`:math: is an application. Application expressions can be applied to
+other expressions. For example, in a functional framework, binary
+addition might represented as `((+ x) y)`:math: rather than `(x +
+y)`:math:. Note that `+`:math: is being treated as a function which is
+applied to its first argument `x`:math: to yield a function `(+
+x)`:math: that is then applied to the second argument `y`:math:.
+
+The second basic concept in the |lambda|-calculus is 
+`abstraction`:dt:. If `M[x]`:math: is an expression containing the free
+variable `x`:math:, then |lambda|\ `x.M[x]`:math: denotes the function
+`x`:math: |mapsto| `M[x]`:math:. Abstraction and application are
+combined in the expression (|lambda|\ `x.((+ x) 3) 4)`:math:, which
+denotes the function `x`:math: |mapsto| `x + 3`:math: applied to 4,
+giving 4 + 3, which is 7. In general, we have (|lambda|\ `x.M[x] N) =
+M[N]`:math:, where `M[N]`:math: is the result of replacing all
+occurences of `x`:math: in `M`:math: by `N`:math:. This axiom of the
+lambda calculus is known as |beta|-conversion. |beta|-conversion is
+the primary form of reduction in the |lambda|-calculus.
+
+The module ``logic`` can parse expressions of the |lambda|-calculus.
+
+    >>> from nltk_lite.contrib.logic import *
+    >>> Parser().parse('(walk x)')
+    ApplicationExpression('walk', 'x')
+    >>> Parser().parse('\\x.(walk x)')
+    LambdaExpression('x', '(walk x)')
+    >>>
+
+An ``ApplicationExpression`` has subparts consisting of the function
+and the argument; a ``LambdaExpression`` has subparts consisting of
+the variable (e.g., ``x``) that is bound by the |lambda| and the body
+of the expression (e.g., ``walk``).
+
+The ``logic`` module is based on an implementation of the untyped
+lambda calculus, and by default all identifiers are considered to be
+variables. This means that ``walk`` can also be bound by |lambda|, and
+can indeed be applied to itself:
+
+   >>> Parser().parse('\\walk.(walk x)')
+   LambdaExpression('walk', '(walk x)')
+   >>> Parser().parse('(walk walk)')
+   ApplicationExpression('walk', 'walk')
+   >>> 
+
+In applications to natural language semantics, on the other hand, it
+is more usual to forbid self-application by assigning types to
+expressions of the language, and also to allow constants as basic
+expressions of the language. We shall use a mixture of convention and
+supplementary stipulations in the ``logic`` module to bring our practice
+closer to this more standard framework for natural language semantics.
+
+
+Propositional  Logic
+********************
 
 The language `L`:subscript:`prop` of propositional logic represents
 certain aspects of natural language, but at a high level of
@@ -1229,7 +1311,7 @@ The set of formulas of `L`:subscript:`prop` is described inductively.
 
    1. Every element of `A`:math: is a formula of `L`:subscript:`prop`.
 
-   2. If |phi| is a formula, then so if |neg| |phi|.
+   2. If |phi| is a formula, then so is |neg| |phi|.
 
    3. If |phi| and |psi| are formulas, then so are
       (|phi| |wedge| |psi|),
@@ -1239,7 +1321,40 @@ The set of formulas of `L`:subscript:`prop` is described inductively.
 
    4. Nothing else is a formula of `L`:subscript:`prop`.
 
-syntax of |lambda| calculus; functions; |beta| conversion 
+The Boolean connectives of propositional logic are supported by
+``logic``, and are parsed as function expressions. However, infix
+notation is also allowed.
+
+   >>> Parser().parse('(and p q)')
+   ApplicationExpression('(and p)', 'q')
+   >>> Parser().parse('(p and q)')
+   ApplicationExpression('(and p)', 'q')
+   >>> 
+
+Since a negated proposition is syntactically an application, the operator and its
+argument *must* be surrounded by parentheses.
+
+   >>> Parser().parse('(not (p and q))')
+   ApplicationExpression('not', '(and p q)')
+   >>> 
+
+|lambda|-abstraction can be carried out on Boolean expressions. For
+example, the following can be thought of as the property of being an
+`x`:math: who walks and talks:
+
+  >>> Parser().parse('\\x.((walk x) and (talk x))')
+  LambdaExpression('x', '(and (walk x) (talk x))')
+  >>>
+
+|beta|-conversion can be invoked with the ``simplify`` method of
+ ``ApplicxationExpression``s.
+
+  >>> WT = Parser().parse('(\\x.((walk x) and (talk x)) john)')
+  >>> WT
+  ApplicationExpression('\x.(and (walk x) (talk x))', 'john')
+  >>> WT.simplify()
+  ApplicationExpression('(and (walk john))', '(talk john)')
+  >>> 
 
 ----------------
 Formal Semantics
