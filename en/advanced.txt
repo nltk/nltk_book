@@ -14,6 +14,65 @@ This chapter introduces concepts in algorithms, data structures,
 program design, and advanced Python programming.
 It contains many working program fragments which you should try yourself.
 
+-------------
+More on Lists
+-------------
+
+range(n)
+
+
+
+List Comprehensions
+-------------------
+
+List comprehensions are another important Python construct.
+Many language processing tasks involve applying the same operation to
+every item in a list.  Here we lowercase each word:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> [word.lower() for word in sent]
+    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
+
+As another example, we could remove all determiners from a list of
+words:
+
+    >>> def is_lexical(word):
+    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
+    >>> [word for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'John', 'newspaper']
+
+Or equivalently:
+
+    >>> filter(is_lexical, sent)
+    ['dog', 'gave', 'John', 'newspaper']
+
+
+Combining the transformations...
+
+    >>> [word.lower() for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'john', 'newspaper']
+
+
+.. Another example: stemming each word:
+..   >>> from nltk_lite import stem
+..   >>> stemmer = stem.Regexp('ing$|s$|e$')
+
+The following code builds a list of tuples, where each tuple consists
+of a word and its length.
+
+    >>> [(x, len(x)) for x in sent]
+    [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
+
+We can build a list of n-grams as follows:
+
+    >>> n = 3
+    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
+    [['The', 'dog', 'gave'],
+     ['dog', 'gave', 'John'],
+     ['gave', 'John', 'the'],
+     ['John', 'the', 'newspaper']]
+
+
 ---------
 Functions
 ---------
@@ -30,20 +89,20 @@ A function is a programming construct which takes one or more inputs, and produc
 an output.  In this case, we will take the singular noun as input, and generate a
 plural form as output:
 
-  >>> def plural(word):
-  ...     if word[-1] == 'y':
-  ...         return word[:-1] + 'ies'
-  ...     elif word[-1] in 'sx':
-  ...         return word + 'es'
-  ...     elif word[-2:] in ['sh', 'ch']:
-  ...         return word + 'es'
-  ...     elif word[-2:] == 'an':
-  ...         return word[:-2] + 'en'
-  ...     return word + 's'
-  >>> plural('fairy')
-  'fairies'
-  >>> plural('woman')
-  'women'
+    >>> def plural(word):
+    ...     if word[-1] == 'y':
+    ...         return word[:-1] + 'ies'
+    ...     elif word[-1] in 'sx':
+    ...         return word + 'es'
+    ...     elif word[-2:] in ['sh', 'ch']:
+    ...         return word + 'es'
+    ...     elif word[-2:] == 'an':
+    ...         return word[:-2] + 'en'
+    ...     return word + 's'
+    >>> plural('fairy')
+    'fairies'
+    >>> plural('woman')
+    'women'
 
 Well-structured programs often make extensive use of functions.  Often when a block
 of program code grows longer than a screenful, it is a great help to readability if
@@ -103,11 +162,178 @@ NOW: doing this with functions...
 Trees
 -----
 
-.. material from parsing chapter
+In this part of the book we will be investigating the constituent
+structure of sentences, and we will see how these can be represented
+using syntactic trees.  Here we will look at tree structures in NLTK.
+
+A tree is a set of connected nodes, each of which is labeled with a
+category.  It common to use a 'family' metaphor to talk about the
+relationships of nodes in a tree: for example, `S`:gc: is the
+`parent`:dt: of `VP`:gc:; conversely `VP`:gc: is a `daughter`:dt: (or
+`child`:dt:) of `S`:gc:.  Also, since `NP`:gc: and `VP`:gc: are both
+daughters of `S`:gc:, they are also `sisters`:dt:. 
+Here is an example of a tree:
+
+.. ex::
+  .. tree:: (S (NP Lee) (VP (V saw) (NP the dog)))
+
+Although it is helpful to represent trees in a graphical format, for
+computational purposes we usually need a more text-oriented
+representation. One standard method is to use a combination of bracket
+and labels to indicate the structure, as shown here:
+
+.. doctest-ignore::
+      (S 
+         (NP  'Lee')
+         (VP 
+            (V 'saw')
+            (NP 
+               (Det 'the')
+               (N  'dog'))))
+
+The conventions for displaying trees in NLTK are similar:
+
+.. doctest-ignore::
+      (S: (NP: 'Lee') (VP: (V: 'saw') (NP: 'the' 'dog')))
+
+In such trees, the node value is a string containing the tree's
+constituent type (e.g., `NP`:gc: or `VP`:gc:), while the children encode
+the hierarchical contents of the tree [#]_.
+
+.. [#] Although the ``Tree`` class is usually used for encoding
+   syntax trees, it can be used to encode *any* homogeneous hierarchical
+   structure that spans a text (such as morphological structure or
+   discourse structure).  In the general case, leaves and node values do
+   not have to be strings.
+
+Trees are created with the ``Tree`` constructor, which takes a
+node value and a list of zero or more children.  Here's an example of
+a simple NLTK tree with a single child node, where the latter is a token:
+
+    >>> from nltk_lite.parse.tree import Tree
+    >>> tree1 = Tree('NP', ['John'])
+    >>> tree1
+    (NP: 'John')
+
+Here is an example with two children:
+
+    >>> tree2 = Tree('NP', ['the', 'man'])
+    >>> tree2
+    (NP: 'the' 'man')
+
+Finally, here is a more complex example, where one of the
+children is itself a tree:
+
+    >>> tree3 = Tree('VP', ['saw', tree2])
+    >>> tree3
+    (VP: 'saw' (NP: 'the' 'man'))
+
+A tree's root node value is accessed with the ``node`` property, and
+its leaves are accessed with the ``leaves()`` method:
+
+    >>> tree3.node
+    'VP'
+    >>> tree3.leaves()
+    ['saw', 'the', 'man']
+
+One common way of defining the subject of a sentence `S`:gc: in
+English is as *the noun phrase that is the daughter of* `S`:gc: *and
+the sister of* `VP`:gc:. Although we cannot access subjects directly,
+in practice we can get something similar by using `tree
+positions`:dt:. Consider ``tree4`` defined as follows:
+
+    >>> tree4 = Tree('S', [tree1, tree3])
+    >>> tree4
+    (S: (NP: 'John') (VP: 'saw' (NP: 'the' 'man')))
+
+Now we can just use indexing to access the subtrees of this tree:
+
+    >>> tree4[0]
+    (NP: 'John')
+    >>> tree4[1]
+    (VP: 'saw' (NP: 'the' 'man'))
+
+Since the value of ``tree4[1]`` is itself a tree, we can index into that as well:
+
+    >>> tree4[1][0]
+    'saw'
+    >>> tree4[1][1]
+    (NP: 'the' 'man')
+
+The printed representation for complex trees can be difficult to read.
+In these cases, the ``draw`` method can be very useful. 
+
+.. doctest-ignore::
+    >>> tree3.draw()
+
+This method opens a new window, containing a graphical representation
+of the tree:
+
+.. image:: ../images/parse_draw.png
+   :scale: 70
+
+The tree display window allows you to zoom in and out;
+to collapse and expand subtrees; and to print the graphical
+representation to a postscript file (for inclusion in a document).
+
+To compare multiple trees in a single window, we can use the
+``draw_trees()`` method:
+
+.. doctest-ignore::
+    >>> from nltk_lite.draw.tree import draw_trees
+    >>> draw_trees(tree1, tree2, tree3)
+
+The ``Tree`` class implements a number of other useful methods.  See
+the ``Tree`` reference documentation for more information about these
+methods.
+
+The ``nltk_lite.corpora`` module defines the ``treebank`` corpus,
+which contains a collection of hand-annotated parse trees for English
+text, derived from the Penn Treebank.
+
+    >>> from nltk_lite.corpora import treebank, extract
+    >>> print extract(0, treebank.parsed())
+    (S:
+      (NP-SBJ:
+        (NP: (NNP: 'Pierre') (NNP: 'Vinken'))
+        (,: ',')
+        (ADJP: (NP: (CD: '61') (NNS: 'years')) (JJ: 'old'))
+        (,: ','))
+      (VP:
+        (MD: 'will')
+        (VP:
+          (VB: 'join')
+          (NP: (DT: 'the') (NN: 'board'))
+          (PP-CLR:
+            (IN: 'as')
+            (NP: (DT: 'a') (JJ: 'nonexecutive') (NN: 'director')))
+          (NP-TMP: (NNP: 'Nov.') (CD: '29'))))
+      (.: '.'))
+
 
 ---------
 Recursion
 ---------
+
+Recursion
+
+Iterative solution:
+
+    >>> def factorial(n):
+    ...     result = 1
+    ...     for i in range(n+1):
+    ...         result *= i
+    ...     return result
+
+Recursive solution:
+
+    >>> def factorial(n):
+    ...     if n == 1:
+    ...         return n
+    ...     else:
+    ...         return n * factorial(n-1)
+
+
 
 1. recurse over tree to display in some useful way (e.g. whitespace formatting)
 
@@ -136,20 +362,20 @@ of the time.  The following program performs this tagging task, when
 trained on the "g" section of the Brown Corpus (so-called *belles
 lettres*, creative writing valued for its aesthetic content).
 
-  >>> from nltk_lite.corpora import brown
-  >>> cfdist = ConditionalFreqDist()
-  >>> for sentence in brown.tagged('g'):
-  ...     for token in sentence:
-  ...         word = token[0]
-  ...         tag = token[1]
-  ...         cfdist[word].inc(tag)
-  >>> for word in "John saw 3 polar bears".split():
-  ...     print word, cfdist[word].max()
-  John np
-  saw vbd
-  3 cd-tl
-  polar jj
-  bears vbz
+    >>> from nltk_lite.corpora import brown
+    >>> cfdist = ConditionalFreqDist()
+    >>> for sentence in brown.tagged('g'):
+    ...     for token in sentence:
+    ...         word = token[0]
+    ...         tag = token[1]
+    ...         cfdist[word].inc(tag)
+    >>> for word in "John saw 3 polar bears".split():
+    ...     print word, cfdist[word].max()
+    John np
+    saw vbd
+    3 cd-tl
+    polar jj
+    bears vbz
     
 Note that ``bears`` was incorrectly tagged as the 3rd person singular
 form of a verb, since this word appears more frequently as a verb than
@@ -162,24 +388,24 @@ tiny in comparison.  For instance, let's try to guess whether a verb
 is a noun or adjective from the last letter of the word alone.  We can
 do this as follows:
 
-  >>> tokens = []
-  >>> for sent in brown.tagged('g'):
-  ...     for (word,tag) in sent:
-  ...         if tag in ['nn', 'jj'] and len(word) > 3:
-  ...             char = word[-1]
-  ...             tokens.append((char,tag))
-  >>> split = len(tokens)*9/10
-  >>> train, test = tokens[:split], tokens[split:]
-  >>> cfdist = ConditionalFreqDist()
-  >>> for (char,tag) in train:
-  ...     cfdist[char].inc(tag)
-  >>> correct = total = 0
-  >>> for (char,tag) in test:
-  ...     if tag == cfdist[char].max():
-  ...         correct += 1
-  ...     total += 1
-  >>> print correct*100/total
-  71
+    >>> tokens = []
+    >>> for sent in brown.tagged('g'):
+    ...     for (word,tag) in sent:
+    ...         if tag in ['nn', 'jj'] and len(word) > 3:
+    ...             char = word[-1]
+    ...             tokens.append((char,tag))
+    >>> split = len(tokens)*9/10
+    >>> train, test = tokens[:split], tokens[split:]
+    >>> cfdist = ConditionalFreqDist()
+    >>> for (char,tag) in train:
+    ...     cfdist[char].inc(tag)
+    >>> correct = total = 0
+    >>> for (char,tag) in test:
+    ...     if tag == cfdist[char].max():
+    ...         correct += 1
+    ...     total += 1
+    >>> print correct*100/total
+    71
 
 This result of 71% is marginally better than the result of 65% that we
 get if we assign the ``nn`` tag to every word.  We can inspect the
@@ -187,8 +413,12 @@ model to see which tag is assigned to a word given its final letter.
 Here we learn that words which end in ``c`` or ``l`` are more likely
 to be adjectives than nouns::
 
-  >>> print [(c, cfdist[c].max()) for c in cfdist.conditions()]
-  [('%', 'nn'), ("'", None), ('-', 'jj'), ('2', 'nn'), ('5', 'nn'), ('A', 'nn'), ('D', 'nn'), ('O', 'nn'), ('S', 'nn'), ('a', 'nn'), ('c', 'jj'), ('b', 'nn'), ('e', 'nn'), ('d', 'nn'), ('g', 'nn'), ('f', 'nn'), ('i', 'nn'), ('h', 'nn'), ('k', 'nn'), ('m', 'nn'), ('l', 'jj'), ('o', 'nn'), ('n', 'nn'), ('p', 'nn'), ('s', 'nn'), ('r', 'nn'), ('u', 'nn'), ('t', 'nn'), ('w', 'nn'), ('y', 'nn'), ('x', 'nn'), ('z', 'nn')]
+    >>> print [(c, cfdist[c].max()) for c in cfdist.conditions()]
+    [('%', 'nn'), ("'", None), ('-', 'jj'), ('2', 'nn'), ('5', 'nn'), ('A', 'nn'), ('D', 'nn'),
+     ('O', 'nn'), ('S', 'nn'), ('a', 'nn'), ('c', 'jj'), ('b', 'nn'), ('e', 'nn'), ('d', 'nn'),
+     ('g', 'nn'), ('f', 'nn'), ('i', 'nn'), ('h', 'nn'), ('k', 'nn'), ('m', 'nn'), ('l', 'jj'),
+     ('o', 'nn'), ('n', 'nn'), ('p', 'nn'), ('s', 'nn'), ('r', 'nn'), ('u', 'nn'), ('t', 'nn'),
+     ('w', 'nn'), ('y', 'nn'), ('x', 'nn'), ('z', 'nn')]
 
 Exploring text genres
 ---------------------
@@ -196,48 +426,47 @@ Exploring text genres
 Now that we can load a significant quantity of tagged text, we can
 process it and extract items of interest.  The following code iterates
 over the fifteen genres of the Brown Corpus (accessed using
-``brown.groups()``).  The material for each genre lives in a set of
-files (accessed using ``brown.items``).  Each of these is tokenized
-in turn.  The next step is to check if the token has the ``md`` tag.
-For each of these words we increment a count.
-This uses the conditional frequency distribution, where the condition
-is the current genre, and the event is the modal.
+``brown.items()``).  Each of these is tokenized in turn.  The next
+step is to check if the token has the ``md`` tag.  For each of these
+words we increment a count.  This uses the conditional frequency
+distribution, where the condition is the current genre, and the event
+is the modal.
 
-  >>> cfdist = ConditionalFreqDist()
-  >>> for genre in brown.items:                  # each genre
-  ...     for sent in brown.tagged(genre):       # each sentence
-  ...         for (word,tag) in sent:            # each tagged token
-  ...             if tag == 'md':                # found a modal
-  ...                  cfdist[genre].inc(word.lower())
+    >>> cfdist = ConditionalFreqDist()
+    >>> for genre in brown.items:                  # each genre
+    ...     for sent in brown.tagged(genre):       # each sentence
+    ...         for (word,tag) in sent:            # each tagged token
+    ...             if tag == 'md':                # found a modal
+    ...                  cfdist[genre].inc(word.lower())
 
 The conditional frequency distribution is nothing more than a mapping
 from each genre to the distribution of modals in that genre.  The
 following code fragment identifies a small set of modals of interest,
 and processes the data structure to output the required counts.
 
-  >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
-  >>> print "%-40s" % 'Genre', ' '.join([("%6s" % m) for m in modals])
-  Genre                                       can  could    may  might   must   will
-  >>> for genre in cfdist.conditions():    # generate rows
-  ...     print "%-40s" % brown.item_name[genre],
-  ...     for modal in modals:
-  ...         print "%6d" % cfdist[genre].count(modal),
-  ...     print
-  press: reportage                             94     86     66     36     50    387
-  press: reviews                               44     40     45     26     18     56
-  press: editorial                            122     56     74     37     53    225
-  skill and hobbies                           273     59    130     22     83    259
-  religion                                     84     59     79     12     54     64
-  belles-lettres                              249    216    213    113    169    222
-  popular lore                                168    142    165     45     95    163
-  miscellaneous: government & house organs    115     37    152     13     99    237
-  fiction: general                             39    168      8     42     55     50
-  learned                                     366    159    325    126    202    330
-  fiction: science                             16     49      4     12      8     16
-  fiction: mystery                             44    145     13     57     31     17
-  fiction: adventure                           48    154      6     58     27     48
-  fiction: romance                             79    195     11     51     46     43
-  humor                                        17     33      8      8      9     13
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> print "%-40s" % 'Genre', ' '.join([("%6s" % m) for m in modals])
+    Genre                                       can  could    may  might   must   will
+    >>> for genre in cfdist.conditions():    # generate rows
+    ...     print "%-40s" % brown.item_name[genre],
+    ...     for modal in modals:
+    ...         print "%6d" % cfdist[genre].count(modal),
+    ...     print
+    press: reportage                             94     86     66     36     50    387
+    press: reviews                               44     40     45     26     18     56
+    press: editorial                            122     56     74     37     53    225
+    skill and hobbies                           273     59    130     22     83    259
+    religion                                     84     59     79     12     54     64
+    belles-lettres                              249    216    213    113    169    222
+    popular lore                                168    142    165     45     95    163
+    miscellaneous: government & house organs    115     37    152     13     99    237
+    fiction: general                             39    168      8     42     55     50
+    learned                                     366    159    325    126    202    330
+    fiction: science                             16     49      4     12      8     16
+    fiction: mystery                             44    145     13     57     31     17
+    fiction: adventure                           48    154      6     58     27     48
+    fiction: romance                             79    195     11     51     46     43
+    humor                                        17     33      8      8      9     13
 
 There are some interesting patterns in this table.  For instance,
 compare the rows for government literature and adventure literature;
@@ -281,56 +510,6 @@ with the syntactic constructs of the language, and knowledge of a
 variety of diagnostic methods for trouble-shooting a program which
 does not exhibit the expected behaviour.
 
-List Comprehensions
--------------------
-
-List comprehensions are another important Python construct.
-Many language processing tasks involve applying the same operation to
-every item in a list.  Here we lowercase each word:
-
-  >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-  >>> [word.lower() for word in sent]
-  ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
-
-As another example, we could remove all determiners from a list of
-words:
-
-  >>> def is_lexical(word):
-  ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
-  >>> [word for word in sent if is_lexical(word)]
-  ['dog', 'gave', 'John', 'newspaper']
-
-Or equivalently:
-
-  >>> filter(is_lexical, sent)
-  ['dog', 'gave', 'John', 'newspaper']
-
-
-Combining the transformations...
-
-  >>> [word.lower() for word in sent if is_lexical(word)]
-  ['dog', 'gave', 'john', 'newspaper']
-
-
-.. Another example: stemming each word:
-..   >>> from nltk_lite import stem
-..   >>> stemmer = stem.Regexp('ing$|s$|e$')
-
-The following code builds a list of tuples, where each tuple consists
-of a word and its length.
-
-  >>> [(x, len(x)) for x in sent]
-  [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
-
-We can build a list of n-grams as follows:
-
-  >>> n = 3
-  >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
-  [['The', 'dog', 'gave'],
-   ['dog', 'gave', 'John'],
-   ['gave', 'John', 'the'],
-   ['John', 'the', 'newspaper']]
-
 Programming Style
 -----------------
 
@@ -339,15 +518,15 @@ ways, with implications for efficiency.  Another factor influencing
 program development is *programming style*.  Consider the following
 program to compute the average length of words in the Brown Corpus:
 
-  >>> from nltk_lite.corpora import brown
-  >>> count = 0
-  >>> total = 0
-  >>> for sent in brown.raw('a'):
-  ...     for token in sent:
-  ...         count += 1
-  ...         total += len(token)
-  >>> print float(total) / count
-  4.2765382469
+    >>> from nltk_lite.corpora import brown
+    >>> count = 0
+    >>> total = 0
+    >>> for sent in brown.raw('a'):
+    ...     for token in sent:
+    ...         count += 1
+    ...         total += len(token)
+    >>> print float(total) / count
+    4.2765382469
 
 In this program we use the variable ``count`` to keep track of the
 number of tokens seen, and ``total`` to store the combined length of
@@ -359,10 +538,10 @@ We say that this program is written in a *procedural* style, dictating
 the machine operations step by step.  Now consider the following
 program which computes the same thing:
 
-  >>> tokens = [token for sent in brown.raw('a') for token in sent]
-  >>> total = sum(map(len, tokens))
-  >>> print float(total)/len(tokens)
-  4.2765382469
+    >>> tokens = [token for sent in brown.raw('a') for token in sent]
+    >>> total = sum(map(len, tokens))
+    >>> print float(total)/len(tokens)
+    4.2765382469
 
 The first line uses a list comprehension to construct the sequence of
 tokens.  The second line *maps* the ``len`` function to this sequence,
@@ -379,19 +558,19 @@ distinction.  Notice again that the procedural version
 involves low-level steps and a variable having meaningless
 intermediate values:
 
-  >>> word_list = []
-  >>> for sent in brown.raw('a'):
-  ...     for token in sent:
-  ...         if token not in word_list:
-  ...             word_list.append(token)
-  >>> word_list.sort()
+    >>> word_list = []
+    >>> for sent in brown.raw('a'):
+    ...     for token in sent:
+    ...         if token not in word_list:
+    ...             word_list.append(token)
+    >>> word_list.sort()
 
 The declarative version (given second) makes use of higher-level
 built-in functions:
 
-  >>> tokens = [word for sent in brown.raw('a') for word in sent]
-  >>> word_list = list(set(tokens))
-  >>> word_list.sort()
+    >>> tokens = [word for sent in brown.raw('a') for word in sent]
+    >>> word_list = list(set(tokens))
+    >>> word_list.sort()
 
 What do these programs compute?  Which version was easier to interpret?
 
@@ -406,8 +585,8 @@ and which is more procedural?
 As an aside, for readability we define a function for reversing
 strings that will be used by both programs:
 
-  >>> def reverse(word):
-  ...     return word[::-1]
+    >>> def reverse(word):
+    ...     return word[::-1]
 
 Here's the first program.  We define a helper function ``reverse_cmp``
 which calls the built-in ``cmp`` comparison function on reversed
@@ -416,13 +595,13 @@ depending on whether its first argument is less than, equal to, or
 greater than its second argument.  We tell the list sort function to
 use ``reverse_cmp`` instead of ``cmp`` (the default).
 
-  >>> from nltk_lite.corpora import words
-  >>> def reverse_cmp(x,y):
-  ...     return cmp(reverse(x), reverse(y))
-  >>> word_list = [word for word in words.raw('en') if len(word) == 3]
-  >>> word_list.sort(reverse_cmp)
-  >>> print word_list[-12:]
-  ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
+    >>> from nltk_lite.corpora import words
+    >>> def reverse_cmp(x,y):
+    ...     return cmp(reverse(x), reverse(y))
+    >>> word_list = [word for word in words.raw('en') if len(word) == 3]
+    >>> word_list.sort(reverse_cmp)
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
 
 Here's the second program.  In the first loop it collects up all the
 three-letter words in reversed form.  Next, it sorts the list of
@@ -431,15 +610,15 @@ position in the list using the variable ``i``, and replaces each item
 with its reverse.  We have now re-reversed the words, and can print
 them out.
 
-  >>> word_list = []
-  >>> for word in words.raw('en'):
-  ...     if len(word) == 3:
-  ...         word_list.append(reverse(word))
-  >>> word_list.sort()
-  >>> for i in range(len(word_list)):
-  ...     word_list[i] = reverse(word_list[i])
-  >>> print word_list[-12:]
-  ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
+    >>> word_list = []
+    >>> for word in words.raw('en'):
+    ...     if len(word) == 3:
+    ...         word_list.append(reverse(word))
+    >>> word_list.sort()
+    >>> for i in range(len(word_list)):
+    ...     word_list[i] = reverse(word_list[i])
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
 
 Choosing between procedural and declarative styles is just that, a
 question of style.  There are no hard boundaries, and it is possible
@@ -447,7 +626,6 @@ to mix the two.  Readers new to programming are encouraged to
 experiment with both styles, and to make the extra effort required to
 master higher-level constructs, such as list comprehensions, and
 built-in functions like ``map``.
-
 
 Exercises
 ---------
@@ -461,6 +639,155 @@ Exercises
    Using the ``map()`` and ``len()`` functions, write a single line
    program to convert this list of tokens into a list of token
    lengths: ``[3, 3, 4, 4, 3, 9]``
+
+-------------------------------
+Advanced Programming Techniques
+-------------------------------
+
+Generating all permutations of words, to check which ones are grammatical:
+
+    >>> def permute(words, level):
+    ...     if level == 1:
+    ...         yield words
+    ...     else:
+    ...         for i in range(level):
+    ...             permute(words, level-1)
+    ...             if level % 2 == 1:
+    ...                 words[0], words[level-1] = words[level-1], words[0]
+    ...             else:
+    ...                 words[i], words[level-1] = words[level-1], words[i]
+    ...
+    >>> list(permute([1,2,3], 3))
+
+
+-------------------
+Dynamic programming
+-------------------
+
+Intro: filling a table with partial computations.
+
+
+Levenshtein
+-----------
+
+
+Grammaticality Testing
+----------------------
+
+Define a simple grammar.
+
+    >>> from nltk_lite.parse import cfg
+    >>> grammar = cfg.parse_grammar("""
+    ... S -> NP VP
+    ... PP -> P NP
+    ... NP -> Det N | NP PP
+    ... VP -> V NP | V PP | VP PP
+    ... Det -> 'a' | 'the'
+    ... N -> 'dog' | 'cat' | 'mat'
+    ... V -> 'chased' | 'sat'
+    ... P -> 'on' | 'in'
+    ... """)
+
+We will be processing the input bottom-up.  Well-formed substring table::
+
+  the cat sat on the mat
+  Det N   V   P  Det N
+  NP      V   P  NP
+  NP      V   PP
+  NP      VP
+  S
+
+Need a place to keep hypothesis that there is a non-terminal spanning a certain
+sequence of terminals::
+
+  0 the 1 cat 2 sat 3 on 4 the 5 mat 6
+  0 Det 1 N   2 V   3 P  4 Det 5 N   6
+  0 NP        2 V   3 PP             6
+  0 S                                6
+
+Store this in a table::
+
+  -   0   1   2   3   4   5   6
+  0       Det NP              S
+  1           N
+  2               V           VP
+  3                   P       PP
+  4                       Det NP
+  5                           N
+  6
+
+There is a ``V`` from ``2`` to ``3``,
+and a ``PP`` from ``3`` to ``6``.
+Check for a production with ``V PP`` on the right hand side.
+Found ``VP -> V PP``, so we have a ``VP`` from ``2`` to ``6``.
+Add this to the table.
+
+Equivalent graph -- use omnigraffle
+
+Need to index the grammar.
+
+    >>> index = {}
+    >>> for prod in grammar.productions():
+    ...     index[prod.rhs()] = prod.lhs()
+
+Example of a space-time trade-off.
+Reverse lookup on the grammar, instead of having to check through
+entire list of productions each time we want to look up via the right-hand side.
+
+Get a sentence, and set up an empty table:
+
+    >>> from pprint import pprint
+    >>> tokens = "the cat sat on the mat".split()
+    >>> numwords = len(tokens)
+    >>> table = []
+    >>> for i in range(numwords+1):
+    ...     table.append([''] * (numwords+1))
+    >>> for i in range(numwords):
+    ...     prod_rhs = grammar.productions(rhs=tokens[i])
+    ...     table[i][i+1] = prod_rhs[0].lhs()
+    >>> pprint(table)
+    [['', <Det>, '', '', '', '', ''],
+     ['', '', <N>, '', '', '', ''],
+     ['', '', '', <V>, '', '', ''],
+     ['', '', '', '', <P>, '', ''],
+     ['', '', '', '', '', <Det>, ''],
+     ['', '', '', '', '', '', <N>],
+     ['', '', '', '', '', '', '']]
+
+
+Next, ...
+
+    >>> for span in range(2, numwords+1):
+    ...     for start in range(numwords+1-span):
+    ...         end = start + span
+    ...         for mid in range(start+1, end):
+    ...             nt1 = table[start][mid]
+    ...             nt2 = table[mid][end]
+    ...             if (nt1,nt2) in index:
+    ...                 table[start][end] = index[(nt1,nt2)]
+
+
+Shows why parsing is essentially n^3
+
+    >>> pprint(table)
+    [['', <Det>, <NP>, '', '', '', <S>],
+     ['', '', <N>, '', '', '', ''],
+     ['', '', '', <V>, '', '', <VP>],
+     ['', '', '', '', <P>, '', <PP>],
+     ['', '', '', '', '', <Det>, <NP>],
+     ['', '', '', '', '', '', <N>],
+     ['', '', '', '', '', '', '']]
+
+
+
+
+
+Asymptotic behaviour?
+
+
+
+
+
 
 ---------------
 Further Reading
