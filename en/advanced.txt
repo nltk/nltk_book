@@ -14,12 +14,11 @@ This chapter introduces concepts in algorithms, data structures,
 program design, and advanced Python programming.
 It contains many working program fragments which you should try yourself.
 
--------------
-More on Lists
--------------
+--------------
+More on Python
+--------------
 
-range(n)
-
+.. range(n)
 
 
 List Comprehensions
@@ -71,6 +70,26 @@ We can build a list of n-grams as follows:
      ['dog', 'gave', 'John'],
      ['gave', 'John', 'the'],
      ['John', 'the', 'newspaper']]
+
+
+Iterators
+---------
+
+Generating all permutations of words, to check which ones are grammatical:
+
+    >>> def permute(words, level):
+    ...     if level == 1:
+    ...         yield words
+    ...     else:
+    ...         for i in range(level):
+    ...             permute(words, level-1)
+    ...             if level % 2 == 1:
+    ...                 words[0], words[level-1] = words[level-1], words[0]
+    ...             else:
+    ...                 words[i], words[level-1] = words[level-1], words[i]
+    ...
+    >>> list(permute([1,2,3], 3))
+
 
 
 ---------
@@ -156,6 +175,32 @@ word, and then using that word as our new context:
 
 
 NOW: doing this with functions...
+
+Recursive Functions
+-------------------
+
+Iterative solution:
+
+    >>> def factorial(n):
+    ...     result = 1
+    ...     for i in range(n+1):
+    ...         result *= i
+    ...     return result
+
+Recursive solution (base case, induction step)
+
+    >>> def factorial(n):
+    ...     if n == 1:
+    ...         return n
+    ...     else:
+    ...         return n * factorial(n-1)
+
+
+
+
+Functional Decomposition
+------------------------
+
 
 
 -----
@@ -311,29 +356,8 @@ text, derived from the Penn Treebank.
       (.: '.'))
 
 
----------
-Recursion
----------
-
-Recursion
-
-Iterative solution:
-
-    >>> def factorial(n):
-    ...     result = 1
-    ...     for i in range(n+1):
-    ...         result *= i
-    ...     return result
-
-Recursive solution:
-
-    >>> def factorial(n):
-    ...     if n == 1:
-    ...         return n
-    ...     else:
-    ...         return n * factorial(n-1)
-
-
+Recursion on Trees
+------------------
 
 1. recurse over tree to display in some useful way (e.g. whitespace formatting)
 
@@ -344,6 +368,148 @@ Recursive solution:
 
 (possible extension: callback function for Tree.subtrees())
 
+
+-------------------
+Program Development
+-------------------
+
+Programming is a skill which is acquired over several years of
+experience with a variety of programming languages and tasks.  Key
+high-level abilities are *algorithm design* and its manifestation in
+*structured programming*.  Key low-level abilities include familiarity
+with the syntactic constructs of the language, and knowledge of a
+variety of diagnostic methods for trouble-shooting a program which
+does not exhibit the expected behaviour.
+
+Programming Style
+-----------------
+
+We have just seen how the same task can be performed in different
+ways, with implications for efficiency.  Another factor influencing
+program development is *programming style*.  Consider the following
+program to compute the average length of words in the Brown Corpus:
+
+    >>> from nltk_lite.corpora import brown
+    >>> count = 0
+    >>> total = 0
+    >>> for sent in brown.raw('a'):
+    ...     for token in sent:
+    ...         count += 1
+    ...         total += len(token)
+    >>> print float(total) / count
+    4.2765382469
+
+In this program we use the variable ``count`` to keep track of the
+number of tokens seen, and ``total`` to store the combined length of
+all words.  This is a low-level style, not far removed from machine
+code, the primitive operations performed by the computer's CPU.
+The two variables are just like a CPU's registers, accumulating values
+at many intermediate stages, values which are almost meaningless. 
+We say that this program is written in a *procedural* style, dictating
+the machine operations step by step.  Now consider the following
+program which computes the same thing:
+
+    >>> tokens = [token for sent in brown.raw('a') for token in sent]
+    >>> total = sum(map(len, tokens))
+    >>> print float(total)/len(tokens)
+    4.2765382469
+
+The first line uses a list comprehension to construct the sequence of
+tokens.  The second line *maps* the ``len`` function to this sequence,
+to create a list of length values, which are summed.  The third line
+computes the average as before.  Notice here that each line of code
+performs a complete, meaningful action.  Moreover, they do not dictate
+how the computer will perform the computations; we state high level
+relationships like "``total`` is the sum of the lengths of the tokens"
+and leave the details to the Python interpreter.  Accordingly, we say
+that this program is written in a *declarative* style.
+
+Here is another example to illustrate the procedural/declarative
+distinction.  Notice again that the procedural version
+involves low-level steps and a variable having meaningless
+intermediate values:
+
+    >>> word_list = []
+    >>> for sent in brown.raw('a'):
+    ...     for token in sent:
+    ...         if token not in word_list:
+    ...             word_list.append(token)
+    >>> word_list.sort()
+
+The declarative version (given second) makes use of higher-level
+built-in functions:
+
+    >>> tokens = [word for sent in brown.raw('a') for word in sent]
+    >>> word_list = list(set(tokens))
+    >>> word_list.sort()
+
+What do these programs compute?  Which version did you find easier to interpret?
+
+Consider one further example, which sorts three-letter words by their
+final letters.  The words come from the widely-used Unix word-list,
+made available as an NLTK corpus called ``words``.  Two words ending
+with the same letter will be sorted according to their second-last
+letters.  The result of this sort method is that many rhyming words will be
+contiguous.  Two programs are given; Which one is more declarative,
+and which is more procedural?
+
+As an aside, for readability we define a function for reversing
+strings that will be used by both programs:
+
+    >>> def reverse(word):
+    ...     return word[::-1]
+
+Here's the first program.  We define a helper function ``reverse_cmp``
+which calls the built-in ``cmp`` comparison function on reversed
+strings.  The ``cmp`` function returns ``-1``, ``0``, or ``1``,
+depending on whether its first argument is less than, equal to, or
+greater than its second argument.  We tell the list sort function to
+use ``reverse_cmp`` instead of ``cmp`` (the default).
+
+    >>> from nltk_lite.corpora import words
+    >>> def reverse_cmp(x,y):
+    ...     return cmp(reverse(x), reverse(y))
+    >>> word_list = [word for word in words.raw('en') if len(word) == 3]
+    >>> word_list.sort(reverse_cmp)
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
+
+Here's the second program.  In the first loop it collects up all the
+three-letter words in reversed form.  Next, it sorts the list of
+reversed words.  Then, in the second loop, it iterates over each
+position in the list using the variable ``i``, and replaces each item
+with its reverse.  We have now re-reversed the words, and can print
+them out.
+
+    >>> word_list = []
+    >>> for word in words.raw('en'):
+    ...     if len(word) == 3:
+    ...         word_list.append(reverse(word))
+    >>> word_list.sort()
+    >>> for i in range(len(word_list)):
+    ...     word_list[i] = reverse(word_list[i])
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
+
+Choosing between procedural and declarative styles is just that, a
+question of style.  There are no hard boundaries, and it is possible
+to mix the two.  Readers new to programming are encouraged to
+experiment with both styles, and to make the extra effort required to
+master higher-level constructs, such as list comprehensions, and
+built-in functions like ``map`` and ``filter``.
+
+Exercises
+---------
+
+1. Write a program to sort words by length.  Define a helper function
+   ``cmp_len`` which uses the ``cmp`` comparison function on word
+   lengths.
+
+2. Consider the tokenized sentence
+   ``['The', 'dog', 'gave', 'John', 'the', 'newspaper']``.
+   Using the ``map()`` and ``len()`` functions, write a single line
+   program to convert this list of tokens into a list of token
+   lengths: ``[3, 3, 4, 4, 3, 9]``
 
 -------------------------
 Writing Complete Programs
@@ -445,28 +611,28 @@ following code fragment identifies a small set of modals of interest,
 and processes the data structure to output the required counts.
 
     >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
-    >>> print "%-40s" % 'Genre', ' '.join([("%6s" % m) for m in modals])
-    Genre                                       can  could    may  might   must   will
+    >>> print "%-18s" % 'Genre', ' '.join([("%6s" % m) for m in modals])
+    Genre                 can  could    may  might   must   will
     >>> for genre in cfdist.conditions():    # generate rows
-    ...     print "%-40s" % brown.item_name[genre],
+    ...     print "%-18s" % brown.item_name[genre],
     ...     for modal in modals:
     ...         print "%6d" % cfdist[genre].count(modal),
     ...     print
-    press: reportage                             94     86     66     36     50    387
-    press: reviews                               44     40     45     26     18     56
-    press: editorial                            122     56     74     37     53    225
-    skill and hobbies                           273     59    130     22     83    259
-    religion                                     84     59     79     12     54     64
-    belles-lettres                              249    216    213    113    169    222
-    popular lore                                168    142    165     45     95    163
-    miscellaneous: government & house organs    115     37    152     13     99    237
-    fiction: general                             39    168      8     42     55     50
-    learned                                     366    159    325    126    202    330
-    fiction: science                             16     49      4     12      8     16
-    fiction: mystery                             44    145     13     57     31     17
-    fiction: adventure                           48    154      6     58     27     48
-    fiction: romance                             79    195     11     51     46     43
-    humor                                        17     33      8      8      9     13
+    press: reportage       94     86     66     36     50    387
+    press: reviews         44     40     45     26     18     56
+    press: editorial      122     56     74     37     53    225
+    skill and hobbies     273     59    130     22     83    259
+    religion               84     59     79     12     54     64
+    belles-lettres        249    216    213    113    169    222
+    popular lore          168    142    165     45     95    163
+    miscellaneous: gov    115     37    152     13     99    237
+    fiction: general       39    168      8     42     55     50
+    learned               366    159    325    126    202    330
+    fiction: science       16     49      4     12      8     16
+    fiction: mystery       44    145     13     57     31     17
+    fiction: adventure     48    154      6     58     27     48
+    fiction: romance       79    195     11     51     46     43
+    humor                  17     33      8      8      9     13
 
 There are some interesting patterns in this table.  For instance,
 compare the rows for government literature and adventure literature;
@@ -497,168 +663,6 @@ Exercises
    Try to explain them in terms of your own impressionistic understanding
    of the different genres.  Can you find other closed classes of words that
    exhibit significant differences across different genres?
-
--------------------
-Program Development
--------------------
-
-Programming is a skill which is acquired over several years of
-experience with a variety of programming languages and tasks.  Key
-high-level abilities are *algorithm design* and its manifestation in
-*structured programming*.  Key low-level abilities include familiarity
-with the syntactic constructs of the language, and knowledge of a
-variety of diagnostic methods for trouble-shooting a program which
-does not exhibit the expected behaviour.
-
-Programming Style
------------------
-
-We have just seen how the same task can be performed in different
-ways, with implications for efficiency.  Another factor influencing
-program development is *programming style*.  Consider the following
-program to compute the average length of words in the Brown Corpus:
-
-    >>> from nltk_lite.corpora import brown
-    >>> count = 0
-    >>> total = 0
-    >>> for sent in brown.raw('a'):
-    ...     for token in sent:
-    ...         count += 1
-    ...         total += len(token)
-    >>> print float(total) / count
-    4.2765382469
-
-In this program we use the variable ``count`` to keep track of the
-number of tokens seen, and ``total`` to store the combined length of
-all words.  This is a low-level style, not far removed from machine
-code, the primitive operations performed by the computer's CPU.
-The two variables are just like a CPU's registers, accumulating values
-at many intermediate stages, values which are almost meaningless. 
-We say that this program is written in a *procedural* style, dictating
-the machine operations step by step.  Now consider the following
-program which computes the same thing:
-
-    >>> tokens = [token for sent in brown.raw('a') for token in sent]
-    >>> total = sum(map(len, tokens))
-    >>> print float(total)/len(tokens)
-    4.2765382469
-
-The first line uses a list comprehension to construct the sequence of
-tokens.  The second line *maps* the ``len`` function to this sequence,
-to create a list of length values, which are summed.  The third line
-computes the average as before.  Notice here that each line of code
-performs a complete, meaningful action.  Moreover, they do not dictate
-how the computer will perform the computations; we state high level
-relationships like "``total`` is the sum of the lengths of the tokens"
-and leave the details to the Python interpreter.  Accordingly, we say
-that this program is written in a *declarative* style.
-
-Here is another example to illustrate the procedural/declarative
-distinction.  Notice again that the procedural version
-involves low-level steps and a variable having meaningless
-intermediate values:
-
-    >>> word_list = []
-    >>> for sent in brown.raw('a'):
-    ...     for token in sent:
-    ...         if token not in word_list:
-    ...             word_list.append(token)
-    >>> word_list.sort()
-
-The declarative version (given second) makes use of higher-level
-built-in functions:
-
-    >>> tokens = [word for sent in brown.raw('a') for word in sent]
-    >>> word_list = list(set(tokens))
-    >>> word_list.sort()
-
-What do these programs compute?  Which version was easier to interpret?
-
-Consider one further example, which sorts three-letter words by their
-final letters.  The words come from the widely-used Unix word-list,
-made available as an NLTK corpus called ``words``.  Two words ending
-with the same letter will be sorted according to their second-last
-letters.  The result of this sort method is that rhyming words will be
-contiguous.  Two programs are given; Which one is more declarative,
-and which is more procedural?
-
-As an aside, for readability we define a function for reversing
-strings that will be used by both programs:
-
-    >>> def reverse(word):
-    ...     return word[::-1]
-
-Here's the first program.  We define a helper function ``reverse_cmp``
-which calls the built-in ``cmp`` comparison function on reversed
-strings.  The ``cmp`` function returns ``-1``, ``0``, or ``1``,
-depending on whether its first argument is less than, equal to, or
-greater than its second argument.  We tell the list sort function to
-use ``reverse_cmp`` instead of ``cmp`` (the default).
-
-    >>> from nltk_lite.corpora import words
-    >>> def reverse_cmp(x,y):
-    ...     return cmp(reverse(x), reverse(y))
-    >>> word_list = [word for word in words.raw('en') if len(word) == 3]
-    >>> word_list.sort(reverse_cmp)
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
-
-Here's the second program.  In the first loop it collects up all the
-three-letter words in reversed form.  Next, it sorts the list of
-reversed words.  Then, in the second loop, it iterates over each
-position in the list using the variable ``i``, and replaces each item
-with its reverse.  We have now re-reversed the words, and can print
-them out.
-
-    >>> word_list = []
-    >>> for word in words.raw('en'):
-    ...     if len(word) == 3:
-    ...         word_list.append(reverse(word))
-    >>> word_list.sort()
-    >>> for i in range(len(word_list)):
-    ...     word_list[i] = reverse(word_list[i])
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy', 'Paz', 'Liz']
-
-Choosing between procedural and declarative styles is just that, a
-question of style.  There are no hard boundaries, and it is possible
-to mix the two.  Readers new to programming are encouraged to
-experiment with both styles, and to make the extra effort required to
-master higher-level constructs, such as list comprehensions, and
-built-in functions like ``map``.
-
-Exercises
----------
-
-1. Write a program to sort words by length.  Define a helper function
-   ``cmp_len`` which uses the ``cmp`` comparison function on word
-   lengths.
-
-2. Consider the tokenized sentence
-   ``['The', 'dog', 'gave', 'John', 'the', 'newspaper']``.
-   Using the ``map()`` and ``len()`` functions, write a single line
-   program to convert this list of tokens into a list of token
-   lengths: ``[3, 3, 4, 4, 3, 9]``
-
--------------------------------
-Advanced Programming Techniques
--------------------------------
-
-Generating all permutations of words, to check which ones are grammatical:
-
-    >>> def permute(words, level):
-    ...     if level == 1:
-    ...         yield words
-    ...     else:
-    ...         for i in range(level):
-    ...             permute(words, level-1)
-    ...             if level % 2 == 1:
-    ...                 words[0], words[level-1] = words[level-1], words[0]
-    ...             else:
-    ...                 words[i], words[level-1] = words[level-1], words[i]
-    ...
-    >>> list(permute([1,2,3], 3))
-
 
 -------------------
 Dynamic programming
@@ -767,7 +771,8 @@ Next, ...
     ...                 table[start][end] = index[(nt1,nt2)]
 
 
-Shows why parsing is essentially n^3
+Shows why parsing is essentially n^3 -- triply nested loop, size based
+on sentence length.
 
     >>> pprint(table)
     [['', <Det>, <NP>, '', '', '', <S>],
