@@ -498,6 +498,32 @@ experiment with both styles, and to make the extra effort required to
 master higher-level constructs, such as list comprehensions, and
 built-in functions like ``map`` and ``filter``.
 
+Debugging
+---------
+
+  >>> import pdb
+  >>> import mymodule
+  >>> pdb.run('mymodule.test()')
+
+
+Commands:
+
+list [first [,last]]: list sourcecode for the current file
+
+next: continue execution until the next line in the current function is reached
+
+cont: continue execution until a breakpoint is reached (or the end of the program)
+
+break: list the breakpoints
+
+break n: insert a breakpoint at this line number in the current file
+
+break file.py:n: insert a breakpoint at this line in the specified file
+
+break function: insert a breakpoint at the first executable line of the function
+
+
+
 Exercises
 ---------
 
@@ -668,8 +694,98 @@ Exercises
 Dynamic programming
 -------------------
 
-Intro: filling a table with partial computations.
+Dynamic programming is a general technique for designing algorithms
+which is widely used in natural language processing.  The term
+"programming" is used in a different sense to what you might expect,
+to mean planning or scheduling.  Dynamic programming is used when a
+problem contains overlapping sub-problems.  Instead of computing
+solutions to the sub-problems repeatedly, we simply store them in a
+lookup table.
 
+Sanscrit Meter
+--------------
+
+Pingala was an Indian author who lived around the 5th century B.C.,
+and wrote a treatise on Sanscrit prosody called the *Chandas Shastra*.
+Virahanka extended this work around the 6th century A.D., studying
+the number of ways of combining short and long syllables to create a
+meter of length *n*.  He found, for example, that there are five ways
+to construct a meter of length 4: *V*\ :subscript:`4` = *{LL, SSL, SLS, LSS, SSSS}*.
+In general, we can split *V*\ :subscript:`n` into two subsets, those starting with
+*L: {LL, LSS}*, and those starting with *S: {SSL, SLS, SSSS}*.  This
+is the clue for decomposing the problem:
+
+|  *V*\ :subscript:`4` =
+|    LL, LSS; or L prefixed to each item of *V*\ :subscript:`2` = {L, SS}*
+|    SSL, SLS, SSSS; or S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}*
+
+With this observation, we can write a little recursive function to compute these meters:
+
+  >>> def virahanka1(n):
+  ...     if n == 0:
+  ...         return [""]
+  ...     elif n == 1:
+  ...         return ["S"]
+  ...     else:
+  ...         s = ["S" + prosody for prosody in virahanka1(n-1)]
+  ...         l = ["L" + prosody for prosody in virahanka1(n-2)]
+  ...        return s + l
+  >>> virahanka1(4)
+  ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+
+Notice that, in order to compute *V*\ :subscript:`4` we first compute
+*V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
+we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This call
+structure is depicted in the following tree:
+
+.. tree:: (*V*\ :subscript:`4` *V*\ :subscript:`3` *V*\ :subscript:`2`)
+
+Observe that *V*\ :subscript:`2` is computed twice.
+This might not seem like a significant problem, but 
+it turns out to be rather wasteful as *n* gets large:
+for *V*\ :subscript:`10` it computes *V*\ :subscript:`2` 34 times;
+for *V*\ :subscript:`20` it computes *V*\ :subscript:`2` 4,181 times;
+for *V*\ :subscript:`30` it computes *V*\ :subscript:`2` 514,229 times;
+and
+for *V*\ :subscript:`40` it computes *V*\ :subscript:`2` 63,245,986 times!
+Instead, we can simply store the value of *V*\ :subscript:`2` in a table
+and look it up whenever we need it.  Here is a dynamic programming
+algorithm for computing the same result.  It uses some auxiliary storage, a table
+called ``lookup``:
+
+  >>> lookup = [None] * 100
+  >>> lookup[0] = [""]
+  >>> lookup[1] = ["S"]
+  >>> def virahanka2(n):
+  ...     for i in range(n-1):
+  ...         s = ["S" + prosody for prosody in lookup[i]]
+  ...         l = ["L" + prosody for prosody in lookup[i+1]]
+  ...         lookup[i+2] = s + l
+  ...     return lookup[n]
+
+This is the classic *bottom-up* approach to dynamic programming, where
+we fill up a table with solutions to all smaller sub-problems, then simply
+read off the result we are interested in.  Notice that each sub-problem
+is only ever solved once.  However, this method is still wasteful for some
+applications, because it may compute solutions to sub-problems that are never
+used in solving the main problem.  This wasted computation can be avoided using
+the *top-down* approach to dynamic programming:
+
+  >>> lookup = [None] * 100
+  >>> lookup[0] = [""]
+  >>> lookup[1] = ["S"]
+  >>> def virahanka3(n):
+  ...     if not lookup[n]:
+  ...         s = ["S" + prosody for prosody in virahanka3(n-1)]
+  ...         l = ["L" + prosody for prosody in virahanka3(n-2)]
+  ...         lookup[n] = s + l
+  ...     return lookup[n]
+
+Unlike the bottom-up approach, this approach is recursive.  It avoids
+the huge wastage of our first version by checking whether it has
+previously stored the result.  If not, it computes the result
+recursively and stores it in the table.  The last step is to return
+the stored result.
 
 Levenshtein
 -----------
