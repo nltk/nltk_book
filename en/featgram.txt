@@ -732,7 +732,8 @@ is prefixed with an integer in parentheses, such as ``(1)``, and any
 subsequent reference to that structure uses the notation
 ``'->(1)'``, as shown below.
 
-     >>> fs=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'], spouse=[name='Kim', address->(1)]]")
+     >>> fs=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'], 
+     ...                             spouse=[name='Kim', address->(1)]]")
      >>> print fs
      [ address = (1) [ number = 74           ] ]
      [               [ street = 'rue Pascal' ] ]
@@ -900,7 +901,9 @@ Now, if we look at how unification interacts with structure-sharing,
 things become really interesting. First, let's define the NLTK version
 of dag04_.
 
-     >>> fs0=FeatureStructure.parse("[name='Lee', address=[number=74, street='rue Pascal'], spouse=[name='Kim', address=[number=74, street='rue Pascal']]]")
+     >>> fs0=FeatureStructure.parse("[name='Lee', address=[number=74, street='rue Pascal'], 
+     ...                              spouse=[name='Kim'
+     ...                                      address=[number=74, street='rue Pascal']]]")
      >>> print fs0
      [ address = [ number = 74           ]               ]
      [           [ street = 'rue Pascal' ]               ]
@@ -934,7 +937,8 @@ the feature structure down to `city`:feat:.)
 By contrast, the result is very different if ``fs1`` is unified with
 the structure-sharing version, dag03_.
 
-     >>> fs2=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'], spouse=[name='Kim', address->(1)]]")
+     >>> fs2=FeatureStructure.parse("[name='Lee', address=(1)[number=74, street='rue Pascal'],
+     ...                              spouse=[name='Kim', address->(1)]]")
      >>> print fs2.unify(fs1)
      [               [ city   = 'Paris'      ] ]
      [ address = (1) [ number = 74           ] ]
@@ -1021,15 +1025,19 @@ is illustrated in a modified portion of feat0cfg_, shown in subcatgpsg_.
 
      VP[tense=?t, num=?n] -> V[subcat=0, tense=?t, num=?n]
      VP[tense=?t, num=?n] -> V[subcat=1, tense=?t, num=?n] NP
+     VP[tense=?t, num=?n] -> V[subcat=2, tense=?t, num=?n] Sbar
 
-     V[subcat=0, tense=pres,  num=sg] -> 'disappears' | 'walks'
+     V[subcat=0, tense=pres, num=sg] -> 'disappears' | 'walks'
      V[subcat=1, tense=pres, num=sg] -> 'sees' | 'likes'
+     V[subcat=2, tense=pres, num=sg] -> 'says' | 'claims'
 
-     V[subcat=0, tense=pres,  num=pl] -> 'disappear' | 'walk'
+     V[subcat=0, tense=pres, num=pl] -> 'disappear' | 'walk'
      V[subcat=1, tense=pres, num=pl] -> 'see' | 'like'
+     V[subcat=2, tense=pres, num=pl] -> 'say' | 'claim'
 
      V[subcat=0, tense=past, num=?n] -> 'disappeared' | 'walked'
      V[subcat=1, tense=past, num=?n] -> 'saw' | 'liked'
+     V[subcat=2, tense=past, num=?n] -> 'said' | 'claimed'
 
 When we see a lexical category like `V`:gc:\ [`subcat`:feat: =
 `1`:fval:\ ], we can interpret the `subcat`:feat: specification as a
@@ -1039,10 +1047,28 @@ convention, there is a one-to-one correspondence between
 `subcat`:feat: values and rules which introduce lexical heads. It's
 worth noting that the choice of integer which acts as a value for
 `subcat`:feat: is completely arbitrary |mdash| we could equally well
-have chosen 3999 and 57 as our two values in subcatgpsg_.  On this
+have chosen 3999, 113 and 57 as our two values in subcatgpsg_.  On this
 approach, `subcat`:feat: can *only* appear on lexical categories; it
 makes no sense, for example, to specify a `subcat`:feat: value on
 `VP`:gc:.
+
+In our third class of verbs above, we have specified a category
+`Sbar`:gc:. This is a label for subordinate clauses such as the
+complement of `claim`:lx: in the example `You claim that you like
+children`:lx:. We require two further rules to analyse such sentences:
+
+.. _sbar:
+.. ex::
+   ::
+
+     Sbar -> Comp S
+     Comp -> 'that'
+
+The resulting structure is the following.
+
+.. _sbartree:
+.. ex::
+      .. tree::  (S (NP you)(VP (V[-aux,\ subcat=2] claim)(Sbar (Comp that) (S (NP you)(VP (V[-aux,\ subcat=1] like)(NP children))))))
 
 An alternative treatment of subcategorization, due originally to a framework
 known as categorial grammar, is represented in feature-based frameworks such as PATR
@@ -1051,7 +1077,7 @@ and Head-driven Phrase Structure Grammar. Rather than using
 value directly encodes the valency of a head (the list of
 arguments that it can combine with). For example, a verb like
 `put`:lx: which takes  `NP`:gc: and `PP`:gc: complements (`put the
-book on the table`:lx) 
+book on the table`:lx:) 
 might be represented as subcathpsg0_:
 
 .. _subcathpsg0:
@@ -1079,6 +1105,80 @@ category assigments combine in a parse of `Kim put the book on the table`:lx:.
       .. tree:: (V[subcat=\<\>] (NP Kim)(V[subcat=\<NP\>](V[subcat=\<NP,\ NP,\ VP\>] put)<NP the\ book><PP on\ the\ table>))
 
 
+Auxiliary verbs and Inversion
+-----------------------------
+
+Inverted clauses |mdash| where the order of subject and verb is
+switched |mdash| occur in English interrogatives and also after
+'negative' adverbs:
+
+.. _inv1:
+.. ex::
+   .. _inv1a:
+   .. ex::
+
+      Do you like children?
+
+   .. _inv1b:
+   .. ex::
+
+      Can Jody walk?
+
+.. _inv2:
+.. ex::
+   .. _inv2a:
+   .. ex::
+
+      Rarely do you see Kim.
+
+   .. _inv2b:
+   .. ex::
+
+      Never have I seen this dog.
+
+However, we cannot place just any verb in pre-subject position:
+
+.. _inv3:
+.. ex::
+   .. _inv3a:
+   .. ex::
+
+      \*Like you children?
+
+   .. _inv3b:
+   .. ex::
+
+      \*Walks Jody?
+
+.. _inv4:
+.. ex::
+   .. _inv4a:
+   .. ex::
+
+      \*Rarely see you Kim.
+
+   .. _inv4b:
+   .. ex::
+
+      \*Never saw I this dog.
+
+Verbs which can be positioned inititally in inverted clauses belong to
+the class known as `auxiliaries`:dt:, and as well as  `do`:lx:,
+`can`:lx: and `have`:lx:  include `be`:lx:, `will`:lx:  and
+`shall`:lx:. One way of capturing such structures is with the
+following rule:
+
+.. _sinv:
+.. ex::
+   ::
+
+     S[+inv] -> V[+aux] NP VP
+
+That is, a clause marked as [`+inv`:feat:] consists of an auxiliary
+verb followed by a `VP`:gc:. (In a more detailed grammar, we would
+need to place some constraints on the form of the `VP`:gc:, depending
+on the choice of auxiliary.)
+
 
 Unbounded Dependency Constructions
 ----------------------------------
@@ -1092,7 +1192,7 @@ Consider the following contrasts:
 
       We liked the music.
 
-   .. _ga1b:
+   .. _gap1b:
    .. ex::
 
       \*We liked.
