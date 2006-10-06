@@ -330,7 +330,7 @@ far in this chapter, plus a couple of new ones.
 .. _feat0cfg:
 .. ex::
    ::
-
+     
      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
      % Grammar Rules
      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1351,13 +1351,123 @@ slash categories is illustrated in gaptree1_.
  
 .. _gaptree1:
 .. ex::
-      .. tree:: (S(NP[+wh] who)(S[+inv]\/NP (V[+aux,\ subcat=3] do)(NP[-wh] you)(VP/NP(V[-aux,\ subcat=1] like)(NP/NP `e`))))
+      .. tree:: (S(NP[+wh] who)(S[+inv]\/NP (V[+aux,\ subcat=3] do)(NP[-wh] you)(VP/NP(V[-aux,\ subcat=1] like)(NP/NP e))))
 
-The top part of the tree introduces the gap. The gap information is
+The top part of the tree introduces the filler `who`:lx: (treated as
+an expression of category `NP`:gc:\ [`+wh`:feat:]) together with a
+corresponding gap-containing constituent `S/NP`:gc:. The gap information is
 then 'percolated' down the tree via the `VP/NP`:gc: category, until it
-reaches the category `NP/NP`:gc:. At this point, the gap information
-is terminated by realizing it as the empty string `e`.
-then trans
+reaches the category `NP/NP`:gc:. At this point, the dependency 
+is discharged by realizing the gap information as the empty string `e`
+immediately dominated by `NP/NP`:gc:.
+
+Do we need to think of slash categories as a completely new kind of
+object in our grammars?  Fortunately, no, we don't |mdash| in fact, we
+can accommodate them within our existing feature-based framework. We
+do this by treating slash as a feature, and the category to its right
+as a value. In other words, our 'official' notation for `S/NP`:gc:
+will be `S`:gc:\ [`/`:feat: = `NP`:fval:\ ]. Once we have taken this
+step, it is straightforward to write a small grammar in NLTK for
+analyzing unbounded dependency constructions. feat1cfg_ illustrates
+the main principles of slash categories, and also includes rules for
+inverted clauses. To simplify presentation, we have omitted any
+specification of tense on the verbs.
+
+.. _feat1cfg:
+.. ex::
+   ::
+
+     % feat1.cfg
+
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     % Grammar Rules
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     Start -> S
+
+     % S expansion rules
+     S[-inv] -> NP  S/NP
+     S[-inv]/?x -> NP VP/?x
+     S[+inv]/?x -> V[+aux] NP VP/?x
+     Sbar/?x -> Comp S[-inv]/?x
+
+     % NP expansion rules
+     NP/NP -> 
+
+     % VP expansion rules
+     VP/?x -> V[subcat=1, -aux] NP/?x
+     VP/?x -> V[subcat=2, -aux] Sbar/?x
+     VP/?x -> V[subcat=3, +aux] VP/?x
+
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     % Lexical Rules
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+     V[subcat=1, -aux] -> 'see' | 'like'
+     V[subcat=2, -aux] -> 'say' | 'claim'
+     V[subcat=3, +aux] -> 'do' | 'can'
+
+     NP[-wh] -> 'you' | 'children'
+     NP[+wh] -> 'who'
+
+     Comp -> 'that'
+
+feat1cfg_ contains one gap-introduction rule, namely
+
+.. ex::
+   .. parsed-literal::
+
+      `S[-inv]`:gc:  |rarr| `NP`:gc: `S/NP`:gc: 
+
+In order to percolate the slash feature correctly, we need to add
+slashes with variable values to both sides of the arrow in rules which expand `S`:gc:,
+`VP`:gc: and `NP`:gc:. For example,
+
+.. ex::
+   .. parsed-literal::
+
+      `VP/?x`:gc:  |rarr| `V`:gc: `Sbar/?x`:gc: 
+
+says that a slash value can be specified on the `VP`:gc: mother of a
+constituent if the same value is also specified on the `Sbar`:gc:
+daughter. Finally, empty_ allows the slash information on `NP`:gc: to
+be discharged as the empty string.
+
+..  _empty:
+.. ex::
+   .. parsed-literal::
+
+      `NP/NP`:gc:  |rarr|
+
+Using feat1cfg_, we can parse the string `who do you claim that you
+like`:lx:  into the tree shown in gapparse_.
+
+.. _gapparse:
+.. ex::
+   ::
+
+     (Start[]:
+       (S[ inv = False ]:
+	 (NP[ wh  = True ]: 'who')
+	 ( [ /   = NP[] ]
+	  S[            ]
+	   [ inv = True ]:
+	   (V[ aux    = True ]
+	      [ subcat = 3    ]: 'do')
+	   (NP[ wh  = False ]: 'you')
+	   (VP[ /   = NP[] ]:
+	     (V[ aux    = False ]
+	       [ subcat = 2     ]: 'claim')
+	     (Sbar[ /   = NP[] ]:
+	       (Comp[]: 'that')
+	       ( [ /   = NP[]  ]
+		S[             ]
+		 [ inv = False ]:
+		 (NP[ wh  = False ]: 'you')
+		 (VP[ /   = NP[] ]:
+		   (V[ aux    = False ]
+		     [ subcat = 1     ]: 'like')
+		   (NP[ /   = NP[] ]: ))))))))
+
 
 --------------------------------
  Adding Compositional Semantics
