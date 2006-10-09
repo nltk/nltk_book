@@ -1537,22 +1537,22 @@ terminates when no further subexpressions can be reduced. The
 resulting expression `E*`:math: is called the `Normal Form`:dt: of
 `E`:math:. Here is an
 example of reduction involving a simple Python expression (where
-'|DoubleRightArrow|' means 'reduces to'):
+'|rtharr|' means 'reduces to'):
 
 .. ex::	
- +--------------------+---------------------------------------------------------+
- |                    | ``len(max(['cat', 'zebra', 'rabbit'] + ['gopher']))``   |
- +--------------------+---------------------------------------------------------+
- | |DoubleRightArrow| | ``len(max(['cat', 'zebra', 'rabbit', 'gopher']))``      |
- +--------------------+---------------------------------------------------------+
- | |DoubleRightArrow| | ``len('zebra')``                                        |
- +--------------------+---------------------------------------------------------+
- | |DoubleRightArrow| |  ``5``                                                  |
- +--------------------+---------------------------------------------------------+
+ +------------------------+---------------------------------------------------------+
+ |                        | ``len(max(['cat', 'zebra', 'rabbit'] + ['gopher']))``   |
+ +------------------------+---------------------------------------------------------+
+ |        |rtharr|        | ``len(max(['cat', 'zebra', 'rabbit', 'gopher']))``      |
+ +------------------------+---------------------------------------------------------+
+ |        |rtharr|        | ``len('zebra')``                                        |
+ +------------------------+---------------------------------------------------------+
+ |      |rtharr|          |  ``5``                                                  |
+ +------------------------+---------------------------------------------------------+
 
 The final expression, ``5``, is considered to be the output of the program.
 This fundamental notion of computation is modeled in an abstract way by
-the |lambda|-calculus. 
+the |lambda|-calculus.
 
 The first basic concept in the |lambda|-calculus is `application`:dt:,
 represented by an expression of the form `(F A)`:math:, where
@@ -1768,6 +1768,7 @@ Binary relations can be converted into functions in a very similar
 fashion. Suppose for example that on the relational style of
 interpretation, `love`:math: denotes the following set of pairs:
 
+.. _loverel:
 .. ex:: {|langle|\ `j, m`:math:\ |rangle|, |langle|\ `m, f`:math:\ |rangle|,  
          |langle|\ `f, j`:math:\ |rangle|}
 
@@ -1811,6 +1812,21 @@ or equivalently,
          = |lambda|\ `x.love(x, m) j)`:math: 
          = `love(j, m)`:math:
 
+Diagram cf03_ shows the curryed counterpart of cf02_. According to
+this, `love`:math: denotes a function which, for example, given the
+argument `j`:math: yields a characteristic function that maps
+`m`:math: to `True`:math: and `j`:math: and `f`:math: to
+`False`:math:.
+(While there are 2\ :sup:`3` = 8 characteristic functions from
+our domain of three individuals into `{True, False}`:math:, we have
+only shown the functions which are in the range of the function `love`:math:.)
+
+.. _cf03:
+.. ex::
+   .. image:: ../images/models_love_cf02.png
+      :scale: 20
+
+
 Of course, we could have done things slightly differently, and defined
 `L`:subscript:`1` = |lambda|\ `y.love(x, y)`:math:, and
 `L`:subscript:`2` = |lambda|\ `x.`:math:\ `L`:subscript:`1`. And L1_
@@ -1832,8 +1848,6 @@ compositional approach to semantic interpretation.
 
 
 
-
-
 .. +-----------------+---------------+----------------+
    |   English       | Relational    |  Functional    |
    +=================+===============+================+
@@ -1842,9 +1856,8 @@ compositional approach to semantic interpretation.
    |John loves Mary  |``love(j, m)`` |``((love m) j)``|
    +-----------------+---------------+----------------+
 
- 
 
-|Lambda|-abstraction can be carried out on Boolean expressions. For
+In NLTK, |lambda|-abstraction can be carried out on Boolean combinations. For
 example, the following can be thought of as the property of being an
 `x`:math: who walks and talks:
 
@@ -1862,10 +1875,86 @@ example, the following can be thought of as the property of being an
   ApplicationExpression('(and (walk john))', '(talk john)')
   >>> 
 
+Up to this point, we have restricted ourselves to looking at formulas
+where all the arguments are individual terms, corresponding to proper
+names such as `John`:lx:, `Mary`:lx: and `Fido`:lx:. Yet a crucial
+ingredient of First Order Logic is the ability to make general
+statements involving quantified expressions such as `all dogs`:lx: and
+`some cats`:lx:. We turn to this topic in the next section.
 
 
 Quantification and Scope
 ------------------------
+
+First Order Logic standardly offers us two quantifiers, `every`:lx: (or `all`:lx:) and
+`some`:lx:. These are formally written as |forall| and |exists|,
+respectively. The following two triples show an a simple English
+example, a logical representation, and the encoding which is accepted
+by the NLTK `logic` module.
+
+.. _forall1:
+.. ex::
+
+   .. _forall1a:
+   .. ex:: Every dog barks.
+
+   .. _forall1b:
+   .. ex:: |forall|\ `x`:math:.\ ((dog `x`:math:) |rarr| (bark `x`:math:))
+
+   .. _forall1c:
+   .. ex:: `all x. ((dog x) implies (bark x))`
+
+.. _exists1:
+.. ex::
+
+   .. ex:: Some cat sleeps.
+
+   .. ex:: |exists|\ `x`:math:.\ ((cat `x`:math:) |wedge| (sleep `x`:math:))
+
+   .. ex:: `some x. ((cat x) and (sleep x))`
+
+One important property of forall1b_ often trips people up. The logical
+rendering in effects says that *if* something is a dog, then it barks,
+but makes no commitment to the existence of dogs. So in a situation
+where nothing is a dog, forall1b_ will still come out true. (Although
+it might be felt that forall1b_ does presuppose the existence of dogs,
+contrary to the logic formalization, other examples such as `all students
+with more than 10 body piercings are prohibited from taking this
+class`:lx:: lacks any such presupposition.) 
+
+What happens when we want to give a formal rendering of a sentence
+with *two* quantifiers, such as the following.
+
+.. _scope1:
+.. ex:: Every dog chases a cat
+
+There are (at least) two ways of expressing scope1_ in FOL:
+
+.. _scope2:
+.. ex::
+
+   .. _scope2a:
+   .. ex:: |forall|\ `x`:math:.\ ((dog `x`:math:) |rarr|\ |exists|\
+           `y`:math:.\ ((cat `y`:math:) |wedge| (chase `y x`:math:)))
+
+   .. _scope2b:
+   .. ex:: |exists|\ `y`:math:.\ ((cat `y`:math:) |wedge| |forall|\
+           `x`:math:.\ ((dog `x`:math:) |rarr|\  (chase `y x`:math:))) 
+
+Can we use both of these? Then answer is Yes, but they have different
+meanings. scope2b_ is logically stronger than scope2a_: it claims that
+there is a unique cat, say Fluffy, which is persecuted by all dogs.
+scope2a_, on the other hand, just requires that for every dog
+`d`:math:, we can find some cat which `d`:math: chases; but this could
+be a different cat in each case. We distinguish between scope2a_ and
+scope2b_ in terms of the `scope`:dt: of the quantifiers. In the first,
+|forall| has wider scope than |exists|, while in scope2b_, the scope ordering
+is reversed. So now we have two ways of representing the meaning of
+scope1_, and they are both quite legitimate. In other words, we are
+claiming that scope1_ is *ambiguous* with respect to quantifier scope,
+and the formulas in scope2_ give us a formal means of making the two
+readings explicit.
+
 
 ----------------
 Formal Semantics
@@ -1898,13 +1987,13 @@ entities and `t`:math: is the type of truth values):
     `V`:math:(|gamma|) is a function `f`:math: from  
     `D`:math: x ... x `D`:math: to {True, False}.
 
-However, since we are basing our language on the lambda calculus , a
+However, since we are basing our language on the |lambda|-calculus , a
 binary relation such as the interpretation of `like`:lx: will not in
 fact be associated with the type (`e`:math: x `e`:math:) |rarr|
 `t`:math:, but rather the type (`e`:math: |rarr| (`e`:math: |rarr|
 `t`:math:)); i.e., a function from entities to a function from
 entities to truth values. In other words, functors are assigned
-'Curried' functions as their values. It should also be noted that
+'curryed' functions as their values. It should also be noted that
 expressions of the language are not explicitly typed.  We leave it to
 the grammar writer to assign 'sensible' values to expressions rather
 than enforcing any type-to-denotation consistency.
@@ -1912,7 +2001,7 @@ than enforcing any type-to-denotation consistency.
 Characteristic Functions
 ------------------------
 
-Within the ``models`` module, Curried characteristic functions are implemented as
+Within the ``models`` module, curryed characteristic functions are implemented as
 a subclass of dictionaries, using the ``CharFun`` constructor.
 
    >>> cf = CharFun({'d1' : CharFun({'d2': True}), 'd2' : CharFun({'d1': True})})
@@ -1945,7 +2034,7 @@ assumption; i.e., where ``m`` is an instance of ``Model``:
 In practise, it is often be more convenient to specify
 interpretations as `n`:math:-ary relations (i.e., sets of `n`:math:-tuples) rather
 than as `n`:math:-ary functions. ``CharFun`` provides a ``parse`` method which
-will convert such relations into Curried characteristic functions:
+will convert such relations into curryed characteristic functions:
 
    >>> s = set([('d1', 'd2'), ('d3', 'd4')])
    >>> cf = CharFun()
