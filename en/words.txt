@@ -79,11 +79,11 @@ example text::
     ... closed at $62.625, up 62.5 cents.
     ... """
 
-To count the number of words in this article, we can simply divide it
+To count the number of words in this article, we can simply store it
+in a string, divide it
 up into a list of individual word strings, and check the length of
-that list.  The most obvious way to divide the article up is to split
-its text string on any sequence of spaces, newlines, or other
-"whitespace" characters:
+that list.  We can split a string on any sequence of "whitespace"
+characters using ``split()``:
 
     >>> words = text.split()
     >>> print words
@@ -101,9 +101,7 @@ following sentence::
     the asset sales materialize -- would result in shareholders
     receiving only $36 to $45 a share in cash.
 
-Our simple algorithm treats each occurrence of the sequence `--`:lx: as
-a word; but most people would consider them to be punctuation marks,
-not words.
+Our simple algorithm incorrectly treats each occurrence of "--" as a word.
 
 Second, there may be some character sequences that are not separated
 by whitespace, but which we still want to consider separate words.
@@ -155,16 +153,16 @@ Let us return to our task: *count the number of words that appear in a
 document*.  In the previous section, we interpreted "the number of
 words" to mean "the number of times any word was used."  However,
 another interpretation is possible: we might want to know how many
-distinct "dictionary entries" were used, regardless of the number of
+distinct lexical entries were used, regardless of the number of
 times that each dictionary item was repeated.  For example, the
 following sentence contains seven "word uses" but only uses four
 "dictionary entries"::
 
     John likes Mary and Mary likes John.
 
-Two distinguish between these two interpretations, we will define two
-new terms, "token" and "type."  A word *token* is an individual
-occurrence of a word in a concrete context.  A word *type* is a
+To distinguish between these two interpretations, we will define two
+new terms: "token" and "type."  A word `token`:dt: is an individual
+occurrence of a word in a concrete context.  A word `type`:dt: is a
 "dictionary entry" for a word.  A word type is somewhat abstract; it's
 what we're talking about when we say that we know the meaning of the
 word `deprecate`:lx:, or when we say that the words `barf`:lx: and
@@ -178,8 +176,8 @@ the type `Sea`:lx: in the text.
 The terms *token* and *type* can also be applied to other linguistic
 entities.  For example, a *sentence token* is an individual occurrence
 of a sentence; but a *sentence type* is an abstract sentence, without
-context.  If someone repeats a sentence twice, they have uttered two
-sentence tokens, but only one sentence type.  When the kind of token
+context.  When someone repeats a sentence they have uttered two
+sentence tokens but only one sentence type.  When the kind of token
 or type is obvious from context, we will simply use the terms token
 and type.
 
@@ -200,9 +198,6 @@ use a `set`:lx: instead of a `list`:lx: to collect the words:
     >>> word_types.sort()
     >>> word_types
     ['$1.1', '$130', '$36', '$45', ..., 'with', 'would', 'yesterday,']
-
-    ['all', '45', 'surplus', 'being', 'move', 'month', '130',
-    'through', 'leeway', ... 'chief', 'reaction', 'In', 'the']
     >>> print len(word_types)
     255
 
@@ -216,7 +211,7 @@ two categories:
   same type?
 
 We encountered many of the issues with tokenization when we looked at
-the task of counting tokens.  For example, should `--`:lx: be counted
+the task of counting tokens.  For example, should "--" be counted
 as a word token?  In addition to the issues we've already seen, our
 algorithm's ignorance about punctuation can cause it to count the same
 word type multiple times.  For example, the substrings `price.`:lx:
@@ -252,16 +247,15 @@ number of occurrences of each word type in a document:
 
     >>> counts = {}
     >>> for word in text.split():
-    ...     if word in counts:
-    ...         counts[word] += 1
-    ...     else:
-    ...         counts[word] = 1
+    ...     if word not in counts:
+    ...         counts[word] = 0
+    ...     counts[word] += 1
 
 The first statement, ``counts = {}``, initializes the dictionary,
 while the next four lines successively add entries to it and increment
 the count each time we encounter a new token of a given type.  To view
 the contents of the dictionary, we can iterate over its keys and print
-each entry:
+each entry (here just for the first 10 entries):
     
     >>> for word in sorted(counts)[:10]:
     ...     print counts[word], word
@@ -348,27 +342,13 @@ to indicate the position of each token.
 
 Observe that `Elinor`:lx: and `Marianne`:lx: appear rather uniformly throughout
 the text, while `Edward`:lx: and `Willoughby`:lx: tend to appear separately.
-Here is the program that generated the above plot.  It uses Python's
-``Tkinter`` graphics library, declaring a ``canvas`` and adding
-lines to it using ``create_line()``.
+Here is the program that generated the above plot.  [NB. Requires NLTK-Lite 0.6.7].
 
 .. doctest-ignore::
-    >>> from Tkinter import Canvas
     >>> from nltk_lite.corpora import gutenberg
-    >>> def dispersion_plot(text, words, rowheight, rowwidth):
-    ...     canvas = Canvas(width=rowwidth, height=rowheight*len(words))
-    ...     scale = float(rowwidth)/len(text)
-    ...     for i in range(len(words)):
-    ...         for (position, word) in text:
-    ...             x = position * scale
-    ...             if word == words[i]:
-    ...                 y = i * rowheight
-    ...                 canvas.create_line(x, y, x, y+rowheight-1)
-    ...     canvas.pack()
-    ...     canvas.mainloop()
-    >>> text = list(enumerate(gutenberg.raw('austen-sense')))
+    >>> from nltk_lite.draw import dispersion
     >>> words = ['Elinor', 'Marianne', 'Edward', 'Willoughby']
-    >>> dispersion_plot(text, words, 15, 800)
+    >>> dispersion.plot(gutenberg.raw('austen-sense'), words)
 
 Exercises
 ---------
@@ -462,7 +442,7 @@ Normalization
 -------------
 
 Earlier we talked about counting word tokens, and completely ignored
-the 'context' in which these tokens appeared.  For a sentence like `I
+the "context" in which these tokens appeared.  For a sentence like `I
 saw the saw`:lx:, we would have treated both `saw`:lx: tokens as
 instances of the same type.  However, one is a form of the verb
 `SEE`:lx:, and the other is the name of a cutting instrument (we use
@@ -485,7 +465,7 @@ the bigrams are
 `sea shore`:lx:.
 
 As a first approximation to discovering the distribution of a word, we
-can look all the bigrams it occurs in.  Let's consider all bigrams
+can look at all the bigrams it occurs in.  Let's consider all bigrams
 from the Brown Corpus which have the word `often`:lx: as first
 element.  Here is a small selection, ordered by their counts::
 
@@ -521,15 +501,15 @@ the distribution of `often`:lx:.
 
   ::
 
-    ,		16
-    a		10
-    BE		13
-    in		8
-    than	7
-    the		7
-    DO		7
-    APPEAR	6
-    CALL   	5
+    often ,		16
+    often a		10
+    often BE		13
+    often in		8
+    often than		7
+    often the		7
+    often DO		7
+    often APPEAR	6
+    often CALL		5
 
 Lemmatization is a rather sophisticated process which requires a
 mixture of rules for regular inflections and table look-up for
@@ -572,7 +552,7 @@ Exercises
 
 1. **Regular expression tokenizers:**
    Save the Wall Street Journal example text from earlier in this
-   chapter into a file \texttt{corpus.txt}.  Write a function ``load(f)``
+   chapter into a file ``corpus.txt``.  Write a function ``load(f)``
    to read the file into a string.  Use ``tokenize.regexp()`` to create a
    tokenizer which tokenizes the various kinds of punctuation
    in this text.  Use a single regular expression, with inline comments
@@ -670,8 +650,13 @@ Access the senses of a word (synsets) using ``getSenses()``
     'dog' in {noun: pawl, detent, click, dog}
     'dog' in {noun: andiron, firedog, dog, dog-iron}
 
-Each synset has a variety of pointers to other synsets.  See ``dir(wordnet)`` for a list.
-Access one of these using ``getPointerTargets()``, and specify the pointer type as the argument.
+A `synset`:dt: is a set of synonymous words, in fact this is how a word
+sense is specified in Wordnet.
+Each synset is linked to several other synsets, and the wordnet
+interface permits us to navigate these links.  For example, we
+can navigate from a synset to its `hyponyms`:dt:, namely words
+having narrower meaning.  We use ``getPointerTargets()`` to
+do this navigation:
 
     >>> dog_canine = dog.getSenses()[0]
     >>> for sense in dog_canine.getPointerTargets(wordnet.HYPONYM):
@@ -694,9 +679,11 @@ Access one of these using ``getPointerTargets()``, and specify the pointer type 
     {noun: poodle, poodle dog}
     {noun: Mexican hairless}
 
-Each synset has a unique hypernym.  Thus, from any synset we can trace paths back to the
-most general synset *entity*.  First we define a function to return the hypernym of a
-synset:
+Each synset has a unique hypernym.  Thus, from any synset we can trace
+paths back to the most general synset *entity*.  First we define a
+function to return the hypernym of a synset:
+
+.. TODO: explain exceptions
 
     >>> def hypernym(sense):
     ...     try:
@@ -726,20 +713,30 @@ Now we can write a simple program to display these hypernym paths:
                           {noun: entity}
 
 
+See ``dir(wordnet)`` for a full list of lexical relations supported
+by Wordnet.
+
+
 Exercises
 ---------
 
-0. Familiarize yourself with the Pywordnet interface.
+1. Familiarize yourself with the Pywordnet interface.
 
-1. Investigate the holonym / meronym pointers for some nouns.  Note that there
+#. Investigate the holonym / meronym pointers for some nouns.  Note that there
    are three kinds (member, part, substance), so access is more specific,
    e.g. ``MEMBER_MERONYM``, ``SUBSTANCE_HOLONYM``.
 
-2. Write a program to score the similarity of 2 nouns as the depth of
-   their first common hypernym.  Evaluate your findings against the
-   Rubenstein-Goodenough set of word pairs.
-
-
+#. Write a program to score the similarity of two nouns as the depth
+   of their first common hypernym.  Evaluate your findings against the
+   Miller-Charles set of word pairs, listed in order of decreasing
+   similarity: car-automobile, gem-jewel, journey-voyage, boy-lad,
+   coast-shore, asylum-madhouse, magician-wizard, midday-noon,
+   furnace-stove, food-fruit, bird-cock, bird-crane, tool-implement,
+   brother-monk, lad-brother, crane-implement, journey-car,
+   monk-oracle, cemetery-woodland, food-rooster, coast-hill,
+   forest-graveyard, shore-woodland, monk-slave, coast-forest,
+   lad-wizard, chord-smile, glass-magician, rooster-voyage,
+   noon-string.
 
 -----------------------------
 Simple Statistics with Tokens
@@ -754,8 +751,9 @@ the "outcome" is the word's type).  Frequency distributions are
 generally created by repeatedly running an experiment, and
 incrementing the count for a sample every time it is an outcome of the
 experiment.  The following program produces a frequency distribution
-that records how often each word type occurs in a text, and prints the
-most frequently occurring word:
+that records how often each word type occurs in a text.  It increments
+a separate counter for each word, and prints the most frequently
+occurring word:
 
   >>> from nltk_lite.probability import FreqDist
   >>> from nltk_lite.corpora import genesis
@@ -774,30 +772,35 @@ are summarized below:
 Frequency Distribution Module
 ---------------------------------------------------------------------------
 Name        Sample              Description
-==========  ==================  ===========================================
-Count       fd.count('the')     number of times a given sample occurred
-Frequency   fd.freq('the')      frequency of a given sample
-N           fd.N()              number of samples
-Samples     fd.samples()        list of distinct samples recorded
-Max         fd.max()            sample with the greatest number of outcomes
-==========  ==================  ===========================================
+==========  ===================  ===========================================
+Count       ``fd.count('the')``  number of times a given sample occurred
+Frequency   ``fd.freq('the')``   frequency of a given sample
+N           ``fd.N()``           number of samples
+Samples     ``fd.samples()``     list of distinct samples recorded
+Max         ``fd.max()``         sample with the greatest number of outcomes
+==========  ===================  ===========================================
 
 We can also use a ``FreqDist`` to examine the distribution of word lengths
 in a corpus.  For each word, we find its length, and increment the
 count for words of this length.
 
     >>> def length_dist(text):
-    ...     fd = FreqDist()                        # initialize an empty frequency distribution
+    ...     fd = FreqDist()                        # initialize frequency distribution
     ...     for token in genesis.raw(text):        # for each token
-    ...         fd.inc(len(token))                 # found another word with this length
-    ...     for i in range(15):                    # for each length from 0 to 14
+    ...         fd.inc(len(token))                 # found a word with this length
+    ...     for i in range(1,15):                  # for each length from 1 to 14
     ...         print "%2d" % int(100*fd.freq(i)), # print the percentage of words with this length
     ...     print
 
+Now we can call ``length_dist`` on a text to print the distribution of
+word lengths.  We see that the most frequent word length for the English
+sample is 3 characters, while the most frequent length for the Finnish
+sample is 5-6 characters.
+
     >>> length_dist('english-kjv')
-     0  2 14 28 21 13  7  5  2  2  0  0  0  0  0
+     2 14 28 21 13  7  5  2  2  0  0  0  0  0
     >>> length_dist('finnish')
-     0  0  9  6 10 16 16 12  9  6  3  2  2  1  0
+     0  9  6 10 16 16 12  9  6  3  2  2  1  0
 
 Conditional Frequency Distributions
 -----------------------------------
@@ -815,14 +818,10 @@ is affected by the word's initial letter (the condition).
     >>> cfdist = ConditionalFreqDist()
     >>> for text in genesis.items:
     ...     for word in genesis.raw(text):
-    ...         cfdist[text].inc(len(word))
+    ...         cfdist[word[0]].inc(len(word))
   
-.. note:: The above program requires the NLTK corpora to be installed
-   and an environment variable to be set.  Please see the NLTK installation
-   instructions.
-
-To plot the results, we construct a list of points, where the x
-coordinate is the word length, and the y coordinate is the frequency
+To plot the results, we construct a list of points, where the *x*
+coordinate is the word length, and the *y* coordinate is the frequency
 with which that word length is used:
 
     >>> for cond in cfdist.conditions():
@@ -831,7 +830,7 @@ with which that word length is used:
     ...     points = [(i, cfdist[cond].freq(i)) for i in wordlens]
 
 We can plot these points using the ``Plot`` function defined in
-``nltk_lite.draw.plot``, as follows: ``Plot(points).mainloop()``
+``nltk_lite.draw.plot``, as follows: ``Plot(points).mainloop()``.
 
 Predicting the Next Word
 ------------------------
@@ -879,6 +878,8 @@ the previous word.
    use.  For this example, we use ``None`` as the context for the
    first token.  Another option would be to discard the first token.
 
+.. TODO: refer back to bigram discussion
+
 Once we have constructed a conditional frequency distribution for the
 training corpus, we can use it to find the most likely word for any
 given context. For example, taking the word `living`:lx: as our context,
@@ -907,22 +908,28 @@ more often.
 Exercises
 ---------
 
+#. Use the ``Plot`` function defined in ``nltk_lite.draw.plot`` plot
+   word-initial character against word length, as discussed in this section.
+
+.. TODO: explain how to set axes log-log:
+
 #. **Zipf's Law**:
    Let *f(w)* be the frequency of a word *w* in free text. Suppose that
    all the words of a text are ranked according to their frequency,
    with the most frequent word first. Zipf's law states that the
    frequency of a word type is inversely proportional to its rank
-   (i.e. f*r=k, for some constant k). For example, the 50th most
+   (i.e. *f.r = k*, for some constant *k*). For example, the 50th most
    common word type should occur three times as frequently as the
    150th most common word type.
 
    a) Write a function to process a large text and plot word
-      frequency against word rank using the nltk_lite.draw.plot module. Do
+      frequency against word rank using the ``nltk_lite.draw.plot`` module. Do
       you confirm Zipf's law? (Hint: it helps to set the axes to log-log.) 
       What is going on at the extreme ends of the plotted line?
 
    #) Generate random text, e.g. using ``random.choice("abcdefg ")``,
-      taking care to include the space character.  Use the string
+      taking care to include the space character.  You will need to
+      ``import random`` first.  Use the string
       concatenation operator to accumulate characters into a (very)
       long string.  Then tokenize this string, and generate the Zipf
       plot as before, and compare the two plots.  What do you make of
@@ -949,6 +956,8 @@ Exercises
       with generating text in the hybrid genre.  As before, discuss your
       observations.
 
+.. TODO: amplify following example
+
 #. Write a program to implement one or more text readability scores
    (see http://en.wikipedia.org/wiki/Readability ).
 
@@ -962,8 +971,8 @@ What is a Word?
 ---------------
 
 Linguists have devoted considerable effort to distinguishing different
-ways in which the term `word`:dt is used. So far we have focused on
-`orthographic words`:dt strings of characters which can be separated
+ways in which the term `word`:dt: is used. So far we have focused on
+`orthographic words`:dt: strings of characters which can be separated
 by various textual criteria such as the presence of whitespace.
 However, for linguists, the spoken word is often regarded as
 primary, in the sense that natural languages have all evolved
@@ -979,7 +988,9 @@ the utterance `wanna`:lx: as a contraction of the words `want`:lx: and
 `to`:lx:.  Returning to an example mentioned before, note that the
 form `n't`:lx: in `didn't`:lx: cannot form a phonological word by
 itself, and is sometimes called a `clitic`:dt: or `leaner`:dt:; it needs to to
-combine with a 'host' word before it can be uttered in normal speech.
+combine with a "host" word before it can be uttered in normal speech.
+
+.. TODO: mention following distinction earlier!
 
 Independent of the distinction between spoken and written language,
 an important notion is that of a `lexeme`:dt: or `lexical item`:dt:. This
@@ -1018,10 +1029,8 @@ exercises.  No single solution works well across-the-board, and we
 must decide what counts as a token depending on the application
 domain.  We also looked at normalization and saw how it collapses
 distinctions between tokens.
-
 In the next chapter we will look at word classes and automatic
-tagging.  We will continue to use lightweight methods to recognize
-linguistic structure.
+tagging.
   
 ---------------
 Further Reading
