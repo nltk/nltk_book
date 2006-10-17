@@ -62,9 +62,9 @@ the syntax and semantics of |fol|, so if you don't already
 have some familiarity with it, we suggest you consult an appropriate
 source.
 
----------------------
-The |lambda|-calculus
----------------------
+-------------------
+The lambda-calculus
+-------------------
 
 In a functional programming language, computation can be carried out
 by reducing an expression `E`:math: according to specified rewrite
@@ -140,7 +140,7 @@ propositional logic.
 
 
 Propositional  Logic
-********************
+--------------------
 
 The language `L`:subscript:`prop` of propositional logic represents
 certain aspects of natural language, but at a high level of
@@ -203,7 +203,7 @@ places binary Boolean operators in infix position.
    >>>
 
 First-Order Logic
-*****************
+-----------------
 
 In |fol| (|FOL|), propositions are further analysed into
 predicates and arguments, which takes us a step closer to the
@@ -927,10 +927,166 @@ Evaluating English Sentences
 
 So far, we have just taken for granted that we have some appropriate
 logical formulas to interpret. However, ideally we would like to
-derive these formulas from natural language input. feat2cfg_ shows a
-small grammar that exploits the  framework of
-chapter `Feature Based Grammar <featgram.html>`__. Semantic representations are
-recursively built as the value of the ``sem`` feature. 
+derive these formulas from natural language input. One relatively easy
+way of achieving this goal is to build on the grammar framework
+developed in the chapter `Feature Based Grammar
+<featgram.html>`__. Our first step is to introduce a new feature,
+``sem``. Because values of ``sem`` generally need to be treated
+differently from other feature values, we can use the convention of
+enclosing them in angle brackets. sem1_ illustrates a first
+approximation to the kind of analyses we would like to build.
+
+.. _sem1:
+.. ex::
+   .. tree:: (S[sem=\<\(walk\ john\)\>] (NP[sem=\<\(john\)\>] John) (VP[sem=\<\walk\>] (V[sem=\<\walk\>] walks)))
+
+Thus, the ``sem`` value at the root node shows a semantic
+representation for the whole sentence, while the ``sem`` values at
+lower nodes show semantic representations for constituents of the
+sentence. So far, so good, but how do we write grammar rules which
+will give us this kind of result? To be more specific, suppose we have
+a `NP`:gc: and `VP`:gc: constituents with appropriate values for their
+``sem`` nodes? If you reflect on the machinery that was introduced in
+discussing the |lambda| calculus, you might guess that function
+application will be central to composing semantic values. You will
+also remember that our feature-based grammar framework gives us the
+means to refer to `variable`:em: values. Putting this together, we can
+postulate a rule like sem2_ for building the ``sem`` value of an
+`S`:gc:.  (Observe that in the case where the value of ``sem`` is a
+variable, we omit the angle brackets.)
+
+.. _sem2:
+.. ex::
+   ::
+
+     S[sem = <app(?vp,?subj)>] -> NP[sem=?subj] VP[sem=?vp]
+
+sem2_ tells us that given some ``sem`` value ``?subj`` for the subject
+`NP`:gc: and some ``sem`` value ``?vp`` for the `VP`:gc:, the ``sem``
+value of the `S`:gc: mother is constructed by applying ``?vp`` as a
+functor to ``?np``.   From this, we can
+conclude that ``?vp`` has to denote a function which has the
+denotation of ``?np`` in its domain. sem2_ is a nice example of
+building semantics using `the principle of compositionality`:dt:\: that is,
+the principle that the semantics of a complex expression is a function
+of the semantics of its parts. 
+
+To complete the grammar is very straightford; all we require are the
+rules shown in sem3_.
+
+.. _sem3:
+.. ex::
+   ::
+
+     VP[sem=?v] -> V[sem=?v]
+     NP[sem=<john>] -> 'John'
+     V[sem=<walk>] -> 'walks'
+
+The `VP`:gc: rule says that the mother's semantics is the same as the
+head daughter's. The two lexical rules just introduce non-logical
+constants to serve as the semantic values of `John`:lx: and
+`walks`:lx: respectively. This grammar can be parsed using the chart
+parser in ``nltk_lite.parse.featurechart``, and the trace in sem4_
+shows how semantic values are derived by feature unification in the
+process of building a parse tree.
+
+.. _sem4:
+.. ex::
+   ::
+
+     Predictor |> . .| S[sem='(?vp ?subj)'] -> * NP[sem=?subj] VP[sem=?vp] 
+     Scanner   |[-] .| [0:1] 'John' 
+     Completer |[-> .| S[sem='(?vp john)'] -> NP[sem='john'] * VP[sem=?vp] 
+     Predictor |. > .| VP[sem=?v] -> * V[sem=?v] 
+     Scanner   |. [-]| [1:2] 'walks' 
+     Completer |. [-]| VP[sem='walk'] -> V[sem='walk'] * 
+     Completer |[===]| S[sem='(walk john)'] -> NP[sem='john'] VP[sem='walk'] * 
+     Completer |[===]| [INIT] -> S * 
+
+You might be thinking this is all too easy |mdash| surely there is a
+bit more to building compositional semantics. What about quantifiers,
+for instance? Right, this is a crucial issue. For example, we want
+sem5a_ to be given a semantic representation like sem5b_. How can this
+be accomplished? 
+
+.. _sem5: 
+.. ex::
+   .. _sem5a:
+   .. ex:: 
+      A dog barks.
+   .. _sem5b:
+   .. ex:: 
+      some x. ((dog x) and (bark x)) 
+
+Let's make the assumption that our `only`:em: operation for building
+complex semantic reprsentations is ``app`` (corresponding to function
+application). Then our problem is this: how do we give a semantic
+representation to quantified `NP`:gc:\s such as `a dog`:lx: so that
+they can be combined with something like `walk`:math: to give a result
+like sem5b_? As a first step, let's make the subject's ``sem`` value
+act as the functor rather than the argument in ``app``. Now we are
+looking for way of instantiating ``?np`` so that sem6_ holds.
+
+.. _sem6: 
+.. ex::
+
+    [sem=<app(?np, bark)>] ->> [sem=<some x.((dog x) and (bark x))>]
+
+This is where |lambda| abstraction comes to the
+rescue; doesn't sem6_ look a bit reminiscent of carrying out |beta|-reduction in the
+|lambda|-calculus? In other words, can we come up with a |lambda| term `M`:math:
+to replace ``?np`` so that applying `M`:math: to ``bark`` yields
+sem5b_? Indeed we can; we replace the occurence of ``bark`` in sem5b_
+by a variable ``P``, and bind the variable with |lambda|, as shown in sem7_.
+
+.. _sem7: 
+.. ex::
+    
+     \\ P. some x. ((dog x) and (P x))
+
+As a point of interest, we have used a different style of variable in
+sem7_, that is ``P`` rather than ``x`` or ``y``. This is to signal
+that we are abstracting over a different kind of thing |mdash| not an
+individual, but a unary predicate expression. 
+
+We are pretty much done now, except that we also want to carry out a
+further abstraction plus application for the process of combining the
+semantics of the
+determiner `a`:lx: with the semantics of `dog`:lx:.
+Applying sem7_ as a functor to ``bark`` gives us ``(\ P. some
+x. ((dog x) and (P x)) bark)``, and carrying out  |beta|\-reduction
+gives us just what we wanted, namely sem5b_.
+
+|NLTK| provides some utilities to make it easier to derive and inspect
+ semantic interpretations.
+
+
+   >>> from nltk_lite.contrib.grammartest import SemanticInterpreter
+   >>> semint = SemanticInterpreter().text_interpret
+   >>> from nltk_lite.contrib.grammarfile import GrammarFile
+   >>> grammar = GrammarFile.read_file('sem1.cfg')
+   >>> result  = semint(['a dog barks'], grammar)
+   >>> (syntree, semrep) = result['a dog barks'][0]
+   >>> print syntree
+   ([INIT][]:
+     (S[ sem = ApplicationExpression('(\Q P.some x.(and (Q x) (P x)) dog)', 'bark') ]:
+       (NP[ sem = ApplicationExpression('\Q P.some x.(and (Q x) (P x))', 'dog') ]:
+	 (Det[ sem = LambdaExpression('Q', '\P.some x.(and (Q x) (P x))') ]:
+	   'a')
+	 (N[ sem = VariableExpression('dog') ]: 'dog'))
+       (VP[ sem = VariableExpression('bark') ]:
+	 (V[ sem = VariableExpression('bark') ]: 'barks'))))
+   >>> print semrep
+   (\Q P.some x.(and (Q x) (P x)) dog bark)
+
+Semantic representations can also be reduced, using the ``simplify``
+method, and Boolean connectives can be placed in infix position with
+the ``infixify`` method.
+
+   >>> print semrep.simplify()
+   some x.(and (dog x) (bark x))
+   >>> print semrep.simplify().infixify()
+   some x.((dog x) and (bark x))
 
 
 .. _feat2cfg:
