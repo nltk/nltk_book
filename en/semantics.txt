@@ -809,7 +809,7 @@ the curryed characteristic function as described earlier. The
 definition of `satisfy` started above continues as follows:
 
 .. doctest-ignore::  
-     ...   elif parsed(expr) = (fun, arg):
+     ...   elif parsed(expr) == (fun, arg):
      ...      funval = self.satisfy(fun, g)
      ...      argval = self.satisfy(psi, g)
      ...      return app(funval, argval)
@@ -832,7 +832,7 @@ lists), and the length function `len` returns the cardinality
 of a set.  
 
 .. doctest-ignore::
-     ...   elif parsed(expr) = (binder, body):
+     ...   elif parsed(expr) == (binder, body):
      ...      if binder = ('some', var):
      ...         sat = self.satisfiers(body, var, g)
      ...         return len(sat) > 0
@@ -964,12 +964,13 @@ variable, we omit the angle brackets.)
 sem2_ tells us that given some ``sem`` value ``?subj`` for the subject
 `NP`:gc: and some ``sem`` value ``?vp`` for the `VP`:gc:, the ``sem``
 value of the `S`:gc: mother is constructed by applying ``?vp`` as a
-functor to ``?np``.   From this, we can
-conclude that ``?vp`` has to denote a function which has the
-denotation of ``?np`` in its domain. sem2_ is a nice example of
-building semantics using `the principle of compositionality`:dt:\: that is,
-the principle that the semantics of a complex expression is a function
-of the semantics of its parts. 
+functor to ``?np``.  From this, we can conclude that ``?vp`` has to
+denote a function which has the denotation of ``?np`` in its
+domain; in fact, we are going to assume that ``?vp`` denotes a
+characteristic function on individuals. sem2_ is a nice example of
+building semantics using `the principle of compositionality`:dt:\:
+that is, the principle that the semantics of a complex expression is a
+function of the semantics of its parts.
 
 To complete the grammar is very straightford; all we require are the
 rules shown in sem3_.
@@ -978,9 +979,9 @@ rules shown in sem3_.
 .. ex::
    ::
 
-     VP[sem=?v] -> V[sem=?v]
+     VP[sem=?v] -> IV[sem=?v]
      NP[sem=<john>] -> 'John'
-     V[sem=<walk>] -> 'walks'
+     IV[sem=<walk>] -> 'walks'
 
 The `VP`:gc: rule says that the mother's semantics is the same as the
 head daughter's. The two lexical rules just introduce non-logical
@@ -997,9 +998,9 @@ process of building a parse tree.
      Predictor |> . .| S[sem='(?vp ?subj)'] -> * NP[sem=?subj] VP[sem=?vp] 
      Scanner   |[-] .| [0:1] 'John' 
      Completer |[-> .| S[sem='(?vp john)'] -> NP[sem='john'] * VP[sem=?vp] 
-     Predictor |. > .| VP[sem=?v] -> * V[sem=?v] 
+     Predictor |. > .| VP[sem=?v] -> * IV[sem=?v] 
      Scanner   |. [-]| [1:2] 'walks' 
-     Completer |. [-]| VP[sem='walk'] -> V[sem='walk'] * 
+     Completer |. [-]| VP[sem='walk'] -> IV[sem='walk'] * 
      Completer |[===]| S[sem='(walk john)'] -> NP[sem='john'] VP[sem='walk'] * 
      Completer |[===]| [INIT] -> S * 
 
@@ -1019,7 +1020,7 @@ be accomplished?
       some x. ((dog x) and (bark x)) 
 
 Let's make the assumption that our `only`:em: operation for building
-complex semantic reprsentations is ``app`` (corresponding to function
+complex semantic representations is ``app`` (corresponding to function
 application). Then our problem is this: how do we give a semantic
 representation to quantified `NP`:gc:\s such as `a dog`:lx: so that
 they can be combined with something like `walk`:math: to give a result
@@ -1029,8 +1030,9 @@ looking for way of instantiating ``?np`` so that sem6_ holds.
 
 .. _sem6: 
 .. ex::
+   ::
 
-    [sem=<app(?np, bark)>] ->> [sem=<some x.((dog x) and (bark x))>]
+     [sem=<app(?np, bark)>] ->> [sem=<some x.((dog x) and (bark x))>]
 
 This is where |lambda| abstraction comes to the
 rescue; doesn't sem6_ look a bit reminiscent of carrying out |beta|-reduction in the
@@ -1041,6 +1043,7 @@ by a variable ``P``, and bind the variable with |lambda|, as shown in sem7_.
 
 .. _sem7: 
 .. ex::
+   ::
     
      \\ P. some x. ((dog x) and (P x))
 
@@ -1051,11 +1054,10 @@ individual, but a unary predicate expression.
 
 We are pretty much done now, except that we also want to carry out a
 further abstraction plus application for the process of combining the
-semantics of the
-determiner `a`:lx: with the semantics of `dog`:lx:.
-Applying sem7_ as a functor to ``bark`` gives us ``(\ P. some
-x. ((dog x) and (P x)) bark)``, and carrying out  |beta|\-reduction
-gives us just what we wanted, namely sem5b_.
+semantics of the determiner `a`:lx: with the semantics of `dog`:lx:.
+Applying sem7_ as a functor to ``bark`` gives us ``(\ P. some x. ((dog
+x) and (P x)) bark)``, and carrying out |beta|\-reduction gives us
+just what we wanted, namely sem5b_.
 
 |NLTK| provides some utilities to make it easier to derive and inspect
  semantic interpretations.
@@ -1075,7 +1077,7 @@ gives us just what we wanted, namely sem5b_.
 	   'a')
 	 (N[ sem = VariableExpression('dog') ]: 'dog'))
        (VP[ sem = VariableExpression('bark') ]:
-	 (V[ sem = VariableExpression('bark') ]: 'barks'))))
+	 (IV[ sem = VariableExpression('bark') ]: 'barks'))))
    >>> print semrep
    (\Q P.some x.(and (Q x) (P x)) dog bark)
 
@@ -1089,70 +1091,127 @@ the ``infixify`` method.
    some x.((dog x) and (bark x))
 
 
-.. _feat2cfg:
+Our next challenge is to deal with sentences containing transitive
+verbs, such as sem8_.
+
+.. _sem8: 
+.. ex::
+
+     Suzie chases a dog.
+
+The output semantics that we want to build is shown in sem9_.
+
+.. _sem9: 
+.. ex::
+   :: 
+
+   some x.((dog x) and (chase x suzie))
+
+Let's look at how we can use |lambda|-abstraction to get this
+result. An significant constraint on possible solutions is imposed by
+the decision that the semantic representation of `a dog`:lx: is
+independent of whether the `NP`:gc: acts as subject or object of the
+sentence. In other words, we want to get sem9_ as our output while sticking to
+sem7_ as the `NP`:gc: semantics. A second constraint is that
+`VP`:gc:\s should have the same type of interpretation, regardless of
+whether they consist of just an intransitive verb or a transitive verb
+plus object. As before, `VP`:gc:\s will denote characteristic
+functions on individuals. Here's a semantic representation for `chases
+a dog`:lx: which does the trick.
+
+.. _sem9: 
+.. ex::
+   :: 
+
+   \ y.some x.((dog x) and (chase x y))
+
+Think of sem9_ as the property of being a `y`:math: such that
+for some dog `x`:math:, `y`:math: chases `x`:math:; or more
+colloquially, being a `y`:math: who chases a dog. Our task now
+resolves to designing a semantic representation for
+`chases`:lx: which can combine via ``app`` with sem7_ so as to allow
+sem9_ to be derived. Let ``X`` stand for sem7_. Then we are part
+way to the solution if we can derive sem10_.
+
+.. _sem10: 
 .. ex::
    ::
 
-     #############################
-     # feat2.cfg
-     #############################
-     % start S
+   (X \z. (chase z y))
 
-     #############################
-     # Grammar Rules
-     #############################
-     S[sem = <app(?subj,?vp)>] -> NP[num=?n,sem=?subj] VP[num=?n,sem=?vp]
+sem10_ is equivalent to sem11a, which reduces to sem9_.
 
-     NP[num=?n,sem=<app(?det,?nom)> ] -> Det[num=?n,sem=?det]  Nom[num=?n,sem=?nom]
-     NP[loc=?l,num=?n,sem=?np] -> PropN[loc=?l,num=?n,sem=?np]
+.. _sem11: 
+.. ex::
+   ::
 
-     Nom[num=?n,sem=?nom] -> N[num=?n,sem=?nom]
-     Nom[num=?n,sem=<app(?pp,?nom)>] -> N[num=?n,sem=?nom] PP[sem=?pp]
+    (\\ P. some x. ((dog x) and (P x)) \z. (chase z y))
 
-     VP[num=?n,sem=<app(?v,?obj)>] -> TV[num=?n,sem=?v] NP[sem=?obj]
-     VP[num=?n,sem=?v] -> IV[num=?n,sem=?v]
+The full solution is reached by giving `chases`:lx: the semantic
+representation shown in sem12_.
 
-     VP[num=?n,sem=<app(?pp,?vp)>] -> VP[num=?n,sem=?vp] PP[sem=?pp]
+.. _sem12: 
+.. ex::
+   ::
 
-     PP[sem=<app(?p,?np)>] -> P[loc=?l,sem=?p] NP[loc=?l,sem=?np]
+    \X y. (X \x. (chase x y))
 
-     #############################
-     # Lexical Rules
-     #############################
-     PropN[-loc,num=sg,sem=<\P.(P john)>] -> 'John'
-     PropN[-loc,num=sg,sem=<\P.(P mary)>] -> 'Mary'
-     PropN[-loc,num=sg,sem=<\P.(P suzie)>] -> 'Suzie'
-     PropN[-loc,num=sg,sem=<\P.(P fido)>] -> 'Fido'
-     PropN[+loc, num=sg,sem=<\P.(P noosa)>] -> 'Noosa'
+If sem12_ is applied to sem7_, the result after |beta|-reduction is
+equivalent to sem9_, which is what we wanted all along. In order to
+build a semantic representation for a sentence, we also need to
+combine in the semantics of the subject `NP`:gc:. If the latter is a
+quantified expression like `every girl`:lx:, everything proceeds in
+the same way as we showed for `a dog barks`:lx: earlier on; the
+subject is translated as a functor which is applied to the semantic
+representation of the `VP`:gc:.  However,
+we now seem to have created another problem for ourselves with proper
+names. So far, these have been treated as simple individuals, and
+these cannot be applied as functors to expressions like sem9_. What we
+do in this case is re-intepret proper names so that they too are
+functors, like quantified `NP`:gc:\ s. sem13_ shows the required
+|lambda| expression for `Suzie`:lx:.
 
-     Det[num=sg,sem=<\P Q. all x. ((P x) implies (Q x))>] -> 'every'
-     Det[num=pl,sem=<\P Q. all x. ((P x) implies (Q x))>] -> 'all'
-     Det[sem=<\P Q. some x. ((P x) and (Q x))>] -> 'some'
-     Det[num=sg,sem=<\P Q. some x. ((P x) and (Q x))>] -> 'a'
+.. _sem12: 
+.. ex::
+   ::
 
-     N[num=sg,sem=<boy>] -> 'boy'
-     N[num=pl,sem=<boy>] -> 'boys'
-     N[num=sg,sem=<girl>] -> 'girl'
-     N[num=pl,sem=<girl>] -> 'girls'
-     N[num=sg,sem=<dog>] -> 'dog'
-     N[num=pl,sem=<dog>] -> 'dogs'
+    \ P. (P suzie)
 
-     TV[num=sg,sem=<\X y. (X \x. (chase x y))>,tns=pres] -> 'chases'
-     TV[num=pl,sem=<\X y. (X \x. (chase x y))>,tns=pres] -> 'chase'
-     TV[num=sg,sem=<\X y. (X \x. (see x y))>,tns=pres] -> 'sees'
-     TV[num=pl,sem=<\X y. (X \x. (see x y))>,tns=pres] -> 'see'
-     TV[num=sg,sem=<\X y. (X \x. (chase x y))>,tns=pres] -> 'chases'
-     TV[num=pl,sem=<\X y. (X \x. (chase x y))>,tns=pres] -> 'chase'
-     IV[num=sg,sem=<\x. (bark x)>,tns=pres] -> 'barks'
-     IV[num=pl,sem=<\x. (bark x)>,tns=pres] -> 'bark'
-     IV[num=sg,sem=<\x. (walk x)>,tns=pres] -> 'walks'
-     IV[num=pl,sem=<\x. (walk x)>,tns=pres] -> 'walk'
-
-     P[+loc,sem=<\X P x. (X \y. ((P x) and (in y x)))>] -> 'in'
-     P[-loc,sem=<\X P x. (X \y. ((P x) and (with y x)))>] -> 'with'
+sem12_ denotes the characteristi function corresponding to all
+properties which are true of Suzie. Converting from an indiviual
+constant to an expression like sem12_ is known as `type raising`:dt:,
+and allows us to flip functors with arguments. That is, we can replace
+a Boolean-valued application such as 
+`(f a)`:math: with an equivalent application `(`:math:|lambda|`P. (P a) f)`:math:.
 
 
+One important limitation of the approach we have presented here is
+that it does not attempt to deal with scope ambiguity. Instead,
+quantifier scope ordering directly reflects scope in the parse
+tree. As a result, a sentence like scope1_, repeated here, will always
+be translated as 
 
+.. _scope11:
+.. ex:: Every girl chases a dog.
+
+.. _scope12:
+.. ex::
+
+   .. _scope12a:
+   .. ex::
+      :: 
+
+       all x. ((girl x) implies some y. ((dog y) and (chase y x)))
+
+   .. _scope12b:
+   .. ex::  
+      :: 
+
+       some y. (dog y) and all x. ((girl x) implies (chase y x)))
+
+This limiation can be overcome, for example using the hole semantics
+described in Blackburn and Bos, but discussion would take us outside the scope of
+the current chapter.
 
 
 -----------------
