@@ -7,11 +7,11 @@
 
 Language can be divided up into pieces at a variety of different grain
 sizes, ranging from sounds up to utterances and even to documents.  In
-this chapter, we will focus on a very important level for much work in
-computational linguistics: words.  Just what are words, and how should
-we represent them in a machine?  At first, these may seem like trivial
-questions, but it turns out that there are some important issues
-involved in defining and encoding words.
+this chapter, we will focus on words, a very important level for much
+work in NLP.  Just what are words, and how should we represent them in
+a machine?  At first, these may seem like trivial questions, but it
+turns out that there are some important issues involved in defining
+and encoding words.
 
 To help us explore these issues, consider the following simple task:
 *count the number of words that appear in a document*.  We'll use the
@@ -87,12 +87,14 @@ characters using ``split()``:
 
     >>> words = text.split()
     >>> print words
-    ['Sea', 'Containers', 'Ltd.', 'said', 'it', 'might', 'increase', 'the', 'price', 'of']
-     'its', '$70-a-share', 'buy-back', 'plan', ..., 'up', '62.5', 'cents.']
+    ['Sea', 'Containers', 'Ltd.', 'said', 'it', 'might', 'increase', 'the',
+     'price', 'of', 'its', '$70-a-share', 'buy-back', 'plan', ..., 'up',
+     '62.5', 'cents.']
     >>> len(words)
     430
 
-However, there are a few problems with this solution.  First, it is not
+This splitting process is known as `tokenization`:dt:.  There are a
+few problems with this approach to tokenization.  First, it is not
 clear that every sequence of non-whitespace characters should be
 considered a word.  For example, our example article contains the
 following sentence::
@@ -103,22 +105,21 @@ following sentence::
 
 Our simple algorithm incorrectly treats each occurrence of "--" as a word.
 
-Second, there may be some character sequences that are not separated
+The second problem is that there may be some character sequences that are not separated
 by whitespace, but which we still want to consider separate words.
 One example of this is contractions, such as `didn't`:lx:.  If we're
 analyzing the meaning of a sentence, it might be more useful to treat
 this character string as two separate words, `did`:lx: and `not`:lx:.
-Similarly, it sometimes makes more sense to treat hyphenated strings
+Conversely, there are times when we want to treat a character sequence
+that contains whitespace as a single word, such as "New York", or
+"John Smith".  Hyphenation adds to the complexity; sometimes it
+makes more sense to treat hyphenated strings
 as two words.  For example, in the expression `pro-New York`:lx:,
-it seems quite unnatural to say that `pro-New`:lx: is a single word.
+we do not want to say that `pro-New`:lx: is a single word.
 
 .. I know I've seen better examples of this than "pro-New York, but
    I can't think of one right now..
    
-Finally, there may be times when we want to treat a character sequence
-that contains whitespace as a single word.  For example, it is
-sometimes useful to treat proper names such as "John Smith" or "New
-York" as individual words, even though they contain spaces.
 
 As an especially subtle example, consider the numeric expressions in
 the following sentence (drawn from the MedLine corpus)::
@@ -131,24 +132,27 @@ words?  Or should we say that it's a single compound word?  Or should
 we say that it is actually *nine* words, since it's read "four point
 five three, plus or minus fifteen percent"?  Or should we say that
 it's not a "real" word at all, since it wouldn't appear in any
-dictionary?  The answer will most likely depend on what task we're
+dictionary?  The answer will depend on what task we're
 trying to solve.
+
+.. TODO: chapter overview
 
 .. Note:: If we turn to languages other than English, segmenting words
    can be even more of a challenge. For example, in Chinese
    orthography, characters correspond to monosyllabic morphemes. Many
-   morphemes are words in their own right, but many words contain more
-   than one morpheme; most of them consist of two morphemes. However,
-   there is no visual representation of word boundaries in Chinese
-   text. For example, consider the following three-character string:
-   |ai4| |guo3| |ren2| (in pinyin plus tones: ai4 'love' (verb), guo3
-   'country', ren2 'person'). This could either be segmented as
-   [|ai4| |guo3|] |ren2| |mdash| 'country-loving person' or as 
-   |ai4| [|guo3| |ren2|] |mdash| 'love country-person'.
+   morphemes are words in their own right, but words contain more than
+   one morpheme. However, there is no visual representation of word
+   boundaries in Chinese text. For example, consider the following
+   three-character string: |ai4| |guo3| |ren2| (in pinyin plus tones:
+   ai4 'love' (verb), guo3 'country', ren2 'person'). This could
+   either be segmented as [|ai4| |guo3|] |ren2| |mdash|
+   'country-loving person' or as |ai4| [|guo3| |ren2|] |mdash| 'love
+   country-person'.
 
 ----------------
 Tokens and Types
 ----------------
+
 Let us return to our task: *count the number of words that appear in a
 document*.  In the previous section, we interpreted "the number of
 words" to mean "the number of times any word was used."  However,
@@ -160,7 +164,7 @@ following sentence contains seven "word uses" but only uses four
 
     John likes Mary and Mary likes John.
 
-To distinguish between these two interpretations, we will define two
+To distinguish between these interpretations we define two
 new terms: "token" and "type."  A word `token`:dt: is an individual
 occurrence of a word in a concrete context.  A word `type`:dt: is a
 "dictionary entry" for a word.  A word type is somewhat abstract; it's
@@ -177,65 +181,189 @@ The terms *token* and *type* can also be applied to other linguistic
 entities.  For example, a *sentence token* is an individual occurrence
 of a sentence; but a *sentence type* is an abstract sentence, without
 context.  When someone repeats a sentence they have uttered two
-sentence tokens but only one sentence type.  When the kind of token
-or type is obvious from context, we will simply use the terms token
-and type.
-
-We can use this new terminology to express the two interpretations for
-our task unambiguously:
+sentence tokens but only one sentence type.  When the kind of token or
+type is obvious from context, we will simply use the terms token and
+type.  We can use this new terminology to express the two
+interpretations for our task unambiguously:
 
 1.  Count the number of word tokens that appear in a document.
 2.  Count the number of word types that appear in a document.
 
 In the previous section, we considered how we might accomplish the
 first of these tasks; now, let's turn our attention to the second
-task, that of counting word types.  Again, we will start with a simple
-approach: split the article's text on any sequence of whitespace, and
-count the number of times each substring occurs.  But this time, we'll
-use a `set`:lx: instead of a `list`:lx: to collect the words:
+task, that of counting word types.
+
+Counting Word Types
+-------------------
+
+As before, we will start with a simple approach: tokenize on any
+sequence of whitespace, and count the number of times each word type
+occurs.  This time we'll take the list of tokens returned by text.split(),
+convert it to a set, then convert it back to a list:
 
     >>> word_types = list(set(text.split()))
-    >>> word_types.sort()
-    >>> word_types
+    >>> sorted(word_types)
     ['$1.1', '$130', '$36', '$45', ..., 'with', 'would', 'yesterday,']
     >>> print len(word_types)
     255
 
-A quick glance at the contents of `word_types`:lx: reveals some of the
-shortcomings of this approach.  These shortcomings can be divided into
-two categories:
+This approach has two main shortcomings:
 
 - *Tokenization*: Which substrings of the original text contain
   word tokens?
 - *Type definition*: How do we decide whether two tokens have the
   same type?
 
-We encountered many of the issues with tokenization when we looked at
-the task of counting tokens.  For example, should "--" be counted
-as a word token?  In addition to the issues we've already seen, our
+In addition to the issues we saw earlier with counting tokens, our
 algorithm's ignorance about punctuation can cause it to count the same
-word type multiple times.  For example, the substrings `price.`:lx:
-and `price`:lx: will be treated as two different word types. When we
-were counting tokens, this didn't affect our overall answer, since
-both `price.`:lx: and `price`:lx: count as a single token.  But since the
+type multiple times.  For example, the substrings `price.`:lx: and
+`price`:lx: will be treated as distinct types. When we were
+counting tokens, this didn't affect our overall answer, since both
+`price.`:lx: and `price`:lx: counted as a single token.  But since the
 two strings are not identical, our algorithm counts them as two
 separate types.  These tokenization issues could be addressed by
-defining a more advanced algorithm for splitting the text into word
-tokens (i.e., a *tokenizer*).
+defining a more sophisticated tokenizer.
 
 The type definition issues are exemplified by the fact that `the`:lx:
-and `The`:lx: are listed as two separate word types.  We would like to
-say that these two tokens have the same type, but just happen to be
-written differently.  But since our simple algorithm uses strict
-equality to divide word tokens into types, it treats them as two
-distinct types.  A more subtle question is whether the two tokens
-`asset`:lx: and `assets`:lx: should be considered to share a type or
-not.  On the one hand, they would both be listed under the same entry
-in a dictionary; but on the other hand, there is a definite semantic
-difference between them.  As with some of the questions about
-tokenization, our decision about whether to treat these two tokens as
-having the same type or not will depend on the problem we're trying to
-solve.
+and `The`:lx: are listed as distinct types.  Instead we would like to
+say that these tokens have the same type, and just happen to be
+written differently.  In other words, we would like to have a way to
+compare strings, ignoring distinctions such as case.  A more subtle
+question is whether the two tokens `asset`:lx: and `assets`:lx: should
+be considered to share the same type.  On the one hand, they would
+both be listed under the same entry in a dictionary; but on the other
+hand, there is a definite semantic difference between them.  As with
+some of the questions about tokenization, our decision about whether
+to treat these two tokens as having the same type will depend
+on the problem we're trying to solve.
+
+So far we have relied on getting source text from a string defined in
+a fragment of Python code.  In the following sections we will see how
+to get text from files, from the web, and from the corpora
+distributed with NLTK.
+
+Accessing Files and the Web
+---------------------------
+
+.. Monkey-patching to fake the file/web examples in this section:
+
+  >>> from StringIO import StringIO
+  >>> def fake_open(filename, mode=None):
+  ...     return StringIO('Hello world.\nThis is a test file.\n')
+  >>> def fake_urlopen(url):
+  ...     return StringIO(' BBC NEWS | News Front Page News Sport '
+  ...                     'Weather World Service')
+  >>> open = fake_open
+  >>> import urllib
+  >>> urllib.urlopen = fake_urlopen
+
+It is easy to access local files in Python.  Here are some examples.
+(You will need to create a file called ``corpus.txt`` before you can
+open it for reading.)
+
+  >>> f = open('corpus.txt', 'rU')
+  >>> f.read() 
+  'Hello world.\nThis is a test file.\n'
+  >>>
+
+The first stage is to `open`:dt: a file using the builtin function ``open``,
+which takes two arguments, the name of the file, here corpus.txt, and the
+mode to open the file with |mdash| for now trust us and always use ``'rU'`` for
+files you are opening for reading.
+
+To read the contents of the file we can use lots of different methods.
+The one above uses the file read method ``f.read()``, which reads
+the entire contents of a file into a string.
+
+You might be wondering what the strange ``'\n'`` character is on the end of
+the string.  This is a `newline`:dt: character, which is equivalent to
+pressing *Enter* and starting a new line. There is also a ``'\t'`` character
+for representing tab.
+
+We can also read a file one line at a time using the ``for`` loop construct:
+
+  >>> f = open('corpus.txt')
+  >>> for line in f:
+  ...     print line[:-1]
+  Hello world.
+  This is a test file.
+  >>>
+
+Here we use the slice trick ``line[:-1]`` to chomp of the newline we are
+reading in from the file since the ``print`` statement already adds an
+extra newline.
+
+Finally, it isn't too much more difficult in Python to read in a webpage:
+
+  >>> from urllib import urlopen
+  >>> page = urlopen("http://news.bbc.co.uk/").read()
+  >>> page = re.sub('<[^>]*>', '', page)   # strip HTML markup
+  >>> page = re.sub('\s+', ' ', page)      # strip whitespace
+  >>> print page[:60]
+   BBC NEWS | News Front Page News Sport Weather World Service
+  >>>
+
+Accessing NLTK Corpora
+----------------------
+
+NLTK is distributed with several corpora and corpus samples, listed in the introduction.
+Many of these corpora are supported by the NLTK ``corpora`` module.
+First we import the Gutenberg corpus (a selection of texts from
+the Project Gutenberg electronic text archive).
+
+  >>> from nltk_lite.corpora import gutenberg
+  >>> gutenberg.items
+  ['austen-emma', 'austen-persuasion', 'austen-sense', 'bible-kjv',
+   'blake-poems', 'blake-songs', 'chesterton-ball', 'chesterton-brown',
+   'chesterton-thursday', 'milton-paradise', 'shakespeare-caesar',
+   'shakespeare-hamlet', 'shakespeare-macbeth', 'whitman-leaves']
+  >>>
+
+We access the text content using a Python construct called an
+`iterator`:dt:.  It produces a stream of words, which we can access
+using the syntax ``for item in iterator``, as shown below:
+
+  >>> count = 0
+  >>> for word in gutenberg.raw('whitman-leaves'):
+  ...     count += 1
+  >>> print count
+  154873
+  >>>
+
+NLTK also includes the Brown Corpus, the first million word,
+part-of-speech tagged electronic corpus of English, created in 1961 at
+Brown University.  Each of the sections ``a`` through ``r`` represents
+a different genre.
+
+  >>> from nltk_lite.corpora import brown
+  >>> brown.items
+  ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
+  >>>
+
+We can extract individual sentences from the corpus iterator using the
+``extract()`` function:
+
+  >>> from nltk_lite.corpora import extract
+  >>> print extract(0, brown.raw())
+  ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', 'Friday', 'an',
+   'investigation', 'of', "Atlanta's", 'recent', 'primary', 'election',
+   'produced', '``', 'no', 'evidence', "''", 'that', 'any', 'irregularities',
+   'took', 'place', '.']
+  >>>
+
+Exercises
+---------
+
+#. Use the corpus module to read ``austin-persuasion.txt``.
+   How many words does this book have?
+
+#. Use the Brown corpus reader ``brown.raw()`` to access some sample
+   text in two different genres.
+
+#. Try running the various chatbots.  How *intelligent* are these programs?
+   Take a look at the program code and see if you can
+   discover how it works.  You can find the code online at:
+   ``http://nltk.sourceforge.net/lite/nltk_lite/chat/``.
 
 Example: Stylistics
 -------------------
