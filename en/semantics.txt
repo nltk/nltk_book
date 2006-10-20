@@ -2,7 +2,7 @@
 .. include:: ../definitions.txt
 
 ===========================
-12. Semantic Interpretation
+13. Semantic Interpretation
 ===========================
 
 --------------
@@ -13,7 +13,7 @@
 One of the goals of linguistic theory is to provide a systematic
 correspondence between form and meaning. One widely adopted approach
 to representing meaning |mdash| or at least, some aspects of meaning
-|mdash| involves translating expressions of natural language in to
+|mdash| involves translating expressions of natural language into
 |fol|. From a computational point of view, a strong
 argument in favour of |fol| is that it strikes a
 reasonable balance between expressiveness and logical
@@ -56,15 +56,39 @@ different problem: how can we systematically construct a semantic
 representation for a sentence which proceeds in step with the
 process of parsing that sentence?
 
+This chapter will only scratch the surface of how to carry out
+semantic analysis of natural language, and will be heavily slanted
+towards the approach currently implemented within
+|NLTK|. Consequently, it needs to be read in conjunction with a good
+overall introduction to formal semantics. [Eg., B&B, Gamut, Heim?]
 
-Unfortunately, it is not within the scope of this chapter to introduce
-the syntax and semantics of |fol|, so if you don't already
-have some familiarity with it, we suggest you consult an appropriate
-source.
+The overall framework we are assuming is illustrated in semint_. Given
+a syntactic analysis of a sentence, we can build one or more semantic
+representations for the sentence. Once we have a semantic
+representation, we can also check whether it is true in a model. 
 
--------------------
-The lambda-calculus
--------------------
+.. _semint:
+.. ex::
+   .. image:: ../images/semint.png
+      :scale: 20
+
+A model is a set-theoretic construction which provides a very
+simplified picture of how the world is. For example, in this case, the
+model should contain individuals corresponding to Suzie and Fido, and
+it should also contain a set of pairs of individuals that stand in the
+`chase`:math: relation. 
+
+The order of sections in this chapter is not what you might expect
+from looking at semint_. We will start off by looking at a logical
+language that will provide us with semantic representations in
+|NLTK|. Next, we will show how formulas in the language can be
+systematically evaluated in a model. At the end, we will bring
+everything together and describe a simple method for constructing
+semantic representations as part of the parse process in |NLTK|.
+
+---------------------
+The |lambda|-calculus
+---------------------
 
 In a functional programming language, computation can be carried out
 by reducing an expression `E`:math: according to specified rewrite
@@ -87,7 +111,8 @@ expression (where '|rtharr|' means 'reduces to'):
 
 The final expression, ``5``, is considered to be the output of the program.
 This fundamental notion of computation is modeled in an abstract way by
-the |lambda|-calculus.
+something called the |lambda|-calculus (|lambda| is a Greek letter
+pronounced 'lambda').
 
 The first basic concept in the |lambda|-calculus is `application`:dt:,
 represented by an expression of the form `(F A)`:math:, where
@@ -117,9 +142,10 @@ The module ``logic`` can parse expressions of the
 needs to be escaped by a second ``'\'`` in parsable expressions.
 
     >>> from nltk_lite.contrib.logic import *
-    >>> Parser().parse('(walk x)')
+    >>> lp = Parser()
+    >>> lp.parse('(walk x)')
     ApplicationExpression('walk', 'x')
-    >>> Parser().parse('\\x.(walk x)')
+    >>> lp.parse('\\x.(walk x)')
     LambdaExpression('x', '(walk x)')
     >>>
 
@@ -173,18 +199,18 @@ The Boolean connectives of propositional logic are supported by
 notation is also allowed as an input format. The connectives
 themselves belong to the ``Operator`` class of expressions.
 
-   >>> Parser().parse('(and p q)')
+   >>> lp.parse('(and p q)')
    ApplicationExpression('(and p)', 'q')
-   >>> Parser().parse('(p and q)')
+   >>> lp.parse('(p and q)')
    ApplicationExpression('(and p)', 'q')
-   >>> Parser().parse('and')
+   >>> lp.parse('and')
    Operator('and')
    >>> 
 
 Since a negated proposition is syntactically an application, the unary
 operator ``not`` and its argument *must* be surrounded by parentheses.
 
-   >>> Parser().parse('(not (p and q))')
+   >>> lp.parse('(not (p and q))')
    ApplicationExpression('not', '(and p q)')
    >>> 
 
@@ -193,7 +219,7 @@ outputs a string without any parse structure. To make the output
 even easier to read, we can invoke the ``infixify`` method, which
 places binary Boolean operators in infix position.
 
-   >>> e = Parser().parse('(and p (not a))')
+   >>> e = lp.parse('(and p (not a))')
    >>> e
    ApplicationExpression('(and p)', '(not a)')
    >>> print e
@@ -219,9 +245,9 @@ lambda calculus, and by default all identifiers are considered to be
 variables. This means, for example, that the identifier ``walk`` can
 be bound by |lambda|: 
 
-   >>> Parser().parse('walk')
+   >>> lp.parse('walk')
    VariableExpression('walk')
-   >>> Parser().parse('\\walk.(walk x)')
+   >>> lp.parse('\\walk.(walk x)')
    LambdaExpression('walk', '(walk x)')
    >>>
 
@@ -230,7 +256,7 @@ distinction between predicate expressions and individual expressions;
 anything can be applied to anything. Indeed, functions can be applied
 to themselves:
 
-   >>> Parser().parse('(walk walk)')
+   >>> lp.parse('(walk walk)')
    ApplicationExpression('walk', 'walk')
    >>> 
 
@@ -253,9 +279,9 @@ indicate individual variables.  As an extension over the 'pure'
 |lambda|-calculus syntax of ``logic``, we can assign such strings to
 the class ``IndVariableExpression``.
 
-   >>> Parser().parse('x')
+   >>> lp.parse('x')
    IndVariableExpression('x')
-   >>> Parser().parse('x01')
+   >>> lp.parse('x01')
    IndVariableExpression('x01')
    >>> 
 
@@ -411,24 +437,29 @@ In |NLTK|, |lambda|-abstraction can be carried out on Boolean combinations. For
 example, the following can be thought of as the property of being an
 `x`:math: who walks and talks:
 
-  >>> Parser().parse('\\x.((walk x) and (talk x))')
+  >>> lp = Parser()
+  >>> lp.parse('\\x.((walk x) and (talk x))')
   LambdaExpression('x', '(and (walk x) (talk x))')
   >>>
 
 |beta|-conversion can be invoked with the ``simplify`` method of
-``ApplicationExpression``\ s.
+``ApplicationExpression``\ s. ``infixify`` will place binary Boolean
+connectives in infix position.
 
-  >>> WT = Parser().parse('(\\x.((walk x) and (talk x)) john)')
-  >>> WT
+  >>> e = lp.parse('(\\x.((walk x) and (talk x)) john)')
+  >>> e
   ApplicationExpression('\x.(and (walk x) (talk x))', 'john')
-  >>> WT.simplify()
-  ApplicationExpression('(and (walk john))', '(talk john)')
+  >>> print e.simplify()
+  (and (walk john) (talk john))
+  >>> print e.simplify().infixify()
+  ((walk john) and (talk john))
   >>> 
+
 
 Up to this point, we have restricted ourselves to looking at formulas
 where all the arguments are individual terms, corresponding to proper
 names such as `John`:lx:, `Mary`:lx: and `Fido`:lx:. Yet a crucial
-ingredient of |Fol| is the ability to make general
+ingredient of |fol| is the ability to make general
 statements involving quantified expressions such as `all dogs`:lx: and
 `some cats`:lx:. We turn to this topic in the next section.
 
@@ -508,7 +539,92 @@ two distinct representations with scope1_. We also want to show in
 detail how the two representations lead to different conditions for
 truth in a formal model. This will be taken up in the next section.
 
+When carrying out |beta|-reduction, some care has to be taken with
+variables. Consider, for example, the |lambda| terms alpha1a_ and
+alpha1b_, which differ only in the identity of a free variable.
 
+.. _alpha1:
+.. ex::
+
+   .. _alpha1a:
+   .. ex:: |lambda|\ `y.(love x y)`:math:
+
+   .. _alpha1b:
+   .. ex:: |lambda|\ `y.(love z y)`:math:
+
+Suppose now that we apply the |lambda| term alpha2_ to each of these
+terms. 
+
+.. _alpha2:
+.. ex:: |lambda|\ `P`:math: |exists|\ `x.(P x)`:math:
+
+In principle, the results of the application should be semantically equivalent,
+but if we let the free variable `x`:math: in alpha1a_ be 'captured' by the
+existential quantifier in alpha2_, then after reduction, the results
+will be different:
+
+
+.. _alpha3:
+.. ex::
+
+   .. _alpha3a:
+   .. ex:: |exists|\ `x.(love x x)`:math:
+
+   .. _alpha3b:
+   .. ex:: |exists|\ `x.(love z x)`:math:
+
+alpha3a_ means there is some `x`:math: that loves themselves, whereas
+alpha3b_ means that there is some `x`:math: that loves an unspecified
+individual `y`:math:. What has gone wrong here? The main point to note
+is that given any variable-binding expression (involving |forall|,
+|exists| or |lambda|), the particular name chosen for the bound
+variable is completely arbitrary. For example, alpha4a_ and alpha4b_
+are completely equivalent; in fact, they are called `|alpha|
+equivalents`:dt: (or `alphabetic variants`:dt:).
+
+.. _alpha4:
+.. ex::
+
+   .. _alpha4a:
+   .. ex::  |exists|\ `x.(P x)`:math:
+
+   .. _alpha4b:
+   .. ex::  |exists|\ `z`:math:\ :sub:`0`\ `.(P z`:math:\ :sub:`0` `)`:math:
+
+
+The process of relabeling bound variables (which takes us from
+alpha4a_ to alpha4b_) is known as `|alpha|-conversion`:dt:. The ``equals`` method on
+``VariableBinderExpression``\s in the ``logic`` module is in fact
+|alpha|-equivalence:
+
+   >>> lp = Parser()
+   >>> e1 = lp.parse('some x.(P x)')
+   >>> print e1
+   some x.(P x)
+   >>> e2 = e1.alpha_convert(Variable('z'))
+   >>> print e2
+   some z.(P z)
+   >>> e1.equals(e2)
+   True
+   >>> 
+
+When |beta|-reduction is carried out on an application `(M N)`:math:,
+we check whether there are free variables in `N`:math: which also
+occur as bound variables in any subterms of `M`:math:. Suppose, as in
+the example discussed above, that `x`:math: is free in `N`:math:, and
+that `M`:math: contains the subterm |exists|\ `x.(P x)`:math:. In this
+case, we produce an alphabetic variant of |exists|\ `x.(P x)`:math:,
+say, |exists|\ `z.(P z)`:math:, and then carry on with the
+reduction. This relabeling is carried out automatically by the
+|beta|-reduction code in ``logic``, and the results can be
+seen in the following example.
+
+   >>> e3 = lp.parse('(\P.some x.(P x) \y.(love x y))')
+   >>> print e3
+   (\P.some x.(P x) \y.(love x y))
+   >>> print e3.simplify()
+   some z2.(love x z2)
+   >>> 
 
 
 ----------------
@@ -579,22 +695,22 @@ assumption; i.e., where ``m`` is an instance of ``Model``:
 
 In practise, it is often be more convenient to specify interpretations
 as `n`:math:-ary relations (i.e., sets of `n`:math:-tuples) rather
-than as `n`:math:-ary functions. ``CharFun`` provides a ``parse``
+than as `n`:math:-ary functions. ``CharFun`` provides a ``read``
 method which will convert such relations into curryed characteristic
 functions:
 
    >>> s = set([('d1', 'd2'), ('d3', 'd4')])
    >>> cf = CharFun()
-   >>> cf.parse(s)
+   >>> cf.read(s)
    >>> cf
    {'d2': {'d1': True}, 'd4': {'d3': True}}
    >>>
 
-``cf.parse`` will raise an exception if the set is not in fact a
+``cf.read`` will raise an exception if the set is not in fact a
 relation (i.e., if it contains tuples of different lengths):
 
   >>> wrong = set([('d1', 'd2'), ('d2', 'd1', 'd3')])
-  >>> cf.parse(wrong)
+  >>> cf.read(wrong)
   Traceback (most recent call last):
   ...
   ValueError: Set contains sequences of different lengths
@@ -602,7 +718,7 @@ relation (i.e., if it contains tuples of different lengths):
 However, unary relations can be parsed to characteristic functions.
 
   >>> unary = set(['d1', 'd2'])
-  >>> cf.parse(unary)
+  >>> cf.read(unary)
   >>> cf
   {'d2': True, 'd1': True}
   >>>
@@ -640,7 +756,7 @@ interpretations.
    ('girl', set(['g2', 'g1'])), ('boy', set(['b1', 'b2'])),\
    ('love', set([('b1', 'g1'), ('b2', 'g2'), ('g1', 'b1'), ('g2', 'b1')]))]
    >>> val = Valuation()
-   >>> val.parse(setval)
+   >>> val.read(setval)
    >>> print val
    {'adam': 'b1',
    'betty': 'g1',
@@ -1045,7 +1161,7 @@ by a variable ``P``, and bind the variable with |lambda|, as shown in sem7_.
 .. ex::
    ::
     
-     \\ P. some x. ((dog x) and (P x))
+     \P.some x.((dog x) and (P x))
 
 As a point of interest, we have used a different style of variable in
 sem7_, that is ``P`` rather than ``x`` or ``y``. This is to signal
@@ -1055,12 +1171,12 @@ individual, but a unary predicate expression.
 We are pretty much done now, except that we also want to carry out a
 further abstraction plus application for the process of combining the
 semantics of the determiner `a`:lx: with the semantics of `dog`:lx:.
-Applying sem7_ as a functor to ``bark`` gives us ``(\ P. some x. ((dog
+Applying sem7_ as a functor to ``bark`` gives us ``(\P.some x.((dog
 x) and (P x)) bark)``, and carrying out |beta|\-reduction gives us
 just what we wanted, namely sem5b_.
 
 |NLTK| provides some utilities to make it easier to derive and inspect
- semantic interpretations.
+semantic interpretations.
 
 
    >>> from nltk_lite.contrib.grammartest import SemanticInterpreter
@@ -1073,8 +1189,7 @@ just what we wanted, namely sem5b_.
    ([INIT][]:
      (S[ sem = ApplicationExpression('(\Q P.some x.(and (Q x) (P x)) dog)', 'bark') ]:
        (NP[ sem = ApplicationExpression('\Q P.some x.(and (Q x) (P x))', 'dog') ]:
-	 (Det[ sem = LambdaExpression('Q', '\P.some x.(and (Q x) (P x))') ]:
-	   'a')
+	 (Det[ sem = LambdaExpression('Q', '\P.some x.(and (Q x) (P x))') ]: 'a')
 	 (N[ sem = VariableExpression('dog') ]: 'dog'))
        (VP[ sem = VariableExpression('bark') ]:
 	 (IV[ sem = VariableExpression('bark') ]: 'barks'))))
@@ -1105,47 +1220,49 @@ The output semantics that we want to build is shown in sem9_.
 .. ex::
    :: 
 
-   some x.((dog x) and (chase x suzie))
+     some x.((dog x) and (chase x suzie))
 
 Let's look at how we can use |lambda|-abstraction to get this
-result. An significant constraint on possible solutions is imposed by
-the decision that the semantic representation of `a dog`:lx: is
-independent of whether the `NP`:gc: acts as subject or object of the
-sentence. In other words, we want to get sem9_ as our output while sticking to
+result. A significant constraint on possible solutions is to require
+that the semantic representation of `a dog`:lx: be independent of
+whether the `NP`:gc: acts as subject or object of the sentence. In
+other words, we want to get sem9_ as our output while sticking to
 sem7_ as the `NP`:gc: semantics. A second constraint is that
-`VP`:gc:\s should have the same type of interpretation, regardless of
-whether they consist of just an intransitive verb or a transitive verb
-plus object. As before, `VP`:gc:\s will denote characteristic
-functions on individuals. Here's a semantic representation for `chases
-a dog`:lx: which does the trick.
+`VP`:gc:\s should have the uniform type of interpretation regardless
+of whether they consist of just an intransitive verb or a transitive
+verb plus object. More specifically, we will stipulate that `VP`:gc:\s
+always denote characteristic functions on individuals. Given these
+constraints, here's a semantic representation for `chases a dog`:lx:
+which does the trick.
 
-.. _sem9: 
+.. _sem99: 
 .. ex::
    :: 
 
-   \ y.some x.((dog x) and (chase x y))
+    \y.some x.((dog x) and (chase x y))
 
-Think of sem9_ as the property of being a `y`:math: such that
+Think of sem99_ as the property of being a `y`:math: such that
 for some dog `x`:math:, `y`:math: chases `x`:math:; or more
 colloquially, being a `y`:math: who chases a dog. Our task now
 resolves to designing a semantic representation for
 `chases`:lx: which can combine via ``app`` with sem7_ so as to allow
-sem9_ to be derived. Let ``X`` stand for sem7_. Then we are part
-way to the solution if we can derive sem10_.
+sem99_ to be derived. Let ``X`` stand for sem7_. Then we are part
+way to the solution if we can derive sem10_, where ``X`` is applied to
+``\z.(chase z y)``.
 
 .. _sem10: 
 .. ex::
    ::
 
-   (X \z. (chase z y))
+   (X \z.(chase z y))
 
-sem10_ is equivalent to sem11a, which reduces to sem9_.
+sem10_ is equivalent to sem11_, which reduces to sem99_.
 
 .. _sem11: 
 .. ex::
    ::
 
-    (\\ P. some x. ((dog x) and (P x)) \z. (chase z y))
+    (\P.some x.((dog x) and (P x)) \z.(chase z y))
 
 The full solution is reached by giving `chases`:lx: the semantic
 representation shown in sem12_.
@@ -1154,42 +1271,46 @@ representation shown in sem12_.
 .. ex::
    ::
 
-    \X y. (X \x. (chase x y))
+    \X y.(X \x.(chase x y))
 
 If sem12_ is applied to sem7_, the result after |beta|-reduction is
-equivalent to sem9_, which is what we wanted all along. In order to
-build a semantic representation for a sentence, we also need to
-combine in the semantics of the subject `NP`:gc:. If the latter is a
-quantified expression like `every girl`:lx:, everything proceeds in
-the same way as we showed for `a dog barks`:lx: earlier on; the
-subject is translated as a functor which is applied to the semantic
-representation of the `VP`:gc:.  However,
-we now seem to have created another problem for ourselves with proper
-names. So far, these have been treated as simple individuals, and
-these cannot be applied as functors to expressions like sem9_. What we
-do in this case is re-intepret proper names so that they too are
+equivalent to sem99_, which is what we wanted all along. 
+
+In order to build a semantic representation for a sentence, we also
+need to combine in the semantics of the subject `NP`:gc:. If the
+latter is a quantified expression like `every girl`:lx:, everything
+proceeds in the same way as we showed for `a dog barks`:lx: earlier
+on; the subject is translated as a functor which is applied to the
+semantic representation of the `VP`:gc:.  However, we now seem to have
+created another problem for ourselves with proper names. So far, these
+have been treated semanntically as individual constants, and these
+cannot be applied as functors to expressions like
+sem99_. Consequently, we need to come up with a different semantic
+representation for them. What we do
+in this case is re-intepret proper names so that they too are
 functors, like quantified `NP`:gc:\ s. sem13_ shows the required
 |lambda| expression for `Suzie`:lx:.
 
-.. _sem12: 
+.. _sem13: 
 .. ex::
    ::
 
-    \ P. (P suzie)
+    \P.(P suzie)
 
-sem12_ denotes the characteristi function corresponding to all
-properties which are true of Suzie. Converting from an indiviual
+sem13_ denotes the characteristic function corresponding to the set of
+all properties which are true of Suzie. Converting from an individual
 constant to an expression like sem12_ is known as `type raising`:dt:,
-and allows us to flip functors with arguments. That is, we can replace
-a Boolean-valued application such as 
-`(f a)`:math: with an equivalent application `(`:math:|lambda|`P. (P a) f)`:math:.
+and allows us to flip functors with arguments. That is, type raising
+means that we can replace a Boolean-valued application such as `(f
+a)`:math: with an equivalent application `(`:math:\ |lambda|\ `P.(P a)
+f)`:math:.
 
 
 One important limitation of the approach we have presented here is
 that it does not attempt to deal with scope ambiguity. Instead,
 quantifier scope ordering directly reflects scope in the parse
 tree. As a result, a sentence like scope1_, repeated here, will always
-be translated as 
+be translated as scope12a_, not scope12b_.
 
 .. _scope11:
 .. ex:: Every girl chases a dog.
@@ -1209,10 +1330,15 @@ be translated as
 
        some y. (dog y) and all x. ((girl x) implies (chase y x)))
 
-This limiation can be overcome, for example using the hole semantics
-described in Blackburn and Bos, but discussion would take us outside the scope of
-the current chapter.
+This limitation can be overcome, for example using the hole semantics
+described in Blackburn and Bos, but discussing the details would take
+us outside the scope of the current chapter.
 
+-------
+Summary
+-------
+
+to be written
 
 -----------------
  Further Reading
