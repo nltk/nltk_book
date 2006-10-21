@@ -37,7 +37,7 @@ In the following we will consider various methods for manipulating
 linguistic field data using the Natural Language Toolkit.  We begin
 by considering methods for processing data created with proprietary
 tools (e.g. Microsoft Office products).  The bulk of the discussion
-focusses on field data stored in the popular *Shoebox* format.
+focusses on field data stored in the popular *Toolbox* format.
 
 -----------------------------------------------------------------
 Tools and technologies for language documentation and description
@@ -96,7 +96,7 @@ legal_pos``:
     >>> used_pos = set(re.findall(pattern, document))
     >>> illegal_pos = used_pos.difference(legal_pos)
     >>> print list(illegal_pos)
-    ['v.intr', 'v.i', 'intrans']
+    ['v.i', 'intrans']
 
 This simple program represents the tip of the iceberg.  We can develop
 sophisticated tools to check the consistency of word processor files,
@@ -159,23 +159,23 @@ we can express this query in the following program:
     ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each', 'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
 -----------------------
-Processing Shoebox Data
+Processing Toolbox Data
 -----------------------
 
 Over the last two decades, several dozen tools have been developed
 that provide specialized support for linguistic data management.
 (Please see Bird and Simons 2003 for a detailed list of such tools.)
 Perhaps the single most popular tool for managing linguistic field
-data is *Shoebox*.  Together with its more recent incarnation
-(*Toolbox*), Shoebox uses a simple file format which we can easily
+data is *Shoebox*, recently renamed *Toolbox*.
+Toolbox uses a simple file format which we can easily
 read and write, permitting us to apply computational methods to
 linguistic field data.  In this section we discuss a variety of
-techniques for manipulating Shoebox data in ways that are not supported
-by the Shoebox software.
+techniques for manipulating Toolbox data in ways that are not supported
+by the Toolbox software.
 
-A Shoebox file consists of a collection of *entries* (or *records*),
+A Toolbox file consists of a collection of *entries* (or *records*),
 where each record is made up of one or more *fields*.  Here is an
-example of an entry taken from a Shoebox dictionary of Rotokas.
+example of an entry taken from a Toolbox dictionary of Rotokas.
 (Rotokas is an East Papuan language spoken on the island of
 Bougainville; this data was provided by Stuart Robinson)::
 
@@ -207,79 +207,56 @@ alphabetic.  The field name is separated from the field's contents by
 whitespace.  The contents can be arbitrary text, and can continue over
 several lines (but cannot contain a line-initial backslash).
 
-Accessing Shoebox Data
+Accessing Toolbox Data
 ----------------------
 
-We can use the ``shoebox.raw()`` method to access a Shoebox file to
+We can use the ``toolbox.parse_corpus()`` method to access a Toolbox file to
 perform various operations that involve single-pass scanning of a
 lexicon.  For example, here we compute the average number of fields
 for each entry:
 
-    >>> from nltk_lite.corpora import shoebox
+    >>> from nltk_lite.corpora import toolbox
+    >>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
     >>> sum_size = num_entries = 0
-    >>> for entry in shoebox.raw('rotokas.dic'):
+    >>> for entry in lexicon.findall('record'):
     ...     num_entries += 1
     ...     sum_size += len(entry)
     >>> print sum_size/num_entries
     10
 
-As we will see below, we can also use the ``raw()`` method in
-functions that add or remove fields, or to examine sequences of fields.
+As we will see below, we can also add or remove fields, or to examine
+sequences of fields.
 
-This raw method reads each field into a list, preserving the order of
-fields.  Next we look at the ``shoebox.dictionary()`` method, which
-reads an entry into a Python dictionary.  The following line generates
-a dictionary for each entry, and stores the result in the list ``entries``:
-
-    >>> entries = list(shoebox.dictionary('rotokas.dic'))
-
-We can index into this list, thus ``entries[3]`` returns entry number
+We can index into this lexicon object, thus ``lexicon[3]`` returns entry number
 3 (which is actually the fourth entry counting from zero).
 
-    >>> from pprint import pprint
-    >>> pprint(entries[3])
-    {'cl': 'isi',
-     'dt': '12/Feb/2005',
-     'ex': 'Taeavi iria kaa isi kovopaueva kaparapasia.',
-     'ge': 'cooking banana',
-     'gp': 'banana bilong kukim',
-     'lx': 'kaa',
-     'ps': 'N.M',
-     'sf': 'FLORA',
-     'xe': 'Taeavi planted banana in order to cook it.',
-     'xp': 'Taeavi i bin planim gaden banana bilong kukim tasol long paia.'}
+    >>> for field in lexicon[3].getchildren():
+    ...     print "\\%s %s" % (field.tag, field.text)
+    \lx kaa
+    \ps N.M
+    \cl isi
+    \ge cooking banana
+    \gp banana bilong kukim
+    \sf FLORA
+    \dt 12/Feb/2005
+    \ex Taeavi iria kaa isi kovopaueva kaparapasia.
+    \xp Taeavi i bin planim gaden banana bilong kukim tasol long paia.
+    \xe Taeavi planted banana in order to cook it.
 
 Simple Entry Processing
 -----------------------
 
-The simplest approach to processing a Shoebox file is to scan through
+The simplest approach to processing a Toolbox file is to scan through
 each entries, and for each entry, to scan through each field.  As we
 have seen, the ``shoebox.raw()`` method returns entries, where each
 entry is just a sequence of fields.  Suppose we wanted to create a list of
-all the lexemes.  We can do this as follows, starting by initialising
-``lexemes`` to be the empty list.
+all the lexemes.  We can do this as follows:
 
-    >>> lexemes = []
-    >>> for entry in shoebox.raw('rotokas.dic'):
-    ...     for field in entry:
-    ...         if field[0] == 'lx':
-    ...             normalised_lexeme = field[1].lower()
-    ...             lexemes.append(normalised_lexeme)
+    >>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
+    >>> lexemes[:8]
+    ['kaa', 'kaa', 'kaa', 'kaakaaro', 'kaakaaviko', 'kaakaavo', 'kaakaoko', 'kaakasi']
 
-Note that we can construct the ``lexemes`` list much more economically
-using Python's *list comprehension* syntax, as follows:
-
-    >>> lexemes = [field[1].lower()
-    ...              for entry in shoebox.raw('rotokas.dic')
-    ...	               for field in entry if field[0] == 'lx']
-
-
-Each field is stored as a tuple, e.g. ``('lx', 'kakate')``.  For each
-field in each entry, we check to see if the field name is ``lx``.  If
-it is, we convert the field's contents to lowercase, and append it to
-the ``lexemes`` list.  Observe that this process does not store the
-entire lexicon in memory.  Instead, the information we want is
-extracted during a single scan of the lexicon.
+[TODO: explain findall]
 
 **Adding New Fields:**
 It is often convenient to add new fields that are derived from
@@ -293,7 +270,7 @@ e.g. ``kakapua`` would map to ``CVCVCVV``.
     ...     s = s.lower()
     ...     s = re.sub(r'[^a-z]',     r'_', s)
     ...     s = re.sub(r'[aeiou]',    r'V', s)
-    ...     s = re.sub(r'[^V_]',     r'C', s)
+    ...     s = re.sub(r'[^V_]',      r'C', s)
     ...     return (s)
 
 This mapping has four steps.  First, the string is converted to lowercase,
@@ -303,11 +280,10 @@ a ``V`` or an underscore must be a consonant, so we replace it with a ``C``.
 Now, we can scan the lexicon and add a new ``cv`` field after every ``lx``
 field.  Here we will do it for a single entry only:
 
-    >>> raw_entries = list(shoebox.raw('rotokas.dic'))
-    >>> for field in raw_entries[50]:
-    ...     print "\\%s %s" % field
-    ...	    if field[0] == "lx":
-    ...	        print "\\cv %s" % cv(field[1])
+    >>> for field in lexicon[50].getchildren():
+    ...     print "\\%s %s" % (field.tag, field.text)
+    ...     if field.tag == "lx":
+    ...         print "\\cv %s" % cv(field.text)
     \lx kaeviro
     \cv CVVCVCV
     \ps V.A
@@ -321,17 +297,16 @@ field.  Here we will do it for a single entry only:
     \xe Peter went to look at the house that the wind destroyed.
 
 **Removing Fields:**
-We can also use this technique to make copies of Shoebox data
+We can also use this technique to make copies of Toolbox data
 that lack particular fields.  For example, we may want to sanitise our
 lexical data before giving it to others, by removing unnecessary
 fields (e.g. fields containing personal comments.)
 
     >>> retain = ('lx', 'ps')
-    >>> raw_entries = list(shoebox.raw('rotokas.dic'))
-    >>> for entry in raw_entries[50:55]:
-    ...     for field in entry:
-    ...         if field[0] in retain:
-    ...             print "\\%s %s" % field
+    >>> for entry in lexicon[50:55]:
+    ...     for field in entry.getchildren():
+    ...         if field.tag in retain:
+    ...             print "\\%s %s" % (field.tag, field.text)
     ...     print
     \lx kaeviro
     \ps V.A
@@ -350,28 +325,25 @@ fields (e.g. fields containing personal comments.)
     <BLANKLINE>
 
 **Formatting Entries:**
-We can use the ``shoebox.dictionary()`` method to print a formatted
+We can also print a formatted
 version of a lexicon.  It allows us to request specific fields without
 needing to be concerned with their relative ordering in the original file.
 
-    >>> entries = list(shoebox.dictionary('rotokas.dic'))
-    >>> for entry in entries[70:80]:
-    ...     lex = entry['lx']
-    ...     pos = entry['ps']
-    ...     dfn = entry['ge']
-    ...     if 'eng' in entry:
-    ...         dfn = entry['eng']
-    ...     print "%s (%s) '%s'" % (lex, pos, dfn)
+    >>> for entry in lexicon[70:80]:
+    ...     lx = entry.findtext('lx')
+    ...     ps = entry.findtext('ps')
+    ...     ge = entry.findtext('ge')
+    ...     print "%s (%s) '%s'" % (lx, ps, ge)
     kakapikoto (N.N2) 'newborn baby'
     kakapu (V.B) 'place in sling for purpose of carrying'
     kakapua (N.N) 'sling for lifting'
-    kakara (N.N) 'bracelet'
+    kakara (N.N) 'arm band'
     Kakarapaia (N.PN) 'village name'
-    kakarau (N.F) 'stingray'
+    kakarau (N.F) 'frog'
     Kakarera (N.PN) 'name'
     Kakareraia (N.???) 'name'
     kakata (N.F) 'cockatoo'
-    kakate (N.F) 'bamboo tube for water'
+    kakate (N.F) 'bamboo water tube'
 
 .. sidebar:: Producing CSV output
 
@@ -379,32 +351,39 @@ needing to be concerned with their relative ordering in the original file.
     slightly different print statement: ``print '"%s";"%s";"%s"\n' % (lex, pos, dfn)``
 
 We can use the same idea to generate HTML tables instead of plain text.
-This would be useful for publishing a Shoebox lexicon on the web.
+This would be useful for publishing a Toolbox lexicon on the web.
 It produces HTML elements ``<table>``, ``<tr>`` (table row), and
 ``<td>`` (table data).
 
     >>> html = "<table>\n"
-    >>> for entry in entries[70:80]:
-    ...     lex = entry['lx']
-    ...     pos = entry['ps']
-    ...     dfn = entry['ge']
-    ...     if 'eng' in entry:
-    ...         dfn = entry['eng']
-    ...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lex, pos, dfn)
+    >>> for entry in lexicon[70:80]:
+    ...     lx = entry.findtext('lx')
+    ...     ps = entry.findtext('ps')
+    ...     ge = entry.findtext('ge')
+    ...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lx, ps, ge)
     >>> html += "</table>"
     >>> print html
     <table>
       <tr><td>kakapikoto</td><td>N.N2</td><td>newborn baby</td></tr>
       <tr><td>kakapu</td><td>V.B</td><td>place in sling for purpose of carrying</td></tr>
       <tr><td>kakapua</td><td>N.N</td><td>sling for lifting</td></tr>
-      <tr><td>kakara</td><td>N.N</td><td>bracelet</td></tr>
+      <tr><td>kakara</td><td>N.N</td><td>arm band</td></tr>
       <tr><td>Kakarapaia</td><td>N.PN</td><td>village name</td></tr>
-      <tr><td>kakarau</td><td>N.F</td><td>stingray</td></tr>
+      <tr><td>kakarau</td><td>N.F</td><td>frog</td></tr>
       <tr><td>Kakarera</td><td>N.PN</td><td>name</td></tr>
       <tr><td>Kakareraia</td><td>N.???</td><td>name</td></tr>
       <tr><td>kakata</td><td>N.F</td><td>cockatoo</td></tr>
-      <tr><td>kakate</td><td>N.F</td><td>bamboo tube for water</td></tr>
+      <tr><td>kakate</td><td>N.F</td><td>bamboo water tube</td></tr>
     </table>
+
+XML output
+
+    >>> import sys
+    >>> from nltk_lite.etree.ElementTree import ElementTree
+    >>> fourth_entry = lexicon.findall('record')[3]
+    >>> tree = ElementTree(fourth_entry)
+    >>> tree.write(sys.stdout)
+
 
 Exploration
 -----------
@@ -419,9 +398,10 @@ wordforms.  The following code defines a Python dictionary ``lexgloss``
 which maps lexemes to their English glosses:
 
     >>> lexgloss = {}
-    >>> for entry in shoebox.dictionary('rotokas.dic'):
-    ...     if 'lx' in entry and entry['ps'][0] == 'V':
-    ...         lexgloss[entry['lx']] = entry['ge']
+    >>> for entry in lexicon:
+    ...     lx = entry.findtext('lx')
+    ...     if lx and entry.findtext('ps')[0] == 'V':
+    ...         lexgloss[lx] = entry.findtext('ge')
 
 Next, for each lexeme ``lex``, we will check if the lexicon contains the
 reduplicated form ``lex+lex``.  If it does, we report both forms along with
@@ -430,33 +410,33 @@ their glosses.
     >>> for lex in lexgloss:
     ...     if lex+lex in lexgloss:
     ...         print "%s (%s); %s (%s)" % (lex, lexgloss[lex], lex+lex, lexgloss[lex+lex])
-    kuvu (fill.up); kuvukuvu (stamp the ground)
-    kitu (save); kitukitu (scrub clothes)
-    kopa (ingest); kopakopa (gulp.down)
+    kuvu (fill.up); kuvukuvu (fill up)
+    kitu (store up); kitukitu (scrub clothes)
+    kopa (swallow); kopakopa (gulp.down)
     kasi (burn); kasikasi (angry)
     koi (high pitched sound); koikoi (groan with pain)
-    kee (chip); keekee (shattered)
+    kee (shatter); keekee (chipped)
     kauo (jump); kauokauo (jump up and down)
-    kea (deceived); keakea (lie)
-    kove (drop); kovekove (drip repeatedly)
-    kape (unable to meet); kapekape (grip with arms not meeting)
+    kea (confused); keakea (lie)
+    kove (fall); kovekove (drip repeatedly)
+    kape (unable to meet); kapekape (embrace)
     kapo (fasten.cover.strip); kapokapo (fasten.cover.strips)
-    koa (skin); koakoa (remove the skin)
+    koa (skin); koakoa (bark a tree)
     kipu (paint); kipukipu (rub.on)
     koe (spoon out a solid); koekoe (spoon out)
-    kovo (work); kovokovo (surround)
+    kovo (work); kovokovo (fence off)
     kiru (have sore near mouth); kirukiru (crisp)
-    kotu (bite); kotukotu (grind teeth together)
-    kavo (collect); kavokavo (work black magic)
+    kotu (bite); kotukotu (gnash teeth)
+    kavo (scavenge.for); kavokavo (perform sorcery)
     kuri (scrape); kurikuri (scratch repeatedly)
-    karu (unhook); karukaru (open)
+    karu (open); karukaru (open)
     kare (return); karekare (return)
-    kari (break); karikari (shred)
+    kari (break); karikari (tear)
     kiro (write); kirokiro (write)
     kae (carry); kaekae (tempt)
-    koru (make return); korukoru (obstruct)
-    ku (finished with); kuku (spoonfeed)
-    kosi (exit); kosikosi (exit)
+    koru (make return); korukoru (block)
+    ku (satisfied with); kuku (spoonfeed)
+    kosi (go out); kosikosi (exit)
 
 **Complex Search Criteria:**
 Phonological description typically identifies the segments, alternations,
@@ -522,15 +502,15 @@ import all the functions in one go using ``from utilities import *``.
 We take the entry to be a verb if the first letter of its part of speech is a ``V``.
 Here, then, is the program to display trisyllabic verbs ending in a long vowel:
 
-    >>> for entry in shoebox.dictionary('rotokas.dic'):
-    ...     if 'lx' in entry:
-    ...         lex = entry['lx']
-    ...         pos = entry['ps']
-    ...         if num_syls(lex) == 3 and is_vowel(lex[-1]) and is_vowel(lex[-2]) and pos[0] == 'V':
-    ...             dfn = entry['ge']
-    ...             print "%s (%s) '%s'" % (lex, pos, dfn)
+    >>> for entry in lexicon:
+    ...     lx = entry.findtext('lx')
+    ...     if lx:
+    ...         ps = entry.findtext('ps')
+    ...         if num_syls(lx) == 3 and is_vowel(lx[-1]) and is_vowel(lx[-2]) and ps[0] == 'V':
+    ...             ge = entry.findtext('ge')
+    ...             print "%s (%s) '%s'" % (lx, ps, ge)
     kaetupie (V.B) 'tighten'
-    kakupie (V.B) 'yodel'
+    kakupie (V.B) 'shout'
     kapatau (V.B) 'add to'
     kapuapie (V.B) 'wound'
     kapupie (V.B) 'close tight'
@@ -538,24 +518,23 @@ Here, then, is the program to display trisyllabic verbs ending in a long vowel:
     karepie (V.B) 'return'
     karivai (V.A) 'have an appetite'
     kasipie (V.B) 'care for'
-    kaukaupie (V.B) 'intense sunlight'
-    kavorou (V.A) 'intercept'
+    kaukaupie (V.B) 'shine intensely'
+    kavorou (V.A) 'covet'
     kavupie (V.B) 'leave.behind'
     kekepie (V.B) 'show'
-    keruria (V.A) 'determined'
+    keruria (V.A) 'persistent'
     ketoopie (V.B) 'make sprout from seed'
-    koatapie (V.B) 'accept'
-    koetapie (V.B) 'satisfy curiosity'
+    koatapie (V.B) 'put in'
+    koetapie (V.B) 'investigate'
     kokovae (V.A) 'sing'
     kokovua (V.B) 'shave the hair line'
-    kopiipie (V.B) 'kill'
+    kopiipie (V.B) 'murder'
     korupie (V.B) 'take outside'
     kosipie (V.B) 'make exit'
     kovopie (V.B) 'use to make work'
-    kukuvai (V.B) 'cover the head from rain or sun'
-    kuvaupie (V.B) 'leave alone'
-    kuverea (V.A) 'not all right'
-
+    kukuvai (V.B) 'shelter head'
+    kuvaupie (V.B) 'desert'
+    kuverea (V.A) 'incomplete'
 
 **Finding Minimal Sets:**
 In order to establish a contrast segments (or lexical properties, for
@@ -588,8 +567,6 @@ the target segment.  Thus, if lex is ``kasi``, then context is
 ``lex[:1]+'_'+lex[2:]``, or ``k_si``.  Note that no parameters are
 generated if the lexeme does not consist of exactly four segments.
 
-    >>> lexemes = [entry['lx'] for entry in shoebox.dictionary('rotokas.dic')
-    ...              if 'lx' in entry]
     >>> position = 1
     >>> parameters = [(lex[:position] + '_' + lex[position+1:],
     ...                lex[position],
@@ -616,7 +593,8 @@ context was seen at least 3 times.
     ...     for target in ms.targets():
     ...         print "%-4s" % ms.display(context, target, "-"),
     ...     print
-    k_si: kasi -    kesi -    kosi
+    k_si: kasi -    kesi kusi kosi
+    k_va: kava -    -    kuva kova
     k_ru: karu kiru keru kuru koru
     k_pu: kapu kipu -    -    kopu
     k_ro: karo kiro -    -    koro
@@ -633,8 +611,8 @@ get a list of wordforms having more than one possible part-of-speech.
 Then the target will be part-of-speech field, and the context will be
 the lexeme field.  We will also display the English gloss field.
 
-    >>> parameters = [(entry['lx'], entry['ps'][0], "%s (%s)" % (entry['ps'][0], entry['ge']))
-    ...               for entry in shoebox.dictionary('rotokas.dic') if 'lx' in entry]
+    >>> parameters = [(entry.findtext('lx'), entry.findtext('ps')[0], "%s (%s)" % (entry.findtext('ps')[0], entry.findtext('ge')))
+    ...               for entry in lexicon]
     >>> ms = build_min_set(parameters)
     >>> for context in ms.contexts()[:10]:
     ...     print "%10s:" % context, "; ".join(ms.display_all(context))
@@ -917,7 +895,7 @@ form ``('Mar', '2004')`` by reversing the order of the month and
 year, and converting the month into a number to get ``('2004', '3')``,
 then using Python's built-in ``cmp`` function to compare them.
 
-Now we can get the times found in the Shoebox entries, sort them
+Now we can get the times found in the Toolbox entries, sort them
 according to our ``time_cmp`` comparison function, and then print them
 in order.  This time we print bars to indicate frequency:
 
