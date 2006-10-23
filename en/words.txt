@@ -6,13 +6,12 @@
 3. Words: The Building Blocks of Language
 =========================================
 
-Language can be divided up into pieces at a variety of different grain
-sizes, ranging from sounds up to utterances and even to documents.  In
-this chapter, we will focus on words, a very important level for much
-work in NLP.  Just what are words, and how should we represent them in
-a machine?  At first, these may seem like trivial questions, but it
-turns out that there are some important issues involved in defining
-and encoding words.
+Language can be divided up into pieces of varying sizes, ranging from
+morphemes to paragraphs.  In this chapter we will focus on words, a
+very important level for much work in NLP.  Just what are words, and
+how should we represent them in a machine?  These may seem like
+trivial questions, but it turns out that there are some important
+issues involved in defining and representing words.
 
 To help us explore these issues, consider the following simple task:
 *count the number of words that appear in a document*.  We'll use the
@@ -95,10 +94,9 @@ characters using ``split()``:
     430
 
 This splitting process is known as `tokenization`:dt:.  There are a
-few problems with this approach to tokenization.  First, it is not
-clear that every sequence of non-whitespace characters should be
-considered a word.  For example, our example article contains the
-following sentence::
+few problems with this simple approach to tokenization.  First, some
+sequences of non-whitespace characters should not be considered a word.
+For example, our example article contains the following sentence::
 
     A spokesman for Temple estimated that Sea Containers' plan -- if all
     the asset sales materialize -- would result in shareholders
@@ -109,7 +107,7 @@ Our simple algorithm incorrectly treats each occurrence of "--" as a word.
 The second problem is that there may be some character sequences that are not separated
 by whitespace, but which we still want to consider separate words.
 One example of this is contractions, such as `didn't`:lx:.  If we're
-analyzing the meaning of a sentence, it might be more useful to treat
+analyzing the meaning of a sentence, it would be more useful to treat
 this character string as two separate words, `did`:lx: and `not`:lx:.
 Conversely, there are times when we want to treat a character sequence
 that contains whitespace as a single word, such as "New York", or
@@ -136,7 +134,10 @@ it's not a "real" word at all, since it wouldn't appear in any
 dictionary?  The answer will depend on what task we're
 trying to solve.
 
-.. TODO: chapter overview
+In this chapter we will explore the division of text into words; the distinction between
+types and tokens; sources of text data including files, the web, and linguistic corpora;
+accessing these sources using Python and NLTK; stemming and normalisation; Wordnet; and
+a variety of useful programming tasks involving words.
 
 .. Note:: If we turn to languages other than English, segmenting words
    can be even more of a challenge. For example, in Chinese
@@ -150,9 +151,9 @@ trying to solve.
    'country-loving person' or as |ai4| [|guo3| |ren2|] |mdash| 'love
    country-person'.
 
-----------------
-Tokens and Types
-----------------
+-----------------------
+Texts, Tokens and Types
+-----------------------
 
 Let us return to our task: *count the number of words that appear in a
 document*.  In the previous section, we interpreted "the number of
@@ -243,34 +244,35 @@ a fragment of Python code.  In the following sections we will see how
 to get text from files, from the web, and from the corpora
 distributed with NLTK.
 
-Accessing Files and the Web
----------------------------
+Getting text from the Web
+-------------------------
 
 .. Monkey-patching to fake the file/web examples in this section:
 
-  >>> from StringIO import StringIO
-  >>> def fake_open(filename, mode=None):
-  ...     return StringIO('Hello world.\nThis is a test file.\n')
-  >>> def fake_urlopen(url):
-  ...     return StringIO(' BBC NEWS | News Front Page News Sport '
-  ...                     'Weather World Service')
-  >>> open = fake_open
-  >>> import urllib
-  >>> urllib.urlopen = fake_urlopen
+    >>> from StringIO import StringIO
+    >>> def fake_open(filename, mode=None):
+    ...     return StringIO('Hello world.\nThis is a test file.\n')
+    >>> def fake_urlopen(url):
+    ...     return StringIO(' BBC NEWS | News Front Page News Sport '
+    ...                     'Weather World Service')
+    >>> open = fake_open
+    >>> import urllib
+    >>> urllib.urlopen = fake_urlopen
 
-It is easy to access local files in Python.  Here are some examples.
-(You will need to create a file called ``corpus.txt`` before you can
-open it for reading.)
+It is easy to access local files in Python.  First, you
+will need to create a file called ``corpus.txt``, using a text editor,
+and making sure to save it as plain text.
 
-  >>> f = open('corpus.txt', 'rU')
-  >>> f.read() 
-  'Hello world.\nThis is a test file.\n'
-  >>>
+    >>> f = open('corpus.txt', 'rU')
 
-The first stage is to `open`:dt: a file using the builtin function ``open``,
+The first stage is to `open`:dt: a file using the builtin function ``open()``,
 which takes two arguments, the name of the file, here corpus.txt, and the
-mode to open the file with |mdash| for now trust us and always use ``'rU'`` for
-files you are opening for reading.
+mode to open the file with (``'r'`` means to open the file for reading,
+and ``'U'`` stands for "Universal", which lets us ignore the different
+conventions used for marking newlines).
+
+    >>> f.read() 
+    'Hello world.\nThis is a test file.\n'
 
 To read the contents of the file we can use lots of different methods.
 The one above uses the file read method ``f.read()``, which reads
@@ -283,34 +285,40 @@ for representing tab.
 
 We can also read a file one line at a time using the ``for`` loop construct:
 
-  >>> f = open('corpus.txt')
-  >>> for line in f:
-  ...     print line[:-1]
-  Hello world.
-  This is a test file.
-  >>>
+    >>> f = open('corpus.txt', 'rU')
+    >>> for line in f:
+    ...     print line[:-1]
+    Hello world.
+    This is a test file.
 
-Here we use the slice trick ``line[:-1]`` to chomp of the newline we are
-reading in from the file since the ``print`` statement already adds an
-extra newline.
+Here we use the slice ``[:-1]`` to remove the newline character at the end of
+the input line.  To read in a web page, we use ``urlopen()``:
 
-Finally, it isn't too much more difficult in Python to read in a webpage:
+    >>> from urllib import urlopen
+    >>> page = urlopen("http://news.bbc.co.uk/").read()
+    >>> print page[:60]
+    <!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"
 
-  >>> from urllib import urlopen
-  >>> page = urlopen("http://news.bbc.co.uk/").read()
-  >>> page = re.sub('<[^>]*>', '', page)   # strip HTML markup
-  >>> page = re.sub('\s+', ' ', page)      # strip whitespace
-  >>> print page[:60]
-   BBC NEWS | News Front Page News Sport Weather World Service
-  >>>
+Web pages are usually in HTML format.  To extract the plain text, we
+can strip out the HTML markup.  We remove all material enclosed in
+angle brackets ``<[^>]*>``.  Next we normalise whitespace, replacing
+any sequence of one or more spaces, tabs or newlines with a single
+space character.
 
-Accessing NLTK Corpora
-----------------------
+    >>> import re
+    >>> page = re.sub('<[^>]*>', '', page)
+    >>> page = re.sub('\s+', ' ', page)
+    >>> print page[:60]
+     BBC NEWS | News Front Page News Sport Weather World Service
+    >>>
 
-NLTK is distributed with several corpora and corpus samples, listed in the introduction.
-Many of these corpora are supported by the NLTK ``corpora`` module.
-First we import the Gutenberg corpus (a selection of texts from
-the Project Gutenberg electronic text archive).
+Getting text from NLTK Corpora
+------------------------------
+
+NLTK is distributed with several corpora and corpus samples and many
+are supported by the ``corpora`` package.  Here we import ``gutenberg``,
+a selection of texts from the Project Gutenberg electronic text archive,
+and list the items it contains:
 
   >>> from nltk_lite.corpora import gutenberg
   >>> gutenberg.items
@@ -318,20 +326,16 @@ the Project Gutenberg electronic text archive).
    'blake-poems', 'blake-songs', 'chesterton-ball', 'chesterton-brown',
    'chesterton-thursday', 'milton-paradise', 'shakespeare-caesar',
    'shakespeare-hamlet', 'shakespeare-macbeth', 'whitman-leaves']
-  >>>
 
-We access the text content using a Python construct called an
-`iterator`:dt:.  It produces a stream of words, which we can access
-using the syntax ``for item in iterator``, as shown below:
+Next we iterate over the text content:
 
   >>> count = 0
   >>> for word in gutenberg.raw('whitman-leaves'):
   ...     count += 1
   >>> print count
   154873
-  >>>
 
-NLTK also includes the Brown Corpus, the first million word,
+NLTK also includes the Brown Corpus, the first million-word,
 part-of-speech tagged electronic corpus of English, created in 1961 at
 Brown University.  Each of the sections ``a`` through ``r`` represents
 a different genre.
@@ -339,7 +343,6 @@ a different genre.
   >>> from nltk_lite.corpora import brown
   >>> brown.items
   ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
-  >>>
 
 We can extract individual sentences from the corpus iterator using the
 ``extract()`` function:
@@ -350,149 +353,46 @@ We can extract individual sentences from the corpus iterator using the
    'investigation', 'of', "Atlanta's", 'recent', 'primary', 'election',
    'produced', '``', 'no', 'evidence', "''", 'that', 'any', 'irregularities',
    'took', 'place', '.']
-  >>>
 
 Exercises
 ---------
 
+#. Create a small text file, and write a program to read it and print it
+   with a line number at the start of each line.
+
 #. Use the corpus module to read ``austin-persuasion.txt``.
-   How many words does this book have?
+   How many word tokens does this book have?  How many word types?
 
 #. Use the Brown corpus reader ``brown.raw()`` to access some sample
    text in two different genres.
-
-#. Try running the various chatbots.  How *intelligent* are these programs?
-   Take a look at the program code and see if you can
-   discover how it works.  You can find the code online at:
-   ``http://nltk.sourceforge.net/lite/nltk_lite/chat/``.
-
-Example: Stylistics
--------------------
-
-So far, we've seen how to count the number of tokens or types in a
-document.  But it's much more interesting to look at *which* tokens or
-types appear in a document.  We can use a Python dictionary to count the
-number of occurrences of each word type in a document:
-
-    >>> counts = {}
-    >>> for word in text.split():
-    ...     if word not in counts:
-    ...         counts[word] = 0
-    ...     counts[word] += 1
-
-The first statement, ``counts = {}``, initializes the dictionary,
-while the next four lines successively add entries to it and increment
-the count each time we encounter a new token of a given type.  To view
-the contents of the dictionary, we can iterate over its keys and print
-each entry (here just for the first 10 entries):
-    
-    >>> for word in sorted(counts)[:10]:
-    ...     print counts[word], word
-    1 $1.1
-    2 $130
-    1 $36
-    1 $45
-    1 $490
-    1 $5
-    1 $62.625,
-    1 $620
-    1 $63
-    2 $7
-
-We can also print the number of times that a specific word we're
-interested in appeared:
-
-    >>> print counts['might']
-    3
-
-Applying this same approach to document collections that are
-categorized by genre, we can learn something about the patterns of word
-usage in those genres.  For example, the following table was
-constructed by counting the number of times various modal words appear
-in different genres in the Brown Corpus:
-
-==================  ===  =====  ===  =====  ====  ====
-Use of Modals in Brown Corpus, by Genre
-------------------------------------------------------
-Genre               can  could  may  might  must  will 
-==================  ===  =====  ===  =====  ====  ====
-skill and hobbies   273  59     130  22     83    259 
-humor               17   33     8    8      9     13 
-fiction: science    16   49     4    12     8     16 
-press: reportage    94   86     66   36     50    387 
-fiction: romance    79   195    11   51     46    43 
-religion            84   59     79   12     54    64 
-==================  ===  =====  ===  =====  ====  ====
-
-Observe that the most frequent modal in the reportage genre is
-`will`:lx:, suggesting a focus on the future, while the most frequent
-modal in the romance genre is `could`:lx:, suggesting a focus on
-possibilities.
-
-We can also measure the lexical diversity of a genre, by
-calculating the ratio of word types and word tokens, as
-shown in the following table.  (Genres with lower diversity
-have a higher number of tokens per type.)
-
-==================  ===========  ==========  =====
-Word Types and Tokens in Brown Corpus, by Genre
---------------------------------------------------
-Genre               Token Count  Type Count  Ratio
-==================  ===========  ==========  =====
-skill and hobbies   82345        11935       6.9
-humor               21695        5017        4.3
-fiction: science    14470        3233        4.5
-press: reportage    100554       14394       7.0
-fiction: romance    70022        8452        8.3
-religion            39399        6373        6.2
-==================  ===========  ==========  =====
-
-We can carry out a variety of interesting explorations simply by
-counting words.  In fact, the field of *Corpus Linguistics* focuses
-almost exclusively on creating and interpreting such tables of word
-counts.  So far, our method for identifying word tokens has been
-a little primitive, and we have not been able to separate punctuation
-from the words.  We will take up this issue in the next section.
-
-Example: Lexical Dispersion
----------------------------
-
-Word tokens vary in their distribution throughout a text.  We can
-visualize word distributions, to get an overall sense of topics and topic
-shifts.  For example, consider the pattern of mention of the main
-characters in Jane Austen's *Sense and Sensibility*: Elinor, Marianne,
-Edward and Willoughby.  The following plot contains four rows, one for
-each name.  Each row contains a series of lines, drawn
-to indicate the position of each token.
-
-.. figure:: ../images/words-dispersion.png
-
-   Lexical Dispersion
-
-Observe that `Elinor`:lx: and `Marianne`:lx: appear rather uniformly throughout
-the text, while `Edward`:lx: and `Willoughby`:lx: tend to appear separately.
-Here is the program that generated the above plot.  [NB. Requires NLTK-Lite 0.6.7].
-
-.. doctest-ignore::
-    >>> from nltk_lite.corpora import gutenberg
-    >>> from nltk_lite.draw import dispersion
-    >>> words = ['Elinor', 'Marianne', 'Edward', 'Willoughby']
-    >>> dispersion.plot(gutenberg.raw('austen-sense'), words)
-
-Exercises
----------
-
-1. Write a program to create a table of word frequencies by genre,
-   like the one given above for modals.  Choose your own words and
-   try to find words whose presence (or absence) is typical of a genre.
-   Discuss your findings.
 
 #. Write a program to generate a table of token/type ratios, as we saw
    above.  Include the full set of Brown Corpus genres.  Which genre
    has the lowest diversity.  Is this what you would have expected?
 
-#. Pick a text, and explore the dispersion of particular words.  What
-   does this tell you about the words, or the text?
+#. Read in some text from a corpus, tokenize it, and print the list of all
+   wh-word types that occur.  Print them in order.  Are any words duplicated
+   in this list, because of the presence of case distinctions or punctuation?
+
+#. Read in the texts of the *State of the Union* addresses, using the
+   ``state_union`` corpus reader.  Count occurrences of ``men``, ``women``,
+   and ``people`` in each document.  What has happened to the usage of these
+   words over time?
+
+#. In this section we saw the regular expression for removing HTML markup
+   was ``<[^>]*>``.  What does the ``[^>]`` do?  What is wrong with using
+   the period wildcard character which matches any character, i.e. ``<.*>``?
+
+#. Define a function ``ghits()``, which takes a word as its argument, and
+   builds a google query string of the form ``http://www.google.com?q=word``.
+   Strip the HTML markup and normalize whitespace.  Search for a substring
+   of the form ``Results 1 - 10 of about`` and extract the following number.
+   convert this to an integer and return it.
+
+#. *Just for fun:* Try running the various chatbots.  How
+   *intelligent* are these programs?  Take a look at the program code
+   and see if you can discover how it works.  You can find the code
+   online at: ``http://nltk.sourceforge.net/lite/nltk_lite/chat/``.
 
 ------------------------------
 Tokenization and Normalization
@@ -722,33 +622,19 @@ Here we access the pronunciation of words...
     >>> from string import join
     >>> for word, num, pron in cmudict.raw():
     ...     if pron[-4:] == ('N', 'IH0', 'K', 'S'):
-    ...         print word, "/", ' '.join(pron)
-    ATLANTIC'S / AH0 T L AE1 N IH0 K S
-    AUDIOTRONICS / AO2 D IY0 OW0 T R AA1 N IH0 K S
-    AVIONICS / EY2 V IY0 AA1 N IH0 K S
-    BEATNIKS / B IY1 T N IH0 K S
-    CALISTHENICS / K AE2 L AH0 S TH EH1 N IH0 K S
-    CENTRONICS / S EH2 N T R AA1 N IH0 K S
-    CHETNIKS / CH EH1 T N IH0 K S
-    CLINIC'S / K L IH1 N IH0 K S
-    CLINICS / K L IH1 N IH0 K S
-    CONICS / K AA1 N IH0 K S
-    CYNICS / S IH1 N IH0 K S
-    DIASONICS / D AY2 AH0 S AA1 N IH0 K S
-    DOMINIC'S / D AA1 M AH0 N IH0 K S
-    EBONICS / IY0 B AO1 N IH0 K S
-    ELECTRONICS / AH0 L EH2 K T R AA1 N IH0 K S
-    ...
-    ONYX / AA1 N IH0 K S
-    ...
-    PHILHARMONIC'S / F IH2 L HH AA0 R M AA1 N IH0 K S
-    PHOENIX / F IY1 N IH0 K S
-    PHONICS / F AA1 N IH0 K S
-    ...
-    TELEPHONICS / T EH2 L AH0 F AA1 N IH0 K S
-    TONICS / T AA1 N IH0 K S
-    UNIX / Y UW1 N IH0 K S
-    ...
+    ...         print word.lower(),
+    atlantic's audiotronics avionics beatniks calisthenics centronics
+    chetniks clinic's clinics conics cynics diasonics dominic's
+    ebonics electronics electronics' endotronics endotronics' enix
+    environics ethnics eugenics fibronics flextronics harmonics
+    hispanics histrionics identics ionics kibbutzniks lasersonics
+    lumonics mannix mechanics mechanics' microelectronics minix minnix
+    mnemonics mnemonics molonicks mullenix mullenix mullinix mulnix
+    munich's nucleonics onyx panic's panics penix pennix personics
+    phenix philharmonic's phoenix phonics photronics pinnix
+    plantronics pyrotechnics refuseniks resnick's respironics sconnix
+    siliconix skolniks sonics sputniks technics tectonics tektronix
+    telectronics telephonics tonics unix vinick's vinnick's vitronics
 
 Wordnet Semantic Network
 ------------------------
@@ -758,7 +644,7 @@ Wordnet Semantic Network
 
 Access wordnet as follows:
 
-    >>> import wordnet
+    >>> from nltk_lite import wordnet
 
 Help on the interface is available using ``help(wordnet)``.
 
@@ -783,7 +669,7 @@ A `synset`:dt: is a set of synonymous words, in fact this is how a word
 sense is specified in Wordnet.
 Each synset is linked to several other synsets, and the wordnet
 interface permits us to navigate these links.  For example, we
-can navigate from a synset to its `hyponyms`:dt:, namely words
+can navigate from a synset to its `hyponyms`:dt:, namely synsets
 having narrower meaning.  We use ``getPointerTargets()`` to
 do this navigation:
 
@@ -808,9 +694,11 @@ do this navigation:
     {noun: poodle, poodle dog}
     {noun: Mexican hairless}
 
-Each synset has a unique hypernym.  Thus, from any synset we can trace
-paths back to the most general synset *entity*.  First we define a
-function to return the hypernym of a synset:
+Each synset has a unique `hypernym`:dt:, a more general synset that
+contains it.  Thus, from any synset we can trace paths back to the
+most general synset.  First we define a recursive function to return
+the hypernym of a synset.  (We will study recursive functions
+systematically in Part II.)
 
 .. TODO: explain exceptions
 
@@ -849,7 +737,8 @@ by Wordnet.
 Exercises
 ---------
 
-1. Familiarize yourself with the Pywordnet interface.
+1. Familiarize yourself with the Wordnet interface, by reading the
+   documentation available via ``help(wordnet)``.
 
 #. Investigate the holonym / meronym pointers for some nouns.  Note that there
    are three kinds (member, part, substance), so access is more specific,
@@ -857,7 +746,7 @@ Exercises
 
 #. Write a program to score the similarity of two nouns as the depth
    of their first common hypernym.  Evaluate your findings against the
-   Miller-Charles set of word pairs, listed in order of decreasing
+   Miller-Charles set of word pairs, listed here in order of decreasing
    similarity: car-automobile, gem-jewel, journey-voyage, boy-lad,
    coast-shore, asylum-madhouse, magician-wizard, midday-noon,
    furnace-stove, food-fruit, bird-cock, bird-crane, tool-implement,
@@ -870,6 +759,127 @@ Exercises
 -----------------------------
 Simple Statistics with Tokens
 -----------------------------
+
+Example: Stylistics
+-------------------
+
+So far, we've seen how to count the number of tokens or types in a
+document.  But it's much more interesting to look at *which* tokens or
+types appear in a document.  We can use a Python dictionary to count the
+number of occurrences of each word type in a document:
+
+    >>> counts = {}
+    >>> for word in text.split():
+    ...     if word not in counts:
+    ...         counts[word] = 0
+    ...     counts[word] += 1
+
+The first statement, ``counts = {}``, initializes the dictionary,
+while the next four lines successively add entries to it and increment
+the count each time we encounter a new token of a given type.  To view
+the contents of the dictionary, we can iterate over its keys and print
+each entry (here just for the first 10 entries):
+    
+    >>> for word in sorted(counts)[:10]:
+    ...     print counts[word], word
+    1 $1.1
+    2 $130
+    1 $36
+    1 $45
+    1 $490
+    1 $5
+    1 $62.625,
+    1 $620
+    1 $63
+    2 $7
+
+We can also print the number of times that a specific word we're
+interested in appeared:
+
+    >>> print counts['might']
+    3
+
+Applying this same approach to document collections that are
+categorized by genre, we can learn something about the patterns of word
+usage in those genres.  For example, the following table was
+constructed by counting the number of times various modal words appear
+in different genres in the Brown Corpus:
+
+==================  ===  =====  ===  =====  ====  ====
+Use of Modals in Brown Corpus, by Genre
+------------------------------------------------------
+Genre               can  could  may  might  must  will 
+==================  ===  =====  ===  =====  ====  ====
+skill and hobbies   273  59     130  22     83    259 
+humor               17   33     8    8      9     13 
+fiction: science    16   49     4    12     8     16 
+press: reportage    94   86     66   36     50    387 
+fiction: romance    79   195    11   51     46    43 
+religion            84   59     79   12     54    64 
+==================  ===  =====  ===  =====  ====  ====
+
+Observe that the most frequent modal in the reportage genre is
+`will`:lx:, suggesting a focus on the future, while the most frequent
+modal in the romance genre is `could`:lx:, suggesting a focus on
+possibilities.
+
+We can also measure the lexical diversity of a genre, by
+calculating the ratio of word types and word tokens, as
+shown in the following table.  (Genres with lower diversity
+have a higher number of tokens per type.)
+
+==================  ===========  ==========  =====
+Word Types and Tokens in Brown Corpus, by Genre
+--------------------------------------------------
+Genre               Token Count  Type Count  Ratio
+==================  ===========  ==========  =====
+skill and hobbies   82345        11935       6.9
+humor               21695        5017        4.3
+fiction: science    14470        3233        4.5
+press: reportage    100554       14394       7.0
+fiction: romance    70022        8452        8.3
+religion            39399        6373        6.2
+==================  ===========  ==========  =====
+
+We can carry out a variety of interesting explorations simply by
+counting words.  In fact, the field of *Corpus Linguistics* focuses
+almost exclusively on creating and interpreting such tables of word
+counts.  So far, our method for identifying word tokens has been
+a little primitive, and we have not been able to separate punctuation
+from the words.  We will take up this issue in the next section.
+
+Lining things up in columns
+---------------------------
+
+[TODO: discuss formatted print statements in more detail]
+
+Example: Lexical Dispersion
+---------------------------
+
+Word tokens vary in their distribution throughout a text.  We can
+visualize word distributions, to get an overall sense of topics and topic
+shifts.  For example, consider the pattern of mention of the main
+characters in Jane Austen's *Sense and Sensibility*: Elinor, Marianne,
+Edward and Willoughby.  The following plot contains four rows, one for
+each name.  Each row contains a series of lines, drawn
+to indicate the position of each token.
+
+.. figure:: ../images/words-dispersion.png
+
+   Lexical Dispersion
+
+Observe that `Elinor`:lx: and `Marianne`:lx: appear rather uniformly throughout
+the text, while `Edward`:lx: and `Willoughby`:lx: tend to appear separately.
+Here is the program that generated the above plot.  [NB. Requires NLTK-Lite 0.6.7].
+
+.. doctest-ignore::
+    >>> from nltk_lite.corpora import gutenberg
+    >>> from nltk_lite.draw import dispersion
+    >>> words = ['Elinor', 'Marianne', 'Edward', 'Willoughby']
+    >>> dispersion.plot(gutenberg.raw('austen-sense'), words)
+
+Frequency Distributions
+-----------------------
 
 We can do more sophisticated counting using *frequency distributions*.
 Abstractly, a frequency distribution is a record of the number of
@@ -930,6 +940,8 @@ sample is 5-6 characters.
      2 14 28 21 13  7  5  2  2  0  0  0  0  0
     >>> length_dist('finnish')
      0  9  6 10 16 16 12  9  6  3  2  2  1  0
+
+.. TODO: Plot interface
 
 Conditional Frequency Distributions
 -----------------------------------
@@ -1036,6 +1048,14 @@ more often.
 
 Exercises
 ---------
+
+1. Write a program to create a table of word frequencies by genre,
+   like the one given above for modals.  Choose your own words and
+   try to find words whose presence (or absence) is typical of a genre.
+   Discuss your findings.
+
+#. Pick a text, and explore the dispersion of particular words.  What
+   does this tell you about the words, or the text?
 
 #. Use the ``Plot`` function defined in ``nltk_lite.draw.plot`` plot
    word-initial character against word length, as discussed in this section.
@@ -1146,9 +1166,9 @@ and @ (`at`:lx:). Unlike ordinary punctuation marks, these symbols
 (sometimes called `logograms`:dt:) stand for words, and would be spoken as
 such if the text were read aloud.
 
--------
-Summary
--------
+----------
+Conclusion
+----------
 
 In this chapter we saw that we can do a variety of interesting
 language processing tasks that focus solely on words.  Tokenization
@@ -1168,12 +1188,5 @@ Further Reading
 John Hopkins Center for Language and Speech Processing, 1999
 Summer Workshop on Normalization of Non-Standard Words: Final Report
 http://www.clsp.jhu.edu/ws99/projects/normal/report.pdf
-
-SIL Glossary of Linguistic Terms:
-http://www.sil.org/linguistics/GlossaryOfLinguisticTerms/
-
-Language Files: Materials for an Introduction to Language and
-Linguistics (Eighth Edition), The Ohio State University Department of
-Linguistics, http://www.ling.ohio-state.edu/publications/files/
 
 .. include:: footer.txt
