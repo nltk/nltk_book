@@ -39,6 +39,12 @@ by considering methods for processing data created with proprietary
 tools (e.g. Microsoft Office products).  The bulk of the discussion
 focusses on field data stored in the popular *Toolbox* format.
 
+.. Note:: Other sections, still to be written, will cover the collection
+  and curation of corpora; the lifecycle of linguistic data, including
+  coding/annotation and automatic learning of annotations; and
+  language resources more generally which are crucial in linguistic
+  research and commercial NLP.
+
 -----------------------------------------------------------------
 Tools and technologies for language documentation and description
 -----------------------------------------------------------------
@@ -73,10 +79,14 @@ Consider the following fragment of a lexical entry:
 We can enter this in MSWord, then "Save as Web Page",
 then inspect the resulting HTML::
 
-    <p class=MsoNormal>sleep <span style='mso-spacerun:yes'> </span>[<span
-    class=SpellE>sli:p</span>]<span style='mso-spacerun:yes'>  </span><b><span
-    style='font-size:11.0pt'>vi</span></b><span style='mso-spacerun:yes'>  </span><i>a
-    condition of body and mind ...o:p></o:p></i></p>
+    <p class=MsoNormal>sleep
+      <span style='mso-spacerun:yes'> </span>
+      [<span class=SpellE>sli:p</span>]
+      <span style='mso-spacerun:yes'> </span>
+      <b><span style='font-size:11.0pt'>vi</span></b>
+      <span style='mso-spacerun:yes'> </span>
+      <i>a condition of body and mind ...<o:p></o:p></i>
+    </p>
 
 Observe that the entry is represented as an HTML paragraph, using the
 ``<p>`` element, and that the part of speech appears inside a ``<span
@@ -122,6 +132,24 @@ pronunciations and generates output in "comma-separated value" (CSV) format:
     "walk","wo:k"
     "wake","weik"
 
+We could also produce output in the Toolbox format (to be discussed
+in detail later)::
+
+    \lx sleep
+    \ph sli:p
+    \ps v.i
+    \gl a condition of body and mind ...
+
+    \lx walk
+    \ph wo:k
+    \ps v.intr
+    \gl progress by lifting and setting down each foot ...
+
+    \lx wake
+    \ph weik
+    \ps intrans
+    \gl cease to sleep
+
 **Spreadsheets.** These are often used for wordlists or paradigms.  A
 comparative wordlist may be stored in a spreadsheet, with a row for
 each cognate set, and a column for each language.  Examples are
@@ -144,7 +172,13 @@ Query languages such as SQL cannot express many
 linguistically-motivated queries, e.g. *find all words that appear
 in example sentences for which no dictionary entry is provided*.
 Now supposing that the database supports exporting data to CSV format,
-we can express this query in the following program:
+and that we can save the data to a file ``dict.csv``::
+
+    "sleep","sli:p","v.i","a condition of body and mind ..."
+    "walk","wo:k","v.intr","progress by lifting and setting down each foot ..."
+    "wake","weik","intrans","cease to sleep"
+
+Now we can express this query in the following program:
 
     >>> import csv
     >>> lexemes = []
@@ -156,7 +190,8 @@ we can express this query in the following program:
     >>> undefined = list(set(defn_words).difference(set(lexemes)))
     >>> undefined.sort()
     >>> print undefined
-    ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each', 'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
+    ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
+    'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
 -----------------------
 Processing Toolbox Data
@@ -210,27 +245,38 @@ several lines (but cannot contain a line-initial backslash).
 Accessing Toolbox Data
 ----------------------
 
-We can use the ``toolbox.parse_corpus()`` method to access a Toolbox file to
-perform various operations that involve single-pass scanning of a
-lexicon.  For example, here we compute the average number of fields
-for each entry:
+We can use the ``toolbox.parse_corpus()`` method to access a Toolbox
+file and load it into an ``elementtree`` object.  We must specify the
+unique key field of the database, as this is used to identify the
+start of each record.
 
     >>> from nltk_lite.corpora import toolbox
     >>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
-    >>> sum_size = num_entries = 0
-    >>> for entry in lexicon.findall('record'):
-    ...     num_entries += 1
-    ...     sum_size += len(entry)
-    >>> print sum_size/num_entries
+
+Suppose that we wanted to compute the average number of fields for
+each entry.  This is just the total length of the entries (the number
+of fields they contain), divided by the number of entries in the
+lexicon:
+
+    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
     10
 
-As we will see below, we can also add or remove fields, or to examine
-sequences of fields.
+There are two ways to access the contents of the lexicon object, by
+indexes and by paths.  Indexes use the familiar syntax, thus thus
+``lexicon[3]`` returns entry number 3 (which is actually the fourth
+entry counting from zero).  And ``lexicon[3][0]`` returns its first
+field:
 
-We can index into this lexicon object, thus ``lexicon[3]`` returns entry number
-3 (which is actually the fourth entry counting from zero).
+    >>> lexicon[3][0] 
+    <Element lx at 77bd28>
+    >>> lexicon[3][0].tag
+    'lx'
+    >>> lexicon[3][0].text
+    'kaa'
 
-    >>> for field in lexicon[3].getchildren():
+We can iterate over all the fields of a given entry:
+
+    >>> for field in lexicon[3]:
     ...     print "\\%s %s" % (field.tag, field.text)
     \lx kaa
     \ps N.M
@@ -243,20 +289,17 @@ We can index into this lexicon object, thus ``lexicon[3]`` returns entry number
     \xp Taeavi i bin planim gaden banana bilong kukim tasol long paia.
     \xe Taeavi planted banana in order to cook it.
 
-Simple Entry Processing
------------------------
+The second way to access the contents of the lexicon object uses
+paths.  The lexicon is a series of ``record`` objects, each containing
+a series of field objects, such as ``lx`` and ``ps``.  We can
+conveniently address all of the lexemes using the path ``record/lx``.
+Here we use the ``findall()`` function to search for any matches to
+the path ``record/lx``, and we access the text content of the element,
+normalising it to lowercase.
 
-The simplest approach to processing a Toolbox file is to scan through
-each entries, and for each entry, to scan through each field.  As we
-have seen, the ``shoebox.raw()`` method returns entries, where each
-entry is just a sequence of fields.  Suppose we wanted to create a list of
-all the lexemes.  We can do this as follows:
-
-    >>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
-    >>> lexemes[:8]
-    ['kaa', 'kaa', 'kaa', 'kaakaaro', 'kaakaaviko', 'kaakaavo', 'kaakaoko', 'kaakasi']
-
-[TODO: explain findall]
+    >>> [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
+    ['kaa', 'kaa', 'kaa', 'kaakaaro', 'kaakaaviko', 'kaakaavo', 'kaakaoko',
+    'kaakasi', 'kaakau', 'kaakauko', 'kaakito', 'kaakuupato', ..., 'kuvuto']
 
 **Adding New Fields:**
 It is often convenient to add new fields that are derived from
@@ -278,12 +321,21 @@ then we replace any non-alphabetic characters ``[^a-z]`` with an underscore.
 Next, we replace all vowels with ``V``.  Finally, anything that is not
 a ``V`` or an underscore must be a consonant, so we replace it with a ``C``.
 Now, we can scan the lexicon and add a new ``cv`` field after every ``lx``
-field.  Here we will do it for a single entry only:
+field.
 
-    >>> for field in lexicon[50].getchildren():
+    >>> from nltk_lite.etree.ElementTree import Element
+    >>> for entry in lexicon:
+    ...     for i in range(len(entry)):
+    ...         if entry[i].tag == 'lx':
+    ...             cv_field = Element("cv")
+    ...             cv_field.text = cv(entry[i].text)
+    ...             entry.insert(i+1, cv_field)
+
+Let's see what this does for a particular entry.  Note the second
+line of output, which shows the new CV field:
+
+    >>> for field in lexicon[50]:
     ...     print "\\%s %s" % (field.tag, field.text)
-    ...     if field.tag == "lx":
-    ...         print "\\cv %s" % cv(field.text)
     \lx kaeviro
     \cv CVVCVCV
     \ps V.A
@@ -302,33 +354,21 @@ that lack particular fields.  For example, we may want to sanitise our
 lexical data before giving it to others, by removing unnecessary
 fields (e.g. fields containing personal comments.)
 
-    >>> retain = ('lx', 'ps')
-    >>> for entry in lexicon[50:55]:
-    ...     for field in entry.getchildren():
-    ...         if field.tag in retain:
-    ...             print "\\%s %s" % (field.tag, field.text)
-    ...     print
-    \lx kaeviro
-    \ps V.A
-    <BLANKLINE>
-    \lx kagave
-    \ps N.F
-    <BLANKLINE>
-    \lx kaie
-    \ps V.A
-    <BLANKLINE>
-    \lx kaiea
-    \ps N.N
-    <BLANKLINE>
-    \lx kaikaio
-    \ps N.N
-    <BLANKLINE>
+    >>> retain = ('lx', 'ps', 'ge')
+    >>> for entry in lexicon:
+    ...     entry[:] = [f for f in entry if f.tag in retain]
+    >>> for field in lexicon[3]:
+    ...     print "\\%s %s" % (field.tag, field.text)
+    \lx kaa
+    \ps N.M
+    \ge cooking banana
 
 **Formatting Entries:**
 We can also print a formatted
 version of a lexicon.  It allows us to request specific fields without
 needing to be concerned with their relative ordering in the original file.
 
+    >>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
     >>> for entry in lexicon[70:80]:
     ...     lx = entry.findtext('lx')
     ...     ps = entry.findtext('ps')
@@ -383,7 +423,19 @@ XML output
     >>> fourth_entry = lexicon.findall('record')[3]
     >>> tree = ElementTree(fourth_entry)
     >>> tree.write(sys.stdout)
-
+    <record>
+      <lx>kaakaaro</lx>
+      <ps>N.N</ps>
+      <ge>mixtures</ge>
+      <gp>???</gp>
+      <eng>mixtures</eng>
+      <eng>charm used to keep married men and women youthful and attractive</eng>
+      <cmt>Check vowel length. Is it kaakaaro or kaakaro?</cmt>
+      <dt>14/May/2005</dt>
+      <ex>Kaakaroto ira purapaiveira aue iava opita, voeao-pa airepa oraouirara, ra va aiopaive.</ex>
+      <xp>Kokonas ol i save wokim long ol kain samting bilong ol nupela marit, bai ol i ken kaikai.</xp>
+      <xe>Mixtures are made from coconut, ???.</xe>
+    </record>
 
 Exploration
 -----------
@@ -451,6 +503,7 @@ sequences of a non-vowel ``[^aeiou]`` followed by a vowel ``[aeiou]``.
     >>> from nltk_lite.tokenize import regexp
     >>> from nltk_lite.probability import FreqDist
     >>> fd = FreqDist()
+    >>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
     >>> for lex in lexemes:
     ...     for syl in regexp(lex, pattern=r'[^aeiou][aeiou]'):
     ...         fd.inc(syl)
