@@ -1205,7 +1205,6 @@ Consider the examples in Figure maps02_.
 .. _maps02:
 .. figure:: ../images/maps02.png
    :scale: 20
-   :align: center
 
    Dictionary Look-up
 
@@ -1524,9 +1523,8 @@ suppose that the variable ``str``  is bound to the text shown below:
    ...
    ... Google Analytics, the result of Google's acquisition of the San
    ... Diego-based Urchin Software Corporation, really really opened it's
-   ... doors to the world a couple of days ago, and it allows you to to track up
-   ... to 10 sites within a single google account (you sign in with your
-   ... gmail account)."""
+   ... doors to the world a couple of days ago."""
+   >>>
 
 The triple quotes ``"""`` are useful here, since they allow us to
 break a string across lines.
@@ -1558,6 +1556,7 @@ it is looking for, and a string in which the pattern might occur.
     >>> re_show('very very', str)
     Google Analytics is {very very} very nice (now)
     ...
+    >>>
 
 (We have only displayed  first part of ``str`` that
 is returned, since the rest is irrelevant for the moment.)
@@ -1566,22 +1565,21 @@ occurrence it has found of the string ``'very very'``. So an important
 part of what ``re_show`` is doing is searching for any substring of
 ``str`` which `matches`:dt: the pattern in its first argument. 
 
-Now  we might want to modify the example so that ``re_show`` highlights
-cases where there are two `or more`:em: adjacent sequences of ``'very'``. To do
-this, we need to use a `regular expression operator`:dt:, namely
-``+``. If `s`:ph: is a string, then `s`:ph:\ ``+`` means: 'one or more
-occurrences of `s`:ph:\ '. Let's first look at the case where `s`:ph: is
-a single character, namely the letter ``'o'``:
+Now we might want to modify the example so that ``re_show`` highlights
+cases where there are two `or more`:em: adjacent sequences of
+``'very'``. To do this, we need to use a `regular expression
+operator`:dt:, namely ``'+'``. If `s`:ph: is a string, then `s`:ph:\
+``+`` means: 'match one or more occurrences of `s`:ph:\ '. Let's first look
+at the case where `s`:ph: is a single character, namely the letter
+``'o'``:
 
    >>> re_show('o+', str)
    G{oo}gle Analytics is very very very nice (n{o}w)
    ...
+   >>>
 
-.. 
-  |tlc|\ ``o+``\ |brc| 
 
-is our first proper regular expression, and to
-mark the occasion, we are going to set it off within corner brackets. You can think of it as
+``'o+'`` is our first proper regular expression. You can think of it as
 matching an `infinite set`:em: of strings, namely the set {``'o'``,
 ``'oo'``, ``'ooo'``, ...}. But we would really like to match against
 the set which contains strings of least two ``'o'``\ s; for this, we need
@@ -1590,6 +1588,7 @@ the regular expression  ``'oo+'``, which matches any string consisting of
 
    >>> re_show('oo+', str)
    G{oo}gle Analytics is very very very nice (now)
+   >>>
 
 Let's return to the task of identifying multiple occurrences of
 ``'very'``. Some initially plausible candidates won't do what we
@@ -1603,6 +1602,7 @@ whitespace between the two words; instead, it will match strings like
 
    >>> re_show('(very\s)+', str)
    Google Analytics is {very very very }nice (now)
+   >>>
 
 ..
     >>> re_show('l', sent)
@@ -1624,59 +1624,143 @@ might initially get a shock:
    >>> str
    "Google Analytics is very very very nice (now)\nBy Jason Hoffman 18 August 06\n\nGoogle
    ...
+   >>>
 
-Now we can perform substitutions.  In the first instance we replace
+You might recall that ``'\n'`` is a special character that corresponds
+to a newline in a string. The following example shows how newline is
+matched by ``'\s'``.
+
+   >>> str2 = "I'm very very\nvery happy"
+   >>> re_show('very\s', str2)
+   I'm {very }{very
+   }{very }happy
+   >>>
+
+
+Python's ``re.findall(``\ `patt`:ph:, `str`:ph:\ ``)`` is a useful
+function which returns a list of all the substrings in `str`:ph: that
+are matched by `patt`:ph`. Before illustrating, let's introduce 
+two further special characters , ``'\d'`` and ``'\w'``: the first
+will match any digit, and the second will match any alphanumeric character.
+
+   >>> re.findall('\d\d', str)
+   ['18', '06', '10']
+   >>> re.findall('\s\w\w\w\s', str)
+   [' the ', ' the ', ' the ', ' and ', ' you ']
+   >>> 
+   
+As you will see, the second example matches three-letter
+words. ``re.findall()`` behaves slightly differently if we create
+`groups`:dt: in the regular expression using parentheses; it only
+returns strings which occur within the groups. We can use this
+property to avoid producing the whitespace either side of our
+three-letter words:
+
+   >>> re.findall('\s(\w\w\w)\s', str)
+   ['the', 'the', 'the', 'and', 'you']
+   >>>
+
+Somewhat different (but still special!) is the so-called wildcard
+element, ``'.'``; this has the distinction of matching any single
+character (except ``'\n'``). In the next example, we have introduced
+one new operator, namely ``'?'``. This is similar to ``'+'``, but says
+that the preceding regular expression is optional.
+
+   >>> str3 = "to be or not to be, that will be $22.33."
+   >>> re_show('..\s?', str3)
+   {to }{be }{or }{no}{t }{to }{be}{, }{th}{at }{wi}{ll }{be }{$2}{2.}{33}.
+   >>> 
+
+To spell it out, then, ``'..\s?'`` matches any two characters followed
+optionally by a whitespace character. As you will see, ``'.'`` has
+matched against punctuation and the ``'$'`` symbol. However, one
+question which might occur to you is how do we specify a match against
+a period? The answer is that we have to place a ``'\'`` immediately
+before the ``'.'`` in order to escape its special interpretation.
+
+   >>> re_show('.\..', str3)
+   to be or not to b{e. }That will be $2{2.3}3.
+   >>>
+
+Returning to the case of repeated words, we might want to look for
+cases involving ``'very'`` or ``'really'``, and for this we use the
+disjunction operator ``|``.
+
+   >>> re_show('((very|really)\s)+', str)
+   Google Analytics is {very very very }nice (now)
+   By Jason Hoffman 18 August 06
+   ...
+   Google Analytics, the result of Google's acquisition of the San
+   Diego-based Urchin Software Corporation, {really really }opened it's
+   ...
+   >>>
+
+In addition to the matches just illustrated, the regular expression
+``'((very|really)\s)+'`` will also match cases where the two disjuncts
+occur with each other, such as the string ``'really very really '``. 
+
+Let's now look at how to perform substitutions, using the ``re.sub()``
+function.  In the first instance we replace
 all instances of ``l`` with ``s``.  Note that this generates a string
 as output, and doesn't modify the original string.  Then we replace
 any instances of ``green`` with ``red``.
 
+    >>> sent = "colorless green ideas sleep furiously"
     >>> re.sub('l', 's', sent)
     'cosorsess green ideas sseep furioussy'
     >>> re.sub('green', 'red', sent)
     'colorless red ideas sleep furiously'
     >>>
 
-So far we have only seen simple patterns, consisting of individual
-characters or sequences of characters.  However, regular expressions can
-also contain special syntax, such as ``|`` for disjunction, e.g.:
+.. 
+   So far we have only seen simple patterns, consisting of individual
+   characters or sequences of characters.  However, regular expressions can
+   also contain special syntax, such as ``|`` for disjunction, e.g.:
 
-    >>> re_show('(green|sleep)', sent)
-    colorless {green} ideas {sleep} furiously
-    >>> re.findall('(green|sleep)', sent)
-    ['green', 'sleep']
-    >>>
+       >>> re_show('(green|sleep)', sent)
+       colorless {green} ideas {sleep} furiously
+       >>> re.findall('(green|sleep)', sent)
+       ['green', 'sleep']
+       >>>
 
 We can also disjoin individual characters using a square bracket
 notation.  For example, ``[aeiou]`` matches any of ``a``, ``e``,
 ``i``, ``o``, or ``u``, that is, any vowel.  The expression
-``[^aeiou]`` matches anything that is not a vowel.  In the following
+``[^aeiou]`` matches anything that is `not`:em: a vowel.  In the following
 example, we match sequences consisting of non-vowels followed by
 vowels.
 
     >>> re_show('[^aeiou][aeiou]', sent)
     {co}{lo}r{le}ss g{re}en{ i}{de}as s{le}ep {fu}{ri}ously
+    >>>
+
+Using the same regular expression, the function ``re.findall()``
+returns a list of all the substrings in ``sent`` that are matched:
+
     >>> re.findall('[^aeiou][aeiou]', sent)
     ['co', 'lo', 'le', 're', ' i', 'de', 'le', 'fu', 'ri']
     >>>
 
-We can put parentheses around parts of an expression in order to
-generate structured results.  For example, here we see all those
+ 
+As noted earlier, we can put parentheses around parts of an expression
+in order to force ``findall()`` to only return the grouped parts of
+the expression. For example, here we see all those
 non-vowel characters which appear before a vowel:
 
-    >>> re.findall('([^aeiou])[aeiou]', sent)
-    ['c', 'l', 'l', 'r', ' ', 'd', 'l', 'f', 'r']
-    >>>
+   >>> re.findall('([^aeiou])[aeiou]', sent)
+   ['c', 'l', 'l', 'r', ' ', 'd', 'l', 'f', 'r']
+   >>>
 
-We can even generate pairs (or `tuples`:dt:), which we may then go
-on and tabulate.
+By delimiting a second group in the regular expression, we can even
+generate pairs (or `tuples`:dt:), which we may then go on and
+tabulate.
 
     >>> re.findall('([^aeiou])([aeiou])', sent)
     [('c', 'o'), ('l', 'o'), ('l', 'e'), ('r', 'e'), (' ', 'i'),
-     ('d', 'e'), ('l', 'e'), ('f', 'u'), ('r', 'i')]
+	('d', 'e'), ('l', 'e'), ('f', 'u'), ('r', 'i')]
     >>>
 
-For an extended discussion of regular expressions, please see the
-regular expression tutorial.
+
 
 
 
@@ -1685,13 +1769,16 @@ Exercises
 ---------
 
 #. Describe the class of strings matched by the following regular
-   expressions:
+   expressions. Note that ``'*'`` means: match zero or more
+   occurrences of the preceding regular expression.
 
    a) ``[a-zA-Z]+``
    #) ``[A-Z][a-z]*``
    #) ``\d+(\.\d+)?``
    #) ``([bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz])*``
    #) ``\w+|[^\w\s]+``
+
+   Test your answers using ``re_show()``.
 
 #. Write regular expressions to match the following classes of strings:
 
