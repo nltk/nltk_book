@@ -52,7 +52,7 @@
   \end{itemize}
 \item Special prupose tools
   \begin{itemize}
-  \item Shoebox
+  \item Toolbox
   \end{itemize}
 \item broader question: data management in support of best practices
 \item Bird, Steven and Gary Simons (2003).  Seven Dimensions of Portability
@@ -200,14 +200,14 @@ condition of body and mind ...o:p></o:p></i></p>
 \end{verbatim}
 \end{frame}
 
-\section{Processing Shoebox Data}
+\section{Processing Toolbox Data}
 
 \begin{frame}
-\frametitle{Processing Shoebox Data}
+\frametitle{Processing Toolbox Data}
 
 \begin{itemize}
 \item single most popular tool for managing linguistic field data
-\item many kinds of validation and formatting not supported by Shoebox software
+\item many kinds of validation and formatting not supported by Toolbox software
 \item simple file format
 \item each file is a collection of \textit{entries} (aka
   \textit{records})
@@ -221,7 +221,7 @@ condition of body and mind ...o:p></o:p></i></p>
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Shoebox Example}
+\frametitle{Toolbox Example}
 \small
 
 \begin{verbatim}
@@ -238,81 +238,76 @@ condition of body and mind ...o:p></o:p></i></p>
 \end{verbatim}
 \end{frame}
 
-\subsection{Accessing Shoebox Data}
+\subsection{Accessing Toolbox Data}
 
 \begin{frame}[fragile]
-\frametitle{Accessing Shoebox Data: raw() method}
+\frametitle{Accessing Toolbox Data}
 
 \begin{itemize}
-\item scan the file, processing entries one at a time
-\item preserves order of fields
+\item scan the file, convert into tree object
+\item preserves order of fields, gives array and XPath-style access
+\item example: calculate average number of fields per entry
 \end{itemize}
 
 \begin{verbatim}
->>> from nltk_lite.corpora import shoebox
->>> sum_size = num_entries = 0
->>> for entry in shoebox.raw('rotokas'):
-...     num_entries += 1
-...     sum_size += len(entry)
->>> print sum_size/num_entries
+>>> from nltk_lite.corpora import toolbox
+>>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
+>>> sum(len(entry) for entry in lexicon) / len(lexicon)
 10
 \end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Accessing Shoebox Data: dictionary() method}
+\frametitle{Accessing with Indexes}
 
-\begin{itemize}
-\item read each entry into a Python dictionary
-\item assumes field names are unique
-\end{itemize}
-
-\scriptsize
 \begin{verbatim}
->>> entries = list(shoebox.dictionary('rotokas'))
->>> from pprint import pprint
->>> pprint(entries[3])
-{'cl': 'isi',
- 'dt': '12/Feb/2005',
- 'ex': 'Taeavi iria kaa isi kovopaueva kaparapasia.',
- 'ge': 'cooking banana',
- 'gp': 'banana bilong kukim',
- 'lx': 'kaa',
- 'ps': 'N.M',
- 'sf': 'FLORA',
- 'xe': 'Taeavi planted banana in order to cook it.',
- 'xp': 'Taeavi i bin planim gaden banana bilong kukim tasol long paia.'}
+>>> lexicon[3][0] 
+<Element lx at 77bd28>
+>>> lexicon[3][0].tag
+'lx'
+>>> lexicon[3][0].text
+'kaa'
 \end{verbatim}
 \end{frame}
-
-\subsection{Simple Entry Processing}
 
 \begin{frame}[fragile]
-\frametitle{Simple Entry Processing}
+\frametitle{Accessing with Indexes (cont)}
+
 \scriptsize
-\begin{enumerate}
-\item scan through each entry
-\item for each entry, scan through each field
-\end{enumerate}
-
 \begin{verbatim}
->>> lexemes = []
->>> for entry in shoebox.raw('rotokas'):
-...     for field in entry:
-...         if field[0] == 'lx':
-...             normalised_lexeme = field[1].lower()
-...             lexemes.append(normalised_lexeme)
-\end{verbatim}
-
-\textbf{Alternative:}
-
-\begin{verbatim}
->>> lexemes = [field[1].lower()
-...              for entry in shoebox.raw('rotokas')
-...	               for field in entry if field[0] == 'lx']
+>>> for field in lexicon[3]:
+...     print "\\%s %s" % (field.tag, field.text)
+\lx kaa
+\ps N.M
+\cl isi
+\ge cooking banana
+\gp banana bilong kukim
+\sf FLORA
+\dt 12/Feb/2005
+\ex Taeavi iria kaa isi kovopaueva kaparapasia.
+\xp Taeavi i bin planim gaden banana bilong kukim tasol long paia.
+\xe Taeavi planted banana in order to cook it.
 \end{verbatim}
 \end{frame}
 
+\begin{frame}[fragile]
+\frametitle{Accessing with Paths}
+
+\begin{itemize}
+\item lexicon is a series of \texttt{record} objects
+\item each contains field objects, such as \texttt{lx} and \texttt{ps}
+\item address all the lexemes: \texttt{record/lx}
+\end{itemize}
+
+\small
+\begin{verbatim}
+>>> [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
+['kaa', 'kaa', 'kaa', 'kaakaaro', 'kaakaaviko', 'kaakaavo', 'kaakaoko',
+'kaakasi', 'kaakau', 'kaakauko', 'kaakito', 'kaakuupato', ..., 'kuvuto']
+\end{verbatim}
+\end{frame}
+
+\subsection{Adding and Removing Fields}
 
 \begin{frame}[fragile]
 \frametitle{Adding New Fields}
@@ -336,14 +331,25 @@ condition of body and mind ...o:p></o:p></i></p>
 
 \begin{frame}[fragile]
 \frametitle{Adding New Fields (cont)}
-\scriptsize
+\small
 
 \begin{verbatim}
->>> raw_entries = list(shoebox.raw('rotokas'))
->>> for field in raw_entries[50]:
-...     print "\\%s %s" % field
-...	    if field[0] == "lx":
-...	        print "\\cv %s" % cv(field[1])
+>>> from nltk_lite.etree.ElementTree import Element
+>>> for entry in lexicon:
+...     for i in range(len(entry)):
+...         if entry[i].tag == 'lx':
+...             cv_field = Element("cv")
+...             cv_field.text = cv(entry[i].text)
+...             entry.insert(i+1, cv_field)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Adding New Fields (cont)}
+\small
+\begin{verbatim}
+>>> for field in lexicon[50]:
+...     print "\\%s %s" % (field.tag, field.text)
 \lx kaeviro
 \cv CVVCVCV
 \ps V.A
@@ -368,34 +374,22 @@ condition of body and mind ...o:p></o:p></i></p>
 
 \small
 \begin{verbatim}
->>> retain = ('lx', 'ps')
->>> raw_entries = list(shoebox.raw('rotokas'))
->>> for entry in raw_entries[50:55]:
-...     for field in entry:
-...         if field[0] in retain:
-...             print "\\%s %s" % field
-...     print
+>>> retain = ('lx', 'ps', 'ge')
+>>> for entry in lexicon:
+...     entry[:] = [f for f in entry if f.tag in retain]
+>>> for field in lexicon[50]:
+...     print "\\%s %s" % (field.tag, field.text)
 \lx kaeviro
 \ps V.A
-
-\lx kagave
-\ps N.F
-
-\lx kaie
-\ps V.A
-
-\lx kaiea
-\ps N.N
-
-\lx kaikaio
-\ps N.N
+\ge lift off
+\ge take off
 \end{verbatim}
 \end{frame}
 
 \subsection{Formatting}
 
 \begin{frame}[fragile]
-\frametitle{Formatting Entries: dictionary() method}
+\frametitle{Formatting Entries}
 
 \begin{itemize}
 \item request specific fields without concern for ordering
@@ -403,24 +397,22 @@ condition of body and mind ...o:p></o:p></i></p>
 \scriptsize
 
 \begin{verbatim}
->>> entries = list(shoebox.dictionary('rotokas'))
->>> for entry in entries[70:80]:
-...     lex = entry['lx']
-...     pos = entry['ps']
-...     dfn = entry['ge']
-...     if 'eng' in entry:
-...         dfn = entry['eng']
-...     print "%s (%s) '%s'" % (lex, pos, dfn)
+>>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
+>>> for entry in lexicon[70:80]:
+...     lx = entry.findtext('lx')
+...     ps = entry.findtext('ps')
+...     ge = entry.findtext('ge')
+...     print "%s (%s) '%s'" % (lx, ps, ge)
 kakapikoto (N.N2) 'newborn baby'
 kakapu (V.B) 'place in sling for purpose of carrying'
 kakapua (N.N) 'sling for lifting'
-kakara (N.N) 'bracelet'
+kakara (N.N) 'arm band'
 Kakarapaia (N.PN) 'village name'
-kakarau (N.F) 'stingray'
+kakarau (N.F) 'frog'
 Kakarera (N.PN) 'name'
 Kakareraia (N.???) 'name'
 kakata (N.F) 'cockatoo'
-kakate (N.F) 'bamboo tube for water'
+kakate (N.F) 'bamboo water tube'
 \end{verbatim}
 \end{frame}
 
@@ -434,13 +426,11 @@ kakate (N.F) 'bamboo tube for water'
 
 \begin{verbatim}
 >>> html = "<table>\n"
->>> for entry in entries[70:80]:
-...     lex = entry['lx']
-...     pos = entry['ps']
-...     dfn = entry['ge']
-...     if 'eng' in entry:
-...         dfn = entry['eng']
-...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lex, pos, dfn)
+>>> for entry in lexicon[70:80]:
+...     lx = entry.findtext('lx')
+...     ps = entry.findtext('ps')
+...     ge = entry.findtext('ge')
+...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lx, ps, ge)
 >>> html += "</table>"
 >>> print html
 \end{verbatim}
@@ -463,6 +453,31 @@ kakate (N.F) 'bamboo tube for water'
 \end{verbatim}
 \end{frame}
 
+\begin{frame}[fragile]
+\frametitle{Generating XML}
+
+\scriptsize
+\begin{verbatim}
+>>> import sys
+>>> from nltk_lite.etree.ElementTree import ElementTree
+>>> tree = ElementTree(lexicon[3])
+>>> tree.write(sys.stdout)
+<record>
+  <lx>kaakaaro</lx>
+  <ps>N.N</ps>
+  <ge>mixtures</ge>
+  <gp>???</gp>
+  <eng>mixtures</eng>
+  <eng>charm used to keep married men and women youthful and attractive</eng>
+  <cmt>Check vowel length. Is it kaakaaro or kaakaro?</cmt>
+  <dt>14/May/2005</dt>
+  <ex>Kaakaroto ira purapaiveira aue iava opita, voeao-pa airepa oraouirara, ra va aiopaive.</ex>
+  <xp>Kokonas ol i save wokim long ol kain samting bilong ol nupela marit, bai ol i ken kaikai.</xp>
+  <xe>Mixtures are made from coconut, ???.</xe>
+</record>
+\end{verbatim}
+\end{frame}
+
 \section{Linguistic Exploration}
 
 \subsection{Reduplication}
@@ -475,9 +490,10 @@ kakate (N.F) 'bamboo tube for water'
 
 \begin{verbatim}
 >>> lexgloss = {}
->>> for entry in shoebox.dictionary('rotokas'):
-...     if 'lx' in entry and entry['ps'][0] == 'V':
-...         lexgloss[entry['lx']] = entry['ge']
+>>> for entry in lexicon:
+...     lx = entry.findtext('lx')
+...     if lx and entry.findtext('ps')[0] == 'V':
+...         lexgloss[lx] = entry.findtext('ge')
 \end{verbatim}
 
 \item For each lexeme, check if the lexicon contains the reduplicated form:
@@ -535,6 +551,7 @@ kosi (exit); kosikosi (exit)
 >>> from nltk_lite.tokenize import regexp
 >>> from nltk_lite.probability import FreqDist
 >>> fd = FreqDist()
+>>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
 >>> for lex in lexemes:
 ...     for syl in regexp(lex, pattern=r'[^aeiou][aeiou]'):
 ...         fd.inc(syl)
@@ -594,15 +611,16 @@ pu:  49  tu:  35  ku: 169  vu:  44  su:   1  ru:  72
 \tiny
 
 \begin{verbatim}
->>> for entry in shoebox.dictionary('rotokas'):
-...     if 'lx' in entry:
-...         lex = entry['lx']
-...         pos = entry['ps']
-...         if num_syls(lex) == 3 and is_vowel(lex[-1]) and is_vowel(lex[-2]) and pos[0] == 'V':
-...             dfn = entry['ge']
-...             print "%s (%s) '%s'" % (lex, pos, dfn)
+>>> for entry in lexicon:
+...     lx = entry.findtext('lx')
+...     if lx:
+...         ps = entry.findtext('ps')
+...         if num_syls(lx) == 3 and ps[0] == 'V'\
+...           and is_vowel(lx[-1]) and is_vowel(lx[-2]):
+...             ge = entry.findtext('ge')
+...             print "%s (%s) '%s'" % (lx, ps, ge)
 kaetupie (V.B) 'tighten'
-kakupie (V.B) 'yodel'
+kakupie (V.B) 'shout'
 kapatau (V.B) 'add to'
 kapuapie (V.B) 'wound'
 kapupie (V.B) 'close tight'
@@ -610,23 +628,11 @@ kapuupie (V.B) 'close'
 karepie (V.B) 'return'
 karivai (V.A) 'have an appetite'
 kasipie (V.B) 'care for'
-kaukaupie (V.B) 'intense sunlight'
-kavorou (V.A) 'intercept'
+kaukaupie (V.B) 'shine intensely'
+kavorou (V.A) 'covet'
 kavupie (V.B) 'leave.behind'
-kekepie (V.B) 'show'
-keruria (V.A) 'determined'
-ketoopie (V.B) 'make sprout from seed'
-koatapie (V.B) 'accept'
-koetapie (V.B) 'satisfy curiosity'
-kokovae (V.A) 'sing'
-kokovua (V.B) 'shave the hair line'
-kopiipie (V.B) 'kill'
-korupie (V.B) 'take outside'
-kosipie (V.B) 'make exit'
-kovopie (V.B) 'use to make work'
-kukuvai (V.B) 'cover the head from rain or sun'
-kuvaupie (V.B) 'leave alone'
-kuverea (V.A) 'not all right'
+...
+kuverea (V.A) 'incomplete'
 \end{verbatim}
 \end{frame}
 
@@ -653,31 +659,10 @@ kuverea (V.A) 'not all right'
 \scriptsize
 
 \begin{verbatim}
->>> lexemes = [entry['lx'] for entry in shoebox.dictionary('rotokas')
-...              if 'lx' in entry]
->>> position = 1
->>> parameters = [(lex[:position] + '_' + lex[position+1:],
-...                lex[position],
-...                lex)
-...               for lex in lexemes if len(lex) == 4]
-\end{verbatim}
-
-\begin{verbatim}
 >>> from nltk_lite.utilities import MinimalSet
->>> def build_min_set(parameters):
-...     min_set = MinimalSet()
-...     for context, target, display in parameters:
-...         min_set.add(context, target, display)
-...     return min_set
-\end{verbatim}
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Finding Minimal Sets: Example 1 (cont)}
-\scriptsize
-
-\begin{verbatim}
->>> ms = build_min_set(parameters)
+>>> pos = 1
+>>> ms = MinimalSet((lex[:pos] + '_' + lex[pos+1:], lex[pos], lex)
+...                 for lex in lexemes if len(lex) == 4)
 >>> for context in ms.contexts(3):
 ...     print context + ':',
 ...     for target in ms.targets():
@@ -700,25 +685,23 @@ k_ki: kaki kiki -    -    koki
 \scriptsize
 
 \begin{verbatim}
->>> parameters = [(entry['lx'],
-                   entry['ps'][0],
-                   "%s (%s)" % (entry['ps'][0], entry['ge'])
-                  )
-...               for entry in shoebox.dictionary('rotokas')
-...                 if 'lx' in entry]
->>> ms = build_min_set(parameters)
+>>> entries = [(e.findtext('lx'), e.findtext('ps'), e.findtext('ge'))
+...               for e in lexicon
+...               if e.findtext('lx') and e.findtext('ps') and e.findtext('ge')]
+>>> ms = MinimalSet((lx, ps[0], "%s (%s)" % (ps[0], ge))
+...          for (lx, ps, ge) in entries)
 >>> for context in ms.contexts()[:10]:
 ...     print "%10s:" % context, "; ".join(ms.display_all(context))
   kokovara: N (unripe coconut); V (unripe)
      kapua: N (sore); V (have sores)
       koie: N (pig); V (get pig to eat)
-      kovo: C (garden); N (work); V (work)
-    kavori: N (lobster); V (collect crayfish or lobster)
-    korita: N (cutlet?); V (cut up meat)
+      kovo: C (garden); N (garden); V (work)
+    kavori: N (crayfish); V (collect crayfish or lobster)
+    korita: N (cutlet?); V (dissect meat)
       keru: N (bone); V (harden like bone)
   kirokiro: N (bush used for sorcery); V (write)
-    kaapie: N (fishhook); V (capture)
-       kou: C (heap); V (defecate)
+    kaapie: N (hook); V (snag)
+       kou: C (heap); V (lay egg)
 \end{verbatim}
 \end{frame}
 
@@ -821,14 +804,14 @@ T400
 \item E.g. entry patterns
 \end{itemize}
 
+\small
 \begin{verbatim}
 >>> fd = FreqDist()
->>> for entry in shoebox.raw('rotokas'):
+>>> for entry in lexicon:
 ...     for field in entry:
-...	        fd.inc(field[0])
+...	        fd.inc(field.tag)
 >>> fd.sorted_samples()[:10]
-['ge', 'ex', 'xe', 'xp', 'gp', 'lx', 'ps',
-'dt', 'rt', 'eng']
+['ge', 'ex', 'xe', 'xp', 'gp', 'lx', 'ps', 'dt', 'rt', 'eng']
 \end{verbatim}
 \end{frame}
 
@@ -838,10 +821,8 @@ T400
 
 \begin{verbatim}
 >>> fd = FreqDist()
->>> for entry in shoebox.raw('rotokas'):
-...     marker_list = [field[0] for field in entry]
-...     markers = ':'.join(marker_list)
-...	    fd.inc(markers)
+>>> for entry in lexicon:
+...	    fd.inc(':'.join(field.tag for field in entry))
 >>> top_ten = fd.sorted_samples()[:10]
 >>> print '\n'.join(top_ten)
 lx:rt:ps:ge:gp:dt:ex:xp:xe
@@ -856,6 +837,74 @@ lx:ps:ge:ge:gp:dt:ex:xp:xe
 lx:rt:ps:ge:ge:gp:dt:ex:xp:xe
 \end{verbatim}
 \end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Generating Summary Reports (cont)}
+\small
+
+\begin{verbatim}
+>>> fd = FreqDist()
+>>> for entry in lexicon:
+...     previous = "0"
+...     for field in entry:
+...         current = field.tag
+...         fd.inc("%s->%s" % (previous, current))
+...         previous = current
+>>> fd.sorted_samples()[:10]
+['ex->xp', 'xp->xe', '0->lx', 'ge->gp', 'ps->ge', 'dt->ex', 'lx->ps',
+'gp->dt', 'xe->ex', 'lx->rt']
+\end{verbatim}
+\end{frame}
+
+\subsection{Grammar}
+
+\begin{frame}[fragile]
+\frametitle{Grammar}
+\small
+
+\begin{verbatim}
+>>> from nltk_lite import parse
+>>> grammar = parse.cfg.parse_grammar('''
+...   S -> Head "ps" Glosses Comment "dt" Examples
+...   Head -> "lx" | "lx" "rt"
+...   Glosses -> Gloss Glosses
+...   Glosses ->
+...   Gloss -> "ge" | "gp"
+...   Examples -> Example Examples
+...   Examples ->
+...   Example -> "ex" "xp" "xe"
+...   Comment -> "cmt"
+...   Comment ->
+...   ''')
+>>> rd_parser = parse.RecursiveDescent(grammar)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Grammar}
+\small
+
+\begin{verbatim}
+>>> for entry in lexicon[10:20]:
+...     marker_list = [field.tag for field in entry]
+...     if rd_parser.get_parse_list(marker_list):
+...         print "+", ':'.join(marker_list)
+...     else:
+...         print "-", ':'.join(marker_list)
+- lx:ps:ge:gp:sf:nt:dt:ex:xp:xe:ex:xp:xe
+- lx:rt:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
+- lx:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
+- lx:ps:ge:gp:nt:sf:dt
+- lx:ps:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe
++ lx:ps:ge:ge:ge:gp:cmt:dt:ex:xp:xe
++ lx:rt:ps:ge:gp:cmt:dt:ex:xp:xe:ex:xp:xe
++ lx:rt:ps:ge:ge:gp:dt
+- lx:rt:ps:ge:ge:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe:ex:xp:xe
++ lx:rt:ps:ge:gp:dt:ex:xp:xe
+\end{verbatim}
+\end{frame}
+
+
 
 \subsection{Timestamps}
 
