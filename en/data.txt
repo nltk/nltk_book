@@ -91,7 +91,7 @@ then inspect the resulting HTML::
 Observe that the entry is represented as an HTML paragraph, using the
 ``<p>`` element, and that the part of speech appears inside a ``<span
 style='font-size:11.0pt'>`` element.  The following program defines
-the set of legal parts-of-speech ``legal_pos``.  Then it extracts all
+the set of legal parts-of-speech, ``legal_pos``.  Then it extracts all
 11-point content from the ``dict.htm`` file and stores it in the set
 ``used_pos``.  Observe that the search pattern contains a
 parenthesized sub-expression; only the material that matches this
@@ -225,8 +225,8 @@ Bougainville; this data was provided by Stuart Robinson)::
   \xp Taeavi i bin planim gaden banana bilong kukim tasol long paia.
   \xe Taeavi planted banana in order to cook it.
 
-Each field consists of a field name (e.g. ``lx``, for lexeme), and a
-value (e.g. ``kaa``).  Other fields are:
+This lexical entry contains the following fields:
+``lx`` lexeme;
 ``ps`` part-of-speech;
 ``cl`` classifier;
 ``ge`` English gloss;
@@ -253,16 +253,8 @@ start of each record.
     >>> from nltk_lite.corpora import toolbox
     >>> lexicon = toolbox.parse_corpus('rotokas.dic', key='lx')
 
-Suppose that we wanted to compute the average number of fields for
-each entry.  This is just the total length of the entries (the number
-of fields they contain), divided by the number of entries in the
-lexicon:
-
-    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
-    10
-
 There are two ways to access the contents of the lexicon object, by
-indexes and by paths.  Indexes use the familiar syntax, thus thus
+indexes and by paths.  Indexes use the familiar syntax, thus
 ``lexicon[3]`` returns entry number 3 (which is actually the fourth
 entry counting from zero).  And ``lexicon[3][0]`` returns its first
 field:
@@ -276,8 +268,7 @@ field:
 
 We can iterate over all the fields of a given entry:
 
-    >>> for field in lexicon[3]:
-    ...     print "\\%s %s" % (field.tag, field.text)
+    >>> toolbox.to_sfm_string(lexicon[3])
     \lx kaa
     \ps N.M
     \cl isi
@@ -325,21 +316,18 @@ a ``V`` or an underscore must be a consonant, so we replace it with a ``C``.
 Now, we can scan the lexicon and add a new ``cv`` field after every ``lx``
 field.
 
-    >>> from nltk_lite.etree.ElementTree import Element
+    >>> from nltk_lite.etree.ElementTree import SubElement
     >>> for entry in lexicon:
-    ...     for i in range(len(entry)):
-    ...         if entry[i].tag == 'lx':
-    ...             cv_field = Element("cv")
-    ...             cv_field.text = cv(entry[i].text)
-    ...             entry.insert(i+1, cv_field)
+    ...     for field in entry:
+    ...	    if field.tag == 'lx':
+    ...         cv_field = SubElement(entry, 'cv')
+    ...         cv_field.text = cv(field.text)
 
-Let's see what this does for a particular entry.  Note the second
+Let's see what this does for a particular entry.  Note the last
 line of output, which shows the new CV field:
 
-    >>> for field in lexicon[50]:
-    ...     print "\\%s %s" % (field.tag, field.text)
+    >>> print toolbox.to_sfm_string(lexicon[50])
     \lx kaeviro
-    \cv CVVCVCV
     \ps V.A
     \ge lift off
     \ge take off
@@ -349,6 +337,11 @@ line of output, which shows the new CV field:
     \ex Pita kaeviroroe kepa kekesia oa vuripierevo kiuvu.
     \xp Pita i go antap na lukim haus win i bagarapim.
     \xe Peter went to look at the house that the wind destroyed.
+    \cv CVVCVCV
+
+(NB. To insert this field in a different position, we need to create
+the new ``cv`` field using ``Element('cv')``, assign a text value to it
+then use the ``insert()`` method of the parent element.)
 
 This technique can be used to make copies of Toolbox data
 that *lack* particular fields.  For example, we may want to sanitise our
@@ -358,11 +351,11 @@ fields (e.g. fields containing personal comments.)
     >>> retain = ('lx', 'ps', 'ge')
     >>> for entry in lexicon:
     ...     entry[:] = [f for f in entry if f.tag in retain]
-    >>> for field in lexicon[3]:
-    ...     print "\\%s %s" % (field.tag, field.text)
-    \lx kaa
-    \ps N.M
-    \ge cooking banana
+    >>> toolbox.to_sfm_string([50]
+    \lx kaeviro
+    \ps V.A
+    \ge lift off
+    \ge take off
 
 Formatting Entries
 ------------------
@@ -463,7 +456,8 @@ their glosses.
 
     >>> for lex in lexgloss:
     ...     if lex+lex in lexgloss:
-    ...         print "%s (%s); %s (%s)" % (lex, lexgloss[lex], lex+lex, lexgloss[lex+lex])
+    ...         print "%s (%s); %s (%s)" %
+    ...             (lex, lexgloss[lex], lex+lex, lexgloss[lex+lex])
     kuvu (fill.up); kuvukuvu (fill up)
     kitu (store up); kitukitu (scrub clothes)
     kopa (swallow); kopakopa (gulp.down)
@@ -523,10 +517,9 @@ First, we will encapsulate the syllabic counting part in a separate
 function.  It gets the CV template of the word ``cv(word)`` and counts
 the number of consonants it contains:
 
-    >>> def num_syls(word):
+    >>> def num_cons(word):
     ...     template = cv(word)
-    ...     num_cons = template.count('C')
-    ...     return num_cons
+    ...     return template.count('C')
 
 We also encapsulate the vowel test in a function, as this improves the
 readability of the final program.  This function returns the value
@@ -546,7 +539,7 @@ to display trisyllabic verbs ending in a long vowel:
     ...     lx = entry.findtext('lx')
     ...     if lx:
     ...         ps = entry.findtext('ps')
-    ...         if num_syls(lx) == 3 and ps[0] == 'V'\
+    ...         if num_cons(lx) == 3 and ps[0] == 'V'\
     ...           and is_vowel(lx[-1]) and is_vowel(lx[-2]):
     ...             ge = entry.findtext('ge')
     ...             print "%s (%s) '%s'" % (lx, ps, ge)
@@ -569,7 +562,7 @@ to display trisyllabic verbs ending in a long vowel:
 In order to establish a contrast segments (or lexical properties, for
 that matter), we would like to find pairs of words which are identical
 except for a single property.  For example, the words pairs *mace* vs
-*maze* and *face* vs *faze*, and many others like them, demonstrate the
+*maze* and *face* vs *faze* |mdash| and many others like them |mdash| demonstrate the
 existence of a phonemic distinction between *s* and *z* in English.
 NLTK-Lite provides flexible support for constructing minimal sets, using
 the ``MinimalSet()`` class.  This class needs three pieces of information
@@ -742,7 +735,6 @@ and then only keep those words having a reasonable length.
 Now we generate the wordfinder grid, and print it out.
 
 .. doctest-ignore::
-
     >>> from nltk_lite.misc.wordfinder import wordfinder
     >>> grid, used = wordfinder(words)
     >>> for i in range(len(grid)):
@@ -790,8 +782,17 @@ Generating Reports
 
 Finally, we take a look at simple methods to generate summary reports,
 giving us an overall picture of the quality and organisation of the data.
-First, let's consider some methods for discovering patterns in the lexical
-entries.  Which fiels are the most frequent?
+
+First, suppose that we wanted to compute the average number of fields for
+each entry.  This is just the total length of the entries (the number
+of fields they contain), divided by the number of entries in the
+lexicon:
+
+    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
+    10
+
+Next, let's consider some methods for discovering patterns in the lexical
+entries.  Which fields are the most frequent?
 
     >>> fd = FreqDist()
     >>> for entry in lexicon:
@@ -944,6 +945,53 @@ in order.  This time we print bars to indicate frequency:
     Apr 2005 : ###
     May 2005 : #####
 
+Exercises
+---------
+
+1. Write a program that scans an HTML dictionary file to find entries
+   having an illegal part-of-speech field, and reports the *headword* for
+   each entry.
+
+#. Obtain a comparative wordlist in CSV format, and write a program
+   that prints those cognates having an edit-distance of at least three
+   from each other.
+
+#. Write a program to filter out just the date field (``dt``) without
+   having to list the fields we wanted to retain.
+
+#. Print an index of a lexicon.  For each lexical entry, construct a
+   tuple of the form ``(gloss, lexeme)``, then sort and print them all.
+
+#. Write a program to find any parts of speech (``ps`` field) that
+   occurred less than ten times.  Perhaps these are typing mistakes?
+
+#. We saw a method for discovering cases of whole-word reduplication.
+   Write a function to find words that may contain partial
+   reduplication.  Use the ``re.search()`` method, and the following
+   regular expression: ``(..+)\1``
+
+#. What is the frequency of each consonant and vowel contained in
+   lexeme fields?
+
+#. We saw a method for adding a ``cv`` field.  There is an interesting
+   issue with keeping this up-to-date when someone modifies the content
+   of the ``lx`` field on which it is based.  Write a version of this
+   program to add a ``cv`` field, replacing any existing ``cv`` field.
+
+#. Build an index of those lexemes which appear in example sentences.
+   Suppose the lexeme for a given entry is *w*.
+   Then add a single cross-reference field ``xrf`` to this entry, referencing
+   the headwords of other entries having example sentences containing
+   $w$.  Do this for all entries and save the result as a toolbox-format file.
+  
+#. Write a program to add a new field ``syl`` which gives a count of
+   the number of syllables in the word.
+
+#. Write a function which displays the complete entry for a lexeme.
+   When the lexeme is incorrectly spelled it should display the entry
+   for the most similarly spelled lexeme.
+ 
+#. How many entries were last modified in 2004?
 
 -----------------
 Language Archives
@@ -1021,55 +1069,6 @@ Bird, Steven (1999).  Multidimensional exploration of online linguistic field da
 
 Bird, Steven and Gary Simons (2003).  Seven Dimensions of Portability
     for Language Documentation and Description, *Language* 79: 557-582.
-
----------
-Exercises
----------
-
-1. Write a program that scans an HTML dictionary file to find entries
-   having an illegal part-of-speech field, and reports the *headword* for
-   each entry.
-
-#. Obtain a comparative wordlist in CSV format, and write a program
-   that prints those cognates having an edit-distance of at least three
-   from each other.
-
-#. Write a program to filter out just the date field (``dt``) without
-   having to list the fields we wanted to retain.
-
-#. Print an index of a lexicon.  For each lexical entry, construct a
-   tuple of the form ``(gloss, lexeme)``, then sort and print them all.
-
-#. Write a program to find any parts of speech (``ps`` field) that
-   occurred less than ten times.  Perhaps these are typing mistakes?
-
-#. We saw a method for discovering cases of whole-word reduplication.
-   Write a function to find words that may contain partial
-   reduplication.  Use the ``re.search()`` method, and the following
-   regular expression: ``(..+)\1``
-
-#. What is the frequency of each consonant and vowel contained in
-   lexeme fields?
-
-#. We saw a method for adding a ``cv`` field.  There is an interesting
-   issue with keeping this up-to-date when someone modifies the content
-   of the ``lx`` field on which it is based.  Write a version of this
-   program to add a ``cv`` field, replacing any existing ``cv`` field.
-
-#. Build an index of those lexemes which appear in example sentences.
-   Suppose the lexeme for a given entry is *w*.
-   Then add a single cross-reference field ``xrf`` to this entry, referencing
-   the headwords of other entries having example sentences containing
-   $w$.  Do this for all entries and save the result as a toolbox-format file.
-  
-#. Write a program to add a new field ``syl`` which gives a count of
-   the number of syllables in the word.
-
-#. Write a function which displays the complete entry for a lexeme.
-   When the lexeme is incorrectly spelled it should display the entry
-   for the most similarly spelled lexeme.
- 
-#. How many entries were last modified in 2004?
 
 .. To add: paradigms
 
