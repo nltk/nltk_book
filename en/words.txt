@@ -8,7 +8,7 @@
 
 Language can be divided up into pieces of varying sizes, ranging from
 morphemes to paragraphs.  In this chapter we will focus on words, a
-very important level for much work in NLP.  Just what are words, and
+very important level for much work in |NLP|.  Just what are words, and
 how should we represent them in a machine?  These may seem like
 trivial questions, but it turns out that there are some important
 issues involved in defining and representing words.
@@ -16,7 +16,10 @@ issues involved in defining and representing words.
 To help us explore these issues, consider the following simple task:
 *count the number of words that appear in a document*.  We'll use the
 following article (``wsj_0063``) from the Wall Street Journal as our
-example text::
+example text:
+
+.. _wsj0:
+.. ex::
 
   Sea Containers Ltd. said it might increase the price of its
   $70-a-share buy-back plan if pressed by Temple Holdings Ltd., which
@@ -88,56 +91,67 @@ characters using ``split()``:
     >>> words = text.split()
     >>> print words
     ['Sea', 'Containers', 'Ltd.', 'said', 'it', 'might', 'increase', 'the',
-     'price', 'of', 'its', '$70-a-share', 'buy-back', 'plan', ..., 'up',
-     '62.5', 'cents.']
+     'price', 'of', 'its', '$70-a-share', 'buy-back', 'plan', 
+    ... 
+    'up', '62.5', 'cents.']
     >>> len(words)
     430
 
-This splitting process is known as `tokenization`:dt:.  There are a
-few problems with this simple approach to tokenization.  First, some
-sequences of non-whitespace characters should not be considered a word.
-For example, our example article contains the following sentence::
+This process splitting of segmenting a string of characters into words
+is known as `tokenization`:dt:. Tokenization is a prelude to pretty
+much everything else we might want to do in |NLP|, since it tells our
+processing software what our basic units are. So now we have said that
+any string of characters delimited by white space counts as a
+word. Unfortunately, there are a number of problems with this simple
+approach, and we will describe a few of them here. To begin with, some
+of our tokens really shouldn't be counted as words.  For
+example, wsj0_  contains the following sentence:
 
-    A spokesman for Temple estimated that Sea Containers' plan -- if all
-    the asset sales materialize -- would result in shareholders
-    receiving only $36 to $45 a share in cash.
+.. _wsj1:
+.. ex::
+   .. parsed-literal::
 
-Our simple algorithm incorrectly treats each occurrence of "--" as a word.
+     A spokesman for Temple estimated that Sea Containers' plan -- if all
+     the asset sales materialize -- would result in shareholders
+     receiving only $36 to $45 a share in cash.
 
-The second problem is that there may be some character sequences that are not separated
-by whitespace, but which we still want to consider separate words.
-One example of this is contractions, such as `didn't`:lx:.  If we're
-analyzing the meaning of a sentence, it would be more useful to treat
-this character string as two separate words, `did`:lx: and `not`:lx:.
-Conversely, there are times when we want to treat a character sequence
-that contains whitespace as a single word, such as "New York", or
-"John Smith".  Hyphenation adds to the complexity; sometimes it
-makes more sense to treat hyphenated strings
-as two words.  For example, in the expression `pro-New York`:lx:,
-we do not want to say that `pro-New`:lx: is a single word.
+Our simple algorithm incorrectly treats each occurrence of ``'--'`` as a word.
+
+A second problem is that there may be some character sequences that
+are not separated by whitespace, but which we still want to consider
+separate words.  An example is the contraction
+`didn't`:lx:.  If we are analyzing the meaning of a sentence, it would
+probably be more useful to treat this character string as two separate words,
+`did`:lx: and `not`:lx:.  Conversely, there are times when we want to
+treat a character sequence that contains whitespace as a single
+word. For example, we might want our grammar to recognize strings
+like `New York`:lx:, or `John Smith`:lx: as proper nouns without any
+further decomposition.  Hyphenation adds to the
+complexity; sometimes it makes more sense to treat hyphenated strings
+as two words.  For example, in the expression `pro-New York`:lx:, we
+do not want to say that `pro-New`:lx: is a single word.
 
 .. I know I've seen better examples of this than "pro-New York, but
    I can't think of one right now..
    
 
 As an especially subtle example, consider the numeric expressions in
-the following sentence (drawn from the MedLine corpus)::
+the following sentence (drawn from the MedLine corpus):
+
+.. _tok1:
+.. ex::
 
     The corresponding free cortisol fractions in these sera were 4.53
     +/- 0.15% and 8.16 +/- 0.23%, respectively.
 
-Should we say that the numeric expression "4.53 +/- 0.15%" is three
+Should we say that the numeric expression `4.53 +/- 0.15%`:lx: is three
 words?  Or should we say that it's a single compound word?  Or should
 we say that it is actually *nine* words, since it's read "four point
 five three, plus or minus fifteen percent"?  Or should we say that
-it's not a "real" word at all, since it wouldn't appear in any
+it's not a 'real' word at all, since it wouldn't appear in any
 dictionary?  The answer will depend on what task we're
 trying to solve.
 
-In this chapter we will explore the division of text into words; the distinction between
-types and tokens; sources of text data including files, the web, and linguistic corpora;
-accessing these sources using Python and NLTK; stemming and normalisation; Wordnet; and
-a variety of useful programming tasks involving words.
 
 .. Note:: If we turn to languages other than English, segmenting words
    can be even more of a challenge. For example, in Chinese
@@ -151,37 +165,71 @@ a variety of useful programming tasks involving words.
    'country-loving person' or as |ai4| [|guo3| |ren2|] |mdash| 'love
    country-person'.
 
+In the rest of this chapter we will explore the division of text into
+words; the distinction between types and tokens; sources of text data
+including files, the web, and linguistic corpora; accessing these
+sources using Python and NLTK; stemming and normalisation; Wordnet;
+and a variety of useful programming tasks involving words
+
 -----------------------
 Texts, Tokens and Types
 -----------------------
 
 Let us return to our task: *count the number of words that appear in a
-document*.  In the previous section, we interpreted "the number of
-words" to mean "the number of times any word was used."  However,
+document*.  In the previous section, we interpreted 'the number of
+words' to mean 'the number of times any word was used.'  However,
 another interpretation is possible: we might want to know how many
-distinct lexical entries were used, regardless of the number of
-times that each dictionary item was repeated.  For example, the
-following sentence contains seven "word uses" but only uses four
-"dictionary entries"::
+`distinct`:em: words were used, regardless of the number of
+times that each item was repeated.  For example, the
+following sentence contains seven 'word uses' but only uses four
+distinct words:
 
-    John likes Mary and Mary likes John.
+.. _tok2 ::
+.. ex:: John likes Mary and Mary likes John.
 
-To distinguish between these interpretations we define two
-new terms: "token" and "type."  A word `token`:dt: is an individual
-occurrence of a word in a concrete context.  A word `type`:dt: is a
-"dictionary entry" for a word.  A word type is somewhat abstract; it's
-what we're talking about when we say that we know the meaning of the
-word `deprecate`:lx:, or when we say that the words `barf`:lx: and
-`vomit`:lx: are synonyms. On the other hand, a word token is something
-which exists in time and space. For example, we could talk about my
-uttering a token of the word `grunge`:lx: in Edinburgh on July 14, 2003;
-equally, we can say that the last word token in the WSJ text is a
-token of the word type `cents`:lx:, or that there are four tokens of
-the type `Sea`:lx: in the text.
+Clearly we are using different senses of the term 'word' here. To help
+distinguish between them, let's introduce use two new terms:
+`token`:dt: and `type`:dt:.  A word token is an individual occurrence
+of a word in a concrete context; it exists in time and space.  A word
+`type`:dt: is a more abstract; it's what we're talking about when we
+say that the second and sixth tokens in tok2_ are 'the same word'. 
+
+We could try to say that the type/token distinction is what is being
+reflected in the following snippet of Python:
+
+   >>> sent = 'John likes Mary and Mary likes John'
+   >>> words = sent.split()
+   >>> words[1]
+   'loves'
+   >>> words[1] == words[5]
+   True
+   >>> words[1] is words[5]
+   False
+
+The operator ``'=='`` tests whether two expressions are equal, and in
+this case, it is testing for string-identity. By contrast, the
+``'is'`` operator tests whether two objects are stored in the same
+location of memory, and is therefore analogous to
+token-identity. However, as we will show shortly, string-identity is
+neither necessary nor sufficient for saying that two tokens belong to
+the same type.
+
+..  
+  To see this, note that we would probably want to say that
+  `Sea`:lx: and `sea`:lx: are of the same word type, regardless of the
+  difference in capitalization. 
+
+.. 
+   On the other hand, a word token is something
+   which exists in time and space. For example, we could talk about my
+   uttering a token of the word `grunge`:lx: in Edinburgh on July 14, 2003;
+   equally, we can say that the last word token in the WSJ text is a
+   token of the word type `cents`:lx:, or that there are four tokens of
+   the type `Sea`:lx: in the text.
 
 The terms *token* and *type* can also be applied to other linguistic
-entities.  For example, a *sentence token* is an individual occurrence
-of a sentence; but a *sentence type* is an abstract sentence, without
+entities.  For example, a `sentence token`:dt: is an individual occurrence
+of a sentence; but a `sentence type`:dt: is an abstract sentence, without
 context.  When someone repeats a sentence they have uttered two
 sentence tokens but only one sentence type.  When the kind of token or
 type is obvious from context, we will simply use the terms token and
@@ -200,31 +248,33 @@ Counting Word Types
 
 As before, we will start with a simple approach: tokenize on any
 sequence of whitespace, and count the number of times each word type
-occurs.  This time we'll take the list of tokens returned by text.split(),
+occurs.  This time we'll take the list of tokens returned by `text.split()`,
 convert it to a set, then convert it back to a list:
 
-    >>> word_types = list(set(text.split()))
+    >>> word_types = (set(text.split())
     >>> sorted(word_types)
     ['$1.1', '$130', '$36', '$45', ..., 'with', 'would', 'yesterday,']
     >>> print len(word_types)
     255
 
-This approach has two main shortcomings:
+This approach fails to properly address two questions:
 
-- *Tokenization*: Which substrings of the original text contain
-  word tokens?
-- *Type definition*: How do we decide whether two tokens have the
-  same type?
+*Tokenization*: 
+  Which substrings of the original text contain word tokens?
+ 
+*Type definition*: 
+  How do we decide whether two tokens have the same type?
 
 In addition to the issues we saw earlier with counting tokens, our
 algorithm's ignorance about punctuation can cause it to count the same
-type multiple times.  For example, the substrings `price.`:lx: and
-`price`:lx: will be treated as distinct types. When we were
-counting tokens, this didn't affect our overall answer, since both
-`price.`:lx: and `price`:lx: counted as a single token.  But since the
-two strings are not identical, our algorithm counts them as two
-separate types.  These tokenization issues could be addressed by
-defining a more sophisticated tokenizer.
+type multiple times.  For example, the substrings ``'price.'`` and
+``'price'`` (i.e., with and without a trailing period) will be treated
+as distinct types. When we were counting tokens, this didn't affect
+our overall answer, since both ``'price.'`` and ``'price'`` counted as
+a single token.  But since the two strings are not identical, our
+algorithm counts them as two separate types.  These tokenization
+issues could be addressed by defining a more sophisticated tokenizer.
+
 
 The type definition issues are exemplified by the fact that `the`:lx:
 and `The`:lx: are listed as distinct types.  Instead we would like to
@@ -234,12 +284,24 @@ compare strings, ignoring distinctions such as case.  A more subtle
 question is whether the two tokens `asset`:lx: and `assets`:lx: should
 be considered to share the same type.  On the one hand, they would
 both be listed under the same entry in a dictionary; but on the other
-hand, there is a definite semantic difference between them.  As with
+hand, there is a definite semantic difference between them. As with
 some of the questions about tokenization, our decision about whether
-to treat these two tokens as having the same type will depend
-on the problem we're trying to solve.
+to treat these two tokens as having the same type will depend on the
+problem we're trying to solve. Further along the spectrum, although
+the `likes`:lx: in tok3_ is string-identical to the `likes`:lx: in
+tok2_, the fact that it is a plural noun rather than verb would lead
+us to say that it is a distinct word type:
 
-So far we have relied on getting source text from a string defined in
+.. _tok3 ::
+.. ex:: Your likes are quite unpredictable.
+
+To summarize, although the type/token disctinction is a useful
+one, we cannot just say that two tokens have the same type if they are
+the same string of characters |mdash| we need to take into
+consideration a number of other factors in determining what counts as
+the same word.
+
+So far, we have relied on getting source text from a string defined in
 a fragment of Python code.  In the following sections we will see how
 to get text from files, from the web, and from the corpora
 distributed with NLTK.
