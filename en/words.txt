@@ -6,6 +6,10 @@
 3. Words: The Building Blocks of Language
 =========================================
 
+------------
+Introduction
+------------
+
 :raw-latex:`\noindent`
 Language can be divided up into pieces of varying sizes, ranging from
 morphemes to paragraphs.  In this chapter we will focus on words, a
@@ -14,144 +18,152 @@ how should we represent them in a machine?  These may seem like
 trivial questions, but it turns out that there are some important
 issues involved in defining and representing words.
 
-To help us explore these issues, consider the following simple task:
-*count the number of words that appear in a document*.  We'll use the
-following article (``wsj_0063``) from the Wall Street Journal as our
-example text:
+In the following sections, we will explore the division of text into
+words; the distinction between types and tokens; sources of text data
+including files, the web, and linguistic corpora; accessing these
+sources using Python and NLTK; stemming and normalisation; Wordnet;
+and a variety of useful programming tasks involving words
 
-.. _wsj0:
-.. ex::
 
-  Sea Containers Ltd. said it might increase the price of its
-  $70-a-share buy-back plan if pressed by Temple Holdings Ltd., which
-  made an earlier tender offer for Sea Containers.  Sea Containers, a
-  Hamilton, Bermuda-based shipping concern, said Tuesday that it would
-  sell $1.1 billion of assets and use some of the proceeds to buy about
-  50% of its common shares for $7 apiece.  The move is designed to
-  ward off a hostile takeover attempt by two European shipping concerns,
-  Stena Holding AG and Tiphook PLC.  In May, the two companies,
-  through their jointly owned holding company, Temple, offered $5 a
-  share, or $777 million, for Sea Containers...
 
-.. Should we use a smaller example, where we can include the whole
-   text?  I picked this example by searching for a variety of
-   interesting features (contains '--', contractions, numbers,
-   quotes, the same word used in lower case & capitalized, etc).
 
-.. hidden set up code:
+-----------------------
+Tokens, Types and Texts
+-----------------------
 
-    >>> text = """
-    ... Sea Containers Ltd. said it might increase the price of its
-    ... $70-a-share buy-back plan if pressed by Temple Holdings Ltd., which
-    ... made an earlier tender offer for Sea Containers.  Sea Containers, a
-    ... Hamilton, Bermuda-based shipping concern, said Tuesday that it would
-    ... sell $1.1 billion of assets and use some of the proceeds to buy about
-    ... 50% of its common shares for $7 apiece.  The move is designed to ward
-    ... off a hostile takeover attempt by two European shipping concerns,
-    ... Stena Holding AG and Tiphook PLC.  In May, the two companies, through
-    ... their jointly owned holding company, Temple, offered $5 a share, or
-    ... $777 million, for Sea Containers.  In August, Temple sweetened the
-    ... offer to $63 a share , or $963 million.  Yesterday, Sea Containers'
-    ... chief executive officer, James Sherwood, said in an interview that,
-    ... under the asset-sale plan, Sea Containers would end up with a cash
-    ... surplus of approximately $620 million.  About $490 million of that
-    ... would be allocated to the buy-back, leaving about $130 million, he
-    ... said.  That $130 million, Mr. Sherwood said, ``gives us some
-    ... flexibility in case Temple raises its bid.  We are able to increase
-    ... our price above the $7 level if necessary.  ''He declined to say,
-    ... however, how much Sea Containers might raise its price.  Mr. Sherwood
-    ... speculated that the leeway that Sea Containers has means that Temple
-    ... would have to ``substantially increase their bid if they 're going to
-    ... top us.'' Temple, however, harshly criticized Sea Containers' plan
-    ... yesterday, characterizing it as a ``highly conditional device designed
-    ... to entrench management, confuse shareholders and prevent them from
-    ... accepting our superior cash offer.'' A spokesman for Temple estimated
-    ... that Sea Containers' plan -- if all the asset sales materialize --
-    ... would result in shareholders receiving only $36 to $45 a share in
-    ... cash.  The lower figures, the spokesman said, would stem from
-    ... preferred shares being converted to common stock and the possibility
-    ... that Sea Containers' subsidiaries might be required to place their
-    ... shares in the open market.  Temple added that Sea Containers is still
-    ... mired in legal problems in Bermuda, where the Supreme Court has
-    ... temporarily barred Sea Containers from buying back its own stock in a
-    ... case brought by Stena and Tiphook.  -LCB- The court has indicated it
-    ... will rule on the case by the end of the month. -RCB- Temple also said
-    ... Sea Containers' plan raises ``numerous legal, regulatory, financial
-    ... and fairness issues,'' but didn't elaborate.  Mr. Sherwood said
-    ... reaction to Sea Containers' proposal has been ``very positive.'' In
-    ... New York Stock Exchange composite trading yesterday, Sea Containers
-    ... closed at $62.625, up 62.5 cents.
-    ... """
 
-To count the number of words in this article, we can simply store it
-in a string, divide it
-up into a list of individual word strings, and check the length of
-that list.  We can split a string on any sequence of "whitespace"
-characters using ``split()``:
 
-    >>> words = text.split()
-    >>> print words
-    ['Sea', 'Containers', 'Ltd.', 'said', 'it', 'might', 'increase', 'the',
-     'price', 'of', 'its', '$70-a-share', 'buy-back', 'plan', 
-    ... 
-    'up', '62.5', 'cents.']
-    >>> len(words)
-    430
+In the chapter `Programming Fundamentals and Python
+<programming.html>`_, we showed how a string could be split into a
+list of words.  Once we have derived a list, the ``len()`` function
+will count the number of words for us:
 
-This process splitting of segmenting a string of characters into words
+   >>> sentence = "This is the time -- and this is the record of the time."
+   >>> words = sentence.split()
+   >>> len(words)
+   13
+
+This process  of segmenting a string of characters into words
 is known as `tokenization`:dt:. Tokenization is a prelude to pretty
 much everything else we might want to do in |NLP|, since it tells our
-processing software what our basic units are. So now we have said that
-any string of characters delimited by white space counts as a
-word. Unfortunately, there are a number of problems with this simple
-approach, and we will describe a few of them here. To begin with, some
-of our tokens really shouldn't be counted as words.  For
-example, wsj0_  contains the following sentence:
+processing software what our basic units are. 
 
-.. _wsj1:
-.. ex::
-   .. parsed-literal::
 
-     A spokesman for Temple estimated that Sea Containers' plan -- if all
-     the asset sales materialize -- would result in shareholders
-     receiving only $36 to $45 a share in cash.
+We also pointed out that we could compile a list of the unique
+vocabulary items in a string by using ``set()`` to eliminate
+duplicates:
 
-Our simple algorithm incorrectly treats each occurrence of ``'--'`` as a word.
+   >>> len(set(words))
+   10
 
-A second problem is that there may be some character sequences that
-are not separated by whitespace, but which we still want to consider
-separate words.  An example is the contraction
-`didn't`:lx:.  If we are analyzing the meaning of a sentence, it would
-probably be more useful to treat this character string as two separate words,
-`did`:lx: and `not`:lx:.  Conversely, there are times when we want to
-treat a character sequence that contains whitespace as a single
-word. For example, we might want our grammar to recognize strings
-like `New York`:lx:, or `John Smith`:lx: as proper nouns without any
-further decomposition.  Hyphenation adds to the
-complexity; sometimes it makes more sense to treat hyphenated strings
-as two words.  For example, in the expression `pro-New York`:lx:, we
-do not want to say that `pro-New`:lx: is a single word.
+So if we ask how many words there are in ``sentence``, we get two
+different answers, depending on whether we count duplicates or not. 
+Clearly we are using different senses of the term 'word' here. To help
+distinguish between them, let's distinguish two terms:
+`token`:dt: and `type`:dt:.  A word token is an individual occurrence
+of a word in a concrete context; it exists in time and space.  A word
+`type`:dt: is a more abstract; it's what we're talking about when we
+say that the three occurrences of ``the`` in ``sentence`` are  'the same word'.
 
-.. I know I've seen better examples of this than "pro-New York, but
-   I can't think of one right now..
-   
+Something similar to a type/token distinction is reflected in the following
+snippet of Python:
 
-As an especially subtle example, consider the numeric expressions in
-the following sentence (drawn from the MedLine corpus):
+   >>> words[2]
+   'the'
+   >>> words[2] == words[8]
+   True
+   >>> words[2] is words[8]
+   False
+   >>> words[2] is words[2]
+   True
 
-.. _tok1:
-.. ex::
+The operator ``==`` tests whether two expressions are equal, and in
+this case, it is testing for string-identity. This is the notion of
+identity that was assumed by our use of ``set()`` above. By contrast, the
+``is`` operator tests whether two objects are stored in the same
+location of memory, and is therefore analogous to
+token-identity.  
 
-    The corresponding free cortisol fractions in these sera were 4.53
-    +/- 0.15% and 8.16 +/- 0.23%, respectively.
+In effect, when we used ``split()`` above, our tokenization method was
+to say that any strings which are delimited by whitespace count as a
+word token. But this simple approach doesn't always lead to the
+results we want. Moreover, string-identity doesn't always give us a
+useful criterion for assigning tokens to types. We therefore need to
+address two questions in more detail:
 
-Should we say that the numeric expression `4.53 +/- 0.15%`:lx: is three
-words?  Or should we say that it's a single compound word?  Or should
-we say that it is actually *nine* words, since it's read "four point
-five three, plus or minus fifteen percent"?  Or should we say that
-it's not a 'real' word at all, since it wouldn't appear in any
-dictionary?  The answer will depend on what task we're
-trying to solve.
+*Tokenization*: 
+  Which substrings of the original text should be treated as word tokens?
+ 
+*Type definition*: 
+  How do we decide whether two tokens have the same type?
+
+To see the problems with our first stab at defining tokens and types
+in ``sentence``, let's look more closely at what is contained in ``set(words)``:
+
+   >>> set(words)
+   set(['and', 'this', 'record', 'This', 'of', 'is', '--', 'time.',
+   'time', 'the']
+
+One point to note is that ``time`` and ``time.`` come out as distinct
+tokens, and of necessity, distinct types, since the trailing period
+has been bundled up with the rest of the word into a single token. We
+might also argue that although ``'--'`` is some kind of token, it
+isn't really a `word`:em: token. Third, we would probably want to say
+that ``'This'`` and ``'this'`` are not distinct types, since
+capitalization should be ignored.
+
+.. 
+   So now we have said that
+   any string of characters delimited by white space counts as a
+   word. Unfortunately, there are a number of problems with this simple
+   approach, and we will describe a few of them here. To begin with, some
+   of our tokens really shouldn't be counted as words.  For
+   example, wsj0_  contains the following sentence:
+
+   .. _wsj1:
+   .. ex::
+      .. parsed-literal::
+
+	A spokesman for Temple estimated that Sea Containers' plan -- if all
+	the asset sales materialize -- would result in shareholders
+	receiving only $36 to $45 a share in cash.
+
+   Our simple algorithm incorrectly treats each occurrence of ``'--'`` as a word.
+
+   A second problem is that there may be some character sequences that
+   are not separated by whitespace, but which we still want to consider
+   separate words.  An example is the contraction
+   `didn't`:lx:.  If we are analyzing the meaning of a sentence, it would
+   probably be more useful to treat this character string as two separate words,
+   `did`:lx: and `not`:lx:.  Conversely, there are times when we want to
+   treat a character sequence that contains whitespace as a single
+   word. For example, we might want our grammar to recognize strings
+   like `New York`:lx:, or `John Smith`:lx: as proper nouns without any
+   further decomposition.  Hyphenation adds to the
+   complexity; sometimes it makes more sense to treat hyphenated strings
+   as two words.  For example, in the expression `pro-New York`:lx:, we
+   do not want to say that `pro-New`:lx: is a single word.
+
+   .. I know I've seen better examples of this than "pro-New York, but
+      I can't think of one right now..
+
+
+   As an especially subtle example, consider the numeric expressions in
+   the following sentence (drawn from the MedLine corpus):
+
+   .. _tok1:
+   .. ex::
+
+       The corresponding free cortisol fractions in these sera were 4.53
+       +/- 0.15% and 8.16 +/- 0.23%, respectively.
+
+   Should we say that the numeric expression `4.53 +/- 0.15%`:lx: is three
+   words?  Or should we say that it's a single compound word?  Or should
+   we say that it is actually *nine* words, since it's read "four point
+   five three, plus or minus fifteen percent"?  Or should we say that
+   it's not a 'real' word at all, since it wouldn't appear in any
+   dictionary?  The answer will depend on what task we're
+   trying to solve.
 
 ..
    Note:: If we turn to languages other than English, segmenting words
@@ -166,54 +178,7 @@ trying to solve.
    'country-loving person' or as |ai4| [|guo3| |ren2|] |mdash| 'love
    country-person'.
 
-In the rest of this chapter we will explore the division of text into
-words; the distinction between types and tokens; sources of text data
-including files, the web, and linguistic corpora; accessing these
-sources using Python and NLTK; stemming and normalisation; Wordnet;
-and a variety of useful programming tasks involving words
 
------------------------
-Texts, Tokens and Types
------------------------
-
-Let us return to our task: *count the number of words that appear in a
-document*.  In the previous section, we interpreted 'the number of
-words' to mean 'the number of times any word was used.'  However,
-another interpretation is possible: we might want to know how many
-`distinct`:em: words were used, regardless of the number of
-times that each item was repeated.  For example, the
-following sentence contains seven 'word uses' but only uses four
-distinct words:
-
-.. _tok2:
-.. ex:: John likes Mary and Mary likes John.
-
-Clearly we are using different senses of the term 'word' here. To help
-distinguish between them, let's introduce use two new terms:
-`token`:dt: and `type`:dt:.  A word token is an individual occurrence
-of a word in a concrete context; it exists in time and space.  A word
-`type`:dt: is a more abstract; it's what we're talking about when we
-say that the second and sixth tokens in tok2_ are 'the same word'. 
-
-We could try to say that the type/token distinction is what is being
-reflected in the following snippet of Python:
-
-   >>> sent = 'John likes Mary and Mary likes John'
-   >>> words = sent.split()
-   >>> words[1]
-   'loves'
-   >>> words[1] == words[5]
-   True
-   >>> words[1] is words[5]
-   False
-
-The operator ``==`` tests whether two expressions are equal, and in
-this case, it is testing for string-identity. By contrast, the
-``is`` operator tests whether two objects are stored in the same
-location of memory, and is therefore analogous to
-token-identity. However, as we will show shortly, string-identity is
-neither necessary nor sufficient for saying that two tokens belong to
-the same type.
 
 ..  
   To see this, note that we would probably want to say that
@@ -228,85 +193,90 @@ the same type.
    token of the word type `cents`:lx:, or that there are four tokens of
    the type `Sea`:lx: in the text.
 
+.. 
+   The terms *token* and *type* can also be applied to other linguistic
+   entities.  For example, a `sentence token`:dt: is an individual occurrence
+   of a sentence; but a `sentence type`:dt: is an abstract sentence, without
+   context.  When someone repeats a sentence they have uttered two
+   sentence tokens but only one sentence type.  When the kind of token or
+   type is obvious from context, we will simply use the terms token and
+   type.  We can use this new terminology to express the two
+   interpretations for our task unambiguously:
+
+   1.  Count the number of word tokens that appear in a document.
+
+   2.  Count the number of word types that appear in a document.
+
+   In the previous section, we considered how we might accomplish the
+   first of these tasks; now, let's turn our attention to the second
+   task, that of counting word types.
+
+.. 
+   Counting Word Types
+   -------------------
+
+   As before, we will start with a simple approach: tokenize on any
+   sequence of whitespace, and count the number of times each word type
+   occurs.  This time we'll take the list of tokens returned by `text.split()`,
+   convert it to a set, then convert it back to a list:
+
+       >>> word_types = (set(text.split())
+       >>> sorted(word_types)
+       ['$1.1', '$130', '$36', '$45', ..., 'with', 'would', 'yesterday,']
+       >>> print len(word_types)
+       255
+
+
+.. 
+   In addition to the issues we saw earlier with counting tokens, our
+   algorithm's ignorance about punctuation can cause it to count the same
+   type multiple times.  For example, the substrings ``'price.'`` and
+   ``'price'`` (i.e., with and without a trailing period) will be treated
+   as distinct types. When we were counting tokens, this didn't affect
+   our overall answer, since both ``'price.'`` and ``'price'`` counted as
+   a single token.  But since the two strings are not identical, our
+   algorithm counts them as two separate types.  These tokenization
+   issues could be addressed by defining a more sophisticated tokenizer.
+
+
+   The type definition issues are exemplified by the fact that `the`:lx:
+   and `The`:lx: are listed as distinct types.  Instead we would like to
+   say that these tokens have the same type, and just happen to be
+   written differently.  In other words, we would like to have a way to
+   compare strings, ignoring distinctions such as case.  A more subtle
+   question is whether the two tokens `asset`:lx: and `assets`:lx: should
+   be considered to share the same type.  On the one hand, they would
+   both be listed under the same entry in a dictionary; but on the other
+   hand, there is a definite semantic difference between them. As with
+   some of the questions about tokenization, our decision about whether
+   to treat these two tokens as having the same type will depend on the
+   problem we're trying to solve. Further along the spectrum, although
+   the `likes`:lx: in tok3_ is string-identical to the `likes`:lx: in
+   tok2_, the fact that it is a plural noun rather than verb would lead
+   us to say that it is a distinct word type:
+
+   .. _tok3:
+   .. ex:: Your likes are quite unpredictable.
+
 The terms *token* and *type* can also be applied to other linguistic
-entities.  For example, a `sentence token`:dt: is an individual occurrence
-of a sentence; but a `sentence type`:dt: is an abstract sentence, without
-context.  When someone repeats a sentence they have uttered two
-sentence tokens but only one sentence type.  When the kind of token or
-type is obvious from context, we will simply use the terms token and
-type.  We can use this new terminology to express the two
-interpretations for our task unambiguously:
+entities.  For example, a `sentence token`:dt: is an individual
+occurrence of a sentence; but a `sentence type`:dt: is an abstract
+sentence, without context.  When someone repeats a sentence they have
+uttered two sentence tokens but only one sentence type.  When the kind
+of token or type is obvious from context, we will simply use the terms
+token and type.
 
-1.  Count the number of word tokens that appear in a document.
-
-2.  Count the number of word types that appear in a document.
-
-In the previous section, we considered how we might accomplish the
-first of these tasks; now, let's turn our attention to the second
-task, that of counting word types.
-
-Counting Word Types
--------------------
-
-As before, we will start with a simple approach: tokenize on any
-sequence of whitespace, and count the number of times each word type
-occurs.  This time we'll take the list of tokens returned by `text.split()`,
-convert it to a set, then convert it back to a list:
-
-    >>> word_types = (set(text.split())
-    >>> sorted(word_types)
-    ['$1.1', '$130', '$36', '$45', ..., 'with', 'would', 'yesterday,']
-    >>> print len(word_types)
-    255
-
-This approach fails to properly address two questions:
-
-*Tokenization*: 
-  Which substrings of the original text contain word tokens?
- 
-*Type definition*: 
-  How do we decide whether two tokens have the same type?
-
-In addition to the issues we saw earlier with counting tokens, our
-algorithm's ignorance about punctuation can cause it to count the same
-type multiple times.  For example, the substrings ``'price.'`` and
-``'price'`` (i.e., with and without a trailing period) will be treated
-as distinct types. When we were counting tokens, this didn't affect
-our overall answer, since both ``'price.'`` and ``'price'`` counted as
-a single token.  But since the two strings are not identical, our
-algorithm counts them as two separate types.  These tokenization
-issues could be addressed by defining a more sophisticated tokenizer.
-
-
-The type definition issues are exemplified by the fact that `the`:lx:
-and `The`:lx: are listed as distinct types.  Instead we would like to
-say that these tokens have the same type, and just happen to be
-written differently.  In other words, we would like to have a way to
-compare strings, ignoring distinctions such as case.  A more subtle
-question is whether the two tokens `asset`:lx: and `assets`:lx: should
-be considered to share the same type.  On the one hand, they would
-both be listed under the same entry in a dictionary; but on the other
-hand, there is a definite semantic difference between them. As with
-some of the questions about tokenization, our decision about whether
-to treat these two tokens as having the same type will depend on the
-problem we're trying to solve. Further along the spectrum, although
-the `likes`:lx: in tok3_ is string-identical to the `likes`:lx: in
-tok2_, the fact that it is a plural noun rather than verb would lead
-us to say that it is a distinct word type:
-
-.. _tok3:
-.. ex:: Your likes are quite unpredictable.
-
-To summarize, although the type/token disctinction is a useful
-one, we cannot just say that two tokens have the same type if they are
+To summarize, although the type/token distinction is a useful
+one, we cannot just say that two word tokens have the same type if they are
 the same string of characters |mdash| we need to take into
 consideration a number of other factors in determining what counts as
-the same word.
+the same word. Moreover, we also need to be more careful in how we
+identify tokens in the first place. 
 
 So far, we have relied on getting source text from a string defined in
-a fragment of Python code.  In the following sections we will see how
+a fragment of Python code.  In the rest of this section, we will see how
 to get text from files, from the web, and from the corpora
-distributed with NLTK.
+distributed with |NLTK|.
 
 Getting text from the Web
 -------------------------
@@ -478,7 +448,7 @@ Exercises
 
 #. Read in some text from a corpus, tokenize it, and print the list of
    all `wh`:lx:\ -word types that occur.  (`wh`:lx:\ -words in English
-   are questions used in questions, relative clausese and
+   are questions used in questions, relative clauses and
    exclamations: `who`:lx:, `which`:lx:, `what`:lx:, and so on.) Print
    them in order.  Are any words duplicated in this list, because of
    the presence of case distinctions or punctuation?
@@ -509,8 +479,8 @@ Exercises
 Tokenization and Normalization
 ------------------------------
 
-*Tokenization* is the task of extracting a list of elementary tokens
-that constitute a piece of language data.  As we've seen, tokenization
+Tokenization, as we saw, is the task of extracting a list of elementary tokens
+that constitute a piece of language data. We pointed out that tokenization
 based solely on whitespace is too simplistic for most applications.
 In this section we will take a more sophisticated approach, using
 regular expression to specify which character sequences should be
@@ -541,7 +511,7 @@ as separate tokens, we could do the following:
 The regular expression in this example will match a sequence
 consisting of one or more word characters ``\w+``.  It will also match
 a sequence consisting of one or more punctuation characters (or
-non-word, non-space characters ``[^\w\s]+``).  This is a negated range
+non-word, non-space characters ``[^\w\s]+``).  This is another negated range
 expression; it matches one or more characters which are not word
 characters (i.e., not a match for ``\w``) and not a whitespace
 character (i.e., not a match for ``\s``).  We use the disjunction
@@ -582,16 +552,22 @@ Normalization
 -------------
 
 Earlier we talked about counting word tokens, and completely ignored
-the "context" in which these tokens appeared.  For a sentence like `I
-saw the saw`:lx:, we would have treated both `saw`:lx: tokens as
-instances of the same type.  However, one is a form of the verb
-`SEE`:lx:, and the other is the name of a cutting instrument (we use
-uppercase to indicate a `lexeme`:dt:, or `lemma`:dt:).  These two
-forms of `see`:lx: are unrelated, appearing in very different
-contexts, and should never be counted together.  We can distinguish
-such `homographs`:dt: with the help of context; often the previous
-word suffices.  We will explore this idea of context briefly, before
-addressing the main topic of this section.
+the rest of the sentence in which these tokens appeared.  Thus, for an
+example like `I saw the saw`:lx:, we would have treated both `saw`:lx:
+tokens as instances of the same type.  However, one is a form of the
+verb `see`:lx:, and the other is the name of a cutting instrument.
+.. (we use uppercase to indicate a `lexeme`:dt:, or `lemma`:dt:).  How
+do we know that these two forms of `saw`:lx: are unrelated?  One
+answer is that as speakers of English, we know that these would appear
+as different entries in a dictionary. Another, more empiricist, answer
+is that if we looked at a large enough number of texts, it would
+become clear that the two forms have very different distributions. For
+example, only the noun `saw`:lx: will occur immediately after
+determiners such as `the`:lx:.  Distinct words which have the same
+written form are called `homographs`:dt:. We can distinguish
+homographs with the help of context; often the previous word suffices.
+We will explore this idea of context briefly, before addressing the
+main topic of this section.
 
 A `bigram`:dt: is simply a pair of words.
 For example, in the sentence `She sells sea shells by the sea shore`:lx:,
@@ -626,66 +602,107 @@ element.  Here is a small selection, ordered by their counts::
     often appears	1
     often call   	1
 
-Observe that `often`:lx: is frequently followed by a comma.  This
-suggests that `often`:lx: is common at the end of phrases. We also see
-that `often`:lx: precedes verbs, presumably as an adverbial
-modifier. Thus, `often saw`:lx: is likely to involve the verb
-`SEE`:lx:.  Note that this list includes many forms of the same word:
-`been`:lx:, `were`:lx:, `are`:lx: and `is`:lx: are all forms of
-`BE`:lx:.  It would be useful if we could group these together, or
-`lemmatize`:dt: them, replacing the inflected forms by their lemma.
-Then we could study which *verbs* are typically modified by a
-particular adverb.  Applied to the above list, lemmatization would
-yield the following results, which gives us a more compact picture of
-the distribution of `often`:lx:.
+In the topmost entry, we see that `often`:lx: is frequently followed
+by a comma.  This suggests that `often`:lx: is common at the end of
+phrases. We also see that `often`:lx: precedes verbs, presumably as an
+adverbial modifier.  We might infer from this that if we come across
+`saw`:lx: in the context `often __`:lx:, then `saw`:lx: is being used
+as a verb.
+
+You will also see that this list includes different grammatical forms
+of the same verb. We can form separate groups consisting of
+`appear`:lx: |tilde| `appears`:lx: |tilde| `appeared`:lx:; `call`:lx:
+|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and and `been`:lx:
+|tilde| `were`:lx: |tilde| `are`:lx: |tilde| `is`:lx:.  It is common
+in linguistics to say that two forms such as `appear`:lx: and
+`appeared`:lx: belong to a more abstract notion of a word called a
+`lexeme`:dt:; by contast, `appeared`:lx: and `called`:lx: belong to
+different lexemes. You can think of a lexeme as corresponding to an
+entry in a dictionary. By convention, small capitals are used to
+indicate a lexeme: `appear`:lex:.  
+
+Although `appeared`:lx: and `called`:lx: belong to different lexemes,
+they do have something in common: they are both past tense forms. This
+is signalled by the segment `-ed`:lx:, which we call a morphological
+`suffix`:dt:. We also say that such morphologically complex forms are
+`inflected`:dt:.  If we strip off the suffix, we get something called
+the `stem`:dt:, namely `appear`:lx: and `call`:lx: respectively. While
+`appeared`:lx:, `appears`:lx: and `appearing`:lx: are all morphologically inflected,
+`appear`:lx: lacks any morphological inflection and is therefore termed
+the `base`:dt: form. In English, the base form is conventionally used
+as the `lemma`:dt: for a word.
+
+..
+   The actual word form that dictionaries use to index
+   lexemes often varies by language. 
+   While English uses the stem form of verbs, Latin uses the first person
+
+Our notion of context would be more compact if we could group
+different forms of the various verbs into their lemmas; then we could
+study which verb lexemes are typically modified by a particular
+adverb. `Lemmatization`:dt: |mdash| the process of mapping grammatical forms
+into their lemmas |mdash| would yield the
+following picture of the distribution of `often`:lx:.
 
   ::
 
     often ,		16
     often a		10
-    often BE		13
+    often be		13
     often in		8
     often than		7
     often the		7
-    often DO		7
-    often APPEAR	6
-    often CALL		5
+    often do		7
+    often appear	6
+    often call		5
 
 Lemmatization is a rather sophisticated process which requires a
 mixture of rules for regular inflections and table look-up for
 irregular morphological patterns. Within |NLTK|, a simpler approach is
 offered by the *Porter Stemmer*, which strips inflectional suffixes
-from words, collapsing the different forms of `APPEAR`:lx: and
-`CALL`:lx:.  (Note that this stemmer does not attempt to identify
-`was`:lx: as a form of the lexeme `BE`:lx:.)  Run the Porter Stemmer
-demonstration as follows:
+from words, collapsing the different forms of `appear`:lex: and
+`call`:lex:.  Given the simple nature of the algorithm, you may not be
+surprised to hear that this stemmer does not attempt to identify
+`were:lx: as a form of the lexeme `be`:lx:.  
 
-.. doctest-ignore::
-    >>> from nltk_lite.stem import porter
-    >>> porter.demo()
+    >>> from nltk_lite.stem.porter import * 
+    >>> stemmer = Porter()
+    >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
+    >>> lemmas = [stemmer.stem(verb) for verb in verbs]
+    >>> set(lemmas)
+    set(['call', 'appear'])
+
 
 Lemmatization and stemming can be regarded as special cases of
 `normalization`:dt:.  They identify a canonical representative for a
-group of related wordforms.  By its nature, normalization collapses
+group of related word forms.  By its nature, normalization collapses
 distinctions. An example is case normalization, where all variants are
 mapped into a single format. What counts as the normalized form will
 vary according to context. Often, we convert everything into lower
 case, so that words which were capitalized by virtue of being
 sentence-initial are treated the same as those which occur elsewhere
-in the sentence. Case normalization will also collapse the `New`:lx:
+in the sentence. The Python string method ``lower()`` will accomplish
+this for us:
+
+   >>> str = 'This is THE time'
+   >>> str.lower()
+   'this is the time'
+
+We need to be careful, however; case normalization will also collapse the `New`:lx:
 of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
 
-Term variation is a particularly challenging factor in biomedical
-texts. For example, the following are just some of the possible
-variants for `nuclear factor kappa B`:lx:, the name for a family of
-proteins::
+..
+   Term variation is a particularly challenging factor in biomedical
+   texts. For example, the following are just some of the possible
+   variants for `nuclear factor kappa B`:lx:, the name for a family of
+   proteins::
 
-  nuclear factor kappa B, nuclear factor Kappa-B, nuclear factor kappaB,
-  nuclear factor kB, NF-KB, NF-kb, NF-kB, NFKB, NFkB, NF kappa-B
+     nuclear factor kappa B, nuclear factor Kappa-B, nuclear factor kappaB,
+     nuclear factor kB, NF-KB, NF-kb, NF-kB, NFKB, NFkB, NF kappa-B
 
-Although work is ongoing to standardize biomedical nomenclature, the
-rate at which new entities are discovered and described outstrips
-these efforts at present.
+   Although work is ongoing to standardize biomedical nomenclature, the
+   rate at which new entities are discovered and described outstrips
+   these efforts at present.
 
 Exercises
 ---------
@@ -693,10 +710,16 @@ Exercises
 1. **Regular expression tokenizers:**
    Save the Wall Street Journal example text from earlier in this
    chapter into a file ``corpus.txt``.  Write a function ``load(f)``
-   to read the file into a string.  Use ``tokenize.regexp()`` to create a
-   tokenizer which tokenizes the various kinds of punctuation
-   in this text.  Use a single regular expression, with inline comments
-   using the ``re.VERBOSE`` flag.
+   to read the file into a string.  
+
+   a) Use ``tokenize.regexp()`` to create a tokenizer which tokenizes
+      the various kinds of punctuation in this text.  Use a single
+      regular expression, with inline comments using the
+      ``re.VERBOSE`` flag.
+   
+   b) Use ``tokenize.regexp()`` to create a tokenizer which tokenizes
+   the following kinds of expression: monetary amounts; dates; names
+   of people and companies.
 
 #. **Sentence tokenizers:** (Advanced)
    Develop a sentence tokenizer.  Test it on the Brown Corpus, which
@@ -1226,56 +1249,57 @@ Exercises
    phrases of a document collection.
    http://www.amazon.com/gp/search-inside/sipshelp.html/
 
----------------
-What is a Word?
----------------
+..
+   ---------------
+   What is a Word?
+   ---------------
 
-Linguists have devoted considerable effort to distinguishing different
-ways in which the term `word`:dt: is used. So far we have focused on
-`orthographic words`:dt: strings of characters which can be separated
-by various textual criteria such as the presence of whitespace.
-However, for linguists, the spoken word is often regarded as
-primary, in the sense that natural languages have all evolved
-as spoken mediums, and children learn to speak long before they can
-write and read (if indeed they ever do). Subjectively, we hear spoken
-utterances as a succession of words, but it is rarely the case that
-there are perceptible gaps between spoken words in conversational
-speech. Nevertheless, spoken words can and do occur in
-isolation. Using a variety of (sometime language-dependent) criteria,
-certain phonological units are classed as `phonological words`, and
-these units need not correspond to orthographic words: an example is
-the utterance `wanna`:lx: as a contraction of the words `want`:lx: and
-`to`:lx:.  Returning to an example mentioned before, note that the
-form `n't`:lx: in `didn't`:lx: cannot form a phonological word by
-itself, and is sometimes called a `clitic`:dt: or `leaner`:dt:; it needs to to
-combine with a "host" word before it can be uttered in normal speech.
+   Linguists have devoted considerable effort to distinguishing different
+   ways in which the term `word`:dt: is used. So far we have focused on
+   `orthographic words`:dt: strings of characters which can be separated
+   by various textual criteria such as the presence of whitespace.
+   However, for linguists, the spoken word is often regarded as
+   primary, in the sense that natural languages have all evolved
+   as spoken mediums, and children learn to speak long before they can
+   write and read (if indeed they ever do). Subjectively, we hear spoken
+   utterances as a succession of words, but it is rarely the case that
+   there are perceptible gaps between spoken words in conversational
+   speech. Nevertheless, spoken words can and do occur in
+   isolation. Using a variety of (sometime language-dependent) criteria,
+   certain phonological units are classed as `phonological words`, and
+   these units need not correspond to orthographic words: an example is
+   the utterance `wanna`:lx: as a contraction of the words `want`:lx: and
+   `to`:lx:.  Returning to an example mentioned before, note that the
+   form `n't`:lx: in `didn't`:lx: cannot form a phonological word by
+   itself, and is sometimes called a `clitic`:dt: or `leaner`:dt:; it needs to to
+   combine with a "host" word before it can be uttered in normal speech.
 
-.. TODO: mention following distinction earlier!
+   .. TODO: mention following distinction earlier!
 
-Independent of the distinction between spoken and written language,
-an important notion is that of a `lexeme`:dt: or `lexical item`:dt:. This
-corresponds broadly to the notion of a word that you might look up in
-a dictionary of English or some other language. For example, in order
-to find the meaning of the word `said`:lx:, you need to know first that
-it is a particular `grammatical form`:dt: of the lexeme `SAY`:lx:. (We adopt
-the standard convention of representing lexemes with upper-case
-forms.) Similarly,  `say`:lx:, `says`:lx: and `saying`:lx: are also
-grammatical forms of `SAY`:lx:. While `said`:lx:, `says`:lx: and `saying`:lx:
-are morphologically inflected, `say`:lx: lacks any morphological
-inflection and is therefore termed the `base`:dt: form. In English, the
-base form is conventionally used as the `lemma`:dt: (or `citation form`:dt:)
-for a word. It is the lemma that is chosen to represent the
-corresponding lexeme. (For example, the main entry for lexical item
-will be listed under the word's lemma.)
+   Independent of the distinction between spoken and written language,
+   an important notion is that of a `lexeme`:dt: or `lexical item`:dt:. This
+   corresponds broadly to the notion of a word that you might look up in
+   a dictionary of English or some other language. For example, in order
+   to find the meaning of the word `said`:lx:, you need to know first that
+   it is a particular `grammatical form`:dt: of the lexeme `SAY`:lx:. (We adopt
+   the standard convention of representing lexemes with upper-case
+   forms.) Similarly,  `say`:lx:, `says`:lx: and `saying`:lx: are also
+   grammatical forms of `SAY`:lx:. While `said`:lx:, `says`:lx: and `saying`:lx:
+   are morphologically inflected, `say`:lx: lacks any morphological
+   inflection and is therefore termed the `base`:dt: form. In English, the
+   base form is conventionally used as the `lemma`:dt: (or `citation form`:dt:)
+   for a word. It is the lemma that is chosen to represent the
+   corresponding lexeme. (For example, the main entry for lexical item
+   will be listed under the word's lemma.)
 
-Many of the word-like forms that occur in text have received little
-attention from linguists but are nevertheless so prevalent that they
-need to be dealt with in many NLP applications. These include
-abbreviations such as `Dept.`:lx: or `Mr.`:lx: and acronyms such as `NATO`:lx:,
-`Interpol`:lx: or `SQL`:lx:. Also of interest are symbols such as $ (`dollar`:lx:)
-and @ (`at`:lx:). Unlike ordinary punctuation marks, these symbols
-(sometimes called `logograms`:dt:) stand for words, and would be spoken as
-such if the text were read aloud.
+   Many of the word-like forms that occur in text have received little
+   attention from linguists but are nevertheless so prevalent that they
+   need to be dealt with in many NLP applications. These include
+   abbreviations such as `Dept.`:lx: or `Mr.`:lx: and acronyms such as `NATO`:lx:,
+   `Interpol`:lx: or `SQL`:lx:. Also of interest are symbols such as $ (`dollar`:lx:)
+   and @ (`at`:lx:). Unlike ordinary punctuation marks, these symbols
+   (sometimes called `logograms`:dt:) stand for words, and would be spoken as
+   such if the text were read aloud.
 
 ----------
 Conclusion
