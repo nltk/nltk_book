@@ -6,11 +6,15 @@
 4. Categorizing and Tagging Words
 =================================
 
+------------
+Introduction
+------------
+
 In the last chapter we dealt with words in their own right. We saw
 that some distinctions can be collapsed using normalization, but we
-did not make any further abstractions over groups of words.  We also
+did not make any further generalizations.  We
 looked at the distribution of `often`:lx:, identifying the words that
-follow it.  We noticed that `often`:lx: frequently modifies verbs.  We
+follow it; we noticed that `often`:lx: frequently modifies verbs.  We
 also assumed that you knew that words such as `was`:lx:, `called`:lx:
 and `appears`:lx: are all verbs, and that you knew that `often`:lx: is
 an adverb. In fact, we take it for granted that most people have a
@@ -42,14 +46,18 @@ each tag.  As we can see, the majority of words following `often`:lx: are verbs.
   ,       16    `,`:lx:                             comma
   ======  ====  ==================================  ===================================
 
-The process of classifying words into their parts-of-speech, and
-labeling them accordingly, is known as `part-of-speech tagging`:dt:,
+The process of classifying words into their parts-of-speech and
+labeling them accordingly is known as `part-of-speech tagging`:dt:,
 `POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
-used for a particular task is known as a `tag set`:dt:.
-Our emphasis in this chapter is on developing tools to tag text automatically.
+used for a particular task is known as a `tag set`:dt:.  Our emphasis
+in this chapter is on exploiting tags, and tagging text automatically.
 
-Automatic tagging can bring a number of benefits. It helps predict the
-behavior of a previously unseen word.  For example, if we encounter
+Automatic tagging can bring a number of benefits.  We have already
+seen an example of how to exploit tags in corpus analysis |mdash| we
+get a clear understanding of the distribution of `often`:lx: by
+looking at the tags of adjacent words.  Automatic tagging
+also helps predict the
+behavior of previously unseen words.  For example, if we encounter
 the word `blogging`:lx: we can probably infer that it is a verb, with
 the root `blog`:lx:, and likely to occur after forms of the auxiliary
 ``to be`` (e.g. `he was blogging`:lx:).  Parts of speech are also used
@@ -59,6 +67,8 @@ in speech synthesis and recognition.  For example, ``wind/nn``, as in
 vowel.  Other examples can be found where the stress pattern differs
 depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
 `insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
+Without knowing the part of speech we cannot be sure of pronouncing
+the word correctly.
 
 In the next section we will see how to access and explore the Brown
 Corpus.  Following this we will take a more in depth look at the
@@ -74,7 +84,7 @@ Representing Tags and Reading Tagged Corpora
 --------------------------------------------
 
 By convention in NLTK, a tagged token is represented using a Python
-tuple as follows:
+tuple as follows.  (A tuple is just like a list, only it cannot be modified.)
 
     >>> tok = ('fly', 'nn')
     >>> tok
@@ -87,6 +97,14 @@ shown below:
     'fly'
     >>> tok[1]
     'nn'
+
+We can create one of these special tuples from the standard string
+representation of a tagged token:
+
+    >>> from nltk_lite.tag import tag2tuple
+    >>> ttoken = 'fly/nn'
+    >>> tag2tuple(ttoken)
+    ('fly', 'nn')
 
 Several large corpora, such as the Brown Corpus and portions of the
 Wall Street Journal, have already been tagged, and we will be able to
@@ -104,7 +122,6 @@ We can construct tagged tokens directly from a string, with the help
 of two NLTK functions, ``tokenize.whitespace()`` and ``tag2tuple``:
 
     >>> from nltk_lite import tokenize
-    >>> from nltk_lite.tag import tag2tuple
     >>> sent = '''
     ... The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
     ... other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
@@ -113,10 +130,9 @@ of two NLTK functions, ``tokenize.whitespace()`` and ``tag2tuple``:
     ... accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
     ... interest/nn of/in both/abx governments/nns ''/'' ./.
     ... '''
-    >>> for t in tokenize.whitespace(sent):
-    ...     print tag2tuple(t),
-    ('The', 'at') ('grand', 'jj') ('jury', 'nn') ('commented', 'vbd')
-    ('on', 'in') ('a', 'at') ('number', 'nn') ... ('.', '.')
+    >>> [tag2tuple(t) for t in tokenize.whitespace(sent)]
+    [('The', 'at'), ('grand', 'jj'), ('jury', 'nn'), ('commented', 'vbd'),
+    ('on', 'in'), ('a', 'at'), ('number', 'nn'), ... ('.', '.')]
 
 We can also conveniently access tagged corpora directly from Python.
 The first step is to load the Brown Corpus reader, ``brown``.  We then
@@ -154,47 +170,44 @@ fewer distinctions, we have less work to do for classifying the
 current token, but less information about the context to draw on.
 
 So far, we have only looked at tags as capturing information about
-word class. However, common tag sets often capture a certain amount of
+word class. However, common tag sets often capture some
 `morpho-syntactic`:dt: information; that is, information about the
 kind of morphological markings which words receive by virtue of their
 syntactic role. Consider, for example, the selection of distinct
 grammatical forms of the word `go`:lx: illustrated in the following
 sentences:
 
-3.  *Go* away!
-4.  He sometimes *goes* to the cafe.
-5.  All the cakes have *gone*.
-6.  We *went* on the excursion.
+.. _go:
+.. ex::
+  .. ex:: *Go* away!
+  .. ex::  He sometimes *goes* to the cafe.
+  .. ex::  All the cakes have *gone*.
+  .. ex::  We *went* on the excursion.
 
-
-It is apparent that each of these forms is morphologically distinct
-from the others. What do we mean by saying that the morphological
-markings are correlated with syntactic role? Consider the form,
+Each of these forms |mdash| `go`:lx, `goes`:lx, `gone`:lx:, and `went`:lx |mdash|
+is morphologically distinct from the others. Consider the form,
 `goes`:lx:. This cannot occur in all grammatical contexts, but
 requires, for instance, a third person singular subject. Thus, the
 following sentences are ungrammatical.
  
-7. \*They sometimes *goes* to the cafe.
-8. \*I sometimes *goes* to the cafe.
+.. ex::
+  .. ex:: \*They sometimes *goes* to the cafe.
+  .. ex:: \*I sometimes *goes* to the cafe.
 
 By contrast, `gone`:lx: is the past participle form; it is required
 after `have`:lx: (and cannot be replaced in this context by
 `goes`:lx:), and cannot occur as the main verb of a clause. 
  
-9. \*All the cakes have *goes*.
-10. \*He sometimes *gone* to the cafe.
-
-You should be able to satisfy yourself that there are also
-restrictions on the distribution of `go`:lx: and `went`:lx: in the
-sense that they cannot be freely interchanged in the kinds of contexts
-illustrated by (3)-(6).
+.. ex::
+  .. ex:: \*All the cakes have *goes*.
+  .. ex:: \*He sometimes *gone* to the cafe.
 
 We can easily imagine a tag set in which the four distinct
 grammatical forms just discussed were all tagged as `vb`:gc:. Although
 this would be adequate for some purposes, a more fine-grained tag set
 will provide useful information about these forms that can be of value
 to other processors which try to detect syntactic patterns from tag
-sequences. As we in fact noted at the beginning of this chapter, the
+sequences. As we noted at the beginning of this chapter, the
 Brown tag set does in fact capture these
 distinctions, as summarized here:
 
@@ -227,10 +240,15 @@ Exercises
 
 1. **Ambiguity resolved by part-of-speech tags:**
    Search the web for "spoof newspaper headlines", to find such gems as:
-   `British Left Waffles on Falkland Islands``, and
-   `Juvenile Court to Try Shooting Defendant``.
+   `British Left Waffles on Falkland Islands`:lx:, and
+   `Juvenile Court to Try Shooting Defendant`:lx:.
    Manually tag these headlines to see if knowledge of the part-of-speech
    tags removes the ambiguity.
+
+#. Satisfy yourself that there are
+   restrictions on the distribution of `go`:lx: and `went`:lx:, in the
+   sense that they cannot be freely interchanged in the kinds of contexts
+   illustrated in go_.
 
 #. **Working with tagged data:**
    Write code to process the Brown Corpus, and produce answers
@@ -270,7 +288,7 @@ Exercises
 #. **Competition:**
    Working with someone else, take turns to pick a word which can be
    either a noun or a verb (e.g. `contest`:lx:); the opponent has to
-   predict which one is likely to be the most frequent; check the
+   predict which one is likely to be the most frequent in the Brown corpus; check the
    opponents prediction, and tally the score over several turns.
 
 #. Write a program to classify contexts involving the word `must`:lx: according
@@ -529,13 +547,13 @@ The Unigram Tagger
 
 The ``UnigramTagger`` class implements a simple statistical tagging
 algorithm: for each token, it assigns the tag that is most likely for
-that token's text. For example, it will assign the tag ``jj`` to any
+that particular token. For example, it will assign the tag ``jj`` to any
 occurrence of the word `frequent`:lx:, since `frequent`:lx: is used as an
 adjective (e.g. `a frequent word`:lx:) more often than it is used as a
 verb (e.g. `I frequent this cafe`:lx:).
 
 Before a ``UnigramTagger`` can be used to tag data, it must be trained
-on a *training corpus*. It uses this corpus to determine which tags
+on a tagged corpus. It uses this corpus to determine which tags
 are most common for each word.  ``UnigramTaggers`` are trained using
 the ``train()`` method, which takes a tagged corpus:
 
