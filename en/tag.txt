@@ -276,92 +276,30 @@ noun phrases) that they require.  The word `fall`:lx: is
 falls).  The word `eat`:lx: is `transitive`:dt:, requiring two
 arguments (the eater and the eaten).  Other verbs are more complex;
 for instance `put`:lx: requires three arguments, the agent doing the
-putting, the entity being put somewhere, and a location.  The
-`-ing`:lx: suffix appears on nouns derived from verbs, e.g. `the
-falling of the leaves`:lx: (this is known as the `gerund`:dt:).
+putting, the entity being put somewhere, and a location.  We will return
+to this topic when we come to look at grammars and parsing.
 
 English verbs can be morphologically complex.  For instance, the
 `present participle`:dt: of a verb ends in `-ing`:lx:, and expresses
 the idea of ongoing, incomplete action (e.g. `falling, eating`:lx:).
+The `-ing`:lx: suffix also appears on nouns derived from verbs, e.g. `the
+falling of the leaves`:lx: (this is known as the `gerund`:dt:).
+In the Brown corpus, these are tagged ``vbg``.
+
 The `past participle`:dt: of a verb often ends in `-ed`:lx:, and
 expresses the idea of a completed action (e.g. `fell, ate`:lx:).
+These are tagged ``vbd``.
+
+Modal verbs, e.g. `would`:lx: ...
 
 
-Tags for the forms of the verb.
-
-
-
-The Regular Expression Tagger
------------------------------
-
-The regular expression tagger assigns tags to tokens on the basis of
-matching patterns in the token's text.  For instance, the following
-tagger assigns ``cd`` to cardinal numbers, and ``nn`` to everything
-else:
-
-    >>> patterns = [(r'^-?[0-9]+(.[0-9]+)?$', 'cd'), (r'.*', 'nn')]
-    >>> nn_cd_tagger = tag.Regexp(patterns)
-    >>> list(nn_cd_tagger.tag(tokens))
-    [('John', 'nn'), ('saw', 'nn'), ('3', 'cd'), ('polar', 'nn'),
-    ('bears', 'nn'), ('.', 'nn')]
-
-We can generalize this method to guess the correct tag for words based
-on the presence of certain prefix or suffix strings.  For instance,
-English words beginning with `un-`:lx: are likely to be adjectives,
-and words ending with `'s`:lx: are likely to be possessive nouns.
-Here is a more sophisticated regular expression tagger:
-
-    >>> patterns = [
-    ...     (r'^-?[0-9]+(.[0-9]+)?$', 'cd'),  # cardinal numbers
-    ...     (r'(The|the|A|a|An|an|)$', 'at'), # articles
-    ...     (r'un.*', 'jj'),                  # adjectives
-    ...     (r'.*\'s$', 'nn$'),               # possessive nouns
-    ...     (r'.*s$', 'nns'),                 # plural nouns
-    ...     (r'.*ing$', 'vbg'),               # gerunds
-    ...     (r'.*ed$', 'vbd'),                # past tense verbs
-    ...     (r'.*', 'nn')                     # nouns (default)
-    ... ]
-    >>> regexp_tagger = tag.Regexp(patterns)
-
-
-
-
-
-
-
-
-
-
-
-Brown Corpus Tags and other Tag Sets
-------------------------------------
-
-Most part-of-speech tag sets make use of the same basic categories,
-such as noun, verb, adjective, and preposition. However, tag sets
-differ both in how finely they divide words into categories; and in
-how they define their categories. For example, `is`:lx: might be just tagged
-as a verb in one tag set; but as a distinct form of the lexeme `BE`:lx: in
-another tag set (as in the Brown Corpus).  This variation in tag sets is
-unavoidable, since part-of-speech tags are used in different ways for
-different tasks. In other words, there is no one 'right way' to assign
-tags, only more or less useful ways depending on one's goals.
-
-Observe that the tagging process simultaneously collapses distinctions
-(i.e., lexical identity is usually lost when all personal pronouns are
-tagged `prp`:gc:), while introducing distinctions and removing
-ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
-facilitates classification and prediction.  When we
-introduce finer distinctions in a tag set, we get better information
-about linguistic context, but we have to do more work to classify the
-current token (there are more tags to choose from).  Conversely, with
-fewer distinctions, we have less work to do for classifying the
-current token, but less information about the context to draw on.
-
-So far, we have only looked at tags as capturing information about
-word class. However, common tag sets often capture some
+Common tag sets often capture some
 `morpho-syntactic`:dt: information; that is, information about the
 kind of morphological markings which words receive by virtue of their
-syntactic role. Consider, for example, the selection of distinct
+syntactic role.
+
+
+Consider, for example, the selection of distinct
 grammatical forms of the word `go`:lx: illustrated in the following
 sentences:
 
@@ -414,6 +352,80 @@ These differences between the forms are encoded in their Brown Corpus
 tags: ``be/be, being/beg, am/bem, been/ben`` and ``was/bedz``. This
 means that an automatic tagger which uses this tag set is in effect
 carrying out a limited amount of morphological analysis.
+
+The Regular Expression Tagger
+-----------------------------
+
+The regular expression tagger assigns tags to tokens on the basis of
+matching patterns.  For instance, we might guess that any word ending
+in `ed`:lx: is the past participle of a verb, and any word ending with
+`'s`:lx: is a possessive noun.  We can express these as a list of
+regular expressions:
+
+    >>> patterns = [
+    ...     (r'.*ing$', 'vbg'),               # gerunds
+    ...     (r'.*ed$', 'vbd'),                # simple past
+    ...     (r'.*es$', 'vbz'),                # 3rd singular present
+    ...     (r'.*ould$', 'md'),               # modals
+    ...     (r'.*\'s$', 'nn$'),               # possessive nouns
+    ...     (r'.*s$', 'nns'),                 # plural nouns
+    ...     (r'^-?[0-9]+(.[0-9]+)?$', 'cd'),  # cardinal numbers
+    ...     (r'.*', 'nn')                     # nouns (default)
+    ... ]
+
+Note that these are processed in order, and the first one that matches is applied.
+
+Now we can set up a tagger and use it to tag some text.
+
+
+    >>> regexp_tagger = tag.Regexp(patterns)
+    >>> list(regexp_tagger.tag(brown.raw('a')))[3]
+    [('``', 'nn'), ('Only', 'nn'), ('a', 'nn'), ('relative', 'nn'),
+    ('handful', 'nn'), ('of', 'nn'), ('such', 'nn'), ( 'reports', 'nns'),
+    ('was', 'nns'), ('received', 'vbd'), ("''", 'nn'), (',', 'nn'),
+    ('the', 'nn'), ('jury', 'nn'), ('sa id', 'nn'), (',', 'nn'), ('``', 'nn'),
+    ('considering', 'vbg'), ('the', 'nn'), ('widespread', 'nn'), ..., ('.', 'nn')]
+
+How well does this do?
+
+    >>> tag.accuracy(regexp_tagger, brown.tagged('a'))
+    0.21094138472860355
+
+
+The regular expression is a catch-all, which tags everything as a noun.
+This is equivalent to the default tagger (only much less efficient).
+Instead of re-specifying this as part of the regular expression tagger,
+is there a way to combine this tagger with the default tagger?  We
+will see how to do this later, under the heading of backoff taggers.
+
+
+
+
+
+
+Brown Corpus Tags and other Tag Sets
+------------------------------------
+
+Most part-of-speech tag sets make use of the same basic categories,
+such as noun, verb, adjective, and preposition. However, tag sets
+differ both in how finely they divide words into categories; and in
+how they define their categories. For example, `is`:lx: might be just tagged
+as a verb in one tag set; but as a distinct form of the lexeme `BE`:lx: in
+another tag set (as in the Brown Corpus).  This variation in tag sets is
+unavoidable, since part-of-speech tags are used in different ways for
+different tasks. In other words, there is no one 'right way' to assign
+tags, only more or less useful ways depending on one's goals.
+
+Observe that the tagging process simultaneously collapses distinctions
+(i.e., lexical identity is usually lost when all personal pronouns are
+tagged `prp`:gc:), while introducing distinctions and removing
+ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
+facilitates classification and prediction.  When we
+introduce finer distinctions in a tag set, we get better information
+about linguistic context, but we have to do more work to classify the
+current token (there are more tags to choose from).  Conversely, with
+fewer distinctions, we have less work to do for classifying the
+current token, but less information about the context to draw on.
 
 In the rest of this chapter, we will use the following tags: `at`:gc: (article)
 `nn`:gc: (Noun), `vb`:gc: (Verb), `jj`:gc: (Adjective), `in`:gc:
