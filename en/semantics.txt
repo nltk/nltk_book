@@ -174,37 +174,43 @@ something called the |lambda|-calculus (|lambda| is a Greek letter
 pronounced 'lambda').
 
 The first basic concept in the |lambda|-calculus is `application`:dt:,
-represented by an expression of the form (`F A`:mathit:), where
-`F`:math: is considered to be a function, and `A`:math: is considered
-to be an argument (or input) for `F`:math:.  For example, (`walk
-x`:mathit:) is an application. Application expressions can be applied to
-other expressions. For example, in a functional framework, binary
-addition might represented as `((+ x) y)`:math: rather than `(x +
-y)`:math:. Note that `+`:math: is being treated as a function which is
-applied to its first argument `x`:math: to yield a function `(+
-x)`:math: that is then applied to the second argument `y`:math:.
+represented by an expression of the form `(F A)`:mathit:, where `F`:mathit: is
+considered to be a function, and `A`:mathit: is considered to be an
+argument (or input) for `F`:mathit:.  For example, (`walk x`:mathit:) is
+an application. Moreover, application expressions can be applied to
+other expressions. So in a functional framework, binary addition might
+represented as `((+ x) y)`:mathit: rather than `(x + y)`:mathit:. Note
+that `+`:mathit: is being treated as a function which is applied to its
+first argument `x`:mathit: to yield a function `(+ x)`:mathit: that is
+then applied to the second argument `y`:mathit:.
 
-The second basic concept in the |lambda|-calculus is 
-`abstraction`:dt:. If `M[x]`:math: is an expression containing the free
-variable `x`:math:, then |lambda|\ `x.M[x]`:math: denotes the function
-`x`:math: |mapsto| `M[x]`:math:. Abstraction and application are
-combined in the expression (|lambda|\ `x.((+ x) 3) 4)`:math:, which
-denotes the function `x`:math: |mapsto| `x + 3`:math: applied to 4,
-giving 4 + 3, which is 7. In general, we have (|lambda|\ `x.M[x] N) =
-M[N]`:math:, where `M[N]`:math: is the result of replacing all
-occurences of `x`:math: in `M`:math: by `N`:math:. This axiom of the
+The second basic concept in the |lambda|-calculus is
+`abstraction`:dt:. If `M[x]`:mathit: is an expression containing the
+free variable `x`:mathit:, then |lambda|\ `x.M[x]`:mathit: denotes the
+function `x`:mathit: |mapsto| `M[x]`:mathit:. Abstraction and
+application are combined in the expression (|lambda|\ `x.((+ x) 3)
+4)`:mathit:, which denotes the function `x`:mathit: |mapsto| `x +
+3`:mathit: applied to `4`:mathit:, giving `4 + 3`:mathit:, which is
+`7`:mathit:. In general, we have
+
+.. ex:: (|lambda|\ `x.M[x] N) = M[N]`:mathit:, 
+
+:raw-latex:`\noindent` 
+where `M[N]`:mathit: is the result of replacing all
+occurences of `x`:mathit: in `M`:mathit: by `N`:mathit:. This axiom of the
 lambda calculus is known as |beta|-conversion. |beta|-conversion is
 the primary form of reduction in the |lambda|-calculus.
 
-The module ``logic`` can parse expressions of the
-|lambda|-calculus. The |lambda| symbol is represented as ``'\'``, which
-needs to be escaped by a second ``'\'`` in parsable expressions.
+The module ``nltk_lite.semantics.logic`` can parse expressions of the
+|lambda|-calculus. The |lambda| symbol is represented as ``'\'``. In
+order to avoid having to escape this with a second ``'\'``, we use raw
+strings in parsable expressions.
 
     >>> from nltk_lite.semantics.logic import *
     >>> lp = Parser()
-    >>> lp.parse('(walk x)')
+    >>> lp.parse(r'(walk x)')
     ApplicationExpression('walk', 'x')
-    >>> lp.parse('\\x.(walk x)')
+    >>> lp.parse(r'\x.(walk x)')
     LambdaExpression('x', '(walk x)')
        
 
@@ -234,7 +240,7 @@ abstraction. The only structure that is made explicit involves
 interesting' expressions such as `and`:lx: and `not`:lx:. The basic
 expressions of the language are `propositional variables`:dt:, usually
 written `p`:math:, `q`:math:, `r`:math:, etc. Let `A`:math: be a
-finite set of such variables. The set |Omega| of logical connectives
+finite set of such variables. The set of logical connectives
 contains the unary operator |neg|, and binary operators |wedge|,
 |vee|, |rarr| and |iff|. 
 
@@ -253,7 +259,7 @@ The set of formulas of `L`:subscript:`prop` is described inductively.
    4. Nothing else is a formula of `L`:subscript:`prop`.
 
 The Boolean connectives of propositional logic are supported by
-``logic``, and are parsed as objects of the class
+``nltk_lite.semantics.logic``, and are parsed as objects of the class
 ``ApplicationExpression`` (i.e., function expressions). However, infix
 notation is also allowed as an input format. The connectives
 themselves belong to the ``Operator`` class of expressions.
@@ -267,7 +273,7 @@ themselves belong to the ``Operator`` class of expressions.
    >>> 
 
 Since a negated proposition is syntactically an application, the unary
-operator ``not`` and its argument *must* be surrounded by parentheses.
+operator ``not`` and its argument must be surrounded by parentheses.
 
    >>> lp.parse('(not (p and q))')
    ApplicationExpression('not', '(and p q)')
@@ -290,96 +296,35 @@ places binary Boolean operators in infix position.
 First-Order Logic
 -----------------
 
+Predication
+===========
+
 In |fol| (|FOL|), propositions are further analysed into
 predicates and arguments, which takes us a step closer to the
 structure of natural languages. The standard construction rules for
 |FOL| recognize `terms`:dt: such as individual variables and individual
 constants, and `predicates`:dt: which take differing numbers of
 arguments. For example, `John walks`:lx: might be formalized as
-`walk(john)`:math: and `John loves Mary`:lx: as
-`love(john, mary)`:math:.
-
-However, the |NLTK| ``logic`` module is based on an implementation of the untyped
-lambda calculus, and by default all identifiers are considered to be
-variables. This means, for example, that the identifier ``walk`` can
-be bound by |lambda|: 
-
-   >>> lp.parse('walk')
-   VariableExpression('walk')
-   >>> lp.parse('\\walk.(walk x)')
-   LambdaExpression('walk', '(walk x)')
-      
-
-In addition, because the language is untyped, there is no formal
-distinction between predicate expressions and individual expressions;
-anything can be applied to anything. Indeed, functions can be applied
-to themselves:
-
-   >>> lp.parse('(walk walk)')
-   ApplicationExpression('walk', 'walk')
-   >>> 
-
-
-However, most standard approaches to natural language semantics forbid
-self-application (e.g., applications such as `(walk walk)`:math:) by
-assigning types to expressions of the semantic representation
-language.
-
-.. [#] When combined with logic, unrestricted self-application leads
-       to Russell's Paradox.
-
-It is also standard to allow constants as basic
-expressions of the language. We use a mixture of convention and
-supplementary stipulations in the ``logic`` module to bring our
-practice closer to this more standard framework for natural language
-semantics.  In particular, we shall use expressions like `x`:math:,
-`y`:math:, `z`:math:, or `x`:subscript:`0`, `x`:subscript:`1`, `x`:subscript:`2`, ... to
-indicate individual variables.  As an extension over the 'pure'
-|lambda|-calculus syntax of ``logic``, we can assign such strings to
-the class ``IndVariableExpression``.
-
-   >>> lp.parse('x')
-   IndVariableExpression('x')
-   >>> lp.parse('x01')
-   IndVariableExpression('x01')
-   >>> 
-
-English-like expressions such as `dog`:math:,
-`walk`:math: and `john`:math: will be non-logical constants
-(non-logical in contrast to logical constants such as `not`:math: and
-`and`:math:). In order to force ``logic.Parser()`` to recognize
-non-logical constants, we can initialize the parser with a list of
-identifiers.
-
-   >>> lp = Parser(constants=['dog', 'walk', 'love'])
-   >>> lp.parse('walk')
-   ConstantExpression('walk')
-   >>> 
-
-To sum up our discussion so far, while the |lambda|-calculus only
-recognizes one kind of basic expression other than |lambda|, namely
-the class of variables (the class ``VariableExpression`` in
-``logic``), our extended language adds to ``logic`` three further
-classes of basic expression: ``IndVariableExpression``,
-``ConstantExpression`` and ``Operator`` (Boolean connectives plus the
-equality relation ``=``). 
-
-However, predication will be formalized using function application, as
-discussed earlier. In standard |FOL|, predication is treated in a
-'relational' style. For example, the proposition that John loves Mary
-is formalized as `love(j, m)`:math:. Semantically, `love`:math: is
+`walk(john)`:mathit: and `John sees Mary`:lx: as
+`see(john, mary)`:mathit:.  Semantically, `see`:mathit: is
 modeled as a relation, i.e., a set of pairs, and the proposition is
 true in a situation just in case the pair |langle|\ `j, m`:math:\ |rangle|
-belongs to this set. By contrast, in the functional style of the
-|lambda| calculus, `John loves Mary`:lx: is formalized as `((love m)
-j)`:math:. Rather than being modeled as a relation, `love`:math:
-denotes a function. Before going into detail about this function,
-let's first look at a simpler case, namely the different styles of
-interpreting a unary constant such as `walk`:math:.
+belongs to this set. We'll call `see(john, mary)`:mathit: an instance
+of the 'relational style' of representing predication.
 
-In the relational approach, `walk`:math: denotes some set `S`:math: of
-individuals. The formula `walk(j)`:math: is true in a situation if and
-only if the individual denoted by `j`:math: belongs to `W`:math:. Now,
+Within the framework of the |lambda|-calculus, there is an alternative
+approach in which predication is treated as function application.  In
+this functional style of representation, `John sees Mary`:lx: is
+formalized as `((see m) j)`:mathit: or |mdash| with less brackets
+|mdash| as `(see m j)`:mathit:. Rather than being modeled as a
+relation, `see`:mathit: denotes a function. Before going into detail
+about this function, let's first look at a simpler case, namely the
+different styles of interpreting a unary constant such as
+`walk`:mathit:.
+
+In the relational approach, `walk`:mathit: denotes some set `S`:math: of
+individuals. The formula `walk(j)`:mathit: is true in a situation if and
+only if the individual denoted by `j`:mathit: belongs to `W`:math:. Now,
 corresponding to every set is something called the `characteristic
 function`:dt: of that set. If `f`:subscript:`S` is the characteristic
 function of some set `S`:math:, then for any individual `a`:math:,
@@ -388,9 +333,9 @@ to `S`:math:. To be more specific, suppose in some situation our
 domain of discourse is the set containing the individuals `j`:math:
 (John), `m`:math: (Mary) and `f`:math: (Fido); and the set of
 individuals that walk is `W = {j, f}`:math:. So in this situation, the
-formulas `walk(j)`:math: and `walk(f)`:math: are both true, while
-`walk(m)`:math: is false.  Now we can use the characteristic function
-`f`:subscript:`W` as the interpretation of `walk`:math: in the
+formulas `walk(j)`:mathit: and `walk(f)`:mathit: are both true, while
+`walk(m)`:mathit: is false.  Now we can use the characteristic function
+`f`:subscript:`W` as the interpretation of `walk`:mathit: in the
 functional style.  The diagram cf01_ gives a graphical representation
 of the mapping `f`:subscript:`W`.
 
@@ -401,14 +346,14 @@ of the mapping `f`:subscript:`W`.
 
 Binary relations can be converted into functions in a very similar
 fashion. Suppose for example that on the relational style of
-interpretation, `love`:math: denotes the following set of pairs:
+interpretation, `see`:mathit: denotes the following set of pairs:
 
 .. _loverel:
 .. ex:: {|langle|\ `j, m`:math:\ |rangle|, |langle|\ `m, f`:math:\ |rangle|,  
          |langle|\ `f, j`:math:\ |rangle|}
 
-That is, John loves Mary, Mary loves Fido, and Fido loves John. One
-option on the functional style would be to treat `love`:math: as the
+That is, John sees Mary, Mary sees Fido, and Fido sees John. One
+option on the functional style would be to treat `see`:mathit: as the
 expected characteristic function of this set, i.e., a
 function from pairs to truth values. This mapping is illustrated in cf02_.
 
@@ -417,44 +362,48 @@ function from pairs to truth values. This mapping is illustrated in cf02_.
    .. image:: ../images/models_love_cf01.png
       :scale: 20
 
+However, suppose that `see`:mathit: is indeed a function with domain
+`D`:math: |times| `D`:math:. 
+
 However, a more uniform approach can be achieved through a technique
 known as 'currying' (named after Haskell B. Curry), in which
 `n`:math:\ -ary functions are converted into functions of one
 argument. This idea can be illustrated with
-|lambda|-abstraction. Suppose we have an application `love(x, y)`:math:
+|lambda|-abstraction. Suppose we have an application `see(x, y)`:mathit:
 which depends on two arguments. In currying, we define
 
 .. _L1:
-.. ex:: `L`:subscript:`1` = |lambda|\ `x.love(x, y)`:math:
+.. ex:: `L`:subscript:`1` = |lambda|\ `x.see(x, y)`:mathit:
 .. _L2:
-.. ex:: `L`:subscript:`2` = |lambda|\ `y.`:math:\ `L`:subscript:`1` =
-        |lambda|\ `y.`:math:\ |lambda|\ `x.love(x, y)`:math:
+.. ex:: `L`:subscript:`2` = |lambda|\ `y.`:mathit:\ `L`:subscript:`1` =
+        |lambda|\ `y.`:mathit:\ |lambda|\ `x.see(x, y)`:mathit:
 
-That is, `L`:subscript:`1` = |lambda|\ `x.love(x, y)`:math: is a
-function of only one argument, namely `x`:math:, and `L`:subscript:`2`
-is also a function of only one argument, this time `y`:math:. Just as
-importantly, the *value* of `L`:subscript:`2` is a function, namely
-`L`:subscript:`1`. If we think of `love(x, y)`:math: as the
-formalization of `x loves y`:lx:, then  `L`:subscript:`1` = |lambda|\ `x.love(x, y)` corresponds
-intuitively to the property of being an `x`:lx: that loves `y`:lx:.
-According to these definitions (and using |beta|-conversion), we have:
+That is, `L`:subscript:`1` = |lambda|\ `x.see(x, y)`:mathit: is a
+function of only one argument, namely `x`:mathit:, and
+`L`:subscript:`2` is also a function of only one argument, this time
+`y`:mathit:. Just as importantly, the *value* of `L`:subscript:`2` is
+a function, namely `L`:subscript:`1`. If we think of `see(x,
+y)`:mathit: as the formalization of `x sees y`:lx:, then
+`L`:subscript:`1` = |lambda|\ `x.see(x, y)`:mathit: corresponds intuitively to
+the property of being an `x`:lx: that sees `y`:lx:.  According to
+these definitions (and using |beta|-conversion), we have:
 
-.. ex:: ((`L`:subscript:`2` m) j)  = (`L`:subscript:`1` j) = `love(j, m)`:math:
+.. ex:: ((`L`:subscript:`2` `m`:mathit:\ ) `j`:mathit:\ )
+        = (`L`:subscript:`1` `j`:mathit:\ ) = `see(j, m)`:mathit:
 
 or equivalently,
 
-.. ex::  ((|lambda|\ `y.`:math:\ |lambda|\ `x.love(x, y) m) j)`:math:
-         = |lambda|\ `x.love(x, m) j)`:math: 
-         = `love(j, m)`:math:
+.. ex::  ((|lambda|\ `y.`:mathit:\ |lambda|\ `x.see(x, y) m) j)`:mathit:
+         = |lambda|\ `x.see(x, m) j)`:mathit: 
+         = `see(j, m)`:mathit:
 
 Diagram cf03_ shows the curryed counterpart of cf02_. According to
-this, `love`:math: denotes a function which, for example, given the
-argument `j`:math: yields a characteristic function that maps
-`m`:math: to `True`:math: and `j`:math: and `f`:math: to
-`False`:math:.
-(While there are 2\ :sup:`3` = 8 characteristic functions from
-our domain of three individuals into `{True, False}`:math:, we have
-only shown the functions which are in the range of the function `love`:math:.)
+this, `see`:mathit: denotes a function which, for example, given the
+argument `j`:mathit: yields a characteristic function that maps
+`m`:mathit: to *True* and `j`:mathit: and `f`:mathit: to *False*.
+(While there are 2\ :sup:`3` = 8 characteristic functions from our
+domain of three individuals into {*True*, *False*}, we have only shown
+the functions which are in the range of the function `see`:mathit:.)
 
 .. _cf03:
 .. ex::
@@ -463,33 +412,38 @@ only shown the functions which are in the range of the function `love`:math:.)
 
 
 Of course, we could have done things slightly differently, and defined
-`L`:subscript:`1` = |lambda|\ `y.love(x, y)`:math:, and
-`L`:subscript:`2` = |lambda|\ `x.`:math:\ `L`:subscript:`1`. And L1_
+`L`:subscript:`1` = |lambda|\ `y.see(x, y)`:mathit:, and
+`L`:subscript:`2` = |lambda|\ `x.`:mathit:\ `L`:subscript:`1`. And L1_
 and L2_ might strike you as a bit perverse since we consume the
-arguments in an order that appears to be opposite to `love(x,
-y)`:math:. Yet there is something very attractive about L1_ and L2_,
-since (`L`:subscript:`2` `m`:math:) is just the right function to serve as the
-denotation of the `VP`:gc: `loves Mary`:lx:. That is, if `loves`:lx: is
-interpreted as |lambda|\ `y.`:math:\ |lambda|\ `x.love(x, y)`:math:,
+arguments in an order that appears to be opposite to `see(x,
+y)`:mathit:. Yet there is something very attractive about L1_ and L2_,
+since (`L`:subscript:`2` `m`:mathit:) is just the right function to serve as the
+denotation of the `VP`:gc: `sees Mary`:lx:. That is, if `sees`:lx: is
+interpreted as |lambda|\ `y.`:mathit:\ |lambda|\ `x.see(x, y)`:mathit:,
 then combining the verb with an object `NP`:gc: such as `Mary`:lx:
 yields a `VP`:gc: interpretation
-(|lambda|\ `y.`:math:\ |lambda|\ `x.love(x, y) m)`:math: = |lambda|\
-`x.love(x, m)`:math:, which can then combine with a subject `NP`:gc:
-such as `John`:lx: to yield the interpretation `love(j, m)`:math:. In
+(|lambda|\ `y.`:mathit:\ |lambda|\ `x.see(x, y) m)`:mathit: = |lambda|\
+`x.see(x, m)`:mathit:, which can then combine with a subject `NP`:gc:
+such as `John`:lx: to yield the interpretation `see(j, m)`:mathit:. In
 fact, doing things according to  L1_
 and L2_ allows the semantic construction rules to mirror the syntactic
 construction rules, and thus provides an extremely elegant basis for a
-compositional approach to semantic interpretation.  
+compositional approach to semantic interpretation.
 
+Table preds_ summarizes the different approaches to predication that
+we have just examined.  
 
+.. _preds:
+.. table:: Representing Predication
 
-.. +-----------------+---------------+----------------+
-   |   English       | Relational    |  Functional    |
-   +=================+===============+================+
-   |     John walks  |``walk(j)``    |``(walk j)``    |
-   +-----------------+---------------+----------------+
-   |John loves Mary  |``love(j, m)`` |``((love m) j)``|
-   +-----------------+---------------+----------------+
+   +--------------------+----------------------+----------------------+
+   |   English          | Relational           |  Functional          |
+   +====================+======================+======================+
+   |`John walks`:lx:    |`walk(j)`:mathit:     |`(walk j)`:mathit:    |
+   +--------------------+----------------------+----------------------+
+   |`John sees Mary`:lx:|`see(j, m)`:mathit:   |`((see m) j)`:mathit:,|
+   |                    |                      |`(see m j)`:mathit:   |
+   +--------------------+----------------------+----------------------+
 
 
 In |NLTK|, |lambda|-abstraction can be carried out on Boolean combinations. For
@@ -524,7 +478,7 @@ statements involving quantified expressions such as `all dogs`:lx: and
 
 
 Quantification and Scope
-------------------------
+========================
 
 |Fol| standardly offers us two quantifiers, `every`:lx: (or `all`:lx:) and
 `some`:lx:. These are formally written as |forall| and |exists|,
@@ -539,7 +493,7 @@ by the |NLTK| `logic` module.
    .. ex:: Every dog barks.
 
    .. _forall1b:
-   .. ex:: |forall|\ `x`:math:.\ ((dog `x`:math:) |rarr| (bark `x`:math:))
+   .. ex:: |forall|\ `x`:mathit:.\ ((dog `x`:mathit:) |rarr| (bark `x`:mathit:))
 
    .. _forall1c:
    .. ex:: `all x. ((dog x) implies (bark x))`
@@ -549,7 +503,7 @@ by the |NLTK| `logic` module.
 
    .. ex:: Some cat sleeps.
 
-   .. ex:: |exists|\ `x`:math:.\ ((cat `x`:math:) |wedge| (sleep `x`:math:))
+   .. ex:: |exists|\ `x`:mathit:.\ ((cat `x`:mathit:) |wedge| (sleep `x`:mathit:))
 
    .. ex:: `some x. ((cat x) and (sleep x))`
 
@@ -574,18 +528,18 @@ There are (at least) two ways of expressing scope1_ in |FOL|:
 .. ex::
 
    .. _scope2a:
-   .. ex:: |forall|\ `x`:math:.\ ((girl `x`:math:) |rarr|\ |exists|\
-           `y`:math:.\ ((dog `y`:math:) |wedge| (chase `y x`:math:)))
+   .. ex:: |forall|\ `x`:mathit:.\ ((girl `x`:mathit:) |rarr|\ |exists|\
+           `y`:mathit:.\ ((dog `y`:mathit:) |wedge| (chase `y x`:mathit:)))
 
    .. _scope2b:
-   .. ex:: |exists|\ `y`:math:.\ ((dog `y`:math:) |wedge| |forall|\
-           `x`:math:.\ ((every `x`:math:) |rarr|\  (chase `y x`:math:))) 
+   .. ex:: |exists|\ `y`:mathit:.\ ((dog `y`:mathit:) |wedge| |forall|\
+           `x`:mathit:.\ ((every `x`:mathit:) |rarr|\  (chase `y x`:mathit:))) 
 
 Can we use both of these? Then answer is Yes, but they have different
 meanings. scope2b_ is logically stronger than scope2a_: it claims that
 there is a unique dog, say Fido, which is chased by every girl.
 scope2a_, on the other hand, just requires that for every girl
-`g`:math:, we can find some dog which `d`:math: chases; but this could
+`g`:mathit:, we can find some dog which `d`:mathit: chases; but this could
 be a different dog in each case. We distinguish between scope2a_ and
 scope2b_ in terms of the `scope`:dt: of the quantifiers. In the first,
 |forall| has wider scope than |exists|, while in scope2b_, the scope ordering
@@ -598,6 +552,10 @@ two distinct representations with scope1_. We also want to show in
 detail how the two representations lead to different conditions for
 truth in a formal model. This will be taken up in the next section.
 
+
+Alphabetic Variants
+===================
+
 When carrying out |beta|-reduction, some care has to be taken with
 variables. Consider, for example, the |lambda| terms alpha1a_ and
 alpha1b_, which differ only in the identity of a free variable.
@@ -606,19 +564,19 @@ alpha1b_, which differ only in the identity of a free variable.
 .. ex::
 
    .. _alpha1a:
-   .. ex:: |lambda|\ `y.(love x y)`:math:
+   .. ex:: |lambda|\ `y.(see x y)`:mathit:
 
    .. _alpha1b:
-   .. ex:: |lambda|\ `y.(love z y)`:math:
+   .. ex:: |lambda|\ `y.(see z y)`:mathit:
 
 Suppose now that we apply the |lambda| term alpha2_ to each of these
 terms. 
 
 .. _alpha2:
-.. ex:: |lambda|\ `P`:math: |exists|\ `x.(P x)`:math:
+.. ex:: |lambda|\ `P`:mathit: |exists|\ `x.(P x)`:mathit:
 
 In principle, the results of the application should be semantically equivalent,
-but if we let the free variable `x`:math: in alpha1a_ be 'captured' by the
+but if we let the free variable `x`:mathit: in alpha1a_ be 'captured' by the
 existential quantifier in alpha2_, then after reduction, the results
 will be different:
 
@@ -627,14 +585,14 @@ will be different:
 .. ex::
 
    .. _alpha3a:
-   .. ex:: |exists|\ `x.(love x x)`:math:
+   .. ex:: |exists|\ `x.(see x x)`:mathit:
 
    .. _alpha3b:
-   .. ex:: |exists|\ `x.(love z x)`:math:
+   .. ex:: |exists|\ `x.(see z x)`:mathit:
 
-alpha3a_ means there is some `x`:math: that loves themselves, whereas
-alpha3b_ means that there is some `x`:math: that loves an unspecified
-individual `y`:math:. What has gone wrong here? The main point to note
+alpha3a_ means there is some `x`:mathit: that sees themselves, whereas
+alpha3b_ means that there is some `x`:mathit: that sees an unspecified
+individual `y`:mathit:. What has gone wrong here? The main point to note
 is that given any variable-binding expression (involving |forall|,
 |exists| or |lambda|), the particular name chosen for the bound
 variable is completely arbitrary. For example, alpha4a_ and alpha4b_
@@ -645,10 +603,10 @@ equivalents`:dt: (or `alphabetic variants`:dt:).
 .. ex::
 
    .. _alpha4a:
-   .. ex::  |exists|\ `x.(P x)`:math:
+   .. ex::  |exists|\ `x.(P x)`:mathit:
 
    .. _alpha4b:
-   .. ex::  |exists|\ `z`:math:\ :sub:`0`\ `.(P z`:math:\ :sub:`0` `)`:math:
+   .. ex::  |exists|\ `z`:mathit:\ :sub:`0`\ `.(P z`:mathit:\ :sub:`0` `)`:mathit:
 
 
 The process of relabeling bound variables (which takes us from
@@ -667,23 +625,89 @@ module is in fact |alpha|-equivalence:
    True
    >>> 
 
-When |beta|-reduction is carried out on an application `(M N)`:math:,
-we check whether there are free variables in `N`:math: which also
-occur as bound variables in any subterms of `M`:math:. Suppose, as in
-the example discussed above, that `x`:math: is free in `N`:math:, and
-that `M`:math: contains the subterm |exists|\ `x.(P x)`:math:. In this
-case, we produce an alphabetic variant of |exists|\ `x.(P x)`:math:,
-say, |exists|\ `z.(P z)`:math:, and then carry on with the
+When |beta|-reduction is carried out on an application `(M N)`:mathit:,
+we check whether there are free variables in `N`:mathit: which also
+occur as bound variables in any subterms of `M`:mathit:. Suppose, as in
+the example discussed above, that `x`:mathit: is free in `N`:mathit:, and
+that `M`:mathit: contains the subterm |exists|\ `x.(P x)`:mathit:. In this
+case, we produce an alphabetic variant of |exists|\ `x.(P x)`:mathit:,
+say, |exists|\ `z.(P z)`:mathit:, and then carry on with the
 reduction. This relabeling is carried out automatically by the
 |beta|-reduction code in ``logic``, and the results can be seen in the
 following example.
 
-   >>> e3 = lp.parse('(\P.some x.(P x) \y.(love x y))')
+   >>> e3 = lp.parse('(\P.some x.(P x) \y.(see x y))')
    >>> print e3
-   (\P.some x.(P x) \y.(love x y))
+   (\P.some x.(P x) \y.(see x y))
    >>> print e3.simplify()
-   some z2.(love x z2)
+   some z2.(see x z2)
    >>> 
+
+Types and the Untyped |lambda|-calculus
+=======================================
+
+
+So far, we have glossed over the fact that the |NLTK| ``logic`` module
+is based on an implementation of the untyped lambda calculus, and by
+default all identifiers are considered to be variables. This means,
+for example, that the identifier ``walk`` can be bound by |lambda|:
+
+   >>> lp.parse('walk')
+   VariableExpression('walk')
+   >>> lp.parse('\\walk.(walk x)')
+   LambdaExpression('walk', '(walk x)')
+
+
+In addition, because the language is untyped, there is no formal
+distinction between predicate expressions and individual expressions;
+anything can be applied to anything. Indeed, functions can be applied
+to themselves:
+
+   >>> lp.parse('(walk walk)')
+   ApplicationExpression('walk', 'walk')
+
+By contrast, most standard approaches to natural language semantics forbid
+self-application (e.g., applications such as `(walk walk)`:mathit:) by
+assigning types to expressions of the semantic representation
+language.
+
+.. [#] When combined with logic, unrestricted self-application leads
+      to Russell's Paradox.
+
+It is also standard to allow constants as basic expressions of the
+language. Consequently, we have used a mixture of convention and supplementary
+stipulations in the ``logic`` module to bring our practice closer
+to this more standard framework for natural language semantics.  In
+particular, we use expressions like `x`:math:, `y`:math:,
+`z`:math:, or `x`:subscript:`0`, `x`:subscript:`1`,
+`x`:subscript:`2`, ... to indicate individual variables.  As an
+extension over the 'pure' |lambda|-calculus syntax of ``logic``, we
+can assign such strings to the class ``IndVariableExpression``.
+
+  >>> lp.parse('x')
+  IndVariableExpression('x')
+  >>> lp.parse('x01')
+  IndVariableExpression('x01')
+  >>> 
+
+English-like expressions such as `dog`:math:,
+`walk`:math: and `john`:math: will be non-logical constants
+(non-logical in contrast to logical constants such as `not`:math: and
+`and`:math:). In order to force ``logic.Parser()`` to recognize
+non-logical constants, we can initialize the parser with a list of
+identifiers.
+
+  >>> lp = Parser(constants=['dog', 'walk', 'see'])
+  >>> lp.parse('walk')
+  ConstantExpression('walk')
+  >>> 
+
+To sum up, while the |lambda|-calculus only recognizes one kind of
+basic expression other than |lambda|, namely the class of variables
+(the class ``VariableExpression`` in ``logic``), our extended language
+adds to ``logic`` three further classes of basic expression:
+``IndVariableExpression``, ``ConstantExpression`` and ``Operator``
+(Boolean connectives plus the equality relation ``=``).
 
 
 ----------------
@@ -813,7 +837,7 @@ interpretations.
 
    >>> setval = [('adam', 'b1'), ('betty', 'g1'),\
    ('girl', set(['g2', 'g1'])), ('boy', set(['b1', 'b2'])),\
-   ('love', set([('b1', 'g1'), ('b2', 'g2'), ('g1', 'b1'), ('g2', 'b1')]))]
+   ('see', set([('b1', 'g1'), ('b2', 'g2'), ('g1', 'b1'), ('g2', 'b1')]))]
    >>> val = Valuation()
    >>> val.read(setval)
    >>> print val
@@ -821,7 +845,7 @@ interpretations.
    'betty': 'g1',
    'boy': {'b1': True, 'b2': True},
    'girl': {'g2': True, 'g1': True},
-   'love': {'b1': {'g2': True, 'g1': True},
+   'see': {'b1': {'g2': True, 'g1': True},
             'g1': {'b1': True},
             'g2': {'b2': True}}}
        
@@ -832,7 +856,7 @@ Valuations have a ``domain`` attribute, like ``CharFun``, and also a
    >>> val.domain
    set(['g1', 'g2', 'b2', 'b1'])
    >>> val.symbols
-   ['boy', 'girl', 'love', 'adam', 'betty']
+   ['boy', 'girl', 'see, 'adam', 'betty']
       
 
 
@@ -937,7 +961,7 @@ which returns the string 'Undefined'.
     'Undefined'
 
 ..
- Boolean operators such as `not`:math:, `and`:math: and `implies`:math: are
+ Boolean operators such as `not`:mathit:, `and`:mathit: and `implies`:mathit: are
  implemented as dictionaries. For example:
 
      >>> m.AND
@@ -991,17 +1015,17 @@ definition of `satisfy` started above continues as follows:
 
 The first step in interpreting quantified formulas is to define the
 `satisfiers`:dt: of a formula that is open in some variable. Formally,
-given an open formula |phi|\ `[x]`:math: dependent on `x`:math: and a
+given an open formula |phi|\ `[x]`:mathit: dependent on `x`:mathit: and a
 model with domain `D`:math:, we define the set `sat`:mathit:\ (|phi|\
-`[x], g)`:math: of satisfiers of |phi|\ `[x]`:math: to be: `{u`:math:
+`[x], g)`:math: of satisfiers of |phi|\ `[x]`:mathit: to be: `{u`:math:
 |in| `D:`:math: `satisfy`:mathit:\ (|phi|\ `[x], g[u/x]`) =
 `True`:mathit:\ `}`:math:.  We use `g[u/x]`:math: to mean that
 assignment which is just like `g`:math: except that `g(x) =
 u`:math:. In Python, it is straightforward to build the set
 `sat`:mathit:\ (|phi|\ `[x], g)`:math: with a `for` loop.
 
-An existentially quantified formula |exists|\ `x.`:math:\ |phi|\
-`[x]`:math: is held to be true if and only if `sat`:mathit:\ (|phi|\ `[x],
+An existentially quantified formula |exists|\ `x.`:mathit:\ |phi|\
+`[x]`:mathit: is held to be true if and only if `sat`:mathit:\ (|phi|\ `[x],
 g)`:math: is nonempty. In Python, sets are a kind of collection (like
 lists), and the length function `len` returns the cardinality
 of a set.  
@@ -1013,9 +1037,9 @@ of a set.
      ...         return len(sat) > 0
 
 
-In other words, a formula |exists|\ `x.`:math: |phi|\ `[x]`:math: has
+In other words, a formula |exists|\ `x.`:mathit: |phi|\ `[x]`:mathit: has
 the same value in model `M`:math: as the statement that the number of
-satisfiers in `M`:math: of |phi|\ `[x]`:math: is greater than 0.
+satisfiers in `M`:math: of |phi|\ `[x]`:mathit: is greater than 0.
 
 
 Quantifier Scope Revisited
@@ -1062,9 +1086,9 @@ Using a slightly different graph from before, we can also visualise the
    .. image:: ../images/models_chase.png
       :scale: 20
 
-In chasegraph_, an arrow between two individuals `x`:math: and
-`y`:math: indicates that `x`:math: chases
-`y`:math:. So ``b1`` and ``b2`` both chase ``g1``, while ``g1`` chases
+In chasegraph_, an arrow between two individuals `x`:mathit: and
+`y`:mathit: indicates that `x`:mathit: chases
+`y`:mathit:. So ``b1`` and ``b2`` both chase ``g1``, while ``g1`` chases
 ``d1`` and ``g2`` chases ``d2``. In this model, formula ``sr1`` above
 is true but ``sr2`` is false. One way of exploring these results is by
 using the ``satisfiers`` method of ``Model`` objects.
@@ -1198,7 +1222,7 @@ Let's make the assumption that our `only`:em: operation for building
 complex semantic representations is ``app`` (corresponding to function
 application). Then our problem is this: how do we give a semantic
 representation to quantified `NP`:gc:\s such as `a dog`:lx: so that
-they can be combined with something like `walk`:math: to give a result
+they can be combined with something like `walk`:mathit: to give a result
 like sem5b_? As a first step, let's make the subject's ``sem`` value
 act as the functor rather than the argument in ``app``. Now we are
 looking for way of instantiating ``?np`` so that sem6_ holds.
@@ -1211,8 +1235,8 @@ looking for way of instantiating ``?np`` so that sem6_ holds.
 
 This is where |lambda| abstraction comes to the
 rescue; doesn't sem6_ look a bit reminiscent of carrying out |beta|-reduction in the
-|lambda|-calculus? In other words, can we come up with a |lambda| term `M`:math:
-to replace ``?np`` so that applying `M`:math: to ``bark`` yields
+|lambda|-calculus? In other words, can we come up with a |lambda| term `M`:mathit:
+to replace ``?np`` so that applying `M`:mathit: to ``bark`` yields
 sem5b_? Indeed we can; we replace the occurence of ``bark`` in sem5b_
 by a variable ``P``, and bind the variable with |lambda|, as shown in sem7_.
 
@@ -1307,9 +1331,9 @@ which does the trick.
 
     \y.some x.((dog x) and (chase x y))
 
-Think of sem99_ as the property of being a `y`:math: such that
-for some dog `x`:math:, `y`:math: chases `x`:math:; or more
-colloquially, being a `y`:math: who chases a dog. Our task now
+Think of sem99_ as the property of being a `y`:mathit: such that
+for some dog `x`:mathit:, `y`:mathit: chases `x`:mathit:; or more
+colloquially, being a `y`:mathit: who chases a dog. Our task now
 resolves to designing a semantic representation for
 `chases`:lx: which can combine via ``app`` with sem7_ so as to allow
 sem99_ to be derived. Let ``X`` stand for sem7_. Then we are part
@@ -1368,8 +1392,8 @@ all properties which are true of Suzie. Converting from an individual
 constant to an expression like sem12_ is known as `type raising`:dt:,
 and allows us to flip functors with arguments. That is, type raising
 means that we can replace a Boolean-valued application such as `(f
-a)`:math: with an equivalent application `(`:math:\ |lambda|\ `P.(P a)
-f)`:math:.
+a)`:mathit: with an equivalent application `(`:math:\ |lambda|\ `P.(P a)
+f)`:mathit:.
 
 
 One important limitation of the approach we have presented here is
