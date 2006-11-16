@@ -207,6 +207,7 @@ we create a tagger called ``my_tagger`` which tags everything as a
 noun.
 
     >>> from nltk_lite import tag
+    >>> tokens = tokenize.whitespace('John saw 3 polar bears .')
     >>> my_tagger = tag.Default('nn')
     >>> list(my_tagger.tag(tokens))
     [('John', 'nn'), ('saw', 'nn'), ('3', 'nn'), ('polar', 'nn'),
@@ -223,7 +224,6 @@ Default taggers assign their tag to every single word, even words that
 have never been encountered before.  Thus, they help to improve the
 robustness of a language processing system.  We will return to them
 later, in the context of our discussion of *backoff*.
-
 
 Exercises
 ---------
@@ -246,8 +246,6 @@ Exercises
    #) Which nouns are more common in their plural form, rather than their singular
       form? (Only consider regular plurals, formed with the `-s`:lx: suffix.)
    #) Which word has the greatest number of distinct tags.
-
-
 
 
 -----------------------------
@@ -310,7 +308,7 @@ sentences:
   .. ex::  All the cakes have *gone*.
   .. ex::  We *went* on the excursion.
 
-Each of these forms |mdash| `go`:lx, `goes`:lx, `gone`:lx:, and `went`:lx |mdash|
+Each of these forms |mdash| `go`:lx:, `goes`:lx:, `gone`:lx:, and `went`:lx: |mdash|
 is morphologically distinct from the others. Consider the form,
 `goes`:lx:. This cannot occur in all grammatical contexts, but
 requires, for instance, a third person singular subject. Thus, the
@@ -389,8 +387,7 @@ Now we can set up a tagger and use it to tag some text.
 How well does this do?
 
     >>> tag.accuracy(regexp_tagger, brown.tagged('a'))
-    0.21094138472860355
-
+    0.20326391789486245
 
 The regular expression is a catch-all, which tags everything as a noun.
 This is equivalent to the default tagger (only much less efficient).
@@ -478,6 +475,75 @@ Exercises
    range of qualifiers (Brown tag ``ql``) which appear before these
    four adjectives.
 
+
+
+---------------------
+Baselines and Backoff
+---------------------
+
+The Lookup Tagger
+-----------------
+
+A lot of high-frequency words do not have the ``nn`` tag.
+Let's find some of these words and their tags:
+
+    >>> wordcounts = FreqDist()
+    >>> for sent in brown.tagged('a'):
+    ...     for (w,t) in sent:
+    ...         wordcounts.inc(w)    # count the word
+
+Now we have a count of the words, and for each word, a count of the
+frequency of different tags that occur with the word.
+
+    >>> frequent_words = wordcounts.sorted_samples()[:25]
+    >>> frequent_words
+    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that', '``', 'is',
+    'was', "''", 'on', 'at', 'with', 'be', 'by', 'as', 'he', 'said', 'his', 'will']
+
+What tags do these words have?
+
+    >>> [(w,t) for sent in brown.tagged('a') for (w,t) in sent if w in frequent_words]
+    [('The', 'at'), ('of', 'in'), ('``', '``'), ("''", "''"), ('that', 'cs'), ('.', '.'),
+    ('The', 'at'), ('in', 'in'), ('that', 'cs'), ('the', 'at'), ..., ("''", "''")]
+
+Cumbersome; want to set up a dictionary, mapping frequent words to most likely tag:
+
+    >>> from nltk_lite.probability import ConditionalFreqDist
+    >>> wordtags = ConditionalFreqDist()
+    >>> for sent in brown.tagged('a'):
+    ...     for (w,t) in sent:
+    ...         wordtags[w].inc(t)   # count the word's tag
+
+Now for any word that appears in this section of the corpus,
+we can look up its most likely tag:
+
+    >>> wordtags['The'].max()
+    'at'
+
+Finally, let's create a tagger that assigns tags to words based on a simple lookup
+table.
+
+    >>> table = dict((word, wordtags[word].max()) for word in frequent_words)
+    >>> baseline_tagger = tag.Lookup(table)
+    >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
+    0.34264176462398316
+
+This is surprisingly good; just knowing the tags for the most frequent 25 words enables us to
+tag half the words correctly!
+
+    >>> list(baseline_tagger.tag(brown.raw('a')))[3]
+    
+
+
+Backoff
+-------
+
+How do we combine these taggers?  We want to use the lookup table first, and if it doesn't
+know what tag with, use the regexp tagger, then the ... default tagger...
+
+    >>> baseline_tagger = tag.Lookup(table, tag.Default('nn'))
+    >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
+    0.47352666229090834
 
 
 
@@ -812,8 +878,6 @@ a new baseline tagger which uses this lookup table:
 This, then, would seem to be a reasonable baseline score for a
 tagger.  When we build new taggers, we will only credit ourselves for
 performance exceeding this baseline.
-
-.. note:: ``tag.Lookup()`` is defined in NLTK-Lite version 0.6.5.
 
 Error Analysis
 --------------
