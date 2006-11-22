@@ -190,8 +190,8 @@ This can be parsed using ``tree.chunk()`` function as shown.
     
   >>> from nltk_lite.parse import tree
   >>> tree.chunk("[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-  (S: (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN')) ('sat', 'VBD')
-  ('on', 'IN') (NP: ('the', 'DT') ('mat', 'NN')))
+  ('S': ('NP': ('the', 'DT') ('little', 'JJ') ('cat', 'NN')) ('sat', 'VBD')
+  ('on', 'IN') ('NP': ('the', 'DT') ('mat', 'NN')))
     
 We usually want to read structured data from corpora, not strings.  In
 the following sections we show how this is done for two popular
@@ -364,19 +364,19 @@ Chunking with Regular Expressions
 Earlier we noted that chunking builds flat (or non-nested) structures.
 In practice, the extents of text to be chunked are identified using
 regular expressions over sequences of part-of-speech tags.  NLTK-Lite
-provides a regular expression chunk parser, ``parse.RegexpChunk`` to
+provides a regular expression chunk parser to
 define the kinds of chunk we are interested in, and then to chunk a
 tagged text.
     
-``RegexpChunk`` works by manipulating a *chunk structure*, which
+The chunk parser works by manipulating a *chunk structure*, which
 represents a particular chunking of the text.  The chunk parser begins
 with a structure in which no tokens are chunked.  Each
-regular-expression pattern (or *chunk rule*) is applied in turn,
+regular-expression pattern (or `chunk rule`:dt:) is applied in turn,
 successively updating the chunk structure.  Once all of the rules have
 been applied, the resulting chunk structure is returned.
     
 In order to define chunk rules, we first need to introduce the notion of 
-"tag strings."  A *tag string* is a string consisting of tags
+"tag strings."  A `tag string`:dt: is a string consisting of tags
 delimited with angle-brackets, e.g., ``<DT><JJ><NN><VBD><DT><NN>``.
 (Note that tag strings do not contain any whitespace.)  We can now create 
 a special kind of regular expression pattern over tag strings, called
@@ -398,7 +398,32 @@ tag starting with "``NN``."
    introduces whitespace into the tag string to the left of the disjunction ``|``.) ????
     
 Now that we can define tag patterns, it is a straightforward matter to
-set up an chunk parser.  The simplest type of rule is
+set up a simple chunk grammar.  This grammar has a single pattern,
+which matches an optional determiner, and number of adjectives, followed
+by a noun.  We also define some input to be chunked.
+
+    >>> grammar = r"""
+    ... NP:                   # NP stage
+    ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
+    ... """
+    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+
+Next we can set up a chunker and run it on the input:
+
+    >>> from nltk_lite.parse import GrammarChunk
+    >>> cp = GrammarChunk('S', grammar, trace=1)
+    >>> print cp.parse(input)
+    # Input:
+     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+    # chunk determiners, adjectives and nouns:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+The simplest type of rule is
 ``ChunkRule``.  This chunks anything that matches a given tag pattern.
 ``ChunkRule`` takes a tag pattern and a description
 string as arguments.  Here is a rule which chunks sequences consisting of one or
