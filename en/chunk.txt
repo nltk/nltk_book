@@ -6,6 +6,9 @@
 5. Chunk Parsing
 ================
 
+.. Note:: This chapter is optional; nothing later depends on having covered
+          this material.
+
 ------------
 Introduction
 ------------
@@ -15,9 +18,6 @@ language, and a popular alternative to the full parsing that we will
 see in later chapters.  Chunks are non-overlapping regions of text,
 usually consisting of a head word (such as a noun) and the adjacent
 modifiers and function words (such as adjectives and determiners).
-
-Motivation
-----------
 
 There are two chief motivations for chunking: to locate information,
 or to ignore information.  In the former case, we may want to extract
@@ -42,6 +42,41 @@ In this way we can acquire information about the complementation
 patterns of a verb like ``gave``.  This information can then be used
 in the development of a grammar.
 
+The key idea in chunking is just like regular expression tagging, only at
+a higher level.  We write regular expressions over tag sequences.  The
+following example identifies any noun phrases that are comprised of an
+optional determiner, followed by any number of adjectives, then a noun.
+
+    >>> grammar = r"""
+    ... NP:
+    ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
+    ... """
+
+The input is a special kind of flat tree:
+
+    >>> from nltk_lite.parse import tree
+    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> input.draw()
+
+.. tree:: (S (DT the) (JJ little) (NN cat) (VBD sat) (IN on) (DT the) (NN mat))
+
+The result is also a tree, but with some extra structure:
+
+    >>> from nltk_lite import parse
+    >>> cp = parse.GrammarChunk('S', grammar)
+    >>> cp.parse(input).draw()
+
+.. tree:: (S (NP (DT the) (JJ little) (NN cat)) (VBD sat) (IN on) (NP (DT the) (NN mat)))
+
+In this chapter we explore chunking in depth, beginning with the
+representation of chunks, then exploring a variety of approaches to
+chunking using regular expressions.  Along the way we examine various
+standard corpora containing chunked text.
+
+-------------------
+Representing Chunks
+-------------------
+
 Chunking: Analogy with Tokenization and Tagging
 -----------------------------------------------
 
@@ -63,7 +98,7 @@ is called *chunking*, *chunk parsing*, *partial parsing*, or *light parsing*.
 
 .. figure:: ../images/chunk-segmentation.png
 
-   Segmentation and Labelling at both the Token and Chunk Levels
+   Segmentation and Labeling at both the Token and Chunk Levels
 
 Chunking is like tokenization and tagging in other respects.  First,
 chunking can skip over material in the input.  Observe that only some
@@ -137,10 +172,6 @@ representation of chunks and the available annotated corpora.  We then
 show how chunks can be recognized using a chunk parser based on
 matching regular expressions over sequences of part-of-speech tags.
     
--------------------------
-Accessing Chunked Corpora
--------------------------
-
 Representing Chunks: Tags vs Trees
 ----------------------------------
 
@@ -188,15 +219,207 @@ tagged text is illustrated below.:
 
 This can be parsed using ``tree.chunk()`` function as shown.
     
-  >>> from nltk_lite.parse import tree
-  >>> tree.chunk("[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-  ('S': ('NP': ('the', 'DT') ('little', 'JJ') ('cat', 'NN')) ('sat', 'VBD')
-  ('on', 'IN') ('NP': ('the', 'DT') ('mat', 'NN')))
+    >>> from nltk_lite.parse import tree
+    >>> print tree.chunk("[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
     
 We usually want to read structured data from corpora, not strings.  In
 the following sections we show how this is done for two popular
 chunked corpus formats, namely bracketed text and IOB-tagged data.
     
+-------------
+Chunk Parsing
+-------------
+
+Chunking with Regular Expressions
+---------------------------------
+
+Earlier we noted that chunking builds flat (or non-nested) structures.
+In practice, the extents of text to be chunked are identified using
+regular expressions over sequences of part-of-speech tags.  NLTK-Lite
+provides a regular expression chunk parser to
+define the kinds of chunk we are interested in, and then to chunk a
+tagged text.
+    
+The chunk parser works by manipulating a *chunk structure*, which
+represents a particular chunking of the text.  The chunk parser begins
+with a structure in which no tokens are chunked.  Each
+regular-expression pattern (or `chunk rule`:dt:) is applied in turn,
+successively updating the chunk structure.  Once all of the rules have
+been applied, the resulting chunk structure is returned.
+    
+In order to define chunk rules, we first need to introduce the notion of 
+"tag strings."  A `tag string`:dt: is a string consisting of tags
+delimited with angle-brackets, e.g., ``<DT><JJ><NN><VBD><DT><NN>``.
+(Note that tag strings do not contain any whitespace.)  We can now create 
+a special kind of regular expression pattern over tag strings, called
+a *tag pattern*.  An example of a tag pattern is 
+``<DT><JJ>?<NN>``, which matches a determiner followed by an optional adjective,
+followed by a noun. Tag patterns are similar to the regular expression
+patterns we have already seen, except for three differences which make
+them easier to use for chunk parsing.  First, the angle brackets group
+their contents into atomic units, so "``<NN>+``" matches one or more
+repetitions of the tag string "``<NN>``"; and "``<NN|JJ>``" matches the tag strings "``<NN>``" or
+"``<JJ>``."  Second, the period wildcard operator is constrained not
+to cross tag boundaries, so that "``<NN.*>``" matches any single
+tag starting with "``NN``."
+
+.. Finally, whitespace is ignored in tag
+   patterns, so "``<DT> | <NN>``" is equivalent to
+   "``<DT>|<NN>``"; this allows tag patterns to be formatted to
+   improve readability. (Note however that ``<DT> <JJ> | <NN>`` is not permitted, since this
+   introduces whitespace into the tag string to the left of the disjunction ``|``.) ????
+    
+Now that we can define tag patterns, it is a straightforward matter to
+set up a simple chunk grammar.  This grammar has a single pattern,
+which matches an optional determiner, and number of adjectives, followed
+by a noun.  We also define some input to be chunked.
+
+    >>> grammar = r"""
+    ... NP:                   # NP stage
+    ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
+    ...   {<NNP>+}            # chunk sequences of proper nouns
+    ... """
+    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+
+Next we can set up a chunker and run it on the input:
+
+    >>> from nltk_lite.parse import GrammarChunk
+    >>> cp = GrammarChunk('S', grammar, trace=1)
+    >>> print cp.parse(input)
+    # Input:
+     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+    # chunk determiners, adjectives and nouns:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    # chunk sequences of proper nouns:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+.. Note: Each rule must have a "description" associated with it, which
+   provides a short explanation of the purpose or the effect of the rule.
+   This description is accessed via the ``descr()`` method.
+    
+Observe that the object being parsed is actually a tree.  It consists
+of an ``S`` root node which dominates all the leaf nodes.
+
+We can also use more complex tag patterns, such as
+``<DT>?<JJ.*>*<NN.*>``.  This can be used to chunk any sequence of
+tokens beginning with an optional determiner ``DT``, followed by zero
+or more adjectives of any type ``JJ.*``, followed by a single noun of
+any type ``NN.*``.
+
+If a tag pattern matches at multiple overlapping locations, the first
+match takes precedence.  For example, if we apply a rule that matches
+two consecutive nouns to a text containing three consecutive nouns,
+then the first two nouns will be chunked:
+
+    >>> input = tree.chunk("dog/NN cat/NN mouse/NN")
+    >>> grammar = r"""
+    ... NP:
+    ...   {<NN><NN>}     # Chunk two consecutive nouns
+    ... """
+    >>> cp = parse.GrammarChunk('S', grammar)
+    >>> print cp.parse(input)
+    (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
+
+.. Note:: If a tag pattern matches at multiple overlapping locations,
+   the first match takes precedence.
+
+Developing Chunk Parsers
+------------------------
+
+Creating a good chunk parser usually requires several iterations of
+development and testing, during which existing rules are refined and
+new rules are added.  In a later section we will describe an automatic
+evaluation method that can be used to support this development
+process.  Here we show how to trace the execution of a chunk parser,
+to help the developer diagnose any problems.
+
+``RegexpChunk`` has an optional ``trace`` argument, which specifies
+whether debugging output should be shown during parsing.  This output
+shows the rules that are applied, and shows the chunking hypothesis at
+each stage of processing.  In the execution trace, chunks are
+indicated by braces.  In the following example, two chunking rules are
+applied to the input sentence.  The first rule finds all sequences of
+three tokens whose tags are ``DT``, ``JJ``, and ``NN``, and the second
+rule finds any sequence of tokens whose tags are either ``DT`` or
+``NN``.
+      
+    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> grammar = r"""
+    ... NP:
+    ...   {<DT><JJ><NN>}      # Chunk det+adj+noun
+    ...   {<DT|NN>+}          # Chunk sequences of NN and DT
+    ... """
+    >>> cp = parse.GrammarChunk('S', grammar, trace=1)
+    >>> print cp.parse(input)
+    # Input:
+     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+    # Chunk det+adj+noun:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
+    # Chunk sequences of NN and DT:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+When we chunk material that is already partially chunked, the parser will
+only create chunks that do not partially overlap existing chunks.
+Thus, if we apply these two rules in reverse order, we
+will get a different result:
+
+    >>> grammar = r"""
+    ... NP:
+    ...   {<DT|NN>+}          # Chunk sequences of NN and DT
+    ...   {<DT><JJ><NN>}      # Chunk det+adj+noun
+    ... """
+    >>> cp = parse.GrammarChunk('S', grammar, trace=1)
+    >>> print cp.parse(input)
+    # Input:
+     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+    # Chunk sequences of NN and DT:
+    {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
+    # Chunk det+adj+noun:
+    {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
+    (S:
+      (NP: ('the', 'DT'))
+      ('little', 'JJ')
+      (NP: ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+Here, rule 2 ("chunk det+adj+noun") did not find any chunks, since all
+chunks that matched its tag pattern overlapped with chunks that were
+already in the hypothesis.
+
+Exercises
+---------
+
+1. Write a regular expression to match noun phrases containing plural head nouns,
+   e.g. "many/JJ researchers/NNS", "two/CD weeks/NNS", "both/DT new/JJ positions/NNS".
+   Try to do this by generalizing the regular expression that handled singular
+   noun phrases.
+
+#. Write regular expressions to cover noun phrases that contain gerunds
+   e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
+   Add these patterns to the grammar, one per line.  Test your work using
+   some tagged sentences of your own devising.
+
+----------
+Scaling Up
+----------
+
 Reading chunk structures from bracketed text
 --------------------------------------------
 
@@ -250,9 +473,6 @@ We can read in a chunked sentence as follows:
       ('strapped', 'VBN')
       (NP: ('Warsaw', 'NNP') ('government', 'NN'))
       ('.', '.'))
-
-
-
 
 We can display this tree graphically using the ``nltk_lite.draw.tree``
 module::
@@ -327,6 +547,73 @@ this chapter we will see how chunked data can be created from
 tokenized text, chunked using a chunk parser, then evaluated against
 the so-called gold-standard data.
   
+Chinking
+--------
+      
+Sometimes it is easier to define what we *don't* want to include in a
+chunk than it is to define what we *do* want to include.  In these
+cases, it may be easier to build a chunk parser using a method called
+`chinking`:dt:.
+
+The word `chink`:dt: initially meant a sequence of stopwords,
+according to a 1975 paper by Ross and Tukey (cited by Abney in the
+recommended reading for this chapter).
+Following Abney, we define a *chink* is a sequence
+of tokens that is not included in a chunk.
+In the following example, ``sat/VBD on/IN`` is a chink::
+
+  [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+
+Chinking is the process of removing a sequence of tokens from a
+chunk.  If the sequence of tokens spans an entire chunk, then the
+whole chunk is removed; if the sequence of tokens appears in the
+middle of the chunk, these tokens are removed, leaving two chunks
+where there was only one before.  If the sequence is at the beginning
+or end of the chunk, these tokens are removed, and a smaller chunk
+remains.  These three possibilities are illustrated in the following
+table:
+
++--------------------------------------------------------------------------+
+| Chinking                                                                 |
++=============+=====================+===================+==================+
+|             | Entire chunk        | Middle of a chunk | End of a chunk   |
++-------------+---------------------+-------------------+------------------+
+| *Input*     | [a/DT  big/JJ       | [a/DT  big/JJ     | [a/DT  big/JJ    | 
+|             | cat/NN]             | cat/NN]           | cat/NN]          |
++-------------+---------------------+-------------------+------------------+
+| *Operation* | Chink "a/DT big/JJ  | Chink "big/JJ"    | Chink "cat/DT"   |
+|             | cat/NN"             |                   |                  |
++-------------+---------------------+-------------------+------------------+
+| *Output*    | a/DT  big/JJ        | [a/DT] big/JJ     | [a/DT  big/JJ]   |
+|             | cat/NN              | [cat/NN]          | cat/NN           |
++-------------+---------------------+-------------------+------------------+
+
+In the following chunk grammar, we put the entire sentence into a single
+chunk, then excise the chink:
+
+    >>> grammar = r"""
+    ... NP:
+    ...   {<.*>+}          # Chunk everything
+    ...   }<VBD|IN>+{      # Chink sequences of VBD and IN
+    ... """
+    >>> cp = parse.GrammarChunk('S', grammar)
+    >>> print cp.parse(input)
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+
+A chunk grammar can use any number of chunking and chinking patterns
+in any order.
+
+Splitting and Merging
+---------------------
+
+NLTK also provides a method for merging adjacent chunks, called
+``MergeRule``, and a method for splitting a chunk in two, called
+``SplitRule``.
+
 Exercises
 ---------
 
@@ -353,260 +640,6 @@ Exercises
       that take a file in Treebank or CoNLL format (resp) and convert it to the other
       format.  (Obtain some raw Treebank or CoNLL data from the NLTK Corpora, save it
       to a file, and then use ``open(filename).readlines()`` to access it from Python.)
-
--------------
-Chunk Parsing
--------------
-
-Chunking with Regular Expressions
----------------------------------
-
-Earlier we noted that chunking builds flat (or non-nested) structures.
-In practice, the extents of text to be chunked are identified using
-regular expressions over sequences of part-of-speech tags.  NLTK-Lite
-provides a regular expression chunk parser to
-define the kinds of chunk we are interested in, and then to chunk a
-tagged text.
-    
-The chunk parser works by manipulating a *chunk structure*, which
-represents a particular chunking of the text.  The chunk parser begins
-with a structure in which no tokens are chunked.  Each
-regular-expression pattern (or `chunk rule`:dt:) is applied in turn,
-successively updating the chunk structure.  Once all of the rules have
-been applied, the resulting chunk structure is returned.
-    
-In order to define chunk rules, we first need to introduce the notion of 
-"tag strings."  A `tag string`:dt: is a string consisting of tags
-delimited with angle-brackets, e.g., ``<DT><JJ><NN><VBD><DT><NN>``.
-(Note that tag strings do not contain any whitespace.)  We can now create 
-a special kind of regular expression pattern over tag strings, called
-a *tag pattern*.  An example of a tag pattern is 
-``<DT><JJ>?<NN>``, which matches a determiner followed by an optional adjective,
-followed by a noun. Tag patterns are similar to the regular expression
-patterns we have already seen, except for three differences which make
-them easier to use for chunk parsing.  First, the angle brackets group
-their contents into atomic units, so "``<NN>+``" matches one or more
-repetitions of the tag string "``<NN>``"; and "``<NN|JJ>``" matches the tag strings "``<NN>``" or
-"``<JJ>``."  Second, the period wildcard operator is constrained not
-to cross tag boundaries, so that "``<NN.*>``" matches any single
-tag starting with "``NN``."
-
-.. Finally, whitespace is ignored in tag
-   patterns, so "``<DT> | <NN>``" is equivalent to
-   "``<DT>|<NN>``"; this allows tag patterns to be formatted to
-   improve readability. (Note however that ``<DT> <JJ> | <NN>`` is not permitted, since this
-   introduces whitespace into the tag string to the left of the disjunction ``|``.) ????
-    
-Now that we can define tag patterns, it is a straightforward matter to
-set up a simple chunk grammar.  This grammar has a single pattern,
-which matches an optional determiner, and number of adjectives, followed
-by a noun.  We also define some input to be chunked.
-
-    >>> grammar = r"""
-    ... NP:                   # NP stage
-    ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
-    ... """
-    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
-
-Next we can set up a chunker and run it on the input:
-
-    >>> from nltk_lite.parse import GrammarChunk
-    >>> cp = GrammarChunk('S', grammar, trace=1)
-    >>> print cp.parse(input)
-    # Input:
-     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    # chunk determiners, adjectives and nouns:
-    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-    (S:
-      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
-      ('sat', 'VBD')
-      ('on', 'IN')
-      (NP: ('the', 'DT') ('mat', 'NN')))
-
-The simplest type of rule is
-``ChunkRule``.  This chunks anything that matches a given tag pattern.
-``ChunkRule`` takes a tag pattern and a description
-string as arguments.  Here is a rule which chunks sequences consisting of one or
-more words tagged as ``DT`` or ``NN`` (i.e. determiners and nouns).
-    
-    >>> rule = parse.ChunkRule('<DT|NN>+',
-    ...                  'Chunk sequences of DT and NN')
-
-Now we can define a regular expression chunk parser based on this rule as
-follows:
-
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-
-Note that ``RegexpChunk`` has optional second and third arguments that
-specify the node labels for chunks and for the top-level node,
-respectively.  Now we can use this to chunk a tagged sentence, as
-illustrated by the complete program below.
-
-.. Note: Each rule must have a "description" associated with it, which
-   provides a short explanation of the purpose or the effect of the rule.
-   This description is accessed via the ``descr()`` method.
-    
-    >>> from nltk_lite.tag import string2tags
-    >>> from nltk_lite.parse.tree import Tree
-    >>> ttoks = string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
-    >>> sent = Tree('S', ttoks)
-    >>> rule = parse.ChunkRule('<NN|DT>+', 'Chunk sequences of NN and DT')
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> print chunkparser.parse(sent)
-    (S:
-      (NP: ('the', 'DT'))
-      ('little', 'JJ')
-      (NP: ('cat', 'NN'))
-      ('sat', 'VBD')
-      ('on', 'IN')
-      (NP: ('the', 'DT') ('mat', 'NN')))
-
-Observe that the object being parsed is actually a tree.  It consists
-of an ``S`` root node which dominates all the leaf nodes.
-
-We can also use more complex tag patterns, such as
-``<DT>?<JJ.*>*<NN.*>``.  This can be used to chunk any sequence of
-tokens beginning with an optional determiner ``DT``, followed by zero
-or more adjectives of any type ``JJ.*``, followed by a single noun of
-any type ``NN.*``.
-
-If a tag pattern matches at multiple overlapping locations, the first
-match takes precedence.  For example, if we apply a rule that matches
-two consecutive nouns to a text containing three consecutive nouns,
-then the first two nouns will be chunked:
-
-    >>> ttoks = string2tags("dog/NN cat/NN mouse/NN")
-    >>> sent = Tree('S', ttoks)
-    >>> rule = parse.ChunkRule('<NN><NN>', 'Chunk two consecutive nouns')
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> print chunkparser.parse(sent)
-    (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
-
-.. Note:: If a tag pattern matches at multiple overlapping locations,
-   the first match takes precedence.
-
-Developing Chunk Parsers
-------------------------
-
-Creating a good chunk parser usually requires several iterations of
-development and testing, during which existing rules are refined and
-new rules are added.  In a later section we will describe an automatic
-evaluation method that can be used to support this development
-process.  Here we show how to trace the execution of a chunk parser,
-to help the developer diagnose any problems.
-
-``RegexpChunk`` has an optional ``trace`` argument, which specifies
-whether debugging output should be shown during parsing.  This output
-shows the rules that are applied, and shows the chunking hypothesis at
-each stage of processing.  In the execution trace, chunks are
-indicated by braces.  In the following example, two chunking rules are
-applied to the input sentence.  The first rule finds all sequences of
-three tokens whose tags are ``DT``, ``JJ``, and ``NN``, and the second
-rule finds any sequence of tokens whose tags are either ``DT`` or
-``NN``.
-      
-    >>> ttoks = string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
-    >>> sent = Tree('S', ttoks)
-    >>> rule1 = parse.ChunkRule('<DT><JJ><NN>', 'Chunk det+adj+noun')
-    >>> rule2 = parse.ChunkRule('<DT|NN>+', 'Chunk sequences of NN and DT')
-    >>> chunkparser = parse.RegexpChunk([rule1, rule2], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk det+adj+noun:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
-    Chunk sequences of NN and DT:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-
-When a ``ChunkRule`` is applied to a chunking hypothesis, it will only
-create chunks that do not partially overlap with chunks already in the
-hypothesis.  Thus, if we apply these two rules in reverse order, we
-will get a different result:
-
-    >>> chunkparser = parse.RegexpChunk([rule2, rule1], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk sequences of NN and DT:
-                   {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
-    Chunk det+adj+noun:
-                   {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
-
-Here, rule 2 ("chunk det+adj+noun") did not find any chunks, since all
-chunks that matched its tag pattern overlapped with chunks that were
-already in the hypothesis.
-
-The Chink Rule
---------------
-      
-Sometimes it is easier to define what we *don't* want to include in a
-chunk than it is to define what we *do* want to include.  In these
-cases, it may be easier to build a chunk parser using ``ChinkRule``.
-
-The word *chink* initially meant a sequence of stopwords,
-according to a 1975 paper by Ross and Tukey (cited by Abney in the
-recommended reading for this chapter).
-Following Abney, we define a *chink* is a sequence
-of tokens that is not included in a chunk.
-In the following example, ``sat/VBD on/IN`` is a chink::
-
-  [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
-
-*Chinking* is the process of removing a sequence of tokens from a
-chunk.  If the sequence of tokens spans an entire chunk, then the
-whole chunk is removed; if the sequence of tokens appears in the
-middle of the chunk, these tokens are removed, leaving two chunks
-where there was only one before.  If the sequence is at the beginning
-or end of the chunk, these tokens are removed, and a smaller chunk
-remains.  These three possibilities are illustrated in the following
-table:
-
-+--------------------------------------------------------------------------+
-| Chinking                                                                 |
-+=============+=====================+===================+==================+
-|             | Entire chunk        | Middle of a chunk | End of a chunk   |
-+-------------+---------------------+-------------------+------------------+
-| *Input*     | [a/DT  big/JJ       | [a/DT  big/JJ     | [a/DT  big/JJ    | 
-|             | cat/NN]             | cat/NN]           | cat/NN]          |
-+-------------+---------------------+-------------------+------------------+
-| *Operation* | Chink "a/DT big/JJ  | Chink "big/JJ"    | Chink "cat/DT"   |
-|             | cat/NN"             |                   |                  |
-+-------------+---------------------+-------------------+------------------+
-| *Output*    | a/DT  big/JJ        | [a/DT] big/JJ     | [a/DT  big/JJ]   |
-|             | cat/NN              | [cat/NN]          | cat/NN           |
-+-------------+---------------------+-------------------+------------------+
-
-A ``ChinkRule`` chinks anything that matches a given tag pattern.  For
-example, the following rule will chink any sequence of tokens whose
-tags are all "``VBD``" or "``IN``":
-
-  >>> chink_rule = parse.ChinkRule('<VBD|IN>+',
-  ...                        'Chink sequences of VBD and IN')
-
-Before we apply our chink rule, we'll apply a rule that puts the
-entire sentence in a single chunk:
-
-    >>> chunkall_rule = parse.ChunkRule('<.*>+',
-    ...                           'Chunk everything')
-
-Now we can combine these two rules to create a chunk parser:
-
-    >>> chunkparser = parse.RegexpChunk([chunkall_rule, chink_rule], chunk_node='NP')
-    >>> chunk_tree = chunkparser.parse(sent, trace=1)
-    Input:
-                    <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-    Chunk everything:
-                   {<DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN>}
-    Chink sequences of VBD and IN:
-                   {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-
-``RegexpChunk`` can use any number of ``ChunkRule``\ s and
-``ChinkRule``\ s, in any order.  NLTK also provides a method for
-merging adjacent chunks, called ``MergeRule``, and a method for
-splitting a chunk in two, called ``SplitRule``.
-
-Exercises
----------
 
 #. **Simple Chunker:**
    Pick one of the three chunk types in the CoNLL corpus.
@@ -641,193 +674,6 @@ Exercises
    ``MergeRule``,
    and ``SplitRule``).
         
-
-------------------------
-Evaluating Chunk Parsers
-------------------------
-
-An easy way to evaluate a chunk parser is to take some already chunked
-text, strip off the chunks, rechunk it, and compare the result with
-the original chunked text.  The ``ChunkScore.score()`` function takes
-the correctly chunked sentence as its first argument, and the newly
-chunked version as its second argument, and compares them.  It reports
-the fraction of actual chunks that were found (recall), the fraction
-of hypothesized chunks that were correct (precision), and a combined
-score, the F-measure (the harmonic mean of precision and recall).
-    
-A number of different metrics can be used to evaluate chunk parsers.
-We will concentrate on a class of metrics that can be derived from two
-sets:
-
-* **guessed**: The set of chunks returned by the chunk parser. 
-* **correct**: The correct set of chunks, as defined in the test corpus.
-
-The evaluation method we will use comes from the field of information retrieval,
-and considers the performance of a document retrieval system.  We will set up
-an analogy between the correct set of chunks and a user's so-called "information need",
-and between the set of returned chunks and a system's returned documents.  Consider
-the following diagram.
-
-.. figure:: ../images/precision-recall.png
-   :scale: 70
-
-   True and False Positives and Negatives
-
-The intersection of these sets defines four regions: the true
-positives (TP), true negatives (TN), false positives (FP), and false
-negatives (FN).  Two standard measures are
-*precision*, the fraction of guessed chunks that were correct TP/(TP+FP),
-and *recall*, the fraction of correct chunks that were identified
-TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
-of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
-
-.. Note: Note that these metrics do not assign any credit for chunks
-   that are "almost" right (e.g., chunks that extend one word too long).
-   It would be possible to design metrics that do assign partial credit
-   for such cases, they would be more complex.  We decided to keep our
-   metrics simple, so that it is easy to understand what a given result
-   means.
-
-During evaluation of a chunk parser, it is useful to flatten a chunk
-structure into a tree consisting only of a root node and leaves:
-
-    >>> correct = tree.chunk(
-    ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    >>> correct.flatten()
-    (S: ('the', 'DT') ('little', 'JJ') ('cat', 'NN') ('sat', 'VBD')
-    ('on', 'IN') ('the', 'DT') ('mat', 'NN'))
-
-We run a chunker over this flattened data, and compare the
-resulting chunked sentences with the originals, as follows:
-
-    >>> from nltk_lite import parse
-    >>> chunkscore = parse.ChunkScore()
-    >>> rule = parse.ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+',
-    ...              "Chunk items that often occur in NPs")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> guess = chunkparser.parse(correct.flatten())
-    >>> chunkscore.score(correct, guess)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision: 100.0%
-        Recall:    100.0%
-        F-Measure: 100.0%
-
-``ChunkScore`` is a class for scoring chunk parsers.  It can be used
-to evaluate the output of a chunk parser, using precision, recall,
-f-measure, missed chunks, and incorrect chunks.  It can also be used
-to combine the scores from the parsing of multiple texts.  This is
-quite useful if we are parsing a text one sentence at a time.  The
-following program listing shows a typical use of the ``ChunkScore``
-class.  In this example, ``chunkparser`` is being tested on each
-sentence from the Wall Street Journal tagged files.
-
-    >>> from itertools import islice
-    >>> rule = parse.ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = parse.ChunkScore()
-    >>> for chunk_struct in islice(treebank.chunked(), 10):
-    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
-    ...     chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision:  48.6%
-        Recall:     34.0%
-        F-Measure:  40.0%
-
-The overall results of the evaluation can be viewed by printing the
-``ChunkScore``.  Each evaluation metric is also returned by an
-accessor method: ``precision()``, ``recall``, ``f_measure``,
-``missed``, and ``incorrect``.  The ``missed`` and ``incorrect``
-methods can be especially useful when trying to improve the
-performance of a chunk parser.  Here are the missed chunks:
-
-.. doctest-ignore::
-    >>> from random import shuffle
-    >>> missed = chunkscore.missed()
-    >>> shuffle(missed)
-    >>> print missed[:10]
-    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
-     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('30', 'CD'), ('years', 'NNS')),
-     (('workers', 'NNS'),),
-     (('preliminary', 'JJ'), ('findings', 'NNS')),
-     (('Medicine', 'NNP'),),
-     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('researchers', 'NNS'),)]
-
-Here are the incorrect chunks:
-
-.. doctest-ignore::
-    >>> incorrect = chunkscore.incorrect()
-    >>> shuffle(incorrect)
-    >> print incorrect[:10]
-    [(('New', 'JJ'), ('York-based', 'JJ')),
-     (('Micronite', 'NN'), ('cigarette', 'NN')),
-     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
-     (('later', 'JJ'),),
-     (('preliminary', 'JJ'),),
-     (('New', 'JJ'), ('York-based', 'JJ')),
-     (('resilient', 'JJ'),),
-     (('group', 'NN'),),
-     (('the', 'DT'),),
-     (('Micronite', 'NN'), ('cigarette', 'NN'))]
-
-.. Note: By default, only the first 100 missed chunks and the first
-   100 incorrect chunks will be remembered by the ``ChunkScore``.  You
-   can tell ``ChunkScore`` to record more chunk examples with the
-   ``max_fp_examples`` (maximum false positive examples) and the
-   ``max_fn_examples`` (maximum false negative examples) keyword
-   arguments to the ``ChunkScore`` constructor:
-
-    >>> chunkscore = parse.ChunkScore(max_fp_examples=1000,
-    ...                        max_fn_examples=1000)
-
-As we saw with tagging, we need to interpret the performance scores
-for a chunker relative to a baseline.  Perhaps the most naive chunking
-method is to classify every tag in the training data as to whether it
-occurs inside or outside a chunk more often.  We can do this easily
-using a chunked corpus and a conditional frequency distribution as
-shown below:
-
-    >>> from nltk_lite.probability import ConditionalFreqDist
-    >>> from nltk_lite.parse import Tree
-    >>> import re
-    >>> cfdist = ConditionalFreqDist()
-    >>> chunk_data = list(treebank.chunked())
-    >>> split = len(chunk_data)*9/10
-    >>> train, test = chunk_data[:split], chunk_data[split:]
-    >>> for chunk_struct in train:
-    ...     for constituent in chunk_struct:
-    ...         if isinstance(constituent, Tree):
-    ...             for (word, tag) in constituent.leaves():
-    ...                 cfdist[tag].inc(True)
-    ...         else:
-    ...             (word, tag) = constituent
-    ...             cfdist[tag].inc(False)
-  
-    >>> chunk_tags = [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
-    >>> chunk_tags = [re.sub(r'(\W)', r'\\\1', tag) for tag in chunk_tags]
-    >>> tag_pattern = '<' + '|'.join(chunk_tags) + '>+'
-    >>> print 'Chunking:', tag_pattern
-    Chunking: <PRP\$|VBG\|NN|POS|WDT|JJ|WP|DT|\#|\$|NN|FW|PRP|NNS|NNP|LS|PDT|RBS|CD|EX|WP\$|NNPS|JJS|JJR>+
-
-Now, in the evaluation phase we chunk any sequence of those tags:
-
-    >>> rule = parse.ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = parse.ChunkScore()
-    >>> for chunk_struct in test:
-    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
-    ...     chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision:  90.7%
-        Recall:     94.0%
-        F-Measure:  92.3%
-
 
 -----------------
 Cascaded Chunking
