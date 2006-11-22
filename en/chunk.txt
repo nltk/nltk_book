@@ -47,10 +47,7 @@ a higher level.  We write regular expressions over tag sequences.  The
 following example identifies any noun phrases that are comprised of an
 optional determiner, followed by any number of adjectives, then a noun.
 
-    >>> grammar = r"""
-    ... NP:
-    ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
-    ... """
+    >>> grammar = "NP: {<DT>?<JJ>*<NN>}  # chunk determiners, adjectives and nouns"
 
 The input is a special kind of flat tree:
 
@@ -322,10 +319,7 @@ two consecutive nouns to a text containing three consecutive nouns,
 then the first two nouns will be chunked:
 
     >>> input = tree.chunk("dog/NN cat/NN mouse/NN")
-    >>> grammar = r"""
-    ... NP:
-    ...   {<NN><NN>}     # Chunk two consecutive nouns
-    ... """
+    >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
     >>> cp = parse.GrammarChunk('S', grammar)
     >>> print cp.parse(input)
     (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
@@ -668,45 +662,37 @@ Exercises
    chunk rules.
 
 #. **Complex Chunker:**
-   Develop a chunker for one of the chunk types in the CoNLL corpus using the
-   regular-expression chunk parser ``RegexpChunk``.  Use any
-   combination of rules (i.e. ``ChunkRule``, ``ChinkRule``,
-   ``MergeRule``,
-   and ``SplitRule``).
-        
+   Develop a chunker for one of the chunk types in the CoNLL corpus using a
+   regular-expression based chunk grammar ``RegexpChunk``.  Use any
+   combination of rules for chunking, chinking, merging or splitting.
 
 -----------------
 Cascaded Chunking
 -----------------
 
+[DRAFT, TO BE EXPANDED]
+
 So far, our chunk structures have been relatively flat: trees
 consisting of tagged tokens, optionally grouped under a chunk node
-such as ``NP``.  As of NLTK-Lite version 0.6.4, it is possible to
-build chunk structures of arbitrary depth, simply by connecting the
-output of one chunker to the input of another.
+such as ``NP``.  It is possible to build chunk structures of arbitrary
+depth, simply by creating a multi-stage chunk grammar.
 
 First we define several chunkers, e.g. for noun phrases, prepositional
 phrases, verb phrases, and sentences.
 
-    >>> np_chunk = parse.ChunkRule(r'<DT|JJ|NN.*>+', 'Chunk sequences of DT, JJ, NN')
-    >>> np_parse = parse.RegexpChunk([np_chunk], chunk_node='NP')
-    >>> pp_chunk = parse.ChunkRule(r'<IN><NP>', 'Chunk prepositions followed by NP')
-    >>> pp_parse = parse.RegexpChunk([pp_chunk], chunk_node='PP')
-    >>> vp_chunk = parse.ChunkRule(r'<VB.*><NP|PP|S>+$', 'Chunk verbs and arguments/adjuncts')
-    >>> vp_parse = parse.RegexpChunk([vp_chunk], chunk_node='VP')
-    >>> s_chunk = parse.ChunkRule(r'<NP><VP>$', 'Chunk NP, VP')
-    >>> s_parse = parse.RegexpChunk([s_chunk], chunk_node='S')
-    >>> chunkparsers = [np_parse, pp_parse, vp_parse, s_parse, vp_parse, s_parse]
+    >>> grammar = """
+    ... NP: {<DT|JJ|NN.*>+}       # Chunk sequences of DT, JJ, NN
+    ... PP: {<IN><NP>}            # Chunk prepositions followed by NP
+    ... VP: {<VB.*><NP|PP|S>+$}   # Chunk verbs and arguments/adjuncts
+    ... S:  {<NP><VP>$}           # Chunk NP, VP
+    ... """
+    >>> cp = parse.GrammarChunk('S', grammar)
 
 Next, we create some tagged data and chunk it:
 
-    >>> text = '''John/NNP thinks/VBZ Mary/NN saw/VBD the/DT cat/NN
-    ...           sit/VB on/IN the/DT mat/NN'''
-    >>> ttoks = string2tags(text)
-    >>> sent = Tree('S', ttoks)
-    >>> for chunkparser in chunkparsers:
-    ...     sent = chunkparser.parse(sent)
-    >>> print sent
+    >>> input = tree.chunk("""John/NNP thinks/VBZ Mary/NN saw/VBD the/DT cat/NN
+    ...           sit/VB on/IN the/DT mat/NN""")
+    >>> print cp.parse(input)
     (S:
       (NP: ('John', 'NNP'))
       ('thinks', 'VBZ')
