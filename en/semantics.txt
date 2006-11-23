@@ -489,8 +489,7 @@ respectively. Basic types are types. If |sigma| and |tau| are types,
 then (|sigma| |rarr| |tau|) is also a type; this corresponds to the
 set of functions from things of type |sigma| to things of type
 |tau|. We omit the parentheses around |sigma| |rarr| |tau| if there is
-no ambiguity.
-For any type |tau|, we have a set **Var**\ (|tau|) of variables of type
+no ambiguity. For any type |tau|, we have a set **Var**\ (|tau|) of variables of type
 |tau| and **Con**\ (|tau|) of constants of type |tau|. We can now define
 the set **Term**\ (|tau|) of |lambda|-terms of type |tau|.
 
@@ -507,13 +506,18 @@ the set **Term**\ (|tau|) of |lambda|-terms of type |tau|.
    then |lambda|\ `x.`:mathit:\ |alpha|  |element|  **Term**\ (|sigma|
    |rarr| |tau|). 
 
-We can replace our earlier definition of the language of propositional
-logic by adding the following stipulations:
+|nopar| We can replace our earlier definition of the language of propositional
+logic by adding the following stipulations for Boolean connectives:
 
 5. `not`:mathit: |element|  **Con**\ (**Bool** |rarr| **Bool**), and
    `and`:mathit:, `or`:mathit:, `implies`:mathit: and `iff`:mathit:
    |element| **Con**\ (**Bool** |rarr| (**Bool** |rarr| **Bool**)).
 
+
+|nopar| We also add a clause for equality between individual terms.
+
+6. If |alpha|, |beta| |element|  **Term**\ (**Ind**), 
+   then  |alpha| = |beta|  **Term**\ (**Bool**). 
 
 If we return now to |NLTK|, we can see that our previous implementation
 of function application already does service for predication.
@@ -542,7 +546,8 @@ connectives in infix position.
 
 
 Up to this point, we have restricted ourselves to looking at formulas
-where all the arguments are individual terms, corresponding to proper
+where all the arguments are individual constants (i.e., expressions in
+**Term**\ (**Ind**)), corresponding to proper
 names such as `John`:lx:, `Mary`:lx: and `Fido`:lx:. Yet a crucial
 ingredient of |fol| is the ability to make general
 statements involving quantified expressions such as `all dogs`:lx: and
@@ -578,6 +583,14 @@ by the |NLTK| `logic` module.
    .. ex:: |exists|\ `x`:mathit:.\ ((cat `x`:mathit:) |wedge| (sleep `x`:mathit:))
 
    .. ex:: `some x. ((cat x) and (sleep x))`
+
+|nopar| The inclusion of first-order quantifiers motivates the final clause of
+the definition of our version of |fol|.
+
+7. If `x`:mathit: |element|  **Var**\ (**Ind**) and |phi| 
+   |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
+   |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\
+   (**Bool**).  
 
 One important property of forall1b_ often trips people up. The logical
 rendering in effects says that *if* something is a dog, then it barks,
@@ -719,18 +732,24 @@ Types and the Untyped |lambda|-calculus
 =======================================
 
 
-So far, we have glossed over the fact that the |NLTK| ``logic`` module
-is based on an implementation of the untyped lambda calculus, and by
-default all identifiers are considered to be variables. This means,
-for example, that the identifier ``walk`` can be bound by |lambda|:
+So far, we have glossed over the fact that the
+``nltk_lite.semantics.logic`` module is based on an implementation of
+the `untyped`:em: lambda calculus. That is, although we have
+introduced typing in order to aid exposition, the logical language we
+will be using in |NLTK| is not constrained to honour that typing.
 
-   >>> lp.parse('walk')
-   VariableExpression('walk')
-   >>> lp.parse('\\walk.(walk x)')
-   LambdaExpression('walk', '(walk x)')
+..
+   In addition, all identifiers are
+   considered to be variables. This means, for example, that the
+   identifier ``walk`` can be bound by |lambda|:
 
+      >>> lp.parse('walk')
+      VariableExpression('walk')
+      >>> lp.parse('\\walk.(walk x)')
+      LambdaExpression('walk', '(walk x)')
 
-In addition, because the language is untyped, there is no formal
+|nopar|
+In particular, there is no formal
 distinction between predicate expressions and individual expressions;
 anything can be applied to anything. Indeed, functions can be applied
 to themselves:
@@ -740,18 +759,18 @@ to themselves:
 
 By contrast, most standard approaches to natural language semantics forbid
 self-application (e.g., applications such as `(walk walk)`:mathit:) by
-assigning types to expressions of the semantic representation
-language.
+adopting a typed language of the kind presented above.
 
 .. [#] When combined with logic, unrestricted self-application leads
       to Russell's Paradox.
 
 It is also standard to allow constants as basic expressions of the
-language. Consequently, we have used a mixture of convention and supplementary
-stipulations in the ``logic`` module to bring our practice closer
-to this more standard framework for natural language semantics.  In
-particular, we use expressions like `x`:math:, `y`:math:,
-`z`:math:, or `x`:subscript:`0`, `x`:subscript:`1`,
+language, as indicated by our use **Con**\ (|tau|) is our earlier
+definitions. Correspondingly, we have used a mixture of convention and
+supplementary stipulations in the ``logic`` module to bring our
+practice closer to this more standard framework for natural language
+semantics.  In particular, we use expressions like `x`:math:,
+`y`:math:, `z`:math:, or `x`:subscript:`0`, `x`:subscript:`1`,
 `x`:subscript:`2`, ... to indicate individual variables.  As an
 extension over the 'pure' |lambda|-calculus syntax of ``logic``, we
 can assign such strings to the class ``IndVariableExpression``.
@@ -774,17 +793,34 @@ identifiers.
   ConstantExpression('walk')
   >>> 
 
-To sum up, while the |lambda|-calculus only recognizes one kind of
+To sum up, while the untyped |lambda|-calculus only recognizes one kind of
 basic expression other than |lambda|, namely the class of variables
 (the class ``VariableExpression`` in ``logic``), our extended language
 adds to ``logic`` three further classes of basic expression:
 ``IndVariableExpression``, ``ConstantExpression`` and ``Operator``
 (Boolean connectives plus the equality relation ``=``).
 
+This completes our discussion of using a first-order language as a
+basis for semantic representation in |NLTK|. In the next section, we
+will study how the language is to be used. 
 
 ----------------
 Formal Semantics
 ----------------
+
+So far, we have presented some basic ideas about defining a semantic
+representation language, and given a
+number of examples of how expressions of that language are paired up
+with natural language expressions. Later on, we will investigate a
+more systematic method for carrying out that pairing. But let's
+suppose for a moment that for any sentence `S`:math: of English, we
+have a method of building a
+corresponding expression of |fol| that represents the meaning of
+`S`:math: (still a fairly distant goal, unfortunately). Would this be
+enough? Within the tradition of formal semantics, the answer would be
+No. Let's see why this is.
+
+
 
 A `model`:dt: for |FOL| is a pair `<D,V>`:math:, where `D`:math: is a
 domain of discourse and `V`:math: is a valuation function for the
