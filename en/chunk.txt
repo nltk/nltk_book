@@ -185,6 +185,14 @@ tokens are tagged ``OUTSIDE``.  An example of this scheme is shown below:
 
    Tag Representation of Chunk Structures
 
+This structure is represented in the standard chunk file format as follows::
+
+  He PRP B-NP
+  saw VBD O
+  the DT B-NP
+  big JJ I-NP
+  dog NN I-NP
+
 The other obvious representation for chunk structures is to use trees,
 as shown below.  These have the benefit that each chunk is a
 constituent that can be manipulated directly.  NLTK-Lite uses this
@@ -209,48 +217,18 @@ following chunk structure captures the noun phrases in a sentence:
 |     (NP: 'the' 'hill'))
 
 Chunk parsers often operate on tagged texts, and use the tags to help
-make chunking decisions.  A common string representation for chunked
-tagged text is illustrated below.:
-    
-  [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+make chunking decisions.
 
-This can be parsed using ``tree.chunk()`` function as shown.
-    
-    >>> from nltk_lite.parse import tree
-    >>> print tree.chunk("[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    (S:
-      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
-      ('sat', 'VBD')
-      ('on', 'IN')
-      (NP: ('the', 'DT') ('mat', 'NN')))
-    
-We usually want to read structured data from corpora, not strings.  In
-the following sections we show how this is done for two popular
-chunked corpus formats, namely bracketed text and IOB-tagged data.
-    
 -------------
 Chunk Parsing
 -------------
 
-Chunking with Regular Expressions
----------------------------------
 
-Earlier we noted that chunking builds flat (or non-nested) structures.
-In practice, the extents of text to be chunked are identified using
-regular expressions over sequences of part-of-speech tags.  NLTK-Lite
-provides a regular expression chunk parser to
-define the kinds of chunk we are interested in, and then to chunk a
-tagged text.
-    
-The chunk parser works by manipulating a *chunk structure*, which
-represents a particular chunking of the text.  The chunk parser begins
-with a structure in which no tokens are chunked.  Each
-regular-expression pattern (or `chunk rule`:dt:) is applied in turn,
-successively updating the chunk structure.  Once all of the rules have
-been applied, the resulting chunk structure is returned.
-    
-In order to define chunk rules, we first need to introduce the notion of 
-"tag strings."  A `tag string`:dt: is a string consisting of tags
+
+Tag Strings and Tag Patterns
+----------------------------
+
+A `tag string`:dt: is a string consisting of tags
 delimited with angle-brackets, e.g., ``<DT><JJ><NN><VBD><DT><NN>``.
 (Note that tag strings do not contain any whitespace.)  We can now create 
 a special kind of regular expression pattern over tag strings, called
@@ -270,6 +248,24 @@ tag starting with "``NN``."
    "``<DT>|<NN>``"; this allows tag patterns to be formatted to
    improve readability. (Note however that ``<DT> <JJ> | <NN>`` is not permitted, since this
    introduces whitespace into the tag string to the left of the disjunction ``|``.) ????
+    
+
+
+Chunking with Regular Expressions
+---------------------------------
+
+Earlier we noted that chunking builds flat (or non-nested) structures.
+In practice, the extents of text to be chunked are identified using
+regular expressions over sequences of part-of-speech tags.
+
+
+    
+The chunk parser works by manipulating a *chunk structure*, which
+represents a particular chunking of the text.  The chunk parser begins
+with a structure in which no tokens are chunked.  Each
+regular-expression pattern (or `chunk rule`:dt:) is applied in turn,
+successively updating the chunk structure.  Once all of the rules have
+been applied, the resulting chunk structure is returned.
     
 Now that we can define tag patterns, it is a straightforward matter to
 set up a simple chunk grammar.  This grammar has a single pattern,
@@ -414,66 +410,6 @@ Exercises
 Scaling Up
 ----------
 
-Reading chunk structures from bracketed text
---------------------------------------------
-
-We can obtain a larger quantity of chunked text from the tagged Wall
-Street Journal in the Penn Treebank corpus.  NLTK-Lite includes a sample of
-this corpus.  The tagged section of the corpus consists of chunked,
-tagged text, such as the annotated sentence shown below::
-
-| In/IN 
-| [ happier/JJR news/NN ]
-| ,/, 
-| [ South/NNP Korea/NNP ]
-| ,/, in/IN establishing/VBG 
-| [ diplomatic/JJ ties/NNS ]
-| with/IN 
-| [ Poland/NNP yesterday/NN ]
-| ,/, announced/VBD 
-| [ $/$ 450/CD million/CD ]
-| in/IN 
-| [ loans/NNS ]
-| to/TO 
-| [ the/DT ]
-| financially/RB strapped/VBN 
-| [ Warsaw/NNP government/NN ]
-| ./. 
-
-We can read in a chunked sentence as follows:
-
-    >>> from nltk_lite.corpora import treebank, extract
-    >>> chunk_tree = extract(603, treebank.chunked())
-    >>> print chunk_tree
-    (S:
-      ('In', 'IN')
-      (NP: ('happier', 'JJR') ('news', 'NN'))
-      (',', ',')
-      (NP: ('South', 'NNP') ('Korea', 'NNP'))
-      (',', ',')
-      ('in', 'IN')
-      ('establishing', 'VBG')
-      (NP: ('diplomatic', 'JJ') ('ties', 'NNS'))
-      ('with', 'IN')
-      (NP: ('Poland', 'NNP') ('yesterday', 'NN'))
-      (',', ',')
-      ('announced', 'VBD')
-      (NP: ('$', '$') ('450', 'CD') ('million', 'CD'))
-      ('in', 'IN')
-      (NP: ('loans', 'NNS'))
-      ('to', 'TO')
-      (NP: ('the', 'DT'))
-      ('financially', 'RB')
-      ('strapped', 'VBN')
-      (NP: ('Warsaw', 'NNP') ('government', 'NN'))
-      ('.', '.'))
-
-We can display this tree graphically using the ``nltk_lite.draw.tree``
-module::
-
-  from nltk_lite.draw.tree import *
-  chunk_tree.draw()
-
 Reading chunked text from IOB-tagged data
 -----------------------------------------
 
@@ -533,14 +469,47 @@ three).  The example below produces only ``NP`` chunks:
         ('concern', 'NN'))
       ('.', '.'))
   
-We can load the CoNLL 2000 corpus using the CoNLL corpus reader
-``corpora.conll2000.chunked()``.
+Accessing the CoNLL 2000 Corpus
+-------------------------------
 
-This concludes our discussion of loading chunked data.  In the rest of
-this chapter we will see how chunked data can be created from
-tokenized text, chunked using a chunk parser, then evaluated against
-the so-called gold-standard data.
-  
+The CoNLL 2000 corpus contains 270k words of Wall Street Journal text,
+with part-of-speech tags and chunk tags in the format we have already seen.
+We can access this data using an NLTK corpus reader called ``conll2000``.
+Here is an example:
+
+    >>> from nltk_lite.corpora import conll2000, extract
+    >>> print extract(2000, conll2000.chunked())
+    (S:
+      (NP: ('Health-care', 'JJ') ('companies', 'NNS'))
+      (VP: ('should', 'MD') ('get', 'VB'))
+      ('healthier', 'JJR')
+      (PP: ('in', 'IN'))
+      (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
+      ('.', '.'))
+
+This just showed three chunk types, for NP, VP and PP.
+We can also select which chunk types to read:
+
+    >>> from nltk_lite.corpora import conll2000, extract
+    >>> print extract(2000, conll2000.chunked(chunk_types=('NP',)))
+    (S:
+      (NP: ('Health-care', 'JJ') ('companies', 'NNS'))
+      ('should', 'MD')
+      ('get', 'VB')
+      ('healthier', 'JJR')
+      ('in', 'IN')
+      (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
+      ('.', '.'))
+
+
+Simple Evaluation
+-----------------
+
+    >>> grammar = r"""NP: {<DT|JJ|NN.*>+}"""
+    >>> cp = GrammarChunk('S', grammar)
+    >>> print parse.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
+    0.80523504324
+
 Chinking
 --------
       
@@ -607,6 +576,18 @@ Splitting and Merging
 NLTK also provides a method for merging adjacent chunks, called
 ``MergeRule``, and a method for splitting a chunk in two, called
 ``SplitRule``.
+
+
+Multiple Chunk Types
+--------------------
+
+    >>> grammar = r"""
+    ... NP: {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
+    ... VP: {<TO>?<VB.*>}       # VP = verb words
+    ... """
+    >>> cp = GrammarChunk('S', grammar)
+
+
 
 Exercises
 ---------
