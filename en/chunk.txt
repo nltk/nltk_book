@@ -38,6 +38,7 @@ suppessed, allowing us to see some higher-level patterns::
   gave NP NP
   gave NP to NP
     
+|nopar|
 In this way we can acquire information about the complementation
 patterns of a verb like ``gave``, for use in the development of a
 grammar.
@@ -201,7 +202,7 @@ outside a chunk.  We will see later that this format permits us to
 represent more than one chunk type, so long as the chunks do not
 overlap.  This file format was developed as part of the chunking evaluation
 task run by the *Conference on Natural Language Learning* in 2000, and
-has come to be called the `CoNLL chunking format`:dt:.
+has come to be called the `IOB Format`:dt:.
 
 Chunk structures can also be represented using trees.  These have the
 benefit that each chunk is a constituent that can be manipulated
@@ -215,7 +216,7 @@ directly.  An example is shown in Figure chunk-treerep_:
 |nopar|
 NLTK uses trees for its internal representation of chunks, and
 provides methods for reading and writing such trees to the IOB
-file format.
+format.
 
 -------------
 Chunk Parsing
@@ -237,14 +238,14 @@ parsing.  First, the angle brackets group their contents into atomic
 units, so "``<NN>+``" matches one or more repetitions of the tag
 string "``<NN>``"; and "``<NN|JJ>``" matches the tag strings
 "``<NN>``" or "``<JJ>``."  Second, the period wildcard operator is
-constrained not to cross tag boundaries, so that "``<NN.*>``" matches
-any single tag starting with "``NN``."
+constrained not to cross tag delimiters, so that "``<N.*>``" matches
+any single tag starting with "``N``."
 
 Chunking with Regular Expressions
 ---------------------------------
 
-The chunk parser begins with a structure in which no tokens are
-chunked.  Each pattern is applied in turn, successively updating the
+The chunk parser begins with a flat structure in which no tokens are
+chunked.  Patterns are applied in turn, successively updating the
 chunk structure.  Once all of the patterns have been applied, the
 resulting chunk structure is returned.  Here is an simple chunk
 grammar consisting of two patterns.  The first pattern
@@ -252,7 +253,7 @@ matches an optional determiner, zero or more adjectives, then
 a noun.  We also define some input to be chunked.
 
     >>> grammar = r"""
-    ... NP:                   # NP stage
+    ... NP:
     ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
     ...   {<NNP>+}            # chunk sequences of proper nouns
     ... """
@@ -484,9 +485,9 @@ Baseline Chunker
     ...     """Generate a list of tags that tend to appear inside chunks"""
     ...     from nltk_lite.probability import ConditionalFreqDist
     ...     cfdist = ConditionalFreqDist()
-    ...     for chunk_struct in train:
-    ...         for word, tag, chunk_tag in chunk.tree2conlltags(chunk_struct):
-    ...             if chunk_tag == "O":
+    ...     for t in train:
+    ...         for word, tag, chtag in chunk.tree2conlltags(t):
+    ...             if chtag == "O":
     ...                 cfdist[tag].inc(False)
     ...             else:
     ...                 cfdist[tag].inc(True)
@@ -506,8 +507,8 @@ Baseline Chunker
     0.914262194736
 
 
-Splitting
----------
+Splitting and Merging
+---------------------
 
 
 
@@ -573,14 +574,6 @@ chunk, then excise the chink:
 
 A chunk grammar can use any number of chunking and chinking patterns
 in any order.
-
-Splitting and Merging
----------------------
-
-NLTK also provides a method for merging adjacent chunks, called
-``MergeRule``, and a method for splitting a chunk in two, called
-``SplitRule``.
-
 
 Multiple Chunk Types
 --------------------
@@ -680,9 +673,74 @@ Exercises
 N-Gram Chunking
 ---------------
 
+Our approach to chunking has been to try to detect structure based on
+the part-of-speech tags.  We have seen that the IOB format represents
+this extra structure using another kind of tag.  The question arises
+then, as to whether we could use the same n-gram tagging methods we
+saw in the last chapter, applied to a different vocabulary.
+
+The first step is to get the word,tag,chunk triples from the CoNLL
+corpus and map these to tag,chunk pairs:
+
+    >>> from nltk_lite import tag
+    >>> chunk_data = [[(t,c) for w,t,c in chunk.tree2conlltags(chtree)]
+    ...              for chtree in conll2000.chunked()]
+
+Now we can train and score a `unigram chunker`:dt: on this data, just as if
+it was a tagger:
+
+    >>> unigram_chunker = tag.Unigram()
+    >>> unigram_chunker.train(chunk_data)
+    >>> print tag.accuracy(unigram_chunker, chunk_data)
+    0.781378851068
+
+This chunker does reasonably well.  Let's look at the errors it makes.
+Consider the opening phrase of the first sentence of the chunking
+data, here shown with part of speech tags:
+
+  Confidence/NN in/IN the/DT pound/NN is/VBZ widely/RB expected/VBN
+  to/TO take/VB another/DT sharp/JJ dive/NN
+
+We can try the unigram chunker out on this first sentence by creating
+some "tokens" using ``[t for t,c in chunk_data[0]]``, then running
+our chunker over them using ``list(unigram_chunker.tag(tokens))``.
+The unigram chunker only looks at the tags, and tries to add chunk
+tags.  Here is what it comes up with:
+
+  NN/I-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/O VBN/I-VP TO/B-PP
+  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
+
+Notice that it tags the first noun ``Confidence/NN`` incorrectly as ``I-NP`` and not
+``B-NP``, because nouns usually do not occur at the start of noun
+phrases in the training data.  It correctly tags the second ``pound/NN`` as
+``I-NP`` (this noun occurs after a determiner).  It incorrectly tags
+``widely/RB`` as outside ``O``, and it incorrectly tags the
+infinitival ``to/TO`` as ``B-PP``, as if it was a preposition starting a
+prepositional phrase.
+
+[Why these problems might go away if we look at the previous chunk tag?]
+
+Let's run a bigram chunker:
+
+    >>> bigram_chunker = tag.Bigram(backoff=unigram_chunker)
+    >>> bigram_chunker.train(chunk_data)
+    >>> print tag.accuracy(bigram_chunker, chunk_data)
+    0.89312652614
+
+We can run the bigram chunker over the same sentence as before
+using ``list(bigram_chunker.tag(tokens))``.
+Here is what it comes up with:
+
+  NN/B-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/I-VP VBN/I-VP TO/I-VP
+  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
+
+This is 100% correct.
 
 Exercises
 ---------
+
+#. **Bigram chunker:** The bigram chunker scores about 90% accuracy.
+   Study its errors and try to work out why it doesn't get 100% accuracy.
 
 #. (Advanced) **Modularity:**
    Consider the way an n-gram tagger uses recent tags to inform its tagging choice.
