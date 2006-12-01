@@ -48,7 +48,6 @@ slides:
 	$(MAKE) -C slides
 
 api:	.api.done
-	rm -rf api/*
 	epydoc $(EPYDOC_OPTS) -o api ../nltk_lite
 	touch .api.done
 
