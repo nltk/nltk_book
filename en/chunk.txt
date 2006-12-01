@@ -44,8 +44,8 @@ grammar.
 
 Chunking in NLTK begins with tagged text, represented as a flat tree:
 
-    >>> from nltk_lite.parse import tree
-    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> from nltk_lite import chunk
+    >>> input = chunk.tagstr2tree("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
     >>> input.draw()
 
 .. tree:: (S (DT the) (JJ little) (NN cat) (VBD sat) (IN on) (DT the) (NN mat))
@@ -55,8 +55,7 @@ following example identifies any noun phrases that are comprised of an
 optional determiner, followed by any number of adjectives, then a
 noun.
 
-    >>> from nltk_lite.parse import GrammarChunk
-    >>> cp = GrammarChunk('S', "NP: {<DT>?<JJ>*<NN>}")
+    >>> cp = chunk.Regexp('S', "NP: {<DT>?<JJ>*<NN>}")
 
 |nopar| We create a chunk parser ``cp`` which can then be used
 repeatedly to parse tagged input.  The result of chunk parsing is also
@@ -257,12 +256,12 @@ a noun.  We also define some input to be chunked.
     ...   {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
     ...   {<NNP>+}            # chunk sequences of proper nouns
     ... """
-    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> input = chunk.tagstr2tree("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
 
 |nopar|
 Next we can set up a chunk parser and run it on the input:
 
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input)
     (S:
       (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
@@ -281,9 +280,9 @@ match takes precedence.  For example, if we apply a rule that matches
 two consecutive nouns to a text containing three consecutive nouns,
 then the first two nouns will be chunked:
 
-    >>> input = tree.chunk("dog/NN cat/NN mouse/NN")
+    >>> input = chunk.tagstr2tree("dog/NN cat/NN mouse/NN")
     >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input)
     (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
 
@@ -306,13 +305,13 @@ sequence of tokens whose tags are either ``DT`` or ``NN``.
    provides a short explanation of the purpose or the effect of the rule.
    This description is accessed via the ``descr()`` method.
     
-    >>> input = tree.chunk("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
+    >>> input = chunk.tagstr2tree("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
     >>> grammar = r"""
     ... NP:
     ...   {<DT><JJ><NN>}      # Chunk det+adj+noun
     ...   {<DT|NN>+}          # Chunk sequences of NN and DT
     ... """
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input, trace=1)
     # Input:
      <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -336,7 +335,7 @@ we will get a different result:
     ...   {<DT|NN>+}          # Chunk sequences of NN and DT
     ...   {<DT><JJ><NN>}      # Chunk det+adj+noun
     ... """
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input, trace=1)
     # Input:
      <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
@@ -393,12 +392,11 @@ represented using multiple lines, as shown below::
   position NN I-NP
   ...
 
-|nopar| The CoNLL chunk reader ``parse.conll_chunk()`` builds a tree
+|nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
 representation from one of these multi-line strings.  Moreover, it
 permits us to choose any subset of the three chunk types to use.  The
 example below produces only ``NP`` chunks:
     
-    >>> from nltk_lite import parse
     >>> text = '''
     ... he PRP B-NP
     ... accepted VBD B-VP
@@ -417,7 +415,7 @@ example below produces only ``NP`` chunks:
     ... concern NN I-NP
     ... . . O
     ... '''
-    >>> parse.conll_chunk(text).draw()
+    >>> chunk.conllstr2tree(text).draw()
 
 .. tree:: (S (NP (PRP he))
              (VBD accepted)
@@ -470,13 +468,13 @@ Armed with a corpus, it is possible to do some simple evaluation...
 
 Baseline, with empty grammar.  Nothing is chunked.
 
-    >>> cp = GrammarChunk('S', "")
-    >>> print parse.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
+    >>> cp = chunk.Regexp('S', "")
+    >>> print chunk.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
     0.440845995079
 
     >>> grammar = r"""NP: {<DT|JJ|NN.*>+}"""
-    >>> cp = GrammarChunk('S', grammar)
-    >>> print parse.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
+    >>> cp = chunk.Regexp('S', grammar)
+    >>> print chunk.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
     0.80523504324
 
 Baseline Chunker
@@ -487,7 +485,7 @@ Baseline Chunker
     ...     from nltk_lite.probability import ConditionalFreqDist
     ...     cfdist = ConditionalFreqDist()
     ...     for chunk_struct in train:
-    ...         for word, tag, chunk_tag in chunk_struct.conll_tags():
+    ...         for word, tag, chunk_tag in chunk.tree2conlltags(chunk_struct):
     ...             if chunk_tag == "O":
     ...                 cfdist[tag].inc(False)
     ...             else:
@@ -501,11 +499,10 @@ Baseline Chunker
     ...     import re
     ...     chunk_tags = [re.sub(r'(\W)', r'\\\1', tag) for tag in chunked_tags(train)]
     ...     grammar = 'NP: {<' + '|'.join(chunk_tags) + '>+}'
-    ...     return GrammarChunk('S', grammar)
+    ...     return chunk.Regexp('S', grammar)
 
-    >>> from nltk_lite.parse import accuracy
     >>> cp = baseline_chunker(conll2000.chunked(files='train', chunk_types=('NP',)))
-    >>> print accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
+    >>> print chunk.accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
     0.914262194736
 
 
@@ -564,14 +561,14 @@ chunk, then excise the chink:
     ...   {<.*>+}          # Chunk everything
     ...   }<VBD|IN>+{      # Chink sequences of VBD and IN
     ... """
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input)
     (S:
       (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
       ('sat', 'VBD')
       ('on', 'IN')
       (NP: ('the', 'DT') ('mat', 'NN')))
-    >>> print accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
+    >>> print chunk.accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
     0.581041433607
 
 A chunk grammar can use any number of chunking and chinking patterns
@@ -592,7 +589,7 @@ Multiple Chunk Types
     ... NP: {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
     ... VP: {<TO>?<VB.*>}       # VP = verb words
     ... """
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
 
 
 
@@ -627,7 +624,7 @@ Exercises
    Pick one of the three chunk types in the CoNLL corpus.
    Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
    that make up this kind of chunk.  Develop a simple chunker using
-   ``ChunkRule`` and the regular-expression chunk parser ``RegexpChunk``.
+   the regular express chunk parser ``chunk.Regexp``.
    Discuss any tag sequences that are difficult to chunk reliably.
 
 #. **Automatic Analysis:**
@@ -717,11 +714,11 @@ phrases, verb phrases, and sentences.
     ... VP: {<VB.*><NP|PP|S>+$}   # Chunk verbs and arguments/adjuncts
     ... S:  {<NP><VP>$}           # Chunk NP, VP
     ... """
-    >>> cp = GrammarChunk('S', grammar)
+    >>> cp = chunk.Regexp('S', grammar)
 
 Next, we create some tagged data and chunk it:
 
-    >>> input = tree.chunk("""John/NNP thinks/VBZ Mary/NN saw/VBD the/DT cat/NN
+    >>> input = chunk.tagstr2tree("""John/NNP thinks/VBZ Mary/NN saw/VBD the/DT cat/NN
     ...           sit/VB on/IN the/DT mat/NN""")
     >>> print cp.parse(input)
     (S:
