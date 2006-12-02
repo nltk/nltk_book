@@ -2,9 +2,9 @@
 .. include:: ../definitions.txt
 .. sectnum::
 
-================
-5. Chunk Parsing
-================
+===========
+5. Chunking
+===========
 
 .. Note:: This chapter is optional; nothing later depends on having covered
           this material.
@@ -13,8 +13,8 @@
 Introduction
 ------------
 
-Chunk parsing is an efficient and robust approach to parsing natural
-language, and a popular alternative to the full parsing that we will
+Chunking is an efficient and robust approach to parsing natural
+language, and a popular alternative to the parsing that we will
 see in later chapters.  Chunks are non-overlapping spans of text,
 usually consisting of a head word (such as a noun) and the adjacent
 modifiers and function words (such as adjectives and determiners).
@@ -58,8 +58,8 @@ noun.
 
     >>> cp = chunk.Regexp('S', "NP: {<DT>?<JJ>*<NN>}")
 
-|nopar| We create a chunk parser ``cp`` which can then be used
-repeatedly to parse tagged input.  The result of chunk parsing is also
+|nopar| We create a chunker ``cp`` which can then be used
+repeatedly to parse tagged input.  The result of chunking is also
 a tree, but with some extra structure:
 
     >>> cp.parse(input).draw()
@@ -79,21 +79,23 @@ An Analogy
 ----------
 
 Two of the most common operations in language processing are
-*segmentation* and *labelling*.  For example, tokenization *segments*
-a sequence of characters into tokens, while tagging *labels* each of
+*segmentation* and *labeling*.  In tokenization we *segment*
+a sequence of characters into tokens, while in tagging we *label* each of
 these tokens.  Moreover, these two operations go hand in hand.  We
 segment a stream of characters into linguistically meaningful pieces
 (e.g.  as words) only so that we can classify those pieces (e.g. with
 their part-of-speech categories) and then identify higher-level
-structures.  The result of such classification is usually stored by
-adding a label to the piece in question.  Now that we have mapped
-characters to tagged-tokens, we will carry on with segmentation and
-labelling at a higher level, as illustrated in the following diagram.
-The solid boxes show word-level segmentation and labelling, while the
-dashed boxes show a higher-level segmentation and labelling.  These
-larger pieces are called *chunks*, and the process of identifying them
-is called *chunking*, *chunk parsing*, *partial parsing*, or *light parsing*.
+structures.  The result of such classification is represented by
+adding a label to the item in question.
 
+In this chapter we do this segmentation and labeling at a higher
+level, as illustrated in Figure chunk-segmentation_.  The solid boxes show
+word-level segmentation and labeling, while the dashed boxes show a
+higher-level segmentation and labeling.  These larger pieces are
+called *chunks*, and the process of identifying them is called
+`chunking`:dt:.
+
+.. _chunk-segmentation:
 .. figure:: ../images/chunk-segmentation.png
 
    Segmentation and Labeling at both the Token and Chunk Levels
@@ -103,8 +105,7 @@ chunking can skip over material in the input.  Observe that only some
 of the tagged tokens have been chunked, while others are left out.
 Compare this with the way that tokenization has omitted spaces and
 punctuation characters.  Second, chunking typically uses
-regular-expression based methods (also known as *finite-state
-methods*) to identify material of interest.  For example, the chunk in
+regular expressions to identify material of interest.  For example, the chunk in
 the above diagram could have been found by the expression
 ``<DT>?<JJ>*<NN>`` which matches an optional determiner, followed by
 zero or more adjectives, followed by a noun.  Compare this with the
@@ -121,7 +122,7 @@ exhaustive, and typically omits items in the surface string.  Second,
 where parsing constructs deeply nested structures, chunking creates
 structures of fixed depth, (typically depth 2).  These
 chunks often correspond to the lowest level of grouping identified in the
-full parse tree, as illustrated in the full parse and chunk parse examples
+full parse tree, as illustrated in the parsing and chunking examples
 in parsing-chunking_ below:
 
 .. _parsing-chunking:
@@ -136,35 +137,15 @@ in parsing-chunking_ below:
                  <NP The Man> who was
                  <NP Thursday> )
 
-Another significant motivation for chunk parsing is its robustness and
-efficiency relative to so-called full parsing.  The latter approach is
-built around recursive phrase structure grammars, parsing strategies,
-and arbitrary-depth trees.  Full parsing has problems with robustness,
-given the difficulty in getting broad coverage and in resolving ambiguity.
-Full parsing is also relatively inefficient: the time taken to parse a
-sentence grows with the cube of the length of the sentence, while the
-time taken to chunk a sentence is linear in the length of the sentence.
+Another significant motivation for chunking is its robustness and
+efficiency relative to parsing.  Parsing uses recursive phrase
+structure grammars and arbitrary-depth trees.  Parsing has problems
+with robustness, given the difficulty in getting broad coverage and in
+resolving ambiguity.  Parsing is also relatively inefficient: the time
+taken to parse a sentence grows with the cube of the length of the
+sentence, while the time taken to chunk a sentence only grows
+linearly.
 
-Like tagging, chunking is an example of lightweight methodology in
-natural language processing: how far can we get with identifying
-linguistic structures (such as phrases, verb arguments, etc) with
-recourse only to local, surface context.  Also like tagging, chunking
-cannot be done perfectly.  For example, as pointed out by Abney
-(1996), we cannot correctly analyze the structure of the sentence *I
-turned off the spectroroute* without knowing the meaning of
-*spectroroute*; is it a kind of road or a type of device?  Without
-knowing this, we cannot tell whether *off* is part of a prepositional
-phrase indicating direction, or whether *off* is part of the verb-particle
-construction *turn off*.  This structural ambiguity is shown in spectroroute_.
-
-.. _spectroroute:
-.. ex::
-  .. ex:: Prepositional phrase: [ I ] [ turned ] [ off the spectroroute ]
-  .. ex:: Verb-particle construction: [ I ] [ turned off ] [ the spectroroute ]
-
-However, we continue undeterred, to find out just how far we can get
-with this lightweight parsing method.
-    
 Representing Chunks: Tags vs Trees
 ----------------------------------
 
@@ -218,14 +199,17 @@ NLTK uses trees for its internal representation of chunks, and
 provides methods for reading and writing such trees to the IOB
 format.
 
--------------
-Chunk Parsing
--------------
+--------
+Chunking
+--------
 
-A `chunk parser`:dt: finds contiguous, non-overlapping spans of
-related tokens and groups them together into *chunks*.  Chunk parsers
-often operate on tagged texts, and use the tags to help make chunking
-decisions.
+A `chunker`:dt: finds contiguous, non-overlapping spans of
+related tokens and groups them together into *chunks*.  Chunkers
+often operate on tagged texts, and use the tags to make chunking
+decisions.  In this section we will see how to write a special
+type of regular expression over part-of-speech tags, and then how
+to combine these into a chunk grammar.  Then we will use the
+grammar to chunk some tagged text.
 
 Tag Patterns
 ------------
@@ -239,12 +223,35 @@ units, so "``<NN>+``" matches one or more repetitions of the tag
 string "``<NN>``"; and "``<NN|JJ>``" matches the tag strings
 "``<NN>``" or "``<JJ>``."  Second, the period wildcard operator is
 constrained not to cross tag delimiters, so that "``<N.*>``" matches
-any single tag starting with "``N``."
+any single tag starting with "``N``."  Now, consider the following
+noun phrases from the Wall Street Journal::
+
+  another/DT sharp/JJ dive/NN
+  trade/NN figures/NNS
+  any/DT new/JJ policy/NN measures/NNS
+  earlier/JJR stages/NNS
+  Panamanian/JJ dictator/NN Manuel/NNP Noriega/NNP
+
+.. todo: how are they to view this CoNLL data?
+
+We can match these using a slight refinement of the first tag pattern
+above: ``<DT>?<JJ.*>*<NN.*>``.  This can be used to chunk any sequence
+of tokens beginning with an optional determiner ``DT``, followed by
+zero or more adjectives of any type ``JJ.*`` (such as relative
+adjectives like ``earlier/JJR``), followed by a single noun of any
+type ``NN.*``.  It is easy to find many more difficult examples::
+
+  his/PRP$ Mansion/NNP House/NNP speech/NN
+  the/DT price/NN cutting/VBG
+  3/CD %/NN to/TO 4/CD %/NN
+  more/JJR than/IN 10/CD %/NN
+  the/DT fastest/JJS developing/VBG trends/NNS
+  's/POS skill/NN
 
 Chunking with Regular Expressions
 ---------------------------------
 
-The chunk parser begins with a flat structure in which no tokens are
+The chunker begins with a flat structure in which no tokens are
 chunked.  Patterns are applied in turn, successively updating the
 chunk structure.  Once all of the patterns have been applied, the
 resulting chunk structure is returned.  Here is an simple chunk
@@ -260,7 +267,7 @@ a noun.  We also define some input to be chunked.
     >>> input = chunk.tagstr2tree("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
 
 |nopar|
-Next we can set up a chunk parser and run it on the input:
+Next we can set up a chunker and run it on the input:
 
     >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input)
@@ -270,31 +277,25 @@ Next we can set up a chunk parser and run it on the input:
       ('on', 'IN')
       (NP: ('the', 'DT') ('mat', 'NN')))
 
-We can also use more complex tag patterns, such as
-``<DT>?<JJ.*>*<NN.*>``.  This can be used to chunk any sequence of
-tokens beginning with an optional determiner ``DT``, followed by zero
-or more adjectives of any type ``JJ.*``, followed by a single noun of
-any type ``NN.*``.
-
 If a tag pattern matches at multiple overlapping locations, the first
 match takes precedence.  For example, if we apply a rule that matches
 two consecutive nouns to a text containing three consecutive nouns,
 then the first two nouns will be chunked:
 
-    >>> input = chunk.tagstr2tree("dog/NN cat/NN mouse/NN")
+    >>> input = chunk.tagstr2tree("money/NN market/NN fund/NN")
     >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
     >>> cp = chunk.Regexp('S', grammar)
     >>> print cp.parse(input)
-    (S: (NP: ('dog', 'NN') ('cat', 'NN')) ('mouse', 'NN'))
+    (S: (NP: ('money', 'NN') ('market', 'NN')) ('fund', 'NN'))
 
-Developing Chunk Parsers
-------------------------
+Developing Chunkers
+-------------------
 
-Creating a good chunk parser usually requires several iterations of
+Creating a good chunker usually requires several iterations of
 development and testing, during which existing rules are refined and
 new rules are added.  In order to diagnose any problems, it often
-helps to trace the execution of a chunk parser, using the ``trace``
-argument of the parser.  The tracing output shows the rules that are
+helps to trace the execution of a chunker, using the ``trace``
+argument of the chunker.  The tracing output shows the rules that are
 applied, and uses braces to show the chunks that are created at each
 stage of processing.
 In the following example, two chunk patterns are applied to the input
@@ -327,7 +328,7 @@ sequence of tokens whose tags are either ``DT`` or ``NN``.
       (NP: ('the', 'DT') ('mat', 'NN')))
 
 Observe that when we chunk material that is already partially chunked,
-the parser will only create chunks that do not partially overlap
+the chunker will only create chunks that do not partially overlap
 existing chunks.  Thus, if we apply these two rules in reverse order,
 we will get a different result:
 
@@ -358,21 +359,32 @@ chunks that matched its tag pattern overlapped with existing chunks.
 Exercises
 ---------
 
-1. Write a regular expression to match noun phrases containing plural head nouns,
-   e.g. "many/JJ researchers/NNS", "two/CD weeks/NNS", "both/DT new/JJ positions/NNS".
-   Try to do this by generalizing the regular expression that handled singular
-   noun phrases.
-
-#. Write regular expressions to cover noun phrases that contain gerunds
-   e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
-   Add these patterns to the grammar, one per line.  Test your work using
-   some tagged sentences of your own devising.
-
 #. **Chunking Demonstration:**
    Run the chunking demonstration::
 
       from nltk_lite.parse import chunk
-      chunk.demo()  # the chunk parser
+      chunk.demo()  # the chunker
+
+#. Write a tag pattern to match noun phrases containing plural head nouns,
+   e.g. "many/JJ researchers/NNS", "two/CD weeks/NNS", "both/DT new/JJ positions/NNS".
+   Try to do this by generalizing the tag pattern that handled singular
+   noun phrases.
+
+#. Write tag pattern to cover noun phrases that contain gerunds,
+   e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
+   Add these patterns to the grammar, one per line.  Test your work using
+   some tagged sentences of your own devising.
+
+#. Write one or more tag patterns to handle coordinated noun phrases,
+   e.g. "July/NNP and/CC August/NNP",
+   "all/DT your/PRP$ managers/NNS and/CC supervisors/NNS",
+   "company/NN courts/NNS and/CC adjudicators/NNS".
+
+#. Sometimes a word is incorrectly tagged, e.g. the head noun in
+   "12/CD or/CC so/RB cases/VBZ".  Instead of manually correcting
+   these errors, good chunkers are able to work with the erroneous
+   output of taggers.  Look for other examples of correctly chunked
+   noun phrases with incorrect tags.
 
 ----------
 Scaling Up
@@ -517,7 +529,7 @@ Chinking
       
 Sometimes it is easier to define what we *don't* want to include in a
 chunk than it is to define what we *do* want to include.  In these
-cases, it may be easier to build a chunk parser using a method called
+cases, it may be easier to build a chunker using a method called
 `chinking`:dt:.
 
 The word `chink`:dt: initially meant a sequence of stopwords,
@@ -617,7 +629,7 @@ Exercises
    Pick one of the three chunk types in the CoNLL corpus.
    Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
    that make up this kind of chunk.  Develop a simple chunker using
-   the regular express chunk parser ``chunk.Regexp``.
+   the regular expression chunker ``chunk.Regexp``.
    Discuss any tag sequences that are difficult to chunk reliably.
 
 #. **Automatic Analysis:**
@@ -680,7 +692,7 @@ then, as to whether we could use the same n-gram tagging methods we
 saw in the last chapter, applied to a different vocabulary.
 
 The first step is to get the word,tag,chunk triples from the CoNLL
-corpus and map these to tag,chunk pairs:
+corpus and map these to ``tag,chunk`` pairs:
 
     >>> from nltk_lite import tag
     >>> chunk_data = [[(t,c) for w,t,c in chunk.tree2conlltags(chtree)]
@@ -802,7 +814,7 @@ Conclusion
 [More discussion of statistical vs rule-based approach.]
 
 In this chapter we have explored a robust method for identifying
-structure in text using chunk parsers.  There are a surprising number
+structure in text using chunkers.  There are a surprising number
 of different ways to chunk a sentence.  The chunk rules can add, shift
 and remove chunk delimiters in many ways, and the chunk rules can be
 combined in many ways.  One can use a small number of very complex
@@ -816,6 +828,23 @@ The resulting structured information is useful in information extraction
 tasks and in the description of the syntactic environments of words.
 The latter will be invaluable as we move to full parsing.
       
+Like tagging, chunking is an example of lightweight methodology in
+natural language processing: how far can we get with identifying
+linguistic structures (such as phrases, verb arguments, etc) with
+recourse only to local, surface context?  Also like tagging, chunking
+cannot be done perfectly.  For example, as pointed out by Abney
+(1996), we cannot correctly analyze the structure of the sentence *I
+turned off the spectroroute* without knowing the meaning of
+*spectroroute*; is it a kind of road or a type of device?  Without
+knowing this, we cannot tell whether *off* is part of a prepositional
+phrase indicating direction, or whether *off* is part of the verb-particle
+construction *turn off*.  This structural ambiguity is shown in spectroroute_.
+
+.. _spectroroute:
+.. ex::
+  .. ex:: Prepositional phrase: [ I ] [ turned ] [ off the spectroroute ]
+  .. ex:: Verb-particle construction: [ I ] [ turned off ] [ the spectroroute ]
+
 A recurring theme of this chapter has been *diagnosis*.  The simplest
 kind is manual, when we inspect the output of a chunker and observe
 some undesirable behavior that we would like to fix.  We have also
@@ -823,8 +852,8 @@ seen three objective approaches to diagnosis.  The first approach is
 to write utility programs to analyze the training data, such as
 counting the number of times a given part-of-speech tag occurs inside
 and outside an NP chunk.  The second approach is to perform error
-analysis on the missed and incorrect chunks produced by the chunk
-parser.  Sometimes those errors can be fixed.  In other cases we may
+analysis on the missed and incorrect chunks produced by the chunker.
+Sometimes those errors can be fixed.  In other cases we may
 observe shortcomings in the methodology itself, cases where we cannot
 hope to get the correct answer because the system simply does not have
 access to the necessary information.  The third approach is to
