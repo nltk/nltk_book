@@ -202,14 +202,95 @@ falls).  The word `eat`:lx: is `transitive`:dt:, requiring two
 arguments (the eater and the eaten).  Other verbs are more complex;
 for instance `put`:lx: requires three arguments, the agent doing the
 putting, the entity being put somewhere, and a location.  We will return
-to this topic when we come to look at grammars and parsing.
+to this topic when we come to look at grammars and parsing (see |Parsing|).
+
+In the Brown Corpus, verbs have a range of possible tags, e.g.:
+``give/vb`` (present), ``gives/vbz`` (present, 3ps),
+``giving/vbg`` (present continuous; gerund)
+``gave/vbd`` (simple past),
+and ``given/vbn`` (past participle).
+We will discuss these tags in more detail in a later section.
 
 Nouns and verbs in tagged corpora
 ---------------------------------
 
-What is the most frequent tag?
+Now that we are able to access tagged corpora, we can write simple
+simple programs to garner statistics about the tags.  In this section
+we will focus on the nouns and verbs.
+
+What are the 10 most common verbs?  We can write a program to find all
+words tagged with `vb`:gc:, `vbz`:gc:, `vbg`:gc:, `vbd`:gc: or `vbn`:gc:.
 
     >>> from nltk_lite.probability import FreqDist
+    >>> fd = FreqDist()
+    >>> for sent in brown.tagged():
+    ...     for word, tag in sent:
+    ...         if tag[:2] == 'vb':
+    ...             fd.inc(word+"/"+tag)
+    >>> fd.sorted_samples()[:20]
+    ['said/vbd', 'make/vb', 'see/vb', 'get/vb', 'know/vb', 'made/vbn',
+    'came/vbd', 'go/vb', 'take/vb', 'went/vbd', 'say/vb', 'used/vbn',
+    'made/vbd', 'United/vbn-tl', 'think/vb', 'took/vbd', 'come/vb',
+    'knew/vbd', 'find/vb', 'going/vbg']
+
+Let's study nouns, and find the most frequent nouns of each noun
+part-of-speech type.  There are many noun pos tags; the most important
+of these have ``$`` for possessive nouns, ``s`` for plural nouns (since plural
+nouns typically end in `s`:lx:), ``p`` for proper nouns.
+
+    >>> from nltk_lite.probability import ConditionalFreqDist
+    >>> cfd = ConditionalFreqDist()
+    >>> for sent in brown.tagged():
+    ...     for word, tag in sent:
+    ...         if tag[:2] == 'nn':
+    ...             cfd[tag].inc(word)
+    >>> for tag in sorted(cfd.conditions()):
+    ...     print tag, cfd[tag].sorted_samples()[:5]
+    nn ['time', 'man', 'Af', 'way', 'world']
+    nn$ ["man's", "father's", "year's", "mother's", "child's"]
+    nn$-hl ["Drug's", "Golf's", "Navy's", "amendment's", "drug's"]
+    nn$-tl ["President's", "State's", "Department's", "Foundation's", "Government's"]
+    nn+bez ["name's", "kid's", "company's", "fire's", "sky's"]
+    nn+bez-tl ["Knife's", "Pa's"]
+    nn+hvd-tl ["Pa'd"]
+    nn+hvz ["Summer's", "boat's", "company's", "guy's", "rain's"]
+    nn+hvz-tl ["Knife's"]
+    nn+in ['buncha']
+    nn+md ["cowhand'd", "sun'll"]
+    nn+nn-nc ['stomach-belly']
+    nn-hl ['editor', 'birth', 'chemical', 'name', 'no.']
+    nn-nc ['water', 'thing', 'home', 'linguist', 'luggage']
+    nn-tl ['President', 'State', 'Dr.', 'House', 'Department']
+    nn-tl-hl ['Sec.', 'Governor', 'B', 'Day', 'Island']
+    nn-tl-nc ['State']
+    nns ['years', 'people', 'men', 'eyes', 'days']
+    nns$ ["children's", "men's", "women's", "people's", "years'"]
+    nns$-hl ["Beginners'", "Dealers'", "Idols'", "Sixties'"]
+    nns$-nc ["sisters'"]
+    nns$-tl ["Women's", "People's", "States'", "Motors'", "Nations'"]
+    nns$-tl-hl ["Women's"]
+    nns+md ["duds'd", "oystchers'll"]
+    nns-hl ['costs', 'Problems', 'Sources', 'inches', 'methods']
+    nns-nc ['people', 'instructions', 'friends', 'things', 'emeralds']
+    nns-tl ['States', 'Nations', 'Motors', 'Communists', 'Times']
+    nns-tl-hl ['Times', 'Forces', 'Nations', 'States', 'Juniors']
+    nns-tl-nc ['States']
+
+Some tags contain a plus sign; these are compound tags, and are
+assigned to words that contain two parts normally treated separately.
+Some tags contain a minus sign; this indicates disjunction [MORE].
+
+
+The Default Tagger
+------------------
+
+The simplest possible tagger assigns the same tag to each token.  This
+may seem to be a rather banal step, but it establishes an important
+baseline for tagger performance.  In order to get the best result, we
+tag each word with the most likely word.  (This kind of tagger is
+known as a `majority class classifier`:dt:).  What then, is the most
+frequent tag?  We can find out using a simple program:
+
     >>> fd = FreqDist()
     >>> for sent in brown.tagged('a'):
     ...     for word, tag in sent:
@@ -217,18 +298,13 @@ What is the most frequent tag?
     >>> fd.max()
     'nn'
 
-
-The Default Tagger
-------------------
-
-The simplest possible tagger assigns the same tag to each token.  Here
-we create a tagger called ``my_tagger`` which tags everything as a
-noun.
+Now we can create a tagger, called ``default_tagger``, which
+tags everything as ``nn``.
 
     >>> from nltk_lite import tag
     >>> tokens = tokenize.whitespace('John saw 3 polar bears .')
-    >>> my_tagger = tag.Default('nn')
-    >>> list(my_tagger.tag(tokens))
+    >>> default_tagger = tag.Default('nn')
+    >>> list(default_tagger.tag(tokens))
     [('John', 'nn'), ('saw', 'nn'), ('3', 'nn'), ('polar', 'nn'),
     ('bears', 'nn'), ('.', 'nn')]
 
@@ -238,14 +314,15 @@ noun.
    but if we save it as a list, the list can be used many times over.
 
 This is a simple algorithm, and it performs poorly when used on its
-own. On a typical corpus, it will tag only about 15% of the tokens
+own. On a typical corpus, it will tag only about an eighth of the tokens
 correctly:
 
-    >>> tag.accuracy(my_tagger, brown.tagged('a'))
+    >>> tag.accuracy(default_tagger, brown.tagged('a'))
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
-have never been encountered before.  Thus, they help to improve the
+have never been encountered before.  As it happens, most new words are
+nouns.  Thus, default taggers they help to improve the
 robustness of a language processing system.  We will return to them
 later, in the context of our discussion of *backoff*.
 
@@ -289,9 +366,7 @@ e.g. `happiness`:lx: and `illness`:lx:.  The `-ment`:lx: suffix
 appears on certain nouns derived from verbs, e.g. `government`:lx: and
 `establishment`:lx:.
 
-
-
-English verbs can be morphologically complex.  For instance, the
+English verbs can also be morphologically complex.  For instance, the
 `present participle`:dt: of a verb ends in `-ing`:lx:, and expresses
 the idea of ongoing, incomplete action (e.g. `falling, eating`:lx:).
 The `-ing`:lx: suffix also appears on nouns derived from verbs, e.g. `the
@@ -302,18 +377,13 @@ The `past participle`:dt: of a verb often ends in `-ed`:lx:, and
 expresses the idea of a completed action (e.g. `fell, ate`:lx:).
 These are tagged ``vbd``.
 
-Modal verbs, e.g. `would`:lx: ...
+[MORE: Modal verbs, e.g. `would`:lx: ...]
 
-
-Common tag sets often capture some
-`morpho-syntactic`:dt: information; that is, information about the
-kind of morphological markings which words receive by virtue of their
-syntactic role.
-
-
-Consider, for example, the selection of distinct
-grammatical forms of the word `go`:lx: illustrated in the following
-sentences:
+Common tag sets often capture some `morpho-syntactic`:dt: information;
+that is, information about the kind of morphological markings which
+words receive by virtue of their syntactic role.  Consider, for
+example, the selection of distinct grammatical forms of the word
+`go`:lx: illustrated in the following sentences:
 
 .. _go:
 .. ex::
@@ -365,6 +435,17 @@ tags: ``be/be, being/beg, am/bem, been/ben`` and ``was/bedz``. This
 means that an automatic tagger which uses this tag set is in effect
 carrying out a limited amount of morphological analysis.
 
+Most part-of-speech tag sets make use of the same basic categories,
+such as noun, verb, adjective, and preposition. However, tag sets
+differ both in how finely they divide words into categories; and in
+how they define their categories. For example, `is`:lx: might be just tagged
+as a verb in one tag set; but as a distinct form of the lexeme `BE`:lx: in
+another tag set (as in the Brown Corpus).  This variation in tag sets is
+unavoidable, since part-of-speech tags are used in different ways for
+different tasks. In other words, there is no one 'right way' to assign
+tags, only more or less useful ways depending on one's goals.
+More details about the Brown corpus tag set can be found in the `Appendix`_.
+
 The Regular Expression Tagger
 -----------------------------
 
@@ -409,41 +490,6 @@ Instead of re-specifying this as part of the regular expression tagger,
 is there a way to combine this tagger with the default tagger?  We
 will see how to do this later, under the heading of backoff taggers.
 
-
-
-
-
-
-Brown Corpus Tags and other Tag Sets
-------------------------------------
-
-Most part-of-speech tag sets make use of the same basic categories,
-such as noun, verb, adjective, and preposition. However, tag sets
-differ both in how finely they divide words into categories; and in
-how they define their categories. For example, `is`:lx: might be just tagged
-as a verb in one tag set; but as a distinct form of the lexeme `BE`:lx: in
-another tag set (as in the Brown Corpus).  This variation in tag sets is
-unavoidable, since part-of-speech tags are used in different ways for
-different tasks. In other words, there is no one 'right way' to assign
-tags, only more or less useful ways depending on one's goals.
-
-Observe that the tagging process simultaneously collapses distinctions
-(i.e., lexical identity is usually lost when all personal pronouns are
-tagged `prp`:gc:), while introducing distinctions and removing
-ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
-facilitates classification and prediction.  When we
-introduce finer distinctions in a tag set, we get better information
-about linguistic context, but we have to do more work to classify the
-current token (there are more tags to choose from).  Conversely, with
-fewer distinctions, we have less work to do for classifying the
-current token, but less information about the context to draw on.
-
-In the rest of this chapter, we will use the following tags: `at`:gc: (article)
-`nn`:gc: (Noun), `vb`:gc: (Verb), `jj`:gc: (Adjective), `in`:gc:
-(Preposition), `cd`:gc: (Number), and `.`:gc: (Sentence-ending
-punctuation).  As we mentioned, this is a radically simplified version
-of the Brown Corpus tag set, which in its entirety has 87 basic tags
-plus many combinations. More details can be found in the `Appendix`_.
 
 Exercises
 ---------
@@ -511,21 +557,35 @@ Exercises
 Baselines and Backoff
 ---------------------
 
+So far the performance of our simple taggers has been disappointing.
+Before we embark on a process to get 90+% performance, we need to do
+two more things.  First, we need to establish a more principled
+baseline performance than the default tagger, which was too
+simplistic, and the regular expression tagger, which was too
+arbitrary.  Second, we need a way to connect multiple taggers
+together, so that if a more specialized tagger is unable to assign
+a tag, we can "back off" to a more generalized tagger.
+
 The Lookup Tagger
 -----------------
 
 A lot of high-frequency words do not have the ``nn`` tag.
-Let's find some of these words and their tags:
+Let's find some of these words and their tags.  The following
+function takes a list of sentences and counts up the words,
+and returns the *n* most frequent words.
 
-    >>> wordcounts = FreqDist()
-    >>> for sent in brown.tagged('a'):
-    ...     for (w,t) in sent:
-    ...         wordcounts.inc(w)    # count the word
+    >>> def wordcounts(sents, n):
+    ...     "find the n most frequent words"
+    ...     fd = FreqDist()
+    ...     for sent in sents:
+    ...         for word in sent:
+    ...             fd.inc(word)    # count the word
+    ...     return fd.sorted_samples()[:n]
 
-Now we have a count of the words, and for each word, a count of the
-frequency of different tags that occur with the word.
+|nopar|
+Now let's look at the 100 most frequent words:
 
-    >>> frequent_words = wordcounts.sorted_samples()[:100]
+    >>> frequent_words = wordcounts(brown.raw('a'), 100)
     >>> frequent_words
     ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The',
     'that', '``', 'is', 'was', "''", 'on', 'at', 'w ith', 'be', 'by',
@@ -533,7 +593,9 @@ frequency of different tags that occur with the word.
     'an', 'has', 'had', 'who', ' have', 'not', 'Mrs.', 'were', 'this',
     'which', 'would', 'their', 'been', 'they', 'He', 'one', ..., 'now']
 
-What tags do these words have?
+|nopar|
+Next, let's inspect the tags that these words have.  First we will do
+this in the most obvious (but highly inefficient) way:
 
     >>> [(w,t) for sent in brown.tagged('a')
     ...        for (w,t) in sent if w in frequent_words]
@@ -541,30 +603,44 @@ What tags do these words have?
     ('that', 'cs'), ('.', '.'), ('The', 'at'), ('in', 'in'),
     ('that', 'cs'), ('the', 'at'), ..., ("''", "''")]
 
-Cumbersome; want to set up a dictionary, mapping frequent words to most likely tag:
+|nopar|
+A much better approach is to set up a dictionary which maps each of the
+100 most frequent words to its most likely tag.  We can do this by
+setting up a frequency distribution ``cfd`` over the tags, conditioned on each
+of the frequent words.  This gives us, for each word, a count of the
+frequency of different tags that occur with the word.  We
 
     >>> from nltk_lite.probability import ConditionalFreqDist
-    >>> wordtags = ConditionalFreqDist()
-    >>> for sent in brown.tagged('a'):
-    ...     for (w,t) in sent:
-    ...         wordtags[w].inc(t)   # count the word's tag
+    >>> def wordtags(tagged_sents, words):
+    ...     "Find the most likely tag for these words in the tagged sentences"
+    ...     cfd = ConditionalFreqDist()
+    ...     for sent in tagged_sents:
+    ...         for (w,t) in sent:
+    ...             if w in words:
+    ...                 cfd[w].inc(t)   # count the word's tag
+    ...     return dict((word, cfd[word].max()) for word in words)
 
+|nopar|
 Now for any word that appears in this section of the corpus,
-we can look up its most likely tag:
+we can look up its most likely tag.  For example, to find the
+tag for the word `The`:lx: we can access the corresponding
+frequency distribution, and ask for its most frequent event:
 
-    >>> wordtags['The'].max()
+    >>> table = wordtags(brown.tagged('a'), frequent_words)
+    >>> table['The']
     'at'
 
-Finally, let's create a tagger that assigns tags to words based on a simple lookup
-table.
+|nopar|
+Now we can create and evaluate a simple tagger that assigns tags to words
+based on this table:
 
-    >>> table = dict((word, wordtags[word].max()) for word in frequent_words)
     >>> baseline_tagger = tag.Lookup(table)
     >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
     0.45578495136941344
 
-This is surprisingly good; just knowing the tags for the most frequent
-100 words enables us to tag nearly half the words correctly!
+This is surprisingly good; just knowing the tags for the 100 most frequent
+words enables us to tag nearly half the words correctly!  Let's see
+how it does on some untagged input text:
 
     >>> list(baseline_tagger.tag(brown.raw('a')))[3]
     [('``', '``'), ('Only', None), ('a', 'at'), ('relative', None),
@@ -577,17 +653,44 @@ This is surprisingly good; just knowing the tags for the most frequent
     ('voters', None), ('and', 'cc'), ('the', 'at'), ('size', None),
     ('of', 'in'), ('this', None), ('city', None), ("''", "''"), ('.', '.')]
 
-
+Notice that a lot of these words have been assigned a tag of ``None``.
+That is because they were not among the 100 most frequent words.
+In these cases we would like to assign the default tag of ``nn``,
+a process known as backoff.
 
 Backoff
 -------
 
-How do we combine these taggers?  We want to use the lookup table first, and if it doesn't
-know what tag with, use the regexp tagger, then the ... default tagger...
+How do we combine these taggers?  We want to use the lookup table
+first, and if it is unable to assign a tag, then use the default tagger.
+We do this by specifying the default tagger as an argument to the
+lookup tagger.  The lookup tagger will call the default tagger just
+in case it can't assign a tag itself.
 
-    >>> baseline_tagger = tag.Lookup(table, tag.Default('nn'))
+    >>> baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
     >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
     0.58177695566561249
+
+Choosing a good baseline
+------------------------
+
+    >>> def performance(size):
+    ...     frequent_words = wordcounts(brown.raw('a'), size)
+    ...     table = wordtags(brown.tagged('a'))
+    ...     baseline_tagger = tag.Lookup(table)
+    ...     return tag.accuracy(baseline_tagger, brown.tagged('a'))
+
+    >>> from nltk_lite.draw.plot import Plot
+    >>> Plot(performance, range(0, 1000, 50)).mainloop()
+
+
+
+Exercises
+---------
+
+#. Create a lookup tagger that uses the 1,000 most likely words.  What
+   is its performance?  What happens to the performance when you
+   include backoff to the default tagger?
 
 
 -----------------------
@@ -1029,6 +1132,17 @@ been introduced to an important paradigm in language processing,
 namely *language modeling*.  This paradigm
 former is extremely general, and we will encounter it again later.
 
+Observe that the tagging process simultaneously collapses distinctions
+(i.e., lexical identity is usually lost when all personal pronouns are
+tagged `prp`:gc:), while introducing distinctions and removing
+ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
+facilitates classification and prediction.  When we
+introduce finer distinctions in a tag set, we get better information
+about linguistic context, but we have to do more work to classify the
+current token (there are more tags to choose from).  Conversely, with
+fewer distinctions, we have less work to do for classifying the
+current token, but less information about the context to draw on.
+
 There are several other important approaches to tagging involving
 *Transformation-Based Learning*, *Markov Modeling*, and *Finite State
 Methods*.  We will discuss these in a later chapter.  Later we will
@@ -1081,6 +1195,9 @@ to solve one small part of the language understanding problem, namely
 part-of-speech disambiguation, without reference to deeper sources of
 linguistic knowledge.  Can this idea be pushed further?  In the next
 chapter, on chunk parsing, we shall see that it can.
+
+
+
 
 
 ---------------
