@@ -26,7 +26,7 @@ distributed with NLTK):
 There are two motivations for chunking: to locate information, and
 to ignore information.  In the former case, we may want to extract
 all noun phrases so they can be indexed.  A text retrieval system
-could the use such an index to support efficient retrieval for queries
+could use such an index to support efficient retrieval for queries
 involving terminological expressions.
 
 The reverse side of the coin is to *ignore* information.  Suppose that
@@ -56,7 +56,7 @@ Chunking in NLTK begins with tagged text, represented as a flat tree:
 .. tree:: (S (DT the) (JJ little) (NN cat) (VBD sat) (IN on) (DT the) (NN mat))
 
 Next, we write regular expressions over tag sequences.  The
-following example identifies noun phrases that are comprised of an
+following example identifies noun phrases that consist of an
 optional determiner, followed by any number of adjectives, then a
 noun.
 
@@ -145,15 +145,18 @@ linearly.
 Representing Chunks: Tags vs Trees
 ----------------------------------
 
-As befits its intermediate status between tagging and parsing,
-chunk structures can be represented using either tags or trees.  The most
+As befits its intermediate status between tagging and parsing, chunk
+structures can be represented using either tags or trees.  The most
 widespread file representation uses so-called `IOB tags`:dt:.  In this
 scheme, each token is tagged with one of three special chunk tags,
-``INSIDE``, ``OUTSIDE``, or ``BEGIN``.  A token is tagged as ``BEGIN``
-if it is at the beginning of a chunk, and contained within that chunk.
-Subsequent tokens within the chunk are tagged ``INSIDE``.  All other
-tokens are tagged ``OUTSIDE``.  An example of this scheme is shown
-in Figure chunk-tagrep_.
+``I`` (inside), ``O`` (outside), or ``B`` (begin).  A token is tagged
+as ``B`` if it marks the beginning of a chunk.  Subsequent tokens
+within the chunk are tagged ``I``.  All other tokens are tagged ``O``.
+The ``B`` and ``I`` tags are suffixed with the chunk type,
+e.g. ``B-NP``, ``I-NP``.  Of course, it is not necessary to specify a
+chunk type for tokens that appear outside a chunk, so these are just
+labeled ``O``. An example of this scheme is shown in Figure
+chunk-tagrep_.
 
 .. _chunk-tagrep:
 .. figure:: ../images/chunk-tagrep.png
@@ -170,12 +173,10 @@ the file representation of the information in Figure chunk-tagrep_::
   big JJ I-NP
   dog NN I-NP
 
+.. Give example with a verb group?
+
 |nopar| In this representation, there is one token per line, each with
-its part-of-speech tag and its chunk tag.  Chunk tags use ``B``,
-``I``, and ``O`` for 'begin', 'inside', and 'outside' respectively.
-Chunk tags also specify the chunk type (here ``NP``).  Of course, it
-is not necessary to specify a chunk type for tokens that appear
-outside a chunk, so these are just labeled ``O``.  We will see later
+its part-of-speech tag and its chunk tag.  We will see later
 that this format permits us to represent more than one chunk type, so
 long as the chunks do not overlap.  This file format was developed as
 part of the chunking evaluation task run by the *Conference on Natural
@@ -183,9 +184,10 @@ Language Learning* in 2000, and has come to be called the `IOB
 Format`:dt:.  A section of Wall Street Journal text has been annotated
 in this format.
 
-Chunk structures can also be represented using trees.  These have the
-benefit that each chunk is a constituent that can be manipulated
-directly.  An example is shown in Figure chunk-treerep_:
+As we saw earlier, chunk structures can also be represented using
+trees.  These have the benefit that each chunk is a constituent that
+can be manipulated directly.  An example is shown in Figure
+chunk-treerep_:
     
 .. _chunk-treerep:
 .. figure:: ../images/chunk-treerep.png
@@ -258,7 +260,7 @@ Chunking with Regular Expressions
 The chunker begins with a flat structure in which no tokens are
 chunked.  Patterns are applied in turn, successively updating the
 chunk structure.  Once all of the patterns have been applied, the
-resulting chunk structure is returned.  Here is an simple chunk
+resulting chunk structure is returned.  Here is a simple chunk
 grammar consisting of two patterns.  The first pattern
 matches an optional determiner, zero or more adjectives, then
 a noun.  We also define some input to be chunked.
@@ -307,10 +309,6 @@ sentence.  The first rule finds all sequences of three tokens whose
 tags are ``DT``, ``JJ``, and ``NN``, and the second rule finds any
 sequence of tokens whose tags are either ``DT`` or ``NN``.
       
-.. Note: Each rule must have a "description" associated with it, which
-   provides a short explanation of the purpose or the effect of the rule.
-   This description is accessed via the ``descr()`` method.
-    
     >>> input = chunk.tagstr2tree("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
     >>> grammar = r"""
     ... NP:
@@ -330,6 +328,8 @@ sequence of tokens whose tags are either ``DT`` or ``NN``.
       ('sat', 'VBD')
       ('on', 'IN')
       (NP: ('the', 'DT') ('mat', 'NN')))
+
+.. find more authentic example?
 
 Observe that when we chunk material that is already partially chunked,
 the chunker will only create chunks that do not partially overlap
@@ -357,8 +357,8 @@ we will get a different result:
       ('on', 'IN')
       (NP: ('the', 'DT') ('mat', 'NN')))
 
-Here, rule 2 ("chunk det+adj+noun") did not find any chunks, since all
-chunks that matched its tag pattern overlapped with existing chunks.
+Here, rule 2 did not find any chunks, since all chunks that matched
+its tag pattern overlapped with existing chunks.
 
 Exercises
 ---------
@@ -370,9 +370,9 @@ Exercises
       chunk.demo()  # the chunker
 
 #. **IOB Tags:**
-   The IOB format categorizes tagged tokens as ``BEGIN``,
-   ``INSIDE`` and ``OUTSIDE``.  Why are three tags necessary?  What
-   problem would be caused if we used ``INSIDE`` and ``OUTSIDE`` tags
+   The IOB format categorizes tagged tokens as ``I``,
+   ``O`` and ``B``.  Why are three tags necessary?  What
+   problem would be caused if we used ``I`` and ``O`` tags
    exclusively?
         
 #. Write a tag pattern to match noun phrases containing plural head nouns,
@@ -408,14 +408,14 @@ directly.  We will see how to use the corpus to score the accuracy of a chunker,
 then look some more flexible ways to manipulate chunks.  Throughout our focus
 will be on scaling up the coverage of a chunker.
 
-Reading IOB Format
-------------------
+Reading IOB Format and the CoNLL 2000 Corpus
+--------------------------------------------
 
 Using the ``nltk_lite.corpora`` module we can load Wall Street Journal
-text that has been tagged, then chunked using the CoNLL IOB
-(inside/outside/begin) notation.  The chunk categories provided in
-this corpus are NP, VP and PP.  As we have seen, each sentence is
-represented using multiple lines, as shown below::
+text that has been tagged, then chunked using the IOB notation.  The
+chunk categories provided in this corpus are NP, VP and PP.  As we
+have seen, each sentence is represented using multiple lines, as shown
+below::
     
   he PRP B-NP
   accepted VBD B-VP
@@ -446,7 +446,7 @@ example below produces only ``NP`` chunks:
     ... concern NN I-NP
     ... . . O
     ... '''
-    >>> chunk.conllstr2tree(text).draw()
+    >>> chunk.conllstr2tree(text, chunk_types=('NP',)).draw()
 
 .. tree:: (S (NP (PRP he))
              (VBD accepted)
@@ -459,13 +459,12 @@ example below produces only ``NP`` chunks:
              (NP (DT a) (NN merchant) (NN banking) (NN concern))
              (. .))
   
-Accessing the CoNLL 2000 Corpus
--------------------------------
 
-The CoNLL 2000 corpus contains 270k words of Wall Street Journal text,
-with part-of-speech tags and chunk tags in the IOB format.
-We can access this data using an NLTK corpus reader called ``conll2000``.
-Here is an example:
+We can use the NLTK corpus module to access a larger amount of chunked
+text.  The CoNLL 2000 corpus contains 270k words of Wall Street
+Journal text, with part-of-speech tags and chunk tags in the IOB
+format.  We can access this data using an NLTK corpus reader called
+``conll2000``.  Here is an example:
 
     >>> from nltk_lite.corpora import conll2000, extract
     >>> print extract(2000, conll2000.chunked())
@@ -477,6 +476,7 @@ Here is an example:
       (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
       ('.', '.'))
 
+|nopar|
 This just showed three chunk types, for NP, VP and PP.
 We can also select which chunk types to read:
 
@@ -491,25 +491,31 @@ We can also select which chunk types to read:
       (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
       ('.', '.'))
 
+Simple Evaluation and Baselines
+-------------------------------
 
-Simple Evaluation
------------------
-
-Armed with a corpus, it is possible to do some simple evaluation...
-
-Baseline, with empty grammar.  Nothing is chunked.
+Armed with a corpus, it is now possible to do some simple evaluation.
+The first evaluation is to establish a baseline for the case where
+nothing is chunked:
 
     >>> cp = chunk.Regexp("")
     >>> print chunk.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
     0.440845995079
 
-    >>> grammar = r"""NP: {<DT|JJ|NN.*>+}"""
+Now let's try a naive regular expression chunker that looks for tags
+beginning with letters that are typical of noun phrase tags:
+
+    >>> grammar = r"""NP: {<[CDJNP].*>+}"""
     >>> cp = chunk.Regexp(grammar)
     >>> print chunk.accuracy(cp, conll2000.chunked(chunk_types=('NP',)))
-    0.80523504324
+    0.874479872666
 
-Baseline Chunker
-----------------
+We can extend this approach, and create a function
+``chunked_tags()`` that takes some chunked
+data, and sets up a conditional frequency distribution.  For each tag,
+it counts up the number of times the tag occurs inside a chunk (the
+``True`` case), or outside a chunk (the ``False`` case).  It returns
+a list of those tags that occur inside chunks more often than outside chunks.
 
     >>> def chunked_tags(train):
     ...     """Generate a list of tags that tend to appear inside chunks"""
@@ -523,8 +529,12 @@ Baseline Chunker
     ...                 cfdist[tag].inc(True)
     ...     return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
 
-
-
+The next step is to convert this list of tags into a tag pattern.  To
+do this we need to "escape" all non-word characters, by preceding them
+with a backslash.  Then we need to join them into a disjunction.  This
+process would convert a tag list ``['NN', 'NN$']`` into the tag pattern
+``<NN|NN\$>``.  The following function does this work, and returns a
+regular expression chunker:
 
     >>> def baseline_chunker(train):
     ...     import re
@@ -532,15 +542,25 @@ Baseline Chunker
     ...     grammar = 'NP: {<' + '|'.join(chunk_tags) + '>+}'
     ...     return chunk.Regexp(grammar)
 
+|nopar|
+The final step is to train this chunker and test its accuracy (this
+time on data not seen during training):
+
     >>> cp = baseline_chunker(conll2000.chunked(files='train', chunk_types=('NP',)))
     >>> print chunk.accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
     0.914262194736
 
 
-Splitting and Merging
----------------------
+Splitting and Merging (incomplete)
+----------------------------------
 
-
+[Notes: the above approach creates chunks that are too large,
+e.g. `the cat the dog chased`:lx: would be given a single NP chunk
+because it does not detect that determiners introduce new chunks.
+For this we would need a rule to split an NP chunk
+prior to any determiner, using a pattern like:
+``"NP: <.*>}{<DT>"``.  We can also merge chunks, e.g.
+``"NP: <NN>{}<NN>"``.]
 
 Chinking
 --------
@@ -605,16 +625,66 @@ chunk, then excise the chink:
 A chunk grammar can use any number of chunking and chinking patterns
 in any order.
 
-Multiple Chunk Types
---------------------
+Multiple Chunk Types (incomplete)
+---------------------------------
+
+So far we have only developed NP chunkers.  However, as we saw earlier
+in the chapter, the CoNLL chunking data is also annotated for PP and
+VP chunks.  Here is an example, to show the structure we get from the
+corpus and the flattened version that will be used as input to the parser.
+
+    >>> example = extract(2000, conll2000.chunked())
+    >>> print example
+    (S:
+      (NP: ('Health-care', 'JJ') ('companies', 'NNS'))
+      (VP: ('should', 'MD') ('get', 'VB'))
+      ('healthier', 'JJR')
+      (PP: ('in', 'IN'))
+      (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
+      ('.', '.'))
+    >>> print example.flatten()
+    (S:
+      ('Health-care', 'JJ')
+      ('companies', 'NNS')
+      ('should', 'MD')
+      ('get', 'VB')
+      ('healthier', 'JJR')
+      ('in', 'IN')
+      ('the', 'DT')
+      ('third', 'JJ')
+      ('quarter', 'NN')
+      ('.', '.'))
+
+Now we can set up a multi-stage chunk grammar.  It will have one stage
+for each of the chunk types.
 
     >>> grammar = r"""
-    ... NP: {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
-    ... VP: {<TO>?<VB.*>}       # VP = verb words
+    ... NP: {<DT>?<JJ>*<NN.*>+} # noun phrase chunks
+    ... VP: {<TO>?<VB.*>}       # verb phrase chunks
+    ... PP: {<IN>}              # prepositional phrase chunks
     ... """
     >>> cp = chunk.Regexp(grammar)
-
-
+    >>> print cp.parse(example.flatten(), trace=1)
+    # Input:
+     <JJ>  <NNS>  <MD>  <VB>  <JJR>  <IN>  <DT>  <JJ>  <NN>  <.>
+    # noun phrase chunks:
+    {<JJ>  <NNS>} <MD>  <VB>  <JJR>  <IN> {<DT>  <JJ>  <NN>} <.>
+    # Input:
+     <NP>  <MD>  <VB>  <JJR>  <IN>  <NP>  <.>
+    # verb phrase chunks:
+     <NP>  <MD> {<VB>} <JJR>  <IN>  <NP>  <.>
+    # Input:
+     <NP>  <MD>  <VP>  <JJR>  <IN>  <NP>  <.>
+    # prepositional phrase chunks:
+     <NP>  <MD>  <VP>  <JJR> {<IN>} <NP>  <.>
+    (S:
+      (NP: ('Health-care', 'JJ') ('companies', 'NNS'))
+      ('should', 'MD')
+      (VP: ('get', 'VB'))
+      ('healthier', 'JJR')
+      (PP: ('in', 'IN'))
+      (NP: ('the', 'DT') ('third', 'JJ') ('quarter', 'NN'))
+      ('.', '.'))
 
 Exercises
 ---------
@@ -914,8 +984,7 @@ meaning of *spectroroute*; is it a kind of road or a type of device?
 Without knowing this, we cannot tell whether *off* is part of a
 prepositional phrase indicating direction (tagged ``B-PP``), or
 whether *off* is part of the verb-particle construction *turn off*
-(tagged ``I-VP``).  This structural ambiguity is shown in
-spectroroute_.
+(tagged ``I-VP``).
 
 A recurring theme of this chapter has been *diagnosis*.  The simplest
 kind is manual, when we inspect the tracing output of a chunker and
