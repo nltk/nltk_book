@@ -1088,25 +1088,44 @@ an assignment ``g``:
        
 The function ``evaluate()`` calls a recursive function ``satisfy()``,
 which in turn calls a function ``i()`` to interpret non-logical
-constants and individual variables. ``i()`` first tries to call the
+constants and individual variables. ``i()`` first tries to use the
 model's ``Valuation`` and if that fails, calls the variable assignment
 ``g``. Any atomic expression which cannot be assigned a value by ``i()``
 raises an ``Undefined`` exception; this is caught by ``evaluate()``,
-which returns the string 'Undefined'.
+which returns the string 'Undefined'. In the following examples, we
+have set tracing to ``2`` to give a verbose analysis of the processing steps.
 
-    >>> m.evaluate('(walk adam)', g, trace=2)
-    (checking whether 'walk' is an individual variable)
-    Expression 'walk' can't be evaluated by i and g.
-    'Undefined'
+   >>> m.evaluate('(boy adam)', g, trace=2)
+      i, g('boy') = {'b1': True, 'b2': True}
+      i, g('adam') = b1
+   '(boy adam)': {'b1': True, 'b2': True} applied to b1 yields True
+   '(boy adam)' evaluates to True under M, g
+   True
+   >>> m.evaluate('(girl adam)', g, trace=2)
+      i, g('girl') = {'g2': True, 'g1': True}
+      i, g('adam') = b1
+   '(girl adam)': {'g2': True, 'g1': True} applied to b1 yields False
+   '(girl adam)' evaluates to False under M, g
+   False
+   >>> m.evaluate('(walk adam)', g, trace=2)
+   (checking whether 'walk' is an individual variable)
+   Expression 'walk' can't be evaluated by i and g.
+   'Undefined'
 
 
-|nopar| The ``satisfy()`` function assigns semantic values to arbitrary expressions
-according to their syntactic structure, as determined by ``decompose()``.
+|nopar| The ``satisfy()`` function assigns semantic values to complex expressions
+according to their syntactic structure, as determined by the method
+``decompose()``; this calls the parser from the ``logic`` module to
+return a 'normalized' parse structure for the expression. In the case of
+a Boolean connectives, ``decompose()`` produces a pair consisting of
+the connective and a list of arguments:
+
+   >>> m.decompose('((boy adam) and (dog fido))')
+   ('and', ['(boy adam)', '(dog fido)'])
 
 Following the functional style of interpretation, Boolean connectives
-in the ``semantics`` package are interpreted as truth functions; for example,
-the connective ``and`` can be interpreted as the function
-``AND``:
+are interpreted quite literally as truth functions; for example, the
+connective ``and`` can be interpreted as the function ``AND``:
 
 .. doctest-ignore::
      >>> AND = {True:  {True: True, 
@@ -1198,12 +1217,32 @@ the set `sat`:mathit:\ (|phi|\ `[x], g)`:math: of satisfiers of |phi|\
 (|phi|\ `[x], g[u/x]`) = `True`:mathit:\ `}`:math:.  We use
 `g[u/x]`:math: to mean that assignment which is just like `g`:math:
 except that `g(x) = u`:math:. 
+Here is a definition of ``satisfiers()``:
 
+   >>> def satisfiers(expr, var, g):
+   ...    candidates = []
+   ...    if freevar(var, expr):
+   ...        for u in domain:
+   ...            g.add(u, var)
+   ...            if satisfy(expr, g):
+   ...                candidates.append(u)
+   ...    return set(candidates)
+
+The satisfiers of an arbitrary open formula can be inspected using the
+``satisfiers()`` method.
+
+   >>> m.satisfiers('some y. ((girl y) and (love x y))', 'x', g)
+   set(['b1'])
+   >>> m.satisfiers('some y. ((girl y) and (love y x))', 'x', g)
+   set(['b1', 'b2'])
+   >>> m.satisfiers('(((girl x) and (boy x)) or (dog x))', 'x', g)
+   set(['d1'])
+   >>> m.satisfiers('((girl x) and ((boy x) or (dog x)))', 'x', g)
+   set([])
 
 An existentially quantified formula |exists|\ `x.`:mathit:\ |phi|\
 `[x]`:mathit: is held to be true if and only if `sat`:mathit:\ (|phi|\ `[x],
-g)`:math: is nonempty. In Python, sets are a kind of collection (like
-lists), and the length function `len` returns the cardinality
+g)`:math: is nonempty. We use the length function `len()` to return the cardinality
 of a set.  
 
 .. doctest-ignore::
@@ -1231,6 +1270,45 @@ existentials can therefore be extended with the clause:
      ...         sat = self.satisfiers(body,var,g)
      ...         return domain.issubset(sat)
 
+
+Finally, we can also evaluate |lambda| abstracts; not surprisingly,
+these are interpreted as ``CharFun``s. To illustrate, we can construct
+the binary relation of individuals who love each other, or the ternary
+relation of distinct individuals *a* and *b* such for some *c*, *a*
+loves *c* and *c* loves *b*.
+
+   >>> m.evaluate(r'\x y. ((love x y) and (love y x))', g)
+   {'b1': {'g1': True}, 'g1': {'b1': True}}
+   >>> r = m.evaluate(r'\x z y. (((love x z) and (love z y)) and (not (x = y)))', g)
+   >>> r.tuples()
+   set([('g2', 'b1', 'g1'), ('b2', 'g2', 'b1')])
+
+
+---------
+Exercises
+---------
+
+1. 
+
+#. Use the ``satisfiers()`` method to determing the set of satisfiers
+   of the open formula ``'((dog x) implies (x = fido))'``. Explain why
+   the result is the way that it is.
+
+#. Evaluate ``'\x. (boy adam)'`` and ``'\x .(boy fido)'``. Explain
+   your results.
+
+#. Develop a set of around 10 sentences, using the logical language
+   discussed here. Build a model for the sentences which makes then
+   all true, and verify the results.
+
+#. Build a model for a relation ``rel`` which is `transitively closed`:dt: and
+   `reflexive`:dt:. That is, it satisfies the following two sentences:
+
+   a.) ``all x y z. (((rel y x) and (rel z y)) implies (rel z x))``
+
+   b.) ``all x. (rel x x)``
+
+   
 
 
 Quantifier Scope Revisited
