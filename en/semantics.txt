@@ -1086,6 +1086,7 @@ an assignment ``g``:
     >>> m.evaluate('all x. ((boy x) implies (not (girl x)))', g)
     True
        
+|nopar|
 The function ``evaluate()`` calls a recursive function ``satisfy()``,
 which in turn calls a function ``i()`` to interpret non-logical
 constants and individual variables. ``i()`` first tries to use the
@@ -1123,6 +1124,7 @@ the connective and a list of arguments:
    >>> m.decompose('((boy adam) and (dog fido))')
    ('and', ['(boy adam)', '(dog fido)'])
 
+|nopar|
 Following the functional style of interpretation, Boolean connectives
 are interpreted quite literally as truth functions; for example, the
 connective ``and`` can be interpreted as the function ``AND``:
@@ -1175,6 +1177,7 @@ We decompose q1_ into two parts, the quantifier prefix
 .. _open: 
 .. ex:: ``(see x Betty)`` 
 
+|nopar|
 Although the variable ``x`` in q1_ is `bound`:dt: by the quantifier
 ``some``, ``x``  is not bound by any quantifiers within open_; in
 other words, it is `free`:dt:. A formula containing at least one free
@@ -1228,6 +1231,7 @@ Here is a definition of ``satisfiers()``:
    ...                candidates.append(u)
    ...    return set(candidates)
 
+|nopar|
 The satisfiers of an arbitrary open formula can be inspected using the
 ``satisfiers()`` method.
 
@@ -1271,6 +1275,16 @@ existentials can therefore be extended with the clause:
      ...         return domain.issubset(sat)
 
 
+Although our approach to interpreting quantified formulas has the
+advantage of being transparent and conformant to classical logic, it
+is not computationally efficient. To verify an existentially
+quantified formula, it suffices to find just one satisfying individual
+and then return ``True``. But the method just presented requires us to
+test satisfaction for every individual in the domain of discourse for
+each quantifier. This requires `m`\ :sup:`n` evaluations, where `m` is
+the cardinality of the domain and `n` is the number of nested
+quantifiers.
+
 Finally, we can also evaluate |lambda| abstracts; not surprisingly,
 these are interpreted as ``CharFun``s. To illustrate, we can construct
 the binary relation of individuals who love each other, or the ternary
@@ -1288,7 +1302,8 @@ loves *c* and *c* loves *b*.
 Exercises
 ---------
 
-1. 
+1. Define a denotation for exclusive ``or`` (i.e., ``'(p xor q)'`` is
+   equivalent to `'((p or q) and (not (p and q)))'``.)
 
 #. Use the ``satisfiers()`` method to determing the set of satisfiers
    of the open formula ``'((dog x) implies (x = fido))'``. Explain why
@@ -1716,10 +1731,59 @@ model ``model0.py`` which we have imported.
 Extracting Valuations from Chat-80
 ----------------------------------
 
+Building ``Valuation`` objects by hand becomes rather tedious once we consider larger
+examples. This raises the question of whether the relation data in a
+``Valuation`` could be extracted from some pre-existing source. The
+``chat80`` module in ``ntlk_lite.corpora`` provides an example of
+extracting data from the Chat-80 Prolog knowledge base (which 
+included as part of the |NLTK| ``corpora`` distribution).
+
+Chat-80 relations are like tables in a relational database. The
+relation acts as the name of the table; the first argument acts as the
+'key'; and subsequent arguments are further fields in the
+table. In general, the name of the table provides a label for a unary
+predicate whose extension is all the keys. For example,
+relations in ``cities.pl`` contain the following triples::
+
+   'city(athens,greece,1368).'
+
+|nopar| Here, ``'athens'`` is the key, and will be mapped to a member of the
+unary predicate `city`:mathit:.
+
+The columns in the table are mapped to binary predicates. The first
+argument of the predicate is the key, while the second
+argument is the data in the relevant column. Thus, in the above
+example, the third column is mapped to the binary predicate
+`population_of`:mathit:, whose extension is a set of pairs such as ``'(athens,
+1368)'``.
+
+In order to encapsulate the results of the extraction, a class of
+``Concept``\ s is introduced.  A ``Concept`` object has a number of
+attributes, in particular a ``prefLabel`` and ``extension``, which
+make it easier to inspect the output of the extraction. The
+``extension`` of a ``Concept`` object is incorporated into a
+``Valuation`` object.
+
+As well as deriving unary and binary relations from the Chat-80 data, we also create a
+set of individual constants, one for each entity in the domain. The
+individual constants are string-identical to the entities. For
+example, given a data item such as ``'zloty'``, we add to the valuation
+a pair ``('zloty', 'zloty')``. In order to parse English sentences that
+refer to these entities, we also create a lexical item such as the
+following for each individual constant::
+
+   PropN[num=sg, sem=<\P.(P zloty)>] -> 'Zloty'
+
+The attribute ``chat80.items`` gives us a list of relations:
+
    >>> from ntlk_lite.corpora import chat80
    >>> chat80.items
    ['borders', 'contains', 'city', 'country', 'circle_of_lat', 
    'continent', 'region', 'ocean', 'sea']
+
+The ``concepts()`` method shows the list of ``Concept``\ s that can be
+extracted from a ``chat80`` relation, and we can then inspect its extension.
+
    >>> concepts = chat_80.concepts('city')
    >>> concepts
    [Concept('city'), Concept('country_of'), Concept('population_of')]
@@ -1728,6 +1792,7 @@ Extracting Valuations from Chat-80
    [('chungking', 'china'), ('karachi', 'pakistan'), 
    ('singapore_city', 'singapore'), ('athens', 'greece'), 
    ('birmingham', 'united_kingdom')]
+
 
 -------
 Summary
