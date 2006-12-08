@@ -53,16 +53,17 @@ to more complex questions like g3_:
 Here, we would probably need to combine the results of two subqueries,
 namely g2_ and `Which countries are in Asia?`:lx:.  
 
-The example queries we have just given are based on a paper dating back to
-1982 (Warren and Pereira); the paper describes a system, *Chat-80*,
-which converts natural language questions into a semantic
-representation, and uses the latter to retrieve answers from a
-knowledge base. A knowledge base is usually taken to be a set of
-sentences in some formal language; in the case of Chat-80, it is a set
-of Prolog clauses. However, we can encode knowledge in a variety of
-formats, including relational databases, various kinds of graph, and
-first-order models. In |NLTK|, we have used the third of these options
-to re-implement a limited version of Chat-80::
+The example queries we have just given are based on a paper dating
+back to 1982 [WarrenPereira1982]_;
+the paper describes a system, *Chat-80*, which converts natural
+language questions into a semantic representation, and uses the latter
+to retrieve answers from a knowledge base. A knowledge base is usually
+taken to be a set of sentences in some formal language; in the case of
+Chat-80, it is a set of Prolog clauses. However, we can encode
+knowledge in a variety of formats, including relational databases,
+various kinds of graph, and first-order models. In |NLTK|, we have
+used the third of these options to re-implement a limited version of
+Chat-80::
 
    Sentence: which Asian countries border the_Mediterranean
    ------------------------------
@@ -1286,7 +1287,7 @@ the cardinality of the domain and `n` is the number of nested
 quantifiers.
 
 Finally, we can also evaluate |lambda| abstracts; not surprisingly,
-these are interpreted as ``CharFun``s. To illustrate, we can construct
+these are interpreted as ``CharFun``\ s. To illustrate, we can construct
 the binary relation of individuals who love each other, or the ternary
 relation of distinct individuals *a* and *b* such for some *c*, *a*
 loves *c* and *c* loves *b*.
@@ -1296,6 +1297,18 @@ loves *c* and *c* loves *b*.
    >>> r = m.evaluate(r'\x z y. (((love x z) and (love z y)) and (not (x = y)))', g)
    >>> r.tuples()
    set([('g2', 'b1', 'g1'), ('b2', 'g2', 'b1')])
+
+|nopar| Note that |lambda|-abstracts can only be explicitly evaluated
+when the bound variable is an individual variable; if you attempt to
+evaluate an expression such as '\x. (P suzie)', the ``semantics``
+package will raise an error. Since we only quantify over individuals,
+a variable assignment can only give values to individual variables, and
+variable assignment is crucial for interpreting
+|lambda|-abstraction. So though we do allow abstracts with
+higher-order variables in the language, they are not 'first-class
+citizens': they are only used as a stepping stone on the way to
+building up semantic representations in a compositional manner, and
+are eliminated prior to evaluation by |beta|-reduction. 
 
 
 ---------
@@ -1703,7 +1716,7 @@ be translated as scope12a_, not scope12b_.
        some y. (dog y) and all x. ((girl x) implies (chase y x)))
 
 |nopar| This limitation can be overcome, for example using the hole semantics
-described in Blackburn and Bos, but discussing the details would take
+described in [BlackburnBos2005]_, but discussing the details would take
 us outside the scope of the current chapter.
 
 Now that we have looked at some slightly more complex constructions, we can
@@ -1738,24 +1751,30 @@ examples. This raises the question of whether the relation data in a
 extracting data from the Chat-80 Prolog knowledge base (which 
 included as part of the |NLTK| ``corpora`` distribution).
 
-Chat-80 relations are like tables in a relational database. The
-relation acts as the name of the table; the first argument acts as the
-'key'; and subsequent arguments are further fields in the
-table. In general, the name of the table provides a label for a unary
-predicate whose extension is all the keys. For example,
-relations in ``cities.pl`` contain the following triples::
+Chat-80 data is organized into collections of clauses, where each
+collection functions as a table in a relational database. The
+predicate of the clause provides the name of the table; the first
+element of the tuple acts as the
+'key'; and subsequent elements are further columns in the
+table. 
 
-   'city(athens,greece,1368).'
+In general, the name of the table provides a label for a unary
+relation whose extension is all the keys. For example,
+the table in ``cities.pl`` contains triples such as city_.
+
+.. _city:
+.. ex:: ``'city(athens,greece,1368).'``
 
 |nopar| Here, ``'athens'`` is the key, and will be mapped to a member of the
-unary predicate `city`:mathit:.
+unary relation `city`:mathit:.
 
-The columns in the table are mapped to binary predicates. The first
-argument of the predicate is the key, while the second
-argument is the data in the relevant column. Thus, in the above
-example, the third column is mapped to the binary predicate
-`population_of`:mathit:, whose extension is a set of pairs such as ``'(athens,
-1368)'``.
+The columns in the table are mapped to binary relations. The first
+argument of the relation will be filled by the table key, while the
+second argument is filled by the data in the relevant column. Thus, in
+the ``city`` table illustrated in by the tuple in 
+city_, the data from the third column is extracted  into a binary predicate
+`population_of`:mathit:, whose extension is a set of pairs such as
+``'(athens, 1368)'``.
 
 In order to encapsulate the results of the extraction, a class of
 ``Concept``\ s is introduced.  A ``Concept`` object has a number of
@@ -1774,17 +1793,18 @@ following for each individual constant::
 
    PropN[num=sg, sem=<\P.(P zloty)>] -> 'Zloty'
 
-The attribute ``chat80.items`` gives us a list of relations:
+The ``chat80`` module can be found in the ``corpora`` package. The
+attribute ``chat80.items`` gives us a list of Chat-80 relations:
 
-   >>> from ntlk_lite.corpora import chat80
+   >>> from nltk_lite.corpora import chat80
    >>> chat80.items
    ['borders', 'contains', 'city', 'country', 'circle_of_lat', 
-   'continent', 'region', 'ocean', 'sea']
+   'circle_of_long', 'continent', 'region', 'ocean', 'sea']
 
 The ``concepts()`` method shows the list of ``Concept``\ s that can be
 extracted from a ``chat80`` relation, and we can then inspect its extension.
 
-   >>> concepts = chat_80.concepts('city')
+   >>> concepts = chat80.concepts('city')
    >>> concepts
    [Concept('city'), Concept('country_of'), Concept('population_of')]
    >>> rel = concepts[1].extension
@@ -1793,31 +1813,125 @@ extracted from a ``chat80`` relation, and we can then inspect its extension.
    ('singapore_city', 'singapore'), ('athens', 'greece'), 
    ('birmingham', 'united_kingdom')]
 
+In order to convert such an extension into a valuation, we use the
+``make_valuation()`` method; setting ``read=True`` creates and returns
+a new ``Valuation`` object which contains the results.
+
+   >>> val = chat80.make_valuation(concepts, read=True)
+   >>> val['city']['calcutta']
+   True
+   >>> val['country_of']['india']
+   {'hyderabad': True, 'delhi': True, 'bombay': True, 'madras': True, 'calcutta': True}
+   >>> from nltk_lite.semantics import *
+   >>> g = Assignment(dom)
+   >>> m = Model(dom, val)
+   >>> m.evaluate(r'\x . (population_of x jakarta)', g)
+   {'533': True}
+
+.. Note:: Population figures are given in thousands. Bear in mind that
+   the geographical data used in these examples dates back at least to
+   the 1980s, and was already somewhat out of date at the point when
+   Warren and Pereira's original paper was published.
 
 -------
 Summary
 -------
 
-to be written
+* Semantic Representations (SRs) for English are constructed using a
+  language based on the |lambda|-calculus, together with Boolean connectives, equality,
+  and first-order quantifiers.
 
------------------
- Further Reading
------------------
+* |beta|-reduction in the |lambda|-calculus corresponds semantically to application
+  of a function to an argument. Syntactically, it involves replacing
+  a variable bound by |lambda| in the functor with the expression
+  that provides the argument in the function application.
 
-Patrick Blackburn and Johan Bos (2005)
-*Representation and Inference for Natural Language: A First Course in
-Computational Semantics*, CSLI Publications
+* If two |lambda|-abstracts differ only in the label of the variable
+  bound by |lambda|, they are said to be |alpha|
+  equivalents. Relabeling a variable bound by a |lambda| is called
+  |alpha|-conversion.
 
-David H. D. Warren aned Fernando C. N. Pereira (1982) 
-'An Efficient Easily Adaptable System for Interpreting Natural
-Language Queries', AJCL, 8, 3-4, pp110-122.
+* Currying of an binary function turns it into a unary function whose
+  value is again a unary function.
 
+* The SR language has both a syntax and a semantics. The semantics is
+  determined by recursively evaluating expressions in a model.
+
+* A key part of constructing a model lies in building a valuation
+  which assigns interpretations to non-logical constants. These are
+  interpreted as either curried characteristic functions or as
+  individual constants. 
+
+* The interpretation of Boolean connectives is also handled by the
+  model; these are also interpreted as characteristic functions.
+
+* An open expression is an expression containing one or more free
+  variables. Open expressions only receive an interpretation when
+  their free variables receive values from a
+  variable assignment.
+
+* Quantifiers are interpreted by constructing, for a formula
+  |phi|\ [*x*] open in variable *x*, the set of individuals which make
+  |phi|\ [*x*] true when an assignment *g* assigns them as the value
+  of *x*. The quantifier then places constraints on that set.
+
+* A closed expression is one that has no free variables; that is, the
+  variables are all bound. A quantified closed sentence is true or
+  false with respect to all variable assignments.
+
+* Given a formula with two nested quantifiers *Q*\ :sub:`1` and *Q*\
+  :sub:`2`, the outermost quantifier *Q*\ :sub:`1` is said to have wide
+  scope, or scope over *Q*\ :sub:`2`. English sentences are frequently
+  ambiguous with respect to the scope of the quantifiers they
+  contain. 
+
+* English sentences can be associated with an SR by treating ``sem``
+  as a feature. The ``sem`` value of a complex expressions typically
+  involves functional application of the `sem`` values of the
+  component expressions.
+
+* Model valuations need not be built by hand, but can also be
+  extracted from relational tables, as in the Chat-80 example.
 
 ---------
 Exercises
 ---------
 
-1. 
+1. Modify the ``nltk_lite.semantics.evaluate`` code so that it will
+   give a helpful error message if an expression is not in the domain
+   of a model's valuation function.
+
+#. Specify and implement a typed functional language with quantifiers,
+   Boolean connectives and equality. Modify
+   ``nltk_lite.semantics.evaluate`` to interpret expressions of this language.
+   
+#. Extend the ``chat80`` code so that it will extract data from a
+   relational database using SQL queries.
+
+#. Taking [WarrenPereira1982] as a starting point, develop a technique
+   for converting a NL query into a form that can be evaluated more
+   efficiently in a model. For example, given a query of the form
+   ``'((P x) and (Q x)'``, convert it to ``'((Q x) and (P x)'`` if the
+   extension of ``'Q'`` is smaller than the extension of ``'P'``.
+
+
+
+
+-----------------
+ Further Reading
+-----------------
+
+.. [BlackburnBos2005] 
+     Patrick Blackburn and Johan Bos (2005)
+     *Representation and Inference for Natural Language: A First Course in
+     Computational Semantics*, CSLI Publications
+
+.. [WarrenPereira1982] 
+     David H. D. Warren and Fernando C. N. Pereira (1982)
+     'An Efficient Easily Adaptable System for Interpreting Natural
+     Language Queries', AJCL, 8, 3-4, pp110-122.
+
+
 
 
 .. include:: footer.txt
