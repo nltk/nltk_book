@@ -1,13 +1,777 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.txt
+.. sectnum::
 
-=========================
-10. Probabilistic Parsing
-=========================
+===================
+8. Advanced Parsing
+===================
 
+-------------------
+Dynamic programming
+-------------------
+
+Dynamic programming is a general technique for designing algorithms
+which is widely used in natural language processing.  The term
+"programming" is used in a different sense to what you might expect,
+to mean planning or scheduling.  Dynamic programming is used when a
+problem contains overlapping sub-problems.  Instead of computing
+solutions to the sub-problems repeatedly, we simply store them in a
+lookup table.
+
+Sanscrit Meter
+--------------
+
+Pingala was an Indian author who lived around the 5th century B.C.,
+and wrote a treatise on Sanscrit prosody called the *Chandas Shastra*.
+Virahanka extended this work around the 6th century A.D., studying the
+number of ways of combining short and long syllables to create a meter
+of length *n*.  He found, for example, that there are five ways to
+construct a meter of length 4: *V*\ :subscript:`4` = *{LL, SSL, SLS,
+LSS, SSSS}*.  In general, we can split *V*\ :subscript:`n` into two
+subsets, those starting with *L: {LL, LSS}*, and those starting with
+*S: {SSL, SLS, SSSS}*.  This is the clue for decomposing the problem:
+
+|  *V*\ :subscript:`4` =
+|    LL, LSS; or L prefixed to each item of *V*\ :subscript:`2` = {L, SS}
+|    SSL, SLS, SSSS; or S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
+
+With this observation, we can write a little recursive function to compute these meters:
+
+    >>> def virahanka1(n):
+    ...     if n == 0:
+    ...         return [""]
+    ...     elif n == 1:
+    ...         return ["S"]
+    ...     else:
+    ...         s = ["S" + prosody for prosody in virahanka1(n-1)]
+    ...         l = ["L" + prosody for prosody in virahanka1(n-2)]
+    ...        return s + l
+    >>> virahanka1(4)
+    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+
+Notice that, in order to compute *V*\ :subscript:`4` we first compute
+*V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
+we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This call
+structure is depicted in the following tree:
+
+.. tree:: (V4 (V3 (V2 V1 V0) V1) (V2 V1 V0))
+
+Observe that *V*\ :subscript:`2` is computed twice.
+This might not seem like a significant problem, but 
+it turns out to be rather wasteful as *n* gets large:
+for *V*\ :subscript:`10` it computes *V*\ :subscript:`2` 34 times;
+for *V*\ :subscript:`20` it computes *V*\ :subscript:`2` 4,181 times;
+for *V*\ :subscript:`30` it computes *V*\ :subscript:`2` 514,229 times;
+and
+for *V*\ :subscript:`40` it computes *V*\ :subscript:`2` 63,245,986 times!
+Instead, we can simply store the value of *V*\ :subscript:`2` in a table
+and look it up whenever we need it.  The same goes for other values, such
+as *V*\ :subscript:`3` and so on.  Here is a dynamic programming
+approach which computes the same result as the earlier program, only
+much more efficiently.  It uses some auxiliary storage, a table
+called ``lookup``:
+
+    >>> lookup = [None] * 100
+    >>> lookup[0] = [""]
+    >>> lookup[1] = ["S"]
+    >>> def virahanka2(n):
+    ...     for i in range(n-1):
+    ...         s = ["S" + prosody for prosody in lookup[i]]
+    ...         l = ["L" + prosody for prosody in lookup[i+1]]
+    ...         lookup[i+2] = s + l
+    ...     return lookup[n]
+
+This is the classic *bottom-up* approach to dynamic programming, where
+we fill up a table with solutions to all smaller sub-problems, then simply
+read off the result we are interested in.  Notice that each sub-problem
+is only ever solved once.  However, this method is still wasteful for some
+applications, because it may compute solutions to sub-problems that are never
+used in solving the main problem.  This wasted computation can be avoided using
+the *top-down* approach to dynamic programming:
+
+    >>> lookup = [None] * 100
+    >>> lookup[0] = [""]
+    >>> lookup[1] = ["S"]
+    >>> def virahanka3(n):
+    ...     if not lookup[n]:
+    ...         s = ["S" + prosody for prosody in virahanka3(n-1)]
+    ...         l = ["L" + prosody for prosody in virahanka3(n-2)]
+    ...         lookup[n] = s + l
+    ...     return lookup[n]
+
+Unlike the bottom-up approach, this approach is recursive.  It avoids
+the huge wastage of our first version by checking whether it has
+previously stored the result.  If not, it computes the result
+recursively and stores it in the table.  The last step is to return
+the stored result.
+
+
+Grammaticality Testing
+----------------------
+
+Define a simple grammar.
+
+    >>> from nltk_lite.parse import cfg
+    >>> grammar = cfg.parse_grammar("""
+    ... S -> NP VP
+    ... PP -> P NP
+    ... NP -> Det N | NP PP
+    ... VP -> V NP | V PP | VP PP
+    ... Det -> 'a' | 'the'
+    ... N -> 'dog' | 'cat' | 'mat'
+    ... V -> 'chased' | 'sat'
+    ... P -> 'on' | 'in'
+    ... """)
+
+We will be processing the input bottom-up.  Well-formed substring table::
+
+  the cat sat on the mat
+  Det N   V   P  Det N
+  NP      V   P  NP
+  NP      V   PP
+  NP      VP
+  S
+
+Need a place to keep hypothesis that there is a non-terminal spanning a certain
+sequence of terminals::
+
+  0 the 1 cat 2 sat 3 on 4 the 5 mat 6
+  0 Det 1 N   2 V   3 P  4 Det 5 N   6
+  0 NP        2 V   3 PP             6
+  0 S                                6
+
+Store this in a table::
+
+  -   0   1   2   3   4   5   6
+  0       Det NP              S
+  1           N
+  2               V           VP
+  3                   P       PP
+  4                       Det NP
+  5                           N
+  6
+
+  -   0   1   2   3   4   5   6
+  0   
+  1   Det
+  2   NP  N
+  3           V
+  4               P
+  5                   Det
+  6   S       VP  PP  NP  N
+
+There is a ``V`` from ``2`` to ``3``,
+and a ``PP`` from ``3`` to ``6``.
+Check for a production with ``V PP`` on the right hand side.
+Found ``VP -> V PP``, so we have a ``VP`` from ``2`` to ``6``.
+Add this to the table.
+
+Equivalent graph -- use omnigraffle
+
+Need to index the grammar.
+
+    >>> index = {}
+    >>> for prod in grammar.productions():
+    ...     index[prod.rhs()] = prod.lhs()
+
+Example of a space-time trade-off.
+Reverse lookup on the grammar, instead of having to check through
+entire list of productions each time we want to look up via the right-hand side.
+
+Get a sentence, and set up an empty table:
+
+    >>> from pprint import pprint
+    >>> tokens = "the cat sat on the mat".split()
+    >>> numwords = len(tokens)
+    >>> table = []
+    >>> for i in range(numwords+1):
+    ...     table.append([''] * (numwords+1))
+    >>> for i in range(numwords):
+    ...     prod_rhs = grammar.productions(rhs=tokens[i])
+    ...     table[i+1][i] = prod_rhs[0].lhs()
+    >>> pprint(table)
+    [['', '', '', '', '', '', ''],
+     [<Det>, '', '', '', '', '', ''],
+     ['', <N>, '', '', '', '', ''],
+     ['', '', <V>, '', '', '', ''],
+     ['', '', '', <P>, '', '', ''],
+     ['', '', '', '', <Det>, '', ''],
+     ['', '', '', '', '', <N>, '']]
+
+
+Next, ...
+
+    >>> for span in range(2, numwords+1):
+    ...     for start in range(numwords+1-span):
+    ...         end = start + span
+    ...         for mid in range(start+1, end):
+    ...             nt1 = table[mid][start]
+    ...             nt2 = table[end][mid]
+    ...             if (nt1,nt2) in index:
+    ...                 table[end][start] = index[(nt1,nt2)]
+
+
+Shows why parsing is essentially n^3 -- triply nested loop, size based
+on sentence length.
+
+    >>> pprint(table)
+    [['', '', '', '', '', '', ''],
+     [<Det>, '', '', '', '', '', ''],
+     [<NP>, <N>, '', '', '', '', ''],
+     ['', '', <V>, '', '', '', ''],
+     ['', '', '', <P>, '', '', ''],
+     ['', '', '', '', <Det>, '', ''],
+     [<S>, '', <VP>, <PP>, <NP>, <N>, '']]
+
+
+.. Asymptotic behaviour?
+
+
+Exercises
+---------
+
+1. Read about string edit distance and the Levenshtein Algorithm.
+   Try the implementation provided in ``nltk_lite.utilities.edit_dist``.
+   How is this using dynamic programming?  Does it use the bottom-up or
+   top-down approach?
+
+
+
+-----------------------------
+Introduction to Chart Parsing
+-----------------------------
+
+The simple parsers discussed in the parsing tutorial have significant
+limitations.  The bottom-up shift-reduce parser can only find one
+parse, and it often fails to find a parse even if one exists.  The
+top-down recursive-descent parser can be very inefficient, since it
+often builds and discards the same sub-structure many times over; and
+if the grammar contains left-recursive rules, it can enter into an
+infinite loop.
+
+These completeness and efficiency problems can be addressed by
+employing a technique called `dynamic programming`:dt:, which stores
+intermediate results, and re-uses them when appropriate.
+
+In general, a parser hypothesizes constituents based on the grammar
+and its current knowledge about the tokens it has seen and the
+constituents it has already found.  Any constituent that is consistent
+with the current knowledge can be hypothesized; but many of these
+hypothesized constituents may not be used in complete parses.
+
+A `chart parser`:dt: uses a structure called a `chart`:dt: to record the
+hypothesized constituents in a sentence.  One way to envision this
+chart is as a graph whose nodes are the word boundaries in a sentence.
+For example, an empty chart for the sentence `John likes Mary`:lx: can be
+drawn as follows:
+
+.. image:: ../images/chart_intro_empty.png
+
+Each hypothesized constituent is drawn as an `edge`:dt: in this graph.
+For example, the following chart hypothesizes that `likes`:lx: is a V and
+`Mary`:lx: is an NP:
+
+.. image:: ../images/chart_intro_2edges.png
+
+And the following chart also hypothesizes that `likes Mary`:lx: is a VP:
+
+.. image:: ../images/chart_intro_3edges.png
+
+In addition to recording a constituent's type, it is also useful to
+record the types of its children.  In other words, we can associate a
+single CFG production with an edge, rather than just its nonterminal
+type:
+
+.. image:: ../images/chart_intro_prodedge.png
+
+All of the edges that we've seen so far represent complete
+constituents.  However, it can also be helpful to hypothesize
+`incomplete`:dt: constituents.  For example, we might want to record the
+hypothesis that "the V constituent `likes`:lx: forms the beginning of a
+VP."  We can record hypotheses of this form by adding a `dot`:dt: to the
+edge's right hand side.  The children to the left of the dot specify
+what children the constituent starts with; and the children to the
+right of the dot specify what children still need to be found in order
+to form a complete constituent.  For example, the edge in the
+following chart records the hypothesis that "a VP starts with the V
+`likes`:lx:, but still needs an NP to become complete":
+
+.. image:: ../images/chart_intro_dottededge.png
+
+These `dotted edges`:dt: are used to record all of the hypotheses that a
+chart parser makes about constituents in a sentence.  Formally, we can
+define a dotted edge as follows:
+
+.. ex::
+
+  A dotted edge [A |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot|
+  `c`:sub:`d+1` |dots| `c`:sub:`n`]@[i:j] records the hypothesis that
+  a constituent of type `A` starts with children `c`:sub:`1` |dots|
+  `c`:sub:`d` covering words `w`:sub:`i` |dots| `w`:sub:`j`, but still
+  needs children `c`:sub:`d+1` |dots| `c`:sub:`n` to be complete
+  (where both `c`:sub:`1` |dots| `c`:sub:`d` and
+  `c`:sub:`d+1` |dots| `c`:sub:`n` may be empty.)
+
+If `d = n`:math: (i.e., if `c`:sub:`d+1` |dots| `c`:sub:`n` is empty)
+then the edge represents a complete constituent, and is called a
+`complete edge`:dt:.  Otherwise, the edge represents an incomplete
+constituent, and is called an `incomplete edge`:dt:.  In the following
+chart, [VP |rarr| V NP |dot|]@[1:3] is a complete edge, and [VP |rarr|
+V |dot| NP]@[1:2] is an incomplete edge.
+    
+.. image:: ../images/chart_intro_incomplete.png
+    
+If n=0 (i.e., if c1...cn is empty), then the edge is called a
+`self-loop edge`:dt:.  In the following chart, [VP |rarr| |dot| V
+NP]@[1:1] is a self-loop edge.
+
+.. image:: ../images/chart_intro_selfloop.png
+
+If a complete edge spans the entire sentence, and has the grammars'
+start symbol as its left-hand side, then the edge is called a `parse
+edge`:dt:, and it encodes one or more parse trees for the sentence.  In
+the following chart, [S |rarr| NP VP |dot| ]@[0:3] is a parse edge.
+      
+.. image:: ../images/chart_intro_parseedge.png
+
+-------------
+Chart Parsing
+-------------
+
+To parse a sentence, a chart parser first creates an empty chart
+spanning the sentence.  It then finds edges that are licensed by its
+knowledge about the sentence, and adds them to the chart one at a time
+until one or more parse edges are found.  The edges that it adds can
+be licensed in one of three ways:
+      
+1. The *sentence* can license an edge.  In particular, each word wi
+   in the sentence licenses the complete edge [wi |rarr| |dot| ]@[i:i+1].
+#. The *grammar* can license an edge.  In particular, each grammar
+   production A |rarr| |alpha| licenses the self-loop edge [A |rarr|
+   |dot| |alpha| ]@[i:i] for every i, 0\ |leq|\ i<n.
+#. The *current chart contents* can license an edge.
+          
+However, it is not wise to add *all* licensed edges to the chart,
+since many of them will not be used in any complete parse.  For
+example, even though the edge in the following chart is licensed (by
+the grammar), it will never be used in a complete parse:
+        
+.. image:: ../images/chart_useless_edge.png
+
+Chart parsers therefore use a set of `rules`:dt: to heuristically decide
+when an edge should be added to a chart.  This set of rules, along
+with a specification of when they should be applied, forms a
+`strategy`:dt:.
+
+The Fundamental Rule
+--------------------
+
+One rule is particularly important, since it is used by every chart
+parser: the `fundamental rule`:dt:.  This rule is used to combine an
+incomplete edge that's expecting a nonterminal B with a complete
+edge immediately following it whose left hand side is B.  Formally,
+it states that if the chart contains the edges:
+
+.. image:: ../images/chart_fr1.png
+
+1. [A |rarr| |alpha| |dot| B |beta| ]@[i:j]
+2. [B |rarr| |gamma| |dot| ]@[j:k]
+
+Then the parser should add the edge:
+
+.. image:: ../images/chart_fr2.png
+
+3. [A |rarr| |alpha| B |dot| |beta| ]@[i:k]
+
+
+Bottom Up Parsing
+-----------------
+
+To create a bottom-up parser, we need to add two rules: the `Bottom-Up
+Initialization Rule`:dt:; and the `Bottom-Up Predict Rule`:dt:.
+
+The Bottom-Up Initialization Rule says to add all edges licensed by
+the sentence.  In particular, it states that for every word w\ :subscript:`i`, the
+parser should add the edge:
+
+.. image:: ../images/chart_bu_init.png
+
+#. [w\ :subscript:`i`; |rarr|  |dot| ]@[i:i+1]
+
+.. ouch: write this better! :)
+
+The Bottom-Up Predict Rule says that if the chart contains a complete
+edge, then the parser add a self-loop edge at the complete edge's left
+boundary for each grammar production whose right-hand side begins with
+the completed edge's left-hand side.  In other words, it states that
+if the chart contains the complete edge:
+
+.. image:: ../images/chart_bu_predict1.png
+
+1. [A |rarr| |alpha| |dot| ]@[i:j]
+
+And the grammar contains the production:
+
+2. B |rarr| A |beta|
+
+Then the parser should add the self-loop edge:
+
+.. image:: ../images/chart_bu_predict2.png
+
+3. [B |rarr|  |dot| |beta| ]@[i:i]
+        
+Using these three rules, we can parse a sentence as follows:
+
+1. Create an empty chart spanning the sentence. 
+
+#. Apply the Bottom-Up Initialization Rule to each word. 
+
+#. Until no more edges are added: 
+
+  a) Apply the Bottom-Up Predict Rule everywhere it applies. 
+
+  #) Apply the Fundamental Rule everywhere it applies. 
+
+#. Return all of the parse trees corresponding to the parse edges in the chart. 
+
+For example, the following diagram shows the order in which get added
+when applying bottom-up parsing to a simple example sentence:
+        
+.. image:: ../images/chart_bottom_up.png
+
+
+Top-Down Parsing
+----------------
+
+To create a bottom-up parser, we need to use the Fundamental Rule plus
+three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
+Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
+
+The top-down initialization rule captures the fact that root of any
+parse must be the start symbol.  It states that for every grammar
+production:
+
+1. S |rarr| |alpha|
+
+The parser should add the self-loop edge: 
+
+.. image:: ../images/chart_td_init.png
+
+2. [S |rarr|  |dot| |alpha| ]@[0:0]
+
+The top-down expand rule says that if the chart contains an incomplete
+edge whose dot is followed by a nonterminal ``B``, then the parser
+should add any self-loop edges licensed by the grammar whose left-hand
+side is ``B``.  In particular, if the chart contains the incomplete
+edge:
+
+.. image:: ../images/chart_td_expand1.png
+
+1. [A |rarr| |alpha| |dot| B |beta| ]@[i:j]
+
+Then for each grammar production: 
+
+2. B |rarr| |gamma|
+
+The parser should add the edge: 
+
+.. image:: ../images/chart_td_expand2.png
+
+3. [B |rarr|  |dot| |gamma| ]@[j:j]
+
+The top-down match rule says that if the chart contains an incomplete
+edge whose dot is followed by a terminal w, then the parser should
+add an edge if the terminal corresponds to the text.  In particular,
+if the chart contains the incomplete edge:
+
+.. image:: ../images/chart_td_match1.png
+
+Alternative image:
+
+.. image:: ../images/chart_td_match1_alt.png
+   :scale: 45
+
+1. [A |rarr| |alpha| |dot| w\ :subscript:`j` |beta| ]@[i:j]
+
+Then the parser should add the complete edge: 
+
+.. image:: ../images/chart_td_match2.png
+
+2. [w\ :subscript:`j`; |rarr| |dot| ]@[j:j+1]
+
+Using these four rules, we can parse a sentence as follows:
+
+1. Create an empty chart spanning the sentence. 
+
+#. Apply the Top-Down Initialization Rule to each word. 
+
+#. Until no more edges are added: 
+
+  a) Apply the Top-Down Expand Rule everywhere it applies. 
+
+  #) Apply the Top-Down Match Rule everywhere it applies. 
+
+  #) Apply the Fundamental Rule everywhere it applies. 
+
+#. Return all of the parse trees corresponding to the parse edges in the chart. 
+
+For example, the following diagram shows the order in which get added
+when applying top-down parsing to a simple example sentence:
+
+.. image:: ../images/chart_top_down.png
+
+--------------------------
+Chart Parsing in NLTK-Lite
+--------------------------
+
+Edges
+-----
+      
+NLTK defines two classes for encoding edges: 
+
+1. ``LeafEdge`` is used to encode edges of the form
+   [w\ :subscript:`i` |rarr| |dot| ]@[i:i+1]. 
+2. ``TokenEdge`` is used to encode edges of the
+   form [A |rarr| |alpha| |dot| |beta| ]@[i:j]. 
+
+``LeafEdges`` are constructed from a leaf terminal and an index:
+      
+  >>> from nltk_lite.parse.chart import *
+  >>> edge2=LeafEdge('dog', 3)
+  >>> edge2
+  [Edge: [3:4] 'dog']
+
+``TreeEdges`` are constructed from a span, a left-hand side, a
+right-hand side, and a dot position:
+      
+  >>> from nltk_lite.parse import cfg
+  >>> V, VP, NP, PP = cfg.nonterminals('V VP NP PP')
+  >>> edge1=TreeEdge((3,7), VP, [V,NP,PP], 2)
+  >>> edge1
+  [Edge: [3:7] VP -> V NP * PP]
+
+The  function ``TreeEdge.from_production()`` creates the
+``TreeEdge`` licensed by a given CFG production:
+      
+  >>> prod = cfg.parse_production('S->NP VP')[0]
+  >>> index = 3
+  >>> edge3 = TreeEdge.from_production(prod, 3)
+  >>> edge3
+  [Edge: [3:3] S  -> * NP VP]
+
+
+Charts
+------
+
+Charts are encoded using the ``Chart`` class.  To create an empty
+chart spanning a given sentence, use the ``Chart``
+constructor:
+
+  >>> from nltk_lite import tokenize
+  >>> text = 'James wears a hat'
+  >>> chart = Chart(tokenize.whitespace(text))
+
+.. Talk about child pointer lists & reconstruction earlier!
+
+New edges are added to the chart using the ``insert()`` method, which
+takes an edge and a child pointer list.  A *child pointer list* is a
+list of edges e\ :subscript:`1` |cdots| e\ :subscript:`d`, specifying the
+edges that licensed each child to the left of the dot.  It is used to
+reconstruct the parse trees once parsing is finished.
+      
+  >>> NP, N = cfg.nonterminals('NP N')
+  >>> edge1 = LeafEdge('hat', 3)
+  >>> edge2 = TreeEdge((3,3), NP, [N], 0)
+  >>> edge3 = TreeEdge((3,4), NP, [N], 1)
+  >>> chart.insert(edge1, [])
+  True
+  >>> chart.insert(edge2, [])
+  True
+  >>> chart.insert(edge3, [edge1])
+  True
+        
+Finally, we can pretty-print the chart with ``chart.pp()`` to get::
+
+  |.  James  .  wears  .    a    .   hat   .|
+  |.         .         .         >         .| [3:3] NP -> * N 
+  |.         .         .         [---------]| [3:4] NP -> N * 
+  |.         .         .         [---------]| [3:4] 'hat' 
+
+The leaves of the chart's token can be accessed with the methods
+``num_leaves()``, ``leaf()``, and ``leaves()``.  
+
+  >>> chart.num_leaves()
+  4
+  >>> chart.leaf(1)
+  'wears'
+  >>> chart.leaves()
+  ['James', 'wears', 'a', 'hat']
+
+
+The ``trees()`` method returns a list of the trees that are associated
+with a given edge:
+
+  >>> chart.trees(edge3)
+  [(NP: 'hat')]
+
+The ``parses()`` method returns a list of the
+parse trees for a given start symbol.  E.g. after having added
+many more edges, we could ask for the complete edges which span the
+entire chart, and which are based on a production from `s`:gc:, using
+``chart.parses('S')``::
+
+  (S: (NP: <James>) (VP: (V: <wears>) (NP: (Det: <a>) (N: <hat>))))
+
+Chart Parser
 ------------
-Introduction
-------------
+
+``nltk_lite.parse.chart`` defines a simple yet flexible chart parser,
+``ChartParse``.  A new chart parser is constructed from a
+grammar and a list of chart rules (also known as a *strategy*).  These
+rules will be applied, on order, until no new edges are added to the
+chart.  In particular, ``ChartParse`` uses the following algorithm:
+      
+| Until no new edges are added:
+|   For each chart rule *$*:
+|     Apply *R* to any applicable edges in the chart. 
+| Return any complete parses in the chart. 
+        
+``nltk_lite.parse.chart`` defines two pre-made strategies:
+``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
+basic bottom-up strategy.  When constructing a chart parser, you
+can use either of these strategies, or create your own.
+
+The following example illustrates the use of the chart parser.
+We start by defining a simple grammar:
+
+  >>> grammar = cfg.parse_grammar('''
+  ...   S -> NP VP
+  ...   VP -> V NP | VP PP
+  ...   V -> "saw" | "ate"
+  ...   NP -> "John" | "Mary" | "Bob" | Det N | NP PP
+  ...   Det -> "a" | "an" | "the" | "my"
+  ...   N -> "dog" | "cat" | "cookie"
+  ...   PP -> P NP
+  ...   P -> "on" | "by" | "with"
+  ...   ''')
+
+Next we tokenize a sentence.  We make sure it is a list (not an iterator), since
+we wish to use the same tokenized sentence several times.
+
+  >>> sent = list(tokenize.whitespace('John saw a cat with my cookie'))
+  >>> parser = ChartParse(grammar, BU_STRATEGY)
+  >>> for tree in parser.get_parse_list(sent):
+  ...     print tree
+  (S:
+    (NP: 'John')
+    (VP:
+      (VP: (V: 'saw') (NP: (Det: 'a') (N: 'cat')))
+      (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))
+  (S:
+    (NP: 'John')
+    (VP:
+      (V: 'saw')
+      (NP:
+        (NP: (Det: 'a') (N: 'cat'))
+        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie'))))))
+
+The ``trace`` parameter can be specified when creating a parser, to
+turn on tracing (higher trace levels produce more verbose output).
+The following examples show the trace output for parsing a
+sentence with the bottom-up strategy::
+
+  # Parse the sentence, bottom-up, with tracing turned on.
+  >>> parser = ChartParse(grammar, BU_STRATEGY, trace=2)
+  >>> parser.get_parse(sent)
+  |. John. saw .  a  . cat . with.  my .cooki.|
+  Bottom Up Init Rule:
+  |[-----]     .     .     .     .     .     .| [0:1] 'John' 
+  |.     [-----]     .     .     .     .     .| [1:2] 'saw' 
+  |.     .     [-----]     .     .     .     .| [2:3] 'a' 
+  |.     .     .     [-----]     .     .     .| [3:4] 'cat' 
+  |.     .     .     .     [-----]     .     .| [4:5] 'with' 
+  |.     .     .     .     .     [-----]     .| [5:6] 'my' 
+  |.     .     .     .     .     .     [-----]| [6:7] 'cookie' 
+  Bottom Up Predict Rule:
+  |>     .     .     .     .     .     .     .| [0:0] NP -> * 'John' 
+  |.     >     .     .     .     .     .     .| [1:1] V  -> * 'saw' 
+  |.     .     >     .     .     .     .     .| [2:2] Det -> * 'a' 
+  |.     .     .     >     .     .     .     .| [3:3] N  -> * 'cat' 
+  |.     .     .     .     >     .     .     .| [4:4] P  -> * 'with' 
+  |.     .     .     .     .     >     .     .| [5:5] Det -> * 'my' 
+  |.     .     .     .     .     .     >     .| [6:6] N  -> * 'cookie' 
+  Fundamental Rule:
+  |[-----]     .     .     .     .     .     .| [0:1] NP -> 'John' * 
+  |.     [-----]     .     .     .     .     .| [1:2] V  -> 'saw' * 
+  |.     .     [-----]     .     .     .     .| [2:3] Det -> 'a' * 
+  |.     .     .     [-----]     .     .     .| [3:4] N  -> 'cat' * 
+  |.     .     .     .     [-----]     .     .| [4:5] P  -> 'with' * 
+  |.     .     .     .     .     [-----]     .| [5:6] Det -> 'my' * 
+  |.     .     .     .     .     .     [-----]| [6:7] N  -> 'cookie' * 
+  Bottom Up Predict Rule:
+  |>     .     .     .     .     .     .     .| [0:0] S  -> * NP VP 
+  |>     .     .     .     .     .     .     .| [0:0] NP -> * NP PP 
+  |.     >     .     .     .     .     .     .| [1:1] VP -> * V NP 
+  |.     .     >     .     .     .     .     .| [2:2] NP -> * Det N 
+  |.     .     .     .     >     .     .     .| [4:4] PP -> * P NP 
+  |.     .     .     .     .     >     .     .| [5:5] NP -> * Det N 
+  Fundamental Rule:
+  |[----->     .     .     .     .     .     .| [0:1] S  -> NP * VP 
+  |[----->     .     .     .     .     .     .| [0:1] NP -> NP * PP 
+  |.     [----->     .     .     .     .     .| [1:2] VP -> V * NP 
+  |.     .     [----->     .     .     .     .| [2:3] NP -> Det * N 
+  |.     .     [-----------]     .     .     .| [2:4] NP -> Det N * 
+  |.     .     .     .     [----->     .     .| [4:5] PP -> P * NP 
+  |.     .     .     .     .     [----->     .| [5:6] NP -> Det * N 
+  |.     .     .     .     .     [-----------]| [5:7] NP -> Det N * 
+  |.     [-----------------]     .     .     .| [1:4] VP -> V NP * 
+  |.     .     .     .     [-----------------]| [4:7] PP -> P NP * 
+  |[-----------------------]     .     .     .| [0:4] S  -> NP VP * 
+  Bottom Up Predict Rule:
+  |.     .     >     .     .     .     .     .| [2:2] S  -> * NP VP 
+  |.     .     >     .     .     .     .     .| [2:2] NP -> * NP PP 
+  |.     .     .     .     .     >     .     .| [5:5] S  -> * NP VP 
+  |.     .     .     .     .     >     .     .| [5:5] NP -> * NP PP 
+  |.     >     .     .     .     .     .     .| [1:1] VP -> * VP PP 
+  Fundamental Rule:
+  |.     .     [----------->     .     .     .| [2:4] S  -> NP * VP 
+  |.     .     [----------->     .     .     .| [2:4] NP -> NP * PP 
+  |.     .     .     .     .     [----------->| [5:7] S  -> NP * VP 
+  |.     .     .     .     .     [----------->| [5:7] NP -> NP * PP 
+  |.     [----------------->     .     .     .| [1:4] VP -> VP * PP 
+  |.     .     [-----------------------------]| [2:7] NP -> NP PP * 
+  |.     [-----------------------------------]| [1:7] VP -> VP PP * 
+  |.     .     [----------------------------->| [2:7] S  -> NP * VP 
+  |.     .     [----------------------------->| [2:7] NP -> NP * PP 
+  |.     [----------------------------------->| [1:7] VP -> VP * PP 
+  |.     [-----------------------------------]| [1:7] VP -> V NP * 
+  |[=========================================]| [0:7] S  -> NP VP * 
+  |[=========================================]| [0:7] S  -> NP VP * 
+  |.     [----------------------------------->| [1:7] VP -> VP * PP 
+  (S: (NP: 'John') (VP: (VP: (V: 'saw') (NP: (Det: 'a') (N: 'cat'))) 
+  (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))
+
+A more interactive interface to the chart-parser can be found in the
+graphical demo:
+
+   >>> from nltk_lite.draw.chart import demo
+   >>> demo()
+
+Exercises
+---------
+
+1. Use the graphical chart-parser interface to experiment with
+   different rule invocation strategies. Come up with your own strategy
+   which you can execute manually using the graphical interface. Describe
+   the steps, and report any efficiency improvements it has (e.g. in terms
+   of the size of the resulting chart). Do these improvements depend on
+   the structure of the grammar? What do you think of the prospects for
+   significant performance boosts from cleverer rule invocation
+   strategies?
+
+-------------------------------------
+Introduction to Probabilistic Parsing
+-------------------------------------
 
 As we have seen, parsing builds trees over sentences, according to a
 phrase structure grammar.  However, as the coverage of the grammar
