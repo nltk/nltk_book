@@ -92,7 +92,7 @@ With this observation, we can write a little recursive function to compute these
     ...     else:
     ...         s = ["S" + prosody for prosody in virahanka1(n-1)]
     ...         l = ["L" + prosody for prosody in virahanka1(n-2)]
-    ...        return s + l
+    ...         return s + l
     >>> virahanka1(4)
     ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
 
@@ -160,40 +160,80 @@ Chart Parsing
 Overview
 --------
 
-Define a simple grammar.
+We start off by defining a simple grammar.
 
     >>> from nltk_lite.parse import cfg
     >>> grammar = cfg.parse_grammar("""
     ... S -> NP VP
     ... PP -> P NP
     ... NP -> Det N | NP PP
-    ... VP -> V NP | V PP | VP PP
-    ... Det -> 'a' | 'the'
-    ... N -> 'dog' | 'cat' | 'mat'
-    ... V -> 'chased' | 'sat'
-    ... P -> 'on' | 'in'
+    ... VP -> V NP | VP PP
+    ... Det -> 'the'
+    ... N -> 'kids' | 'box' | 'floor'
+    ... V -> 'opened' 
+    ... P -> 'on' 
     ... """)
 
-We will be processing the input bottom-up.  Well-formed substring table::
+As you can see, this grammar allows the `vp`:gc: 
+`opened the box on the floor`:lx: to be analysed in two ways,
+depending on where the `pp`:gc: is attached.
 
-  the cat sat on the mat
-  Det N   V   P  Det N
-  NP      V   P  NP
-  NP      V   PP
-  NP      VP
-  S
+.. ex::
+  .. ex::
+    .. tree:: (S (NP (Det the) (N kids)) (VP (V opened)(NP (NP (Det the) (N box))(PP (P on (NP (Det the)(N floor)))))))
+ 
+  .. ex::
+    .. tree:: (S (NP (Det the) (N kids)) (VP (VP (V opened)(NP (Det the) (N box)))(PP (P on (NP (Det the)(N floor))))))
 
-Need a place to keep hypothesis that there is a non-terminal spanning a certain
-sequence of terminals::
+Dynamic programming allows us to build the `pp`:gc: `on the floor`:lx:
+just once; we enter the information into a table, and then look it
+up when we need to use it as a subconstituent of either the object `np`:gc: or
+the higher `vp`:gc:. The table that holds this information is often called a
+`well-formed substring table`:dt: (or |WFST| for short). 
+We will show how to construct the |WFST| bottom-up so as to systematically record
+what syntactic constituents have been found.
 
-  0 the 1 cat 2 sat 3 on 4 the 5 mat 6
-  0 Det 1 N   2 V   3 P  4 Det 5 N   6
-  0 NP        2 V   3 PP             6
-  0 S                                6
+Let's set our input to be the sentence `the kids opened the box on the
+floor` 
 
-Store this in a table::
+It is helpful to think of the input as being indexed like a Python
+list. We have illustrated this in Figure chartpos_.
 
-  -   0   1   2   3   4   5   6
+.. _chartpos:
+.. figure:: ../images/chart_positions.png
+   :scale: 30
+
+|nopar|
+This allows us to say that, for instance, the word `opened`:lx: can be
+found at position `2, 3` in the input. 
+This of course is what we get when we split an input string into a list of tokens.
+
+     >>> sent = "the kids opened the box on the floor"
+     >>> tokens = sent.split()
+     >>> tokens[2:3]
+     ['opened']
+
+|nopar| We can also just use the start position of a token to refer to
+it. So we can also get hold of `opened`:lx: as ``tokens[2]``. 
+In a |WFST|, we record the
+position of the words by filling in cells in triangular matrix.  We
+will take the vertical axis of the matrix as giving the start
+position of a substring, and the horizontal axis as giving the end
+position. In such a matrix, therefore, we might expect to find the
+word `opened`:lx: in the cell with coordinates `2, 3`. To make our
+life easier, however, we will look up the lexical category of each word, and
+place that category in the matrix instead. So  cell `2, 3` will
+contain the entry `v`:gc:. In fact, for every word in the input,
+starting with `0` and continuing to 
+
+Now, for every word in ``tokens``, we can look up in our grammar productions what
+category it belongs to. (We make the simplifying assumption for now
+that there is no lexical ambiguity.)
+
+     >>> grammar.productions(rhs=tokens[2])
+     [V -> 'opened']
+
+We initialize our 
   0   
   1   Det
   2   NP  N

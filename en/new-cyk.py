@@ -5,8 +5,7 @@ grammar = cfg.parse_grammar("""
 S -> NP VP
 PP -> P NP
 NP -> Det N | NP PP 
-VP -> V NP | V NP
-VP -> VP PP
+VP -> V NP | VP PP
 Det -> 'the'
 N -> 'kids' | 'box' | 'floor'
 V -> 'opened' 
@@ -49,7 +48,7 @@ for prod in grammar.productions():
 
 #pprint(index)
 
-def complete_wfst(wfst, tokens, index, verbose=True):
+def complete_wfst(wfst, tokens, index, trace=True):
     numtokens = len(tokens)
     for span in range(2, numtokens+1):
         for start in range(numtokens+1-span):
@@ -60,16 +59,14 @@ def complete_wfst(wfst, tokens, index, verbose=True):
                 
                 if (nt1,nt2) in index:
                     nt3 = index[(nt1,nt2)]
-                    if verbose:
-                        print "%3s is at wfst[%s][%s]" % (nt1, start, mid)
-                        print "%3s is at wfst[%s][%s]" % (nt2, mid, end)
-                        print "==> infer %s at wfst[%s][%s]" % (nt3, start, end)
-                        print
+                    if trace:
+                        print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
+                        (start, nt1, mid, nt2, end, start, nt3, end)
                     wfst[start][end] = index[(nt1,nt2)]
     return wfst
 
 wfst1 = complete_wfst(wfst0, tokens, index)
 
 display(wfst1, tokens)
-pprint(wfst1)
+####pprint(wfst1)
 
