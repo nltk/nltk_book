@@ -103,11 +103,24 @@ problems are efficiently solvable using modern theorem provers.
 While there are numerous subtle and difficult issues about how to
 translate natural language constructions into |FOL|, we will largely ignore
 these. The main focus of our discussion will be on a
-different problem: how can we systematically construct a semantic
-representation for a sentence which can be smoothly integrated with the
-process of parsing that sentence?
+different issue, namely building semantic representations which
+conform to some version of the `Principle of Compositionality`:dt:.
+(See [Partee1995]_ for this formulation.)
 
-The overall framework we are assuming is illustrated in semint_. Given
+Principle of Compositionality:
+   The meaning of a whole is a function of the meanings of the parts
+   and of the way they are syntactically combined.
+
+|nopar| There is an assumption here that the semantically relevant
+parts of a complex expression will be determined by a theory of
+syntax. Within this chapter, we will take it for granted that
+expressions are parsed against a context-free grammar. However, this
+is not entailed by the Principle of Compositionality.  To summarize,
+we will be concerned with the task of systematically constructing a
+semantic representation in a manner that can be smoothly integrated
+with the process of parsing.
+
+The overall framework we are assuming is illustrated in Figure semint_. Given
 a syntactic analysis of a sentence, we can build one or more semantic
 representations for the sentence. Once we have a semantic
 representation, we can also check whether it is true in a model. 
@@ -125,12 +138,13 @@ Fido, and it should also specify that these individuals belong to
 the `chase`:math: relation.
 
 The order of sections in this chapter is not what you might expect
-from looking at . We will start off in the middle of semint_ by presenting a logical
-language |FSRL| that will provide us with semantic representations in
-|NLTK|. Next, we will show how formulas in the language can be
-systematically evaluated in a model. At the end, we will bring
-everything together and describe a simple method for constructing
-semantic representations as part of the parse process in |NLTK|.
+from looking at the diagram. We will start off in the middle of semint_ by
+presenting a logical language |FSRL| that will provide us with
+semantic representations in |NLTK|. Next, we will show how formulas in
+the language can be systematically evaluated in a model. At the end,
+we will bring everything together and describe a simple method for
+constructing semantic representations as part of the parse process in
+|NLTK|.
 
 ..
    This chapter will only scratch the surface of how to carry out
@@ -198,7 +212,7 @@ application are combined in the expression (|lambda|\ `x.((+ x) 3)
 :raw-latex:`\noindent` 
 where `M[N]`:mathit: is the result of replacing all
 occurences of `x`:mathit: in `M`:mathit: by `N`:mathit:. This axiom of the
-lambda calculus is known as |beta|-conversion. |beta|-conversion is
+lambda calculus is known as `beta-conversion`:dt:. |beta|-conversion is
 the primary form of reduction in the |lambda|-calculus.
 
 The module ``nltk_lite.semantics.logic`` can parse expressions of the
@@ -221,15 +235,15 @@ of the expression (e.g., ``walk``).
 
 The |lambda|-calculus is a calculus of functions; by itself, it says
 nothing about logical structure. Although it is possible to define
-logical operators within the |lambda|-calculus, we shall adopt a
-hybrid approach which supplements the |lambda|-calculus with logical
-and non-logical constants as primitives.
-In order to show how this is done, we turn next to the language of
-propositional logic.
+logical operators within the |lambda|-calculus, it is much more
+convenient to adopt a hybrid approach which supplements the
+|lambda|-calculus with logical and non-logical constants as
+primitives.  In order to show how this is done, we turn first to the
+language of propositional logic.
 
 
 
-
+--------------------
 Propositional  Logic
 --------------------
 
@@ -239,12 +253,13 @@ structure that is made explicit involves `logical connectives`:dt:\;
 these correspond to 'logically interesting' expressions such as
 `and`:lx: and `not`:lx:. The basic expressions of the language are
 `propositional variables`:dt:, usually written `p`:math:, `q`:math:,
-`r`:math:, etc. Let `A`:math: be a finite set of such variables. The
-set of logical connectives contains the unary operator |neg|
+`r`:math:, etc. Let `A`:math: be a finite set of such variables. There
+is a disjoint 
+set of logical connectives which contains the unary operator |neg|
 (`not`:lx:), and binary operators |wedge| (`and`:lx:), |vee|
 (`or`:lx:), |rarr| (`implies`:lx:) and |iff| (`iff`:lx:).
 
-The set of formulas of `L`:subscript:`prop` is described inductively.
+The set of formulas of `L`:subscript:`prop` is described inductively:
 
    1. Every element of `A`:math: is a formula of `L`:subscript:`prop`.
 
@@ -257,6 +272,13 @@ The set of formulas of `L`:subscript:`prop` is described inductively.
       (|phi| |iff| |psi|).
 
    4. Nothing else is a formula of `L`:subscript:`prop`.
+
+|nopar| Within `L`:subscript:`prop`, we can construct formulas such as
+`p`:math: |rarr| `q`:math: |vee| `r`:math:, which might represent the
+logical structure of an English sentence such as `if it is raining,
+then Kim will take an umbrella or Lee will get wet`:lx:. `p`:math:
+stands for  `it is raining`:lx:, `q`:math: for `Kim will take an
+umbrella`:lx: and `q`:math: for `Lee will get wet`:lx:.
 
 The Boolean connectives of propositional logic are supported by
 ``nltk_lite.semantics.logic``, and are parsed as objects of the class
@@ -272,7 +294,7 @@ themselves belong to the ``Operator`` class of expressions.
    Operator('and')
    >>> 
 
-Since a negated proposition is syntactically an application, the unary
+|nopar| Since a negated proposition is syntactically an application, the unary
 operator ``not`` and its argument must be surrounded by parentheses.
 
    >>> lp.parse('(not (p and q))')
@@ -293,16 +315,22 @@ places binary Boolean operators in infix position.
    (p and (not a))
 
 
+As the name suggests, propositional logic only studies the logical
+structure of formulas made up of atomic propositions. We saw, for
+example, that propositional variables stood for whole clauses in
+English. In order to look at how predicates combine with arguments, we
+need to look at a more complex language for semantic representation,
+namely |fol|. In order to show how this new language interacts with
+the |lambda|-calculus, it will be useful to introduce the notion of
+types into our syntactic definition, in departure from the rather
+simple approach to defining the clauses of `L`:subscript:`prop`.
 
-In the next section, we will look at a more complex language for
-semantic representation, and replace the clauses of
-`L`:subscript:`prop` with a slightly different approach.
-
+-----------------
 First-Order Logic
 -----------------
 
 Predication
-===========
+-----------
 
 In |fol| (|FOL|), propositions are analysed into predicates
 and arguments, which takes us a step closer to the structure of
@@ -310,7 +338,9 @@ natural languages. The standard construction rules for |FOL| recognize
 `terms`:dt: such as individual variables and individual constants, and
 `predicates`:dt: which take differing numbers of arguments. For
 example, `Jane walks`:lx: might be formalized as `walk(jane)`:mathit:
-and `Jane sees Mike`:lx: as  `see(jane, mike)`:mathit:.  Semantically,
+and `Jane sees Mike`:lx: as  `see(jane, mike)`:mathit:. We will call
+`walk`:mathit: a `unary predicate`:dt:, and `see`:mathit: 
+a `binary predicate`:dt:. Semantically,
 `see`:mathit: is modeled as a relation, i.e., a set of
 pairs, and the proposition is true in a situation just in case the
 pair |langle|\ `j, m`:math:\ |rangle| belongs to this set. In order to
@@ -327,14 +357,14 @@ shorthand with less brackets
 |mdash| as `(`:mathit: |seef| `m j)`:mathit:. Rather than being modeled as a
 relation, |seef| denotes a function. Before going into detail
 about this function, let's first look at a simpler case, namely the
-different styles of interpreting a unary constant such as
+different styles of interpreting a unary predicate such as
 `walk`:mathit:.
 
 In the relational approach, |walkR| denotes some set `W`:math: of
 individuals. The formula |walkR|\ `(j)`:mathit: is true in a situation
 if and only if the individual denoted by `j`:mathit: belongs to
 `W`:math:. As we saw in |AdvancedProgramming|, corresponding to
-every set `S`:math: is the characteristic function `f`:math:\ :sub:`S`
+every set `S`:math: is the `characteristic function`:em: `f`:math:\ :sub:`S`
 of that set. To be specific, suppose in some situation our domain of
 discourse `D`:math: is the set containing the individuals `j`:math:
 (Jane), `m`:math: (Mike) and `f`:math: (Fido); and the set of
@@ -437,10 +467,11 @@ the function denoted by |lambda|\ `x.`\ |seeR|\ `(x, f)`:mathit:.
 	    = `see(j, m)`:mathit:
 
 
-Diagram cf03_ shows the curryed counterpart of cf02_, and presents a
-function which, for example, given the argument `j`:mathit: yields a
+Diagram cf03_ shows the curryed counterpart of cf02_. 
+It presents a
+function *F* such that given the argument *j*,  *F*(*j*) is a
 characteristic function that maps `m`:mathit: to *True* and
-`j`:mathit: and `f`:mathit: to *False*.
+*j* and *f* to *False*.
 (While there are 2\ :sup:`3` = 8 characteristic functions from our
 domain of three individuals into {*True*, *False*}, we have only shown
 the functions which are in the range of the function denoted by |seef|.)
@@ -468,17 +499,21 @@ we have just examined.
    |                    |                      |`(see f m)`:mathit:   |
    +--------------------+----------------------+----------------------+
 
-
+|nopar| 
+In particular, one has to be careful to remember that in `(see f
+m)`:mathit:, the order of arguments is the reverse of what is found
+in `see(m, f)`:mathit:.
 
 In order to be slightly more formal about how we are treating the
 syntax of |fol|, it is helpful to look first at the `typed lambda
 calculus`:dt:. We will take as our basic types **Ind** and **Bool**,
-corresponding to the domain of individuals and |tf|
-respectively. Basic types are types. If |sigma| and |tau| are types,
-then (|sigma| |rarr| |tau|) is also a type; this corresponds to the
-set of functions from things of type |sigma| to things of type
-|tau|. We omit the parentheses around |sigma| |rarr| |tau| if there is
-no ambiguity. For any type |tau|, we have a set **Var**\ (|tau|) of variables of type
+corresponding to the domain of individuals and |tf| respectively. We
+define the set of types recursively. First, every basic type is a
+type. Second, If |sigma| and |tau| are types, then (|sigma| |rarr|
+|tau|) is also a type; this corresponds to the set of functions from
+things of type |sigma| to things of type |tau|. We omit the
+parentheses around |sigma| |rarr| |tau| if there is no ambiguity. For
+any type |tau|, we have a set **Var**\ (|tau|) of variables of type
 |tau| and **Con**\ (|tau|) of constants of type |tau|. We now define
 the set **Term**\ (|tau|) of |lambda|-terms of type |tau|.
 
@@ -495,8 +530,10 @@ the set **Term**\ (|tau|) of |lambda|-terms of type |tau|.
    then |lambda|\ `x.`:mathit:\ |alpha|  |element|  **Term**\ (|tau|),
    where |tau| = (|sigma| |rarr| |rho|) (|lambda|-abstraction).
 
-|nopar| We can replace our earlier definition of the language of propositional
-logic by adding the following stipulations for Boolean connectives:
+|nopar| 
+We replace our earlier definition of formulas containing Boolean
+connectives (that is, in `L`:subscript:`prop`) by adding the
+following clause:
 
 5. `not`:mathit: |element|  **Con**\ (**Bool** |rarr| **Bool**), and
    `and`:mathit:, `or`:mathit:, `implies`:mathit: and `iff`:mathit:
@@ -521,8 +558,9 @@ example, the following can be thought of as the property of being an
     LambdaExpression('x', '(and (walk x) (talk x))')
      
 
-|beta|-conversion can be invoked with the ``simplify`` method of
-``ApplicationExpression``\ s. ``infixify`` will place binary Boolean
+|beta|-conversion can be invoked with the ``simplify()`` method of
+``ApplicationExpression``\ s. As we noted earlier, the``infixify()``
+method will place binary Boolean
 connectives in infix position.
 
     >>> e = lp.parse(r'(\x.((walk x) and (talk x)) john)')
@@ -582,19 +620,20 @@ the definition of our version of |fol|.
    (**Bool**).  
 
 One important property of forall1b_ often trips people up. The logical
-rendering in effects says that *if* something is a dog, then it barks,
+rendering in effect says that *if* something is a dog, then it barks,
 but makes no commitment to the existence of dogs. So in a situation
 where nothing is a dog, forall1b_ will still come out true. (Remember
-that ``'(p implies q)'`` is true when ``'p'`` is false.) Although
-it might be felt that forall1b_ does presuppose the existence of dogs,
-contrary to the logic formalization, it is possible  to find other
-examples which lacks such a presupposition.  For instance, we might
+that ``'(p implies q)'`` is true when ``'p'`` is false.) Now you might
+argue that forall1b_ does presuppose the existence of dogs,
+and that the logic formalization is wrong. 
+But it is possible  to find other
+examples which lack such a presupposition.  For instance, we might
 explain that the value of the Python expression ``re.sub('ate', '8',
 astring)`` is the result of replacing all occurrences of ``'ate'`` in
 ``astring`` by ``'8'``, even though there may in fact be no such occurrences.
 
-What happens when we want to give a formal rendering of a sentence
-with *two* quantifiers, such as the following?
+What happens when we want to give a formal representation of a
+sentence with *two* quantifiers, such as the following?
 
 .. _scope1:
 .. ex:: Every girl chases a dog.
@@ -646,15 +685,26 @@ alpha1b_, which differ only in the identity of a free variable.
    .. _alpha1b:
    .. ex:: |lambda|\ `y.(see z y)`:mathit:
 
-Suppose now that we apply the |lambda| term alpha2_ to each of these
-terms. 
+Suppose now that we apply the |lambda| term |lambda|\ `P.`:mathit:\
+|exists|\ `x.(P x)`:mathit: to each of these terms:
 
 .. _alpha2:
-.. ex:: |lambda|\ `P`:mathit: |exists|\ `x.(P x)`:mathit:
+.. ex::
 
-In principle, the results of the application should be semantically equivalent,
-but if we let the free variable `x`:mathit: in alpha1a_ be 'captured' by the
-existential quantifier in alpha2_, then after reduction, the results
+   .. _alpha2a
+   .. ex:: (|lambda|\ `P.`:mathit:\ |exists|\ `x.(P x)`:mathit:
+           |lambda|\ `y.(see x y)`:mathit:)
+
+   .. _alpha2b
+   .. ex:: (|lambda|\ `P.`:mathit:\ |exists|\ `x.(P x)`:mathit:
+           |lambda|\ `y.(see z y)`:mathit:)
+
+
+
+In principle, the results of the application should be semantically
+equivalent.
+But if we let the free variable `x`:mathit: in alpha1a_ be 'captured' by the
+existential quantifier in alpha2b_, then after reduction, the results
 will be different:
 
 
@@ -667,13 +717,17 @@ will be different:
    .. _alpha3b:
    .. ex:: |exists|\ `x.(see z x)`:mathit:
 
-alpha3a_ means there is some `x`:mathit: that sees themselves, whereas
+alpha3a_ means there is some `x`:mathit: that sees him/herself, whereas
 alpha3b_ means that there is some `x`:mathit: that sees an unspecified
-individual `y`:mathit:. What has gone wrong here? The main point to note
-is that given any variable-binding expression (involving |forall|,
+individual `y`:mathit:. What has gone wrong here? Clearly, we want to
+forbid the kind of variable capture shown in alpha3a_, and it seems
+that we have been too literal about the label of the particular
+variable bound by the existential quantifier in the functor expression
+of alpha2a_.
+In fact, given any variable-binding expression (involving |forall|,
 |exists| or |lambda|), the particular name chosen for the bound
 variable is completely arbitrary. For example, alpha4a_ and alpha4b_
-are completely equivalent; in fact, they are called |alpha|
+are completely equivalent; they are called |alpha|
 `equivalents`:dt: (or `alphabetic variants`:dt:).
 
 .. _alpha4:
@@ -1987,10 +2041,19 @@ semantics,and provides an excellent introduction to the area.
     *Semantics in Generative Grammar*,
     Blackwell Publishers.
 
+.. [Partee1995]
+    Barbara Partee (1995)
+    'Lexical Semantics and Compositionality'
+    in L. R. Gleitman and M. Liberman (eds)
+    *An Invitation to Cognitive Science: Language*
+    Volume 1.
+    The MIT Press.
+    Pages 311--360.
+
 .. [WarrenPereira1982] 
      David H. D. Warren and Fernando C. N. Pereira (1982)
-     'An Efficient Easily Adaptable System for Interpreting Natural
-     Language Queries', AJCL, 8, 3-4, pp110-122.
+     'An Efficient Easily Adaptable System for Interpreting Natural Language Queries', 
+     AJCL, 8, 3-4, pp110-122.
 
 
 
