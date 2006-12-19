@@ -27,17 +27,17 @@ def init_wfst(tokens, grammar):
 
 def display(wfst, tokens):
     numfields = len(wfst)
-    horiz = "   " + "=" * 5 * len(tokens)
+    hline = "   " + "=" * 5 * len(tokens)
     print
     print '    ' + ' '.join([("%-4d" % i) for i in range(1, numfields)])
-    print horiz
+    print hline
     for i in range(numfields-1):
         rownum = i
         print "%d| " % rownum,
         for j in range(1, numfields):
             print "%-4s" % wfst[i][j],
         print "|"
-    print horiz
+    print hline
         
 wfst0 = init_wfst(tokens, grammar)
 display(wfst0, tokens)
@@ -56,7 +56,6 @@ def complete_wfst(wfst, tokens, index, trace=True):
             for mid in range(start+1, end):
                 nt1 = wfst[start][mid]
                 nt2 = wfst[mid][end]
-                
                 if (nt1,nt2) in index:
                     nt3 = index[(nt1,nt2)]
                     if trace:
