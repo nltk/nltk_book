@@ -53,17 +53,28 @@ We can convert a list of strings to a single string using the
 Notice in the above code sample that we computed multiple values
 on a single line, separated by commas.  Lines of comma-separated
 expressions are actually just tuples.  We use tuples to spontaneously
-aggregate items.  In the next example we use tuples to move items
-around inside a list without using temporary variables.
+aggregate items.  In the next example we use tuples to re-arrange the
+contents of our list:
 
     >>> words[2], words[3], words[4] = words[3], words[4], words[2]
     >>> words    
     ['I', 'turned', 'the', 'spectroroute', 'off']
 
 |nopar|
-Here we define a function that returns a tuple consisting of the
-average word length of a sentence, and the inventory of letters
-used in the sentence.
+This is an idiomatic and readable way to move items inside a list.
+It is equivalent to the following (traditional) way of doing such a
+task that does not use tuples:
+
+    >>> tmp = words[2]
+    >>> words[2] = words[3]
+    >>> words[3] = words[4]
+    >>> words[4] = tmp
+
+Another common way to use tuples is in the return values of functions,
+in those situations where we want to return multiple items of
+different types.  Here we define a function that returns a tuple
+consisting of the average word length of a sentence, and the inventory
+of letters used in the sentence.
 
     >>> def proc_words(words):
     ...     avg_wordlen = sum(len(word) for word in words)/len(words)
@@ -71,6 +82,13 @@ used in the sentence.
     ...     return avg_wordlen, chars_used
     >>> proc_words(words)
     (5, 'Icdefhnoprstu')
+
+Notice that Python is usually able to detect the presence of a tuple simply by
+seeing a comma.  In such cases the parentheses are optional.
+For example, the return line of the above function does not contain
+parentheses, nor does the tuple assignment statement in the previous
+example (i.e. comma has higher `precedence`:dt: than assignment).
+However, when we print a tuple, the parentheses are always displayed.
 
 List Comprehensions
 -------------------
@@ -83,30 +101,31 @@ construct for doing this.  Here we lowercase each word:
     >>> [word.lower() for word in sent]
     ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
 
-As another example, we could remove all determiners from a list of
-words:
+|nopar|
+This syntax might be reminiscent of the notation used for building
+sets, e.g. {(x,y) | x\ :superscript:`2` + y\ :superscript:`2` = 1}.
+Just as this set definition incorporates a constraint, list
+comprehensions can constrain the items they include.  In the next
+example we remove all determiners from a list of words:
 
     >>> def is_lexical(word):
     ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
     >>> [word for word in sent if is_lexical(word)]
     ['dog', 'gave', 'John', 'newspaper']
 
-Or equivalently:
-
-    >>> filter(is_lexical, sent)
-    ['dog', 'gave', 'John', 'newspaper']
-
-Combining the transformations...
+|nopar|
+Now we can combine the two ideas, to normalize a subset of the words:
 
     >>> [word.lower() for word in sent if is_lexical(word)]
     ['dog', 'gave', 'john', 'newspaper']
 
-
-The following code builds a list of tuples, where each tuple consists
+List comprehensions can build nested structures too.  For example,
+the following code builds a list of tuples, where each tuple consists
 of a word and its length.
 
     >>> [(x, len(x)) for x in sent]
-    [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
+    [('The', 3), ('dog', 3), ('gave', 4), ('John', 4),
+     ('the', 3), ('newspaper', 9)]
 
 Putting it Together
 -------------------
@@ -136,59 +155,48 @@ roles.  First, strings appear at the beginning and the end: this is
 typical in the context where our program is reading in some text and
 producing output for us to read.  Lists and tuples are used in the
 middle, but for different purposes.  A list is typically a sequence of
-objects all having the same type, of arbitrary length.  We often
+objects all having the *same type*, of *arbitrary length*.  We often
 use lists to hold sequences of words.  In contrast,
-a tuple is typically a collection of objects of different types, of
-fixed length.  We often use a tuple to hold a `record`:dt:,
+a tuple is typically a collection of objects of *different types*, of
+*fixed length*.  We often use a tuple to hold a `record`:dt:,
 a collection of different `fields`:dt: relating to some entity.
-The distinction is a bit subtle, so here is another example:
+
+This distinction between the use of lists and tuples is a bit subtle,
+so here is another example:
 
     >>> lexicon = [
     ...     ('the', 'DT', ['Di:', 'D@']),
     ...     ('off', 'IN', ['Qf', 'O:f'])
     ... ]
 
-A lexicon is represented as a list as it is a collection of objects
+|nopar|
+Here, a lexicon is represented as a list because it is a collection of objects
 of a single type |mdash| lexical entries |mdash| of no predetermined
-length.  An individual entry is represented as a tuple, as it is
+length.  An individual entry is represented as a tuple because it is
 a collection of objects with different interpretations, such as
 the orthographic form, the part of speech, and the pronunciations
 represented in the SAMPA system.
-However, these pronunciations are again a list (why?).
+Note that these pronunciations are stored using a list (why?).
 
-This distinction between lists and tuples has been described in terms of
+The distinction between lists and tuples has been described in terms of
 usage.  However, there is a more fundamental difference: in Python,
 lists are `mutable`:dt:, while tuples are `immutable`:dt:.  In other
 words, lists can be modified, while tuples cannot.  Here are some of
 the operations on lists which do in-place modification of the list.
-None of these operations is permitted on a tuple:
+None of these operations is permitted on a tuple, a fact you should
+confirm for yourself.
 
     >>> lexicon.sort()
     >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
     >>> del lexicon[0]
 
 
-Representations and Printing
-----------------------------
+More List Comprehensions and Related Methods
+--------------------------------------------
 
-We have seen that there are two ways to display the contents of an object:
-
-    >>> word = 'cat'
-    >>> print word
-    cat
-    >>> word
-    'cat'
-
-The first of these is Python's attempt to produce the most human-readable form of an object.
-The second method |mdash| naming the variable at a prompt |mdash| shows us a string
-that can be used to recreate this object.  It is important to keep in mind that both of
-these are just strings, displayed for the benefit of you the user.  They do not give
-us any clue as to the actual internal representation of the object.
-
-More List Comprehensions
-------------------------
-
-We can build a list of n-grams as follows:
+List comprehensions have a very wide range of uses in natural language
+processing.  In this section we will see some more examples.
+The first one implements a sliding window to create a list of n-grams:
 
     >>> n = 3
     >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
@@ -197,7 +205,13 @@ We can build a list of n-grams as follows:
      ['gave', 'John', 'the'],
      ['John', 'the', 'newspaper']]
 
-Multiple iteration:
+|nopar|
+This code takes successive overlapping slices of size ``n`` from ``sent``.
+Pay particular attention to the range of the variable ``i``.
+
+Another clever use of list comprehensions is for a kind of multiplication.
+Here we generate all combinations of two determiners, two adjectives, and two nouns.
+The list comprehension is split across three lines for readability.
 
     >>> [(dt,jj,nn) for dt in ('two', 'three')
     ...             for jj in ('old', 'blind')
@@ -206,19 +220,40 @@ Multiple iteration:
      ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
      ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
 
-Nesting:
+|nopar|
+The above example contains three independent loops.  We can also have loops
+with shared variables.  The next example iterates over all sentences in a
+section of the Brown Corpus, and for each sentence, iterates over each word.
 
     >>> from nltk_lite.corpora import brown
+    >>> [word for sent in brown.raw('a') for word in sent if len(word) == 17]
+    ['September-October', 'Sheraton-Biltmore', 'anti-organization',
+     'anti-organization', 'Washington-Oregon', 'York-Pennsylvania',
+     'misunderstandings', 'Sheraton-Biltmore', 'neo-stagnationist',
+     'cross-examination', 'bronzy-green-gold', 'Oh-the-pain-of-it',
+     'Secretary-General', 'Secretary-General', 'textile-importing',
+     'textile-exporting', 'textile-producing', 'textile-producing']
+
+Sometimes we use a list comprehension as part of a larger aggregation task.
+Here we calculate the average length of words in part of the Brown Corpus.
+Notice that we don't bother storing the list comprehension.
+
     >>> from numpy import average
     >>> average([len(w) for sent in brown.raw('a') for w in sent])
     4.40154543827
 
-Conditions:
-
-    >>> [word for sent in brown.raw('a') for word in sent if len(word) == 17]
-
 Generator expressions: when a list comprehension occurs as the argument
 of a function, we can often leave out the brackets.
+
+Earlier we saw an example of filtering out some items in a list comprehension.
+Thus we can restrict the list to just the lexical words, using
+``[word for word in sent if is_lexical(word)]``.  This is a little cumbersome
+as it mentions the ``word`` variable three times.  A more compact way to say
+the same thing is as follows:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> filter(is_lexical, sent)
+    ['dog', 'gave', 'John', 'newspaper']
 
 Making Copies
 -------------
@@ -269,8 +304,27 @@ Deep copy:
     >>> sent2 = sent1[:]
 
 
-Formatted Strings
------------------
+Strings and Formats
+-------------------
+
+We have seen that there are two ways to display the contents of an object:
+
+    >>> word = 'cat'
+    >>> print word
+    cat
+    >>> word
+    'cat'
+
+The first of these is Python's attempt to produce the most human-readable form of an object.
+The second method |mdash| naming the variable at a prompt |mdash| shows us a string
+that can be used to recreate this object.  It is important to keep in mind that both of
+these are just strings, displayed for the benefit of you the user.  They do not give
+us any clue as to the actual internal representation of the object.
+
+There are many other useful ways to display an object as a string of
+characters.  This may be for the benefit of a human reader, or because
+we want to `export`:dt: our data to a particular file format for use
+in an external program.
 
 Formatted output typically contains a combination of variables and
 pre-specified strings, e.g. given a dictionary ``wordcount``
@@ -289,16 +343,16 @@ maintain.  Instead:
     ...    print '%s->%d;' % (word, wordcount[word]),
     dog->4; cat->3; snake->1
     
-**Tabulation:**
+Example: Tabulation
+-------------------
 
-Now that we can load a significant quantity of tagged text, we can
-process it and extract items of interest.  The following code iterates
-over the fifteen genres of the Brown Corpus (accessed using
-``brown.items()``).  Each of these is tokenized in turn.  The next
-step is to check if the token has the ``md`` tag.  For each of these
-words we increment a count.  This uses the conditional frequency
-distribution, where the condition is the current genre, and the event
-is the modal.
+An important use of formatting strings is for tabulating data.  The
+following code iterates over the fifteen genres of the Brown Corpus
+(accessed using ``brown.items()``).  Each of these is tokenized in
+turn.  The next step is to check if the token has the ``md`` tag.  For
+each of these words we increment a count.  This uses the conditional
+frequency distribution, where the condition is the current genre, and
+the event is the modal.
 
     >>> from nltk_lite.probability import ConditionalFreqDist
     >>> cfdist = ConditionalFreqDist()
@@ -344,19 +398,39 @@ the latter is characterised by the use of ``could`` and ``might``.
 With some further work it might be possible to guess the genre of a
 new text automatically, according to its distribution of modals.
 
-**Example: concordance display**
+Example: Concordance Display
+----------------------------
 
-Issues: handling padding, escaping ``%`` in formatting strings, alignment
+In this section we see another example of formatted output.  So far our
+formatting strings have contained specifications of fixed width, such
+as ``%6s``, a string that is padded to width 6.  Let's experiment
+with this for a moment to make sure we remember the details:
+
+    >>> "%6s" % "dog"
+    "   dog"
+    >>> "%-6s" % "dog"
+    "dog   "
+    >>> "%6s" % "giraffe"
+    "giraffe"
+
+Sometimes we don't know how wide a displayed value should be in advance.
+We can replace the digit specifier with an asterisk:
+
+    >>> width = 6
+    >>> "%-*s" % (width, "dog")
+    "dog   "
+
+We use the left/right justification of strings, and the variable width, in the
+following example, to get vertical alignment of a variable-width window:
 
     >>> context = 32
     >>> word = 'line'
-    >>> format = '%%%ds %s %%-%ds' % (context, word, context)
     >>> for sent in brown.raw('a'):
     ...     try:
     ...         pos = sent.index(word)
     ...         left = ' '.join(sent[:pos])
     ...         right = ' '.join(sent[pos+1:])
-    ...         print format % (left[-context:], right[:context])
+    ...         print '%*s %s %-*s' % (context, left[-context:], word, context, right[:context])
     ...     except ValueError:
     ...         pass
     ce , is today closer to the NATO line .                               
@@ -404,6 +478,9 @@ Exercises
    E.g. if the input list contained 10 instances of the word ``table`` and 9 instances
    of the word ``chair``, then ``table`` would appear before ``chair`` in the output
    list.
+
+#. Dictionaries in formatting strings...
+
 
 ---------
 Functions
@@ -556,7 +633,8 @@ Some Important Subtleties
     >>> def set_up(word, properties):
     ...     word = "cat"
     ...     properties['pos'] = 'noun'
-    >>> w = "", p = {}
+    >>> w = ""
+    >>> p = {}
     >>> set_up(w, p)
     >>> print w
     ""
@@ -881,7 +959,7 @@ Recursion on Trees
 
     >>> def indent_tree(t, level=0, first=False, width=8):
     ...     if not first:
-    ...         print ' '*width*level,
+    ...         print ' '*(width+1)*level,
     ...     try:
     ...         print "%-*s" % (width, t.node),
     ...         indent_tree(t[0], level+1, first=True)
@@ -891,12 +969,30 @@ Recursion on Trees
     ...         print t
     >>> t = extract(0, treebank.parsed())
     >>> indent_tree(t)
+     S        NP-SBJ   NP       NNP      Pierre
+                                NNP      Vinken
+                       ,        ,
+                       ADJP     NP       CD       61
+                                         NNS      years
+                                JJ       old
+                       ,        ,
+              VP       MD       will
+                       VP       VB       join
+                                NP       DT       the
+                                         NN       board
+                                PP-CLR   IN       as
+                                         NP       DT       a
+                                                  JJ       nonexecutive
+                                                  NN       director
+                                NP-TMP   NNP      Nov.
+                                         CD       29
+              .        .
 
 
 2. recurse over tree to look for coordinate constructions (cf 4th
    example in chapter 1.1)
 
-(possible extension: callback function for Tree.subtrees())
+   (possible extension: callback function for Tree.subtrees())
 
 3. generate new dependency tree from a phrase-structure tree
 
@@ -919,47 +1015,47 @@ Exercises
 
 #. Write a recursive function to produce an XML representation for a
    tree, with non-terminals represented as XML elements, and leaves represented
-   as text content, e.g.::
+   as text content, e.g.:
 
-   <S>
-     <NP type="SBJ">
-       <NP>
-         <NNP>Pierre</NNP>
-         <NNP>Vinken</NNP>
-       </NP>
-       <COMMA>,</COMMA>
-       <ADJP>
-         <NP>
-           <CD>61</CD>
-           <NNS>years</NNS>
-         </NP>
-         <JJ>old</JJ>
-       <COMMA>,</COMMA>
-     </NP>
-     <VP>
-       <MD>will</MD>
-       <VP>
-         <VB>join</VB>
-         <NP>
-           <DT>the</DT>
-           <NN>board</NN>
-         </NP>
-         <PP type="CLR">
-           <IN>as</IN>
-           <NP>
-             <DT>a</DT>
-             <JJ>nonexecutive</JJ>
-             <NN>director</NN>
-           </NP>
-         </PP>
-         <NP type="TMP">
-           <NNP>Nov.</NNP>
-           <CD>29</CD>
-         </NP>
-       </VP>
-     </VP>
-     <PERIOD>.</PERIOD>
-   </S>
+|   <S>
+|     <NP type="SBJ">
+|       <NP>
+|         <NNP>Pierre</NNP>
+|         <NNP>Vinken</NNP>
+|       </NP>
+|       <COMMA>,</COMMA>
+|       <ADJP>
+|         <NP>
+|           <CD>61</CD>
+|           <NNS>years</NNS>
+|         </NP>
+|         <JJ>old</JJ>
+|       <COMMA>,</COMMA>
+|     </NP>
+|     <VP>
+|       <MD>will</MD>
+|       <VP>
+|         <VB>join</VB>
+|         <NP>
+|           <DT>the</DT>
+|           <NN>board</NN>
+|         </NP>
+|         <PP type="CLR">
+|           <IN>as</IN>
+|           <NP>
+|             <DT>a</DT>
+|             <JJ>nonexecutive</JJ>
+|             <NN>director</NN>
+|           </NP>
+|         </PP>
+|         <NP type="TMP">
+|           <NNP>Nov.</NNP>
+|           <CD>29</CD>
+|         </NP>
+|       </VP>
+|     </VP>
+|     <PERIOD>.</PERIOD>
+|   </S>
 
 
 -------------------
