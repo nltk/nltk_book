@@ -740,23 +740,23 @@ are completely equivalent; they are called |alpha|
 
 
 The process of relabeling bound variables (which takes us from
-alpha4a_ to alpha4b_) is known as |alpha|-`conversion`:dt:. The
-``equals()`` method on ``VariableBinderExpression``\s in the ``logic``
-module is in fact |alpha|-equivalence:
+alpha4a_ to alpha4b_) is known as |alpha|-`conversion`:dt:. When we
+test for equality of ``VariableBinderExpression``\s in the ``logic``
+module (i.e., using ``==``), we are in fact testing for
+|alpha|-equivalence:
 
      >>> from nltk_lite.semantics import logic
      >>> lp = logic.Parser()
-     >>> lp = Parser()
      >>> e1 = lp.parse('some x.(P x)')
      >>> print e1
      some x.(P x)
      >>> e2 = e1.alpha_convert(Variable('z'))
      >>> print e2
      some z.(P z)
-     >>> e1.equals(e2)
+     >>> e1 == e2
      True
 
-
+|nopar|
 When |beta|-reduction is carried out on an application `(M N)`:mathit:,
 we check whether there are free variables in `N`:mathit: which also
 occur as bound variables in any subterms of `M`:mathit:. Suppose, as in
@@ -840,16 +840,16 @@ will study how |FSRL| is interpreted.
 Formal Semantics
 ----------------
 
-In the preceding sections, we have presented some basic ideas about
-defining a semantic representation |FSRL|, and given a number of
-examples of its expressions are paired up with
+In the preceding sections, we presented some basic ideas about
+defining a semantic representation |FSRL|. We also showed informally how
+expressions of |FSRL| are paired up with
 natural language expressions. Later on, we will investigate a more
 systematic method for carrying out that pairing. But let's suppose for
 a moment that for any sentence `S`:math: of English, we have a method
 of building a corresponding expression of |fol| that represents the
 meaning of `S`:math: (still a fairly distant goal,
 unfortunately). Would this be enough? Within the tradition of formal
-semantics, the answer would be No. To be concrete, consider s1_.
+semantics, the answer would be No. To be concrete, consider s1a_ and s1b_.
 
 .. _s1:
 .. ex::
@@ -865,7 +865,14 @@ s1a_ makes a claim about the world. To know the meaning of s1a_, we at
 least have to know the conditions under which it is true. Translating
 s1a_ into s1b_ may clarify some aspects of the structure of s1a_, but
 we can still ask what the meaning of s1b_ is. So we want to take the
-further step of giving truth conditions for s1b_. Now there are
+further step of giving truth conditions for s1b_. To know the
+conditions under which a sentence is true or false is an essential
+component of knowing the meaning of that sentence. To be sure, truth
+conditions do not exhaust meaning. But if we can find some situation
+in which sentence *A* is true while sentence *B* is false, then we can
+be certain that *A* and *B* do not have the same meaning.
+
+Now there are
 infinitely many sentences in **Term**\ (**Bool**) and consequently it
 is not possible to simply list the truth conditions. Instead, we give
 a `recursive`:em: definition of truth. For instance, one of the
@@ -874,15 +881,21 @@ clauses in the definition might look roughly like this:
 .. _s2:
 .. ex:: (|phi| |wedge| |psi|) is True iff |phi| is True and |psi| is True.
  
-|nopar|
-s2_ is applicable to s1b_; it allows us to decompose it into its
-conjuncts, and then proceed further with each of these, until we reach
-expressions that cannot be broken down any further. As we have already
-seen, all of our non-logical constants are interpreted either as
-individuals or as curried functions. What we are now going to do is
-make this notion of interpretation more precise by defining models for
-our semantic representations. These models lay the basis of the
-recursive definition of truth.
+|nopar| s2_ is applicable to s1b_; it allows us to decompose it into
+its conjuncts, and then proceed further with each of these, until we
+reach expressions |mdash| constants and variables |mdash| that cannot
+be broken down any further.
+
+As we have already seen, all of our non-logical constants are
+interpreted either as individuals or as curried functions. What we are
+now going to do is make this notion of interpretation more precise by
+defining a `valuation`:dt: for non-logical constants, building on a
+set of predefined individuals in a `domain of
+discourse`:dt:. Together, the valuation and domain of discourse make
+up the main components of a `model`:em: for sentences in our semantic
+representation language. The framework of model-theoretic semantics
+provides the tools for making the recursive definition of truth both
+formally and computationally explicit.
 
 Our models stand in for possible worlds |mdash| or ways that the
 world could actually be. Within these models, we adopt the fiction
@@ -1106,13 +1119,13 @@ the new value belongs to the domain of discourse.
        {}
 
 
-`evaluate` and `satisfy`
-------------------------
+Evaluating Non-Logical Constants
+--------------------------------
 
 The ``Model`` constructor takes two parameters, of type ``set`` and
-``Valuation`` respectively. Assuming that we have already defined a ``Valuation``
-``val``, it is convenient to use ``val``\ 's domain as the domain for
-the model constructor.
+``Valuation`` respectively. Assuming that we have already defined a
+``Valuation`` ``val``, it is convenient to use ``val``\ 's domain as
+the domain for the model constructor.
 
    >>> dom = val.domain
    >>> m = Model(dom, val)
@@ -1152,12 +1165,15 @@ have set tracing to ``2`` to give a verbose analysis of the processing steps.
    'Undefined'
 
 
-|nopar| The ``satisfy()`` function assigns semantic values to complex expressions
-according to their syntactic structure, as determined by the method
-``decompose()``; this calls the parser from the ``logic`` module to
-return a 'normalized' parse structure for the expression. In the case of
-a Boolean connectives, ``decompose()`` produces a pair consisting of
-the connective and a list of arguments:
+Evaluating Boolean Connectives
+------------------------------
+
+|nopar| The ``satisfy()`` function assigns semantic values to complex
+expressions according to their syntactic structure, as determined by
+the method ``decompose()``; this calls the parser from the ``logic``
+module to return a 'normalized' parse structure for the expression. In
+the case of a Boolean connectives, ``decompose()`` produces a pair
+consisting of the connective and a list of arguments:
 
    >>> m.decompose('((boy adam) and (dog fido))')
    ('and', ['(boy adam)', '(dog fido)'])
@@ -1245,6 +1261,9 @@ excludes the situation where `'p'`` is true and  ``'q'`` is false.
 ``'(p iff q)'`` is true if ``'p'`` and ``'q'`` have the same truth
 value, and false otherwise.
 
+Evaluating Function Application
+-------------------------------
+
 The ``satisfy()`` clause for function application is similar to that for
 the connectives. In order to handle type errors, application is
 delegated to a wrapper function ``app()`` rather than by directly indexing
@@ -1256,6 +1275,10 @@ definition of ``satisfy()`` started above continues as follows:
      ...      funval = self.satisfy(fun, g)
      ...      argval = self.satisfy(psi, g)
      ...      return app(funval, argval)
+
+
+Evaluating Quantified Formulas
+------------------------------
 
 Let's consider now how to interpret quantified formulas, such as q1_.
 
@@ -1379,6 +1402,9 @@ each quantifier. This requires `m`\ :sup:`n` evaluations, where `m` is
 the cardinality of the domain and `n` is the number of nested
 quantifiers.
 
+Evaluating |lambda| abstracts
+-----------------------------
+
 Finally, we can also evaluate |lambda| abstracts; not surprisingly,
 these are interpreted as ``CharFun``\ s. To illustrate, we can construct
 the binary relation of individuals who love each other, or the ternary
@@ -1467,7 +1493,7 @@ follows:
    ... ('d2', 'b1'), ('g2', 'n')])),
    ... ('in', set([('b1', 'n'), ('b2', 'n'), ('d2', 'n')])),
    ... ('with', set([('b1', 'g1'), ('g1', 'b1'), ('d1', 'b1'), ('b1', 'd1')]))]
-   >>> val.parse(v)
+   >>> val.read(v)
 
 
 |nopar| Using a slightly different graph from before, we can also visualise the
