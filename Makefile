@@ -20,11 +20,10 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 .PHONY: en pt-br slides api rsync .api.done
 
-all: html en slides api
-html: index.html
+all: en slides api
 
 clean:	clean_up
-	rm -rf index.html api
+	rm -rf api
 	$(MAKE) -C en clean
 	$(MAKE) -C pt-br clean
 	$(MAKE) -C slides clean
