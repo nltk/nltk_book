@@ -34,6 +34,7 @@ Now we can try parsing a longer sentence, `fish fish fish fish
 fish`:lx:, which amongst other things, means *fish that are fished by
 other fish are in the habit of fishing fish themselves*. We use the
 |NLTK| chart parser, which is presented later on in this chapter.
+This sentence has four readings.
 
     >>> tokens = ["fish"] * 5
     >>> cp = chart.ChartParse(grammar, chart.TD_STRATEGY)
@@ -67,10 +68,9 @@ Catalan number, (2n)!/(n!(n+1)!).)  No practical |NLP| system could
 construct 10\ `8`:superscript: trees for a typical sentence, much less
 choose the appropriate one in the context.  It's clear that humans
 don't do this either!
-
 Note that the problem is not with our choice of example. 
 [ChurchPatil1982]_ point out that the syntactic ambiguity of `pp`:gc:
-attachment in sentences like pp_ grows in proportion to the Catalan
+attachment in sentences like pp_ also grows in proportion to the Catalan
 numbers.
 
 .. _pp:
@@ -107,10 +107,10 @@ parsing seemingly inoccuous sentences.
 
 Let's look more closely at the
 issue of efficiency. The top-down recursive-descent parser presented
-in Chapter |Parsing| can be very inefficient, since it often builds
+in |Parsing| can be very inefficient, since it often builds
 and discards the same sub-structure many times over.
-
-
+(You should try the recursive-descent parser demo if you haven't
+already: ``from nltk_lite.draw import srparser; srparser.demo()``).
 
 +-------------------------------------------------------+
 |                                                       |
@@ -120,7 +120,7 @@ and discards the same sub-structure many times over.
 |                             |                         |
 | |findtheblock1|             | |findtheblock2|         |
 +-----------------------------+-------------------------+
-| c. Failing to match `in`:lx:| d. Completed parse      |
+| c. Failing to match `on`:lx:| d. Completed parse      |
 |                             |                         |
 | |findtheblock3|             | |findtheblock4|         |
 +-----------------------------+-------------------------+
@@ -169,6 +169,9 @@ to mean planning or scheduling.  Dynamic programming is used when a
 problem contains overlapping sub-problems.  Instead of computing
 solutions to these sub-problems repeatedly, we simply store them in a
 lookup table.
+
+In the remainder of this section we will introduce dynamic programming,
+but in a rather different context to syntactic parsing.
 
 Sanscrit Meter
 --------------
@@ -267,9 +270,14 @@ previously stored the result.  If not, it computes the result
 recursively and stores it in the table.  The last step is to return
 the stored result.
 
+This concludes our introduction to dynamic programming.  In the next
+section we will see this method applied to syntactic parsing.
+
 -------------
 Chart Parsing
 -------------
+
+
 
 Well-formed Substring Tables
 ----------------------------
@@ -357,9 +365,7 @@ with the lexical categories of each token in the input.
     
     >>> def init_wfst(tokens, grammar):
     ...     numtokens = len(tokens)
-    ...     wfst = []
-    ...     for i in range(numtokens+1):
-    ...         wfst.append([''] * (numtokens+1))
+    ...     wfst = [['' for i in range(numtokens+1)] for j in range(numtokens+1)]
     ...     for i in range(numtokens):
     ...         prod_rhs = grammar.productions(rhs=tokens[i])
     ...         wfst[i][i+1] = prod_rhs[0].lhs()
@@ -436,8 +442,8 @@ This is an example of a space-time trade-off: we do a reverse lookup
 on the grammar, instead of having to check through entire list of
 productions each time we want to look up via the right-hand side.  In
 the case at hand, we know that we can enter `n`:gc: in cell (0,2).
-Fiigure chartinit1_ is the corresponding graph representation, where
-we add a new edge labelled `n`:gc: to cover the input from `0` to `2`.
+Figure chartinit1_ is the corresponding graph representation, where
+we add a new edge labeled `n`:gc: to cover the input from `0` to `2`.
 
 .. _chartinit1:
 .. figure:: ../images/chart_init1.png
@@ -606,12 +612,16 @@ with the current knowledge can be hypothesized; but many of these
 hypothesized constituents may not be used in complete parses. We can
 view a |WFST| as recording these hypotheses.
 
-
 All of the edges that we've seen so far represent complete
 constituents.  However, it can also be helpful to hypothesize
-`incomplete`:dt: constituents.  For example, we might want to record the
+`incomplete`:dt: constituents.  For example, much of the work done by a
+parser in processing the production *VP* |rarr| *V* *NP* is also useful
+when processing *VP* |rarr| *V* *NP* *PP*.
+Thus, we might want to record the
 hypothesis that "the `v`:gc: constituent `likes`:lx: forms the beginning of a
-`vp`:gc:."  We can record hypotheses of this form by adding a `dot`:dt: to the
+`vp`:gc:."
+
+We can record hypotheses of this form by adding a `dot`:dt: to the
 edge's right hand side.  The children to the left of the dot specify
 what children the constituent starts with; and the children to the
 right of the dot specify what children still need to be found in order
@@ -651,16 +661,15 @@ edge.
 
 .. image:: ../images/chart_intro_selfloop.png
 
-If a complete edge spans the entire sentence, and has the grammars'
+If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
 edge`:dt:, and it encodes one or more parse trees for the sentence.  In
 the following chart, [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
       
 .. image:: ../images/chart_intro_parseedge.png
 
--------------
-Chart Parsing
--------------
+The Chart Parser
+----------------
 
 To parse a sentence, a chart parser first creates an empty chart
 spanning the sentence.  It then finds edges that are licensed by its
@@ -728,7 +737,7 @@ parser should add the edge:
 .. ouch: write this better! :)
 
 |nopar| The Bottom-Up Predict Rule says that if the chart contains a complete
-edge, then the parser add a self-loop edge at the complete edge's left
+edge, then the parser should add a self-loop edge at the complete edge's left
 boundary for each grammar production whose right-hand side begins with
 the completed edge's left-hand side.  In other words, it states that
 if the chart contains the complete edge:
@@ -752,13 +761,9 @@ if the chart contains the complete edge:
 1. Create an empty chart spanning the sentence. 
 
 #. Apply the Bottom-Up Initialization Rule to each word. 
-
 #. Until no more edges are added: 
-
-  a) Apply the Bottom-Up Predict Rule everywhere it applies. 
-
-  #) Apply the Fundamental Rule everywhere it applies. 
-
+   a) Apply the Bottom-Up Predict Rule everywhere it applies. 
+   #) Apply the Fundamental Rule everywhere it applies. 
 #. Return all of the parse trees corresponding to the parse edges in the chart. 
 
 For example, Figure bufig_ shows the order in which edges get added
@@ -828,17 +833,11 @@ Then the parser should add the complete edge:
 Using these four rules, we can parse a sentence as follows:
 
 1. Create an empty chart spanning the sentence. 
-
 #. Apply the Top-Down Initialization Rule to each word. 
-
 #. Until no more edges are added: 
-
-  a) Apply the Top-Down Expand Rule everywhere it applies. 
-
-  #) Apply the Top-Down Match Rule everywhere it applies. 
-
-  #) Apply the Fundamental Rule everywhere it applies. 
-
+   a) Apply the Top-Down Expand Rule everywhere it applies. 
+   #) Apply the Top-Down Match Rule everywhere it applies. 
+   #) Apply the Fundamental Rule everywhere it applies. 
 #. Return all of the parse trees corresponding to the parse edges in the chart. 
 
 .. 
@@ -996,9 +995,9 @@ Exercises
    significant performance boosts from cleverer rule invocation
    strategies?
 
--------------------------------------
-Introduction to Probabilistic Parsing
--------------------------------------
+---------------------
+Probabilistic Parsing
+---------------------
 
 As we pointed out in the introduction to this
 chapter, dealing with ambiguity is a key challenge to broad coverage
@@ -1009,7 +1008,6 @@ probabilistic parsing helps to manage a large space of parses.
 However, before we deal with these parsing issues,
 we must first back up and introduce weighted grammars.
 
------------------
 Weighted Grammars
 -----------------
  
