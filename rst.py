@@ -32,15 +32,17 @@ the following ways:
       multiple times.
 """
 
-import re, os.path, textwrap
+import re, os.path, textwrap, shelve
 from optparse import OptionParser
 from tree2image import tree_to_image
 
-import docutils.core, docutils.nodes
+import docutils.core, docutils.nodes, docutils.io
 from docutils.writers import Writer
 from docutils.writers.html4css1 import HTMLTranslator, Writer as HTMLWriter
 from docutils.writers.latex2e import LaTeXTranslator, Writer as LaTeXWriter
-from docutils.parsers.rst import directives
+from docutils.parsers.rst import directives, roles
+from docutils.readers.standalone import Reader as StandaloneReader
+from docutils.transforms import Transform
 import docutils.writers.html4css1
 
 LATEX_VALIGN_IS_BROKEN = True
@@ -57,7 +59,7 @@ LATEX_DPI = 140
 
 OUTPUT_FORMAT = None
 """A global variable, set by main(), indicating the output format for
-   the current file.  Can be 'latex' or 'html'."""
+   the current file.  Can be 'latex' or 'html' or 'ref'."""
 
 OUTPUT_BASENAME = None
 """A global variable, set by main(), indicating the base filename
@@ -66,6 +68,10 @@ OUTPUT_BASENAME = None
 
 TREE_IMAGE_DIR = 'tree_images/'
 """The directory that tree images should be written to."""
+
+EXTERN_REFERENCE_FILES = []
+"""A list of .ref files, for crossrefering to external documents (used
+   when building one chapter at a time)."""
 
 ######################################################################
 #{ Directives
@@ -128,12 +134,14 @@ def tree_directive(name, arguments, options, content, lineno,
         density = density * options.get('scale', 100) / 100
         filename = '%s-tree-%s.png' % (OUTPUT_BASENAME, _treenum)
         align = 'top'
+    elif OUTPUT_FORMAT == 'ref':
+        return []
     else:
         assert 0, 'bad output format %r' % OUTPUT_FORMAT
     try:
         filename = os.path.join(TREE_IMAGE_DIR, filename)
         tree_to_image(text, filename, density)
-    except ValueError, e:
+    except Exception, e:
         print 'Error parsing tree: %s\n%s' % (e, text)
         return [example(text, text)]
 
@@ -158,6 +166,7 @@ directives.register_directive('avm', avm_directive)
 def def_directive(name, arguments, options, content, lineno,
                   content_offset, block_text, state, state_machine):
     state_machine.document.setdefault('__defs__', {})[arguments[0]] = 1
+    return []
 def_directive.arguments = (1, 0, 0)
 directives.register_directive('def', def_directive)
     
@@ -166,7 +175,9 @@ def ifdef_directive(name, arguments, options, content, lineno,
     if arguments[0] in state_machine.document.get('__defs__', ()):
         node = docutils.nodes.compound('')
         state.nested_parse(content, content_offset, node)
-        return list(node)
+        return [node]
+    else:
+        return []
 ifdef_directive.arguments = (1, 0, 0)
 ifdef_directive.content = True
 directives.register_directive('ifdef', ifdef_directive)
@@ -176,16 +187,249 @@ def ifndef_directive(name, arguments, options, content, lineno,
     if arguments[0] not in state_machine.document.get('__defs__', ()):
         node = docutils.nodes.compound('')
         state.nested_parse(content, content_offset, node)
-        return list(node)
+        return [node]
+    else:
+        return []
 ifndef_directive.arguments = (1, 0, 0)
 ifndef_directive.content = True
 directives.register_directive('ifndef', ifndef_directive)
     
+######################################################################
+#{ Indexing
+######################################################################
+
+#class termdef(docutils.nodes.Inline, docutils.nodes.TextElement): pass
+class idxterm(docutils.nodes.Inline, docutils.nodes.TextElement): pass
+class index(docutils.nodes.Element): pass
+
+def idxterm_role(name, rawtext, text, lineno, inliner,
+                 options={}, content=[]):
+    if name == 'dt': options['classes'] = ['termdef']
+    else: options['classes'] = ['term']
+    return [idxterm(rawtext, docutils.utils.unescape(text), **options)], []
+
+roles.register_canonical_role('dt', idxterm_role)
+roles.register_canonical_role('idx', idxterm_role)
+
+def index_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    pending = docutils.nodes.pending(ConstructIndex)
+    pending.details.update(options)
+    state_machine.document.note_pending(pending)
+    return [index('', pending)]
+index_directive.arguments = (0, 0, 0)
+index_directive.content = False
+directives.register_directive('index', index_directive)
+
+class SaveIndexTerms(Transform):
+    default_priority = 810 # before NumberReferences transform
+    def apply(self):
+        v = FindTermVisitor(self.document)
+        self.document.walkabout(v)
+        
+        if OUTPUT_FORMAT == 'ref':
+            d = shelve.open('%s.ref' % OUTPUT_BASENAME)
+            d['terms'] = v.terms
+            d.close()
+
+class ConstructIndex(Transform):
+    default_priority = 820 # after NumberNodes, before NumberReferences.
+    def apply(self):
+        # Find any indexed terms in this document.
+        v = FindTermVisitor(self.document)
+        self.document.walkabout(v)
+        terms = v.terms
+
+        # Check the extern reference files for additional terms.
+        for filename in EXTERN_REFERENCE_FILES:
+            basename = os.path.splitext(filename)[0]
+            d = shelve.open('%s.ref' % basename, 'r')
+            terms.update(d['terms'])
+            d.close()
+
+        # Build the index & insert it into the document.
+        index_node = self.build_index(terms)
+        self.startnode.replace_self(index_node)
+
+    def build_index(self, terms):
+        if not terms: return []
+        
+        top = docutils.nodes.bullet_list('', classes=['index'])
+        start_letter = None
+        
+        section = None
+        for key in sorted(terms.keys()):
+            if key[:1] != start_letter:
+                top.append(docutils.nodes.list_item(
+                    '', docutils.nodes.paragraph('', key[:1].upper()+'\n',
+                                                 classes=['index-heading']),
+                    docutils.nodes.bullet_list('', classes=['index-section']),
+                    classes=['index']))
+                section = top[-1][-1]
+            section.append(self.entry(terms[key]))
+            start_letter = key[:1]
+        
+        return top
+
+    def entry(self, term_info):
+        entrytext, name, sectnum = term_info
+        if sectnum is not None:
+            entrytext.append(docutils.nodes.emphasis('', ' (%s)' % sectnum))
+        ref = docutils.nodes.reference('', '', refid=name,
+                                       #resolved=True,
+                                       *entrytext)
+        para = docutils.nodes.paragraph('', '', ref)
+        return docutils.nodes.list_item('', para, classes=['index'])
+
+class FindTermVisitor(docutils.nodes.SparseNodeVisitor):
+    def __init__(self, document):
+        self.terms = {}
+        docutils.nodes.NodeVisitor.__init__(self, document)
+    def unknown_visit(self, node): pass
+    def unknown_departure(self, node): pass
+
+    def visit_idxterm(self, node):
+        node['name'] = node['id'] = self.idxterm_key(node)
+        node['names'] = node['ids'] = [node['id']]
+        container = self.container_section(node)
+
+        entrytext = node.deepcopy()
+        sectnum = container.get('sectnum')
+        name = node['name']
+        self.terms[node['name']] = (entrytext, name, sectnum)
+            
+    def idxterm_key(self, node):
+        key = re.sub('\W', '_', node.astext().lower())+'_index_term'
+        if key not in self.terms: return key
+        n = 2
+        while '%s_%d' % (key, n) in self.terms: n += 1
+        return '%s_%d' % (key, n)
+
+    def container_section(self, node):
+        while not isinstance(node, docutils.nodes.section):
+            if node.parent is None: return None
+            else: node = node.parent
+        return node
+
+######################################################################
+#{ Crossreferences
+######################################################################
+
+class ResolveExternalCrossrefs(Transform):
+    """
+    Using the information from EXTERN_REFERENCE_FILES, look for any
+    links to external targets, and set their `refuid` appropriately.
+    Also, if they are a figure, section, table, or example, then
+    replace the link of the text with the appropriate counter.
+    """
+    default_priority = 849 # right before dangling refs
+
+    def apply(self):
+        ref_dict = self.build_ref_dict()
+        v = ExternalCrossrefVisitor(self.document, ref_dict)
+        self.document.walkabout(v)
+
+    def build_ref_dict(self):
+        """{target -> (uri, label)}"""
+        ref_dict = {}
+        for filename in EXTERN_REFERENCE_FILES:
+            basename = os.path.splitext(filename)[0]
+            if OUTPUT_FORMAT == 'html':
+                uri = os.path.split(basename)[-1]+'.html'
+            else:
+                uri = os.path.split(basename)[-1]+'.pdf'
+            if not os.path.exists('%s.ref' % basename):
+                print '%s.ref does not exist' % basename
+            else:
+                d = shelve.open('%s.ref' % basename, 'r')
+                for ref in d['targets']:
+                    label = d['reference_labels'].get(ref)
+                    ref_dict[ref] = (uri, label)
+                d.close()
+
+        return ref_dict
     
+class ExternalCrossrefVisitor(docutils.nodes.NodeVisitor):
+    def __init__(self, document, ref_dict):
+        docutils.nodes.NodeVisitor.__init__(self, document)
+        self.ref_dict = ref_dict
+    def unknown_visit(self, node): pass
+    def unknown_departure(self, node): pass
+
+    # Don't mess with the table of contents.
+    def visit_topic(self, node):
+        if 'contents' in node.get('classes', ()):
+            raise docutils.nodes.SkipNode
+
+    def visit_reference(self, node):
+        if node.resolved: return
+        node_id = node.get('refid') or node.get('refname')
+        if node_id in self.ref_dict:
+            uri, label = self.ref_dict[node_id]
+            #print 'xref: %20s -> %-30s (label=%s)' % (
+            #    node_id, uri+'#'+node_id, label)
+            node['refuri'] = '%s#%s' % (uri, node_id)
+            node.resolved = True
+
+            if label is not None:
+                node.children[:] = [docutils.nodes.Text(label)]
+                expand_reference_text(node)
 
 ######################################################################
 #{ Figure & Example Numbering
 ######################################################################
+
+# [xx] number examples, figures, etc, relative to chapter?  e.g.,
+# figure 3.2?  maybe number examples within-chapter, but then restart
+# the counter?
+
+class section_context(docutils.nodes.Invisible, docutils.nodes.Element):
+    def __init__(self, context):
+        docutils.nodes.Element.__init__(self, '', context=context)
+        assert self['context'] in ('body', 'preface', 'appendix')
+
+def section_context_directive(name, arguments, options, content, lineno,
+                       content_offset, block_text, state, state_machine):
+    return [section_context(name)]
+section_context_directive.arguments = (0,0,0)
+directives.register_directive('preface', section_context_directive)
+directives.register_directive('body', section_context_directive)
+directives.register_directive('appendix', section_context_directive)
+        
+class NumberNodes(Transform):
+    """
+    This transform adds numbers to figures, tables, and examples; and
+    converts references to the figures, tables, and examples to use
+    these numbers.  For example, given the rst source::
+
+        .. _my_example:
+        .. ex:: John likes Mary.
+
+        See example my_example_.
+
+    This transform will assign a number to the example, '(1)', and
+    will replace the following text with 'see example (1)', with an
+    appropriate link.
+    """
+    # dangling = 850; contents = 720.
+    default_priority = 800
+    def apply(self):
+        v = NumberingVisitor(self.document)
+        self.document.walkabout(v)
+        self.document.reference_labels = v.reference_labels
+
+class NumberReferences(Transform):
+    default_priority = 830
+    def apply(self):
+        v = ReferenceVisitor(self.document, self.document.reference_labels)
+        self.document.walkabout(v)
+
+        # Save reference info to a pickle file.
+        if OUTPUT_FORMAT == 'ref':
+            d = shelve.open('%s.ref' % OUTPUT_BASENAME)
+            d['reference_labels'] = self.document.reference_labels
+            d['targets'] = v.targets
+            d.close()
 
 class NumberingVisitor(docutils.nodes.NodeVisitor):
     """
@@ -196,16 +440,172 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     """
     LETTERS = 'abcdefghijklmnopqrstuvwxyz'
     ROMAN = 'i ii iii iv v vi vii viii ix x'.split()
+    ROMAN += ['x%s' % r for r in ROMAN]
+    
     def __init__(self, document):
-        self.figures = {}
-        self.examples = {}
-        self.figure_num = 1
-        self.example_num = [0]
         docutils.nodes.NodeVisitor.__init__(self, document)
+        self.reference_labels = {}
+        self.figure_num = 0
+        self.table_num = 0
+        self.example_num = [0]
+        self.section_num = [0]
+        self.set_section_context = None
+        self.section_context = 'body' # preface, appendix, body
+        
+    #////////////////////////////////////////////////////////////
+    # Figures
+    #////////////////////////////////////////////////////////////
+
+    def visit_figure(self, node):
+        self.figure_num += 1
+        num = '%s.%s' % (self.format_section_num(1), self.figure_num)
+        for node_id in self.get_ids(node):
+            self.reference_labels[node_id] = '%s' % num
+        self.label_node(node, 'Figure %s' % num)
+            
+    #////////////////////////////////////////////////////////////
+    # Tables
+    #////////////////////////////////////////////////////////////
+
+    def visit_table(self, node):
+        self.table_num += 1
+        num = '%s.%s' % (self.format_section_num(1), self.table_num)
+        for node_id in self.get_ids(node):
+            self.reference_labels[node_id] = '%s' % num
+        self.label_node(node, 'Table %s' % num)
+
+    #////////////////////////////////////////////////////////////
+    # Sections
+    #////////////////////////////////////////////////////////////
+    max_section_depth = 3
+    no_section_numbers_in_preface = True
+    TOP_SECTION = 'chapter'
+
+    def visit_section(self, node):
+        title = node[0]
+        
+        # Check if we're entering a new context.
+        if len(self.section_num) == 1 and self.set_section_context:
+            self.start_new_context(node)
+
+        # Increment the section counter.
+        self.section_num[-1] += 1
+        
+        # If a section number is given explicitly as part of the
+        # title, then it overrides our counter.
+        if isinstance(title.children[0], docutils.nodes.Text):
+            m = re.match(r'(\d+(.\d+)*)\.?\s+', title.children[0].data)
+            if m:
+                pieces = [int(n) for n in m.group(1).split('.')]
+                if len(pieces) == len(self.section_num):
+                    self.section_num = pieces
+                    title.children[0].data = title.children[0].data[m.end():]
+                else:
+                    print 'Error: section depth mismatch'
+                self.prepend_raw_latex(node, r'\setcounter{%s}{%d}' %
+                               (self.TOP_SECTION, self.section_num[0]-1))
+
+        # Record the reference pointer for this section; and add the
+        # section number to the section title.
+        node['sectnum'] = self.format_section_num()
+        for node_id in node.get('ids', []):
+            self.reference_labels[node_id] = '%s' % node['sectnum']
+        if (len(self.section_num) <= self.max_section_depth and
+            (OUTPUT_FORMAT != 'latex') and
+            not (self.section_context == 'preface' and
+                 self.no_section_numbers_in_preface)):
+            label = docutils.nodes.generated('', node['sectnum']+u'\u00a0'*3,
+                                             classes=['sectnum'])
+            title.insert(0, label)
+            title['auto'] = 1
+        
+        self.section_num.append(0)
+
+    def start_new_context(self,node):
+        # Set the 'section_context' var.
+        self.section_context = self.set_section_context
+        self.set_section_context = None
+
+        # Update our counter.
+        self.section_num[0] = 0
+
+        # Update latex's counter.
+        if self.section_context == 'preface': style = 'Roman'
+        elif self.section_context == 'body': style = 'arabic'
+        elif self.section_context == 'appendix': style = 'Alph'
+        raw_latex = (('\n'+r'\setcounter{%s}{0}' + '\n' + 
+                      r'\renewcommand \the%s{\%s{%s}}'+'\n') %
+               (self.TOP_SECTION, self.TOP_SECTION, style, self.TOP_SECTION))
+        if self.section_context == 'appendix':
+            raw_latex += '\\appendix\n'
+        self.prepend_raw_latex(node, raw_latex)
+
+    def prepend_raw_latex(self, node, raw_latex):
+        node_index = node.parent.children.index(node)
+        node.parent.insert(node_index, docutils.nodes.raw('', raw_latex,
+                                                          format='latex'))
+        
+    def depart_section(self, node):
+        self.section_num.pop()
+
+    def format_section_num(self, depth=None):
+        pieces = [str(p) for p in self.section_num]
+        if self.section_context == 'body':
+            pieces[0] = str(self.section_num[0])
+        elif self.section_context == 'preface':
+            pieces[0] = self.ROMAN[self.section_num[0]-1].upper()
+        elif self.section_context == 'appendix':
+            pieces[0] = self.LETTERS[self.section_num[0]-1].upper()
+        else:
+            assert 0, 'unexpected section context'
+        if depth is None:
+            return '.'.join(pieces)
+        else:
+            return '.'.join(pieces[:depth])
+            
+            
+    def visit_section_context(self, node):
+        assert node['context'] in ('body', 'preface', 'appendix')
+        self.set_section_context = node['context']
+        node.replace_self([])
+
+    #////////////////////////////////////////////////////////////
+    # Examples
+    #////////////////////////////////////////////////////////////
+
+    def visit_example(self, node):
+        self.example_num[-1] += 1
+        node['num'] = self.format_example_num()
+        for node_id in self.get_ids(node):
+            self.reference_labels[node_id] = '%s' % node['num']
+        self.example_num.append(0)
+
+    def depart_example(self, node):
+        if self.example_num[-1] > 0:
+            # If the example contains a list of subexamples, then
+            # splice them in to our parent.
+            node.replace_self(list(node))
+        self.example_num.pop()
+
+    def format_example_num(self):
+        """ (1), (2); (1a), (1b); (1a.i), (1a.ii)"""
+        ex_num = str(self.example_num[0])
+        if len(self.example_num) > 1:
+            ex_num += self.LETTERS[self.example_num[1]-1]
+        if len(self.example_num) > 2:
+            ex_num += '.%s' % self.ROMAN[self.example_num[2]-1]
+        for n in self.example_num[3:]:
+            ex_num += '.%s' % n
+        return '(%s)' % ex_num
+
+    #////////////////////////////////////////////////////////////
+    # Helpers
+    #////////////////////////////////////////////////////////////
+
     def unknown_visit(self, node): pass
     def unknown_departure(self, node): pass
 
-    def get_id(self, node):
+    def get_ids(self, node):
         node_index = node.parent.children.index(node)
         if node_index>0 and isinstance(node.parent[node_index-1],
                                        docutils.nodes.target):
@@ -214,83 +614,93 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
                 refid = target['refid']
                 target['ids'] = [refid]
                 del target['refid']
-                return refid
+                return [refid]
             elif target.has_key('ids'):
-                return target['ids'][0]
+                return target['ids']
             else:
                 print 'unable to find id for %s' % target
-                return None
+                return []
+        return []
 
-    def visit_example(self, node):
-        # Get the example number
-        self.example_num[-1] += 1
-        ex_num = str(self.example_num[0])
-        if len(self.example_num) > 1:
-            ex_num += self.LETTERS[self.example_num[1]-1]
-        if len(self.example_num) > 2:
-            ex_num += '.%s' % self.ROMAN[self.example_num[1]-1]
-        for n in self.example_num[3:]:
-            ex_num += '.%s' % n
-        self.example_num.append(0)
-            
-        # Get the ID for the example, if it has one, & mark the
-        # example with its number.
-        node_id = self.get_id(node)
-        if node_id: self.examples[node_id] = ex_num
-        node['num'] = ex_num
-
-    def depart_example(self, node):
-        if self.example_num[-1] > 0:
-            # If the example contains a list of subexamples, then
-            # splice them in to our parent.
-            node.replace_self(list(node))
-        self.example_num.pop()
-        
-    def visit_figure(self, node):
-        # Figure out our figure number, & update figure_num
-        self.figure_num += 1
-         
-        # Get the ID for the figure, if it has one.
-        node_id = self.get_id(node)
-        if node_id: self.figures[node_id] = str(self.figure_num)
-
-        # Mark the figure with its figure number.
+    def label_node(self, node, label):
         if isinstance(node[-1], docutils.nodes.caption):
             if OUTPUT_FORMAT == 'html':
-                fig_num = docutils.nodes.Text("Figure %s: " % self.figure_num)
-                node[-1].children.insert(0, fig_num)
+                text = docutils.nodes.Text("%s: " % label)
+                node[-1].children.insert(0, text)
         else:
             if OUTPUT_FORMAT == 'html':
-                fig_num = docutils.nodes.Text("Figure %s" % self.figure_num)
-                node.append(docutils.nodes.caption('', '', fig_num))
+                text = docutils.nodes.Text(label)
+                node.append(docutils.nodes.caption('', '', text))
             else:
                 node.append(docutils.nodes.caption()) # empty.
-            
+        
 class ReferenceVisitor(docutils.nodes.NodeVisitor):
-    def __init__(self, document, figures, examples):
-        self.figures = figures
-        self.examples = examples
+    def __init__(self, document, reference_labels):
+        self.reference_labels = reference_labels
+        self.targets = set()
+        docutils.nodes.NodeVisitor.__init__(self, document)
+    def unknown_visit(self, node):
+        if isinstance(node, docutils.nodes.Element):
+            self.targets.update(node.get('names', []))
+            self.targets.update(node.get('ids', []))
+    def unknown_departure(self, node): pass
+
+    # Don't mess with the table of contents.
+    def visit_topic(self, node):
+        if 'contents' in node.get('classes', ()):
+            raise docutils.nodes.SkipNode
+
+    def visit_reference(self, node):
+        node_id = node.get('refid') or node.get('refname')
+        if node_id in self.reference_labels:
+            label = self.reference_labels[node_id]
+            node.children[:] = [docutils.nodes.Text(label)]
+            expand_reference_text(node)
+
+_EXPAND_REF_RE = re.compile(r'(?is)^(.*)(%s)\s+$' % '|'.join(
+    ['figure', 'table', 'example', 'chapter', 'section', 'appendix',
+     'sentence', 'tree']))
+def expand_reference_text(node):
+    """If the reference is immediately preceeded by the word 'figure'
+    or the word 'table' or 'example', then include that word in the
+    link (rather than just the number)."""
+    node_index = node.parent.children.index(node)
+    if node_index > 0:
+        prev_node = node.parent.children[node_index-1]
+        if (isinstance(prev_node, docutils.nodes.Text)):
+            m = _EXPAND_REF_RE.match(prev_node.data)
+            if m:
+                prev_node.data = m.group(1)
+                link = node.children[0]
+                link.data = '%s %s' % (m.group(2), link.data)
+
+######################################################################
+#{ Doctest Indentation
+######################################################################
+
+class UnindentDoctests(Transform):
+    """
+    In our source text, we have indented most of the doctest blocks,
+    for two reasons: it makes copy/pasting with the doctest script
+    easier; and it's more readable.  But we don't *actually* want them
+    to be included in block_quote environments when we output them.
+    So this transform looks for any doctest_block's that are the only
+    child of a block_quote, and eliminates the block_quote.
+    """
+    default_priority = 1000
+    def apply(self):
+        self.document.walkabout(UnindentDoctestVisitor(self.document))
+
+class UnindentDoctestVisitor(docutils.nodes.NodeVisitor):
+    def __init__(self, document):
         docutils.nodes.NodeVisitor.__init__(self, document)
     def unknown_visit(self, node): pass
     def unknown_departure(self, node): pass
+    def visit_doctest_block(self, node):
+        if (isinstance(node.parent, docutils.nodes.block_quote) and
+            len(node.parent.children) == 1):
+            node.parent.replace_self(node)
         
-    def visit_reference(self, node):
-        node_id = node.get('refid')
-        if node_id in self.figures:
-            fig_num = "%s" % self.figures[node_id]
-            node.children[:] = [docutils.nodes.Text(fig_num)]
-        if node_id in self.examples:
-            example_num = "(%s)" % self.examples[node_id]
-            node.children[:] = [docutils.nodes.Text(example_num)]
-
-def postprocess(document):
-    v1 = NumberingVisitor(document)
-    document.walkabout(v1)
-    
-    v2 = ReferenceVisitor(document, v1.figures, v1.examples)
-    document.walkabout(v2)
-
-
 ######################################################################
 #{ HTML Output
 ######################################################################
@@ -308,9 +718,9 @@ class CustomizedHTMLWriter(HTMLWriter):
         HTMLWriter.__init__(self)
         self.translator_class = CustomizedHTMLTranslator
 
-    def translate(self):
-        postprocess(self.document)
-        HTMLWriter.translate(self)
+    #def translate(self):
+    #    postprocess(self.document)
+    #    HTMLWriter.translate(self)
 
 class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_doctest_block(self, node):
@@ -341,11 +751,23 @@ class CustomizedHTMLTranslator(HTMLTranslator):
             '<p><table border="0" cellpadding="0" cellspacing="0" '
             'class="example">\n  '
             '<tr valign="top"><td width="30" align="right">'
-            '(%s)</td><td width="15"></td><td>' % node['num'])
+            '%s</td><td width="15"></td><td>' % node['num'])
 
     def depart_example(self, node):
         self.body.append('</td></tr></table></p>\n')
 
+    def visit_idxterm(self, node):
+        self.body.append('<a name="%s" />' % node['name'])
+        self.body.append('<span class="%s">' % ' '.join(node['classes']))
+        
+    def depart_idxterm(self, node):
+        self.body.append('</span>')
+
+    def visit_index(self, node):
+        self.body.append('<div class="index">\n<h1>Index</h1>\n')
+        
+    def depart_index(self, node):
+        self.body.append('</div>\n')
 
 ######################################################################
 #{ LaTeX Output
@@ -356,25 +778,29 @@ class CustomizedLaTeXWriter(LaTeXWriter):
     settings_defaults.update({
         'output_encoding': 'utf-8',
         'output_encoding_error_handler': 'backslashreplace',
-        'use_latex_docinfo': True,
+        #'use_latex_docinfo': True,
         'font_encoding': 'C10,T1',
         'stylesheet': '../definitions.sty',
-        'documentoptions': '11pt,a4paper',
+        'documentoptions': '11pt,twoside',
         'use_latex_footnotes': True,
+        'use_latex_toc': True,
         })
     
     def __init__(self):
         LaTeXWriter.__init__(self)
         self.translator_class = CustomizedLaTeXTranslator
 
-    def translate(self):
-        postprocess(self.document)
-        LaTeXWriter.translate(self)
+    #def translate(self):
+    #    postprocess(self.document)
+    #    LaTeXWriter.translate(self)
         
 class CustomizedLaTeXTranslator(LaTeXTranslator):
     
     # Not sure why we need this, but the old Makefile did it so I will too:
     encoding = '\\usepackage[%s,utf8x]{inputenc}\n'
+
+    linking = ('\\usepackage[colorlinks=%s,linkcolor=%s,urlcolor=%s,'
+               'bookmarks=true,bookmarksopenlevel=2]{hyperref}\n')
     
     def __init__(self, document):
         LaTeXTranslator.__init__(self, document)
@@ -382,6 +808,9 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.head_prefix.insert(1, '\\usepackage[cjkgb,postscript]{ucs}\n')
         # Make sure we put these *before* the stylesheet include line.
         self.head_prefix.insert(-2, textwrap.dedent("""\
+            % Index:
+            \\usepackage{makeidx}
+            \\makeindex
             % For Python source code:
             \\usepackage{alltt}
             % Python source code: Prompt
@@ -398,6 +827,11 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\newcommand{\\pysrcexcept}[1]{\\textbf{#1}}
             % Python interpreter: Output
             \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
+
+    def bookmark(self, node):
+        # this seems broken; just use the hyperref package's
+        # "bookmarks" option instead.
+        return 
 
     def visit_doctest_block(self, node):
         self.literal = True
@@ -421,7 +855,6 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def depart_literal(self, node):
 	pass
 
-
     def visit_literal_block(self, node):
         if (self.settings.use_verbatim_when_possible and (len(node) == 1)
               # in case of a parsed-literal containing just a "**bold**" word:
@@ -432,10 +865,12 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             self.literal_block = 1
             self.insert_none_breaking_blanks = 1
             if self.active_table.is_open():
-                self.body.append('\n{\\ttfamily \\raggedright \\noindent \\small\n')
+                self.body.append('\n{\\ttfamily \\raggedright '
+                                 '\\noindent \\small\n')
             else:
                 self.body.append('\\begin{quote}')
-                self.body.append('{\\ttfamily \\raggedright \\noindent \\small\n')
+                self.body.append('{\\ttfamily \\raggedright '
+                                 '\\noindent \\small\n')
 
     def _markup_pysrc(self, s, tag):
         return '\\pysrc%s{%s}' % (tag, self.encode(s))
@@ -452,11 +887,36 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         return LaTeXTranslator.visit_image(self, node)
         
     def visit_example(self, node):
-        self.body.append('\\begin{itemize}\n\item[(%s)] ' % node['num'])
+        self.body.append('\\begin{itemize}\n\item[%s] ' % node['num'])
 
     def depart_example(self, node):
         self.body.append('\\end{itemize}\n')
+
+    def visit_idxterm(self, node):
+        self.body.append('\\index{%s}' % node.astext())
+        if 'termdef' in node['classes']:
+            self.body.append('\\textbf{')
+        else:
+            self.body.append('\\textit{')
         
+    def depart_idxterm(self, node):
+        self.body.append('}')
+    
+    def visit_index(self, node):
+        self.body.append('\\printindex')
+        raise docutils.nodes.SkipNode
+
+    def depart_title(self, node):
+        LaTeXTranslator.depart_title(self, node)
+        if self.section_level == 1:
+            title = self.encode(node.children[0].astext())
+            sectnum = node.parent.get('sectnum')
+            if sectnum:
+                self.body.append('\\def\\chtitle{%s. %s}\n' %
+                                 (sectnum, title))
+            else:
+                self.body.append('\\def\\chtitle{}\n')
+
 ######################################################################
 #{ Source Code Highlighting
 ######################################################################
@@ -565,7 +1025,7 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
         if PROMPT_RE.match(line):
             pysrc.append(line)
             if pyout:
-                pyout = '\n'.join(pyout).strip()
+                pyout = '\n'.join(pyout).rstrip()
                 m = EXCEPT_RE.match(pyout)
                 if m:
                     pyout, pyexc = m.group(1).strip(), m.group(2).strip()
@@ -585,45 +1045,98 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
                 #result.append(markup_func(pysrc.strip(), 'python'))
                 pysrc = []
 
-    remainder = '\n'.join(pyout).strip()
+    remainder = '\n'.join(pyout).rstrip()
     if remainder:
         result.append(markup_func(remainder, 'output'))
         
     return '\n'.join(result)
 
 ######################################################################
-#{ Chapter numbering
+#{ Old Code
+######################################################################
+# This was added so that chapter numbers could be propagated 
+# to subsections properly; this is now done as part of the generation
+# of the section numbering, rather than as a post-processing step.
+
+# # Add chapter numbers; docutils doesn't handle (multi-file) books
+# def chapter_numbers(out_file):
+#     f = open(out_file).read()
+#     # LaTeX
+#     c = re.search(r'pdftitle={(\d+)\. ([^}]+)}', f)
+#     if c:
+#         chnum = c.group(1)
+#         chtitle = c.group(2)
+#         f = re.sub(r'(pdfbookmark\[\d+\]{)', r'\g<1>'+chnum+'.', f)
+#         f = re.sub(r'(section\*{)', r'\g<1>'+chnum+'.', f)
+#         f = re.sub(r'(\\begin{document})',
+#                    r'\def\chnum{'+chnum+r'}\n' +
+#                    r'\def\chtitle{'+chtitle+r'}\n' +
+#                    r'\g<1>', f)
+#         open(out_file, 'w').write(f)
+#     # HTML
+#     c = re.search(r'<h1 class="title">(\d+)\.', f)
+#     if c:
+#         chapter = c.group(1)
+#         f = re.sub(r'(<h\d><a[^>]*>)', r'\g<1>'+chapter+'.', f)
+#         open(out_file, 'w').write(f)
+
+######################################################################
+#{ Customized Reader (register new transforms)
 ######################################################################
 
-# Add chapter numbers; docutils doesn't handle (multi-file) books
-def chapter_numbers(out_file):
-    f = open(out_file).read()
-    # LaTeX
-    c = re.search(r'pdftitle={(\d+)\. ([^}]+)}', f)
-    if c:
-        chnum = c.group(1)
-        chtitle = c.group(2)
-        f = re.sub(r'(pdfbookmark\[\d+\]{)', r'\g<1>'+chnum+'.', f)
-        f = re.sub(r'(section\*{)', r'\g<1>'+chnum+'.', f)
-        f = re.sub(r'(\\begin{document})',
-                   r'\def\chnum{'+chnum+r'}\n' +
-                   r'\def\chtitle{'+chtitle+r'}\n' +
-                   r'\g<1>', f)
-        open(out_file, 'w').write(f)
-    # HTML
-    c = re.search(r'<h1 class="title">(\d+)\.', f)
-    if c:
-        chapter = c.group(1)
-        f = re.sub(r'(<h\d><a[^>]*>)', r'\g<1>'+chapter+'.', f)
-        open(out_file, 'w').write(f)
-    
+class CustomizedReader(StandaloneReader):
+    _TRANSFORMS = [
+        NumberNodes,                #  800
+        SaveIndexTerms,             #  810
+        NumberReferences,           #  830
+        ResolveExternalCrossrefs,   #  849
+        UnindentDoctests,           # 1000
+        ]
+    def get_transforms(self):
+        return StandaloneReader.get_transforms(self) + self._TRANSFORMS
 
+######################################################################
+#{ Logging
+######################################################################
+
+try:
+    from epydoc.cli import ConsoleLogger
+    logger = ConsoleLogger(0)
+    #def log(msg): logger.progress(0, msg)
+except Exception, e:
+    class FakeLogger:
+        def __getattr__(self, a):
+            return (lambda *args: None)
+    logger = FakeLogger()
+
+# monkey-patch RSTState to give us progress info.
+from docutils.parsers.rst.states import RSTState
+_old_RSTState_section = RSTState.section
+_section = 'Parsing'
+def _new_RSTState_section(self, title, source, style, lineno, messages):
+    lineno = self.state_machine.abs_line_number()
+    numlines = (len(self.state_machine.input_lines) +
+                self.state_machine.input_offset)
+    progress = 0.5 * lineno / numlines
+    global _section
+    if style == ('=','='): _section = title
+    logger.progress(progress, '%s -- line %d/%d' % (_section,lineno,numlines))
+    _old_RSTState_section(self, title, source, style, lineno, messages)
+RSTState.section = _new_RSTState_section
+
+# monkey-patch Publisher to give us progress info.
+from docutils.core import Publisher
+_old_Publisher_apply_transforms = Publisher.apply_transforms
+def _new_Publisher_apply_transforms(self):
+    logger.progress(.6, 'Processing Document Tree')
+    _old_Publisher_apply_transforms(self)
+    logger.progress(.9, 'Writing Output')
+Publisher.apply_transforms = _new_Publisher_apply_transforms
 
 ######################################################################
 #{ Main Script
 ######################################################################
-
-__version__ = 0.1
+__version__ = 0.2
 
 def parse_args():
     optparser = OptionParser()
@@ -634,14 +1147,27 @@ def parse_args():
     optparser.add_option("--latex", "--tex",
         action="store_const", dest="action", const="latex",
         help="Write LaTeX output.")
+    optparser.add_option("--ref",
+        action="store_const", dest="action", const="ref",
+        help="Generate references linking file.")
+    optparser.add_option("--documentclass",
+        action="store", dest="documentclass", 
+        help="Document class for latex output (article, book).")
+    optparser.add_option("--a4",
+        action="store_const", dest="papersize", const="a4paper",
+        help="Use a4 paper size.")
+    optparser.add_option("--letter",
+        action="store_const", dest="papersize", const="letterpaper",
+        help="Use letter paper size.")
 
-    optparser.set_defaults(action='html')
+    optparser.set_defaults(action='html', documentclass='report',
+                           papersize='letterpaper')
 
     options, filenames = optparser.parse_args()
     return options, filenames
 
 def main():
-    global OUTPUT_FORMAT, OUTPUT_BASENAME
+    global OUTPUT_FORMAT, OUTPUT_BASENAME, EXTERN_REFERENCE_FILES
     options, filenames = parse_args()
 
     if not os.path.exists(TREE_IMAGE_DIR):
@@ -651,6 +1177,21 @@ def main():
         print ('WARNING: Cannot scale images in HTML unless Python '
                'Imaging\n         Library (PIL) is installed!')
 
+    EXTERN_REFERENCE_FILES = [f for f in filenames if
+                              f.endswith('.ref')]
+    filenames = [f for f in filenames if not f.endswith('.ref')]
+
+    CustomizedLaTeXWriter.settings_defaults.update(dict(
+        documentclass = options.documentclass,
+        use_latex_docinfo = (options.documentclass=='book')))
+    CustomizedLaTeXWriter.settings_defaults['documentoptions'] += (
+        ','+options.papersize)
+    
+    if options.documentclass == 'article':
+        NumberingVisitor.TOP_SECTION = 'section'
+    else:
+        NumberingVisitor.TOP_SECTION = 'chapter'
+        
     OUTPUT_FORMAT = options.action
     if options.action == 'html':
         writer = CustomizedHTMLWriter()
@@ -658,17 +1199,27 @@ def main():
     elif options.action == 'latex':
         writer = CustomizedLaTeXWriter()
         output_ext = '.tex'
+    elif options.action == 'ref':
+        writer = None
+        output_ext = '.ref'
     else:
         assert 0, 'bad action'
 
     for in_file in filenames:
         OUTPUT_BASENAME = os.path.splitext(in_file)[0]
         out_file = os.path.splitext(in_file)[0] + output_ext
+        logger.start_progress()#'%s -> %s' % (in_file, out_file))
         if in_file == out_file: out_file += output_ext
-        docutils.core.publish_file(source_path=in_file,
-                                   destination_path=out_file,
-                                   writer=writer)
-        chapter_numbers(out_file)
+        if writer is None:
+            if os.path.exists(out_file): os.remove(out_file)
+            docutils.core.publish_doctree(source=None, source_path=in_file,
+                                          source_class=docutils.io.FileInput,
+                                          reader=CustomizedReader())
+        else:
+            docutils.core.publish_file(source_path=in_file, writer=writer,
+                                       destination_path=out_file,
+                                       reader=CustomizedReader())
+        logger.end_progress()
 
 if __name__ == '__main__':
     main()

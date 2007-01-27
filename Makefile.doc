@@ -6,19 +6,23 @@
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
 
-TUTORIALS = preface.txt preface-nltk.txt introduction.txt programming.txt words.txt tag.txt chunk.txt structured-programming.txt parse.txt advanced-parsing.txt featgram.txt advanced-programming.txt data.txt semantics.txt engineering.txt projects.txt nlp-python.txt nltk.txt cheat-sheet.txt
+PAPER_SIZE = a4
+
+TUTORIALS = preface.txt preface-nltk.txt introduction.txt programming.txt words.txt tag.txt chunk.txt structured-programming.txt parse.txt advanced-parsing.txt featgram.txt advanced-programming.txt data.txt semantics.txt engineering.txt projects.txt nlp-python.txt nltk.txt cheat-sheet.txt index.txt
 
 PDF := $(TUTORIALS:.txt=.pdf)
 HTML := $(TUTORIALS:.txt=.html)
 ERRS := $(TUTORIALS:.txt=.errs)
+REF := $(TUTORIALS:.txt=.ref)
 PY := $(TUTORIALS:.txt=.py)
 
 PYTHON = python
 PDFLATEX = TEXINPUTS=".:..:" pdflatex -halt-on-error
 EXAMPLES = ../examples.py
 RST = ../rst.py
+RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
-RST2LATEX = $(RST) --latex
+RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
 DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk_lite/test/doctest_driver.py
 
 WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs/lite
@@ -38,31 +42,44 @@ usage:
 	@echo "    make errs        -- Run doctest to generate .errs files"
 	@echo "    make clean       -- Remove all built files"
 
-all: html pdf examples singlepdf.pdf clean_up
+all: html pdf examples book clean_up
 html: $(HTML)
 pdf: $(PDF)
+book: book.html book.pdf
 examples: $(PY)
 errs: $(ERRS)
 	ls -l $(ERRS)
 
 clean:	clean_up
-	rm -f $(PDF) $(HTML) $(ERRS) singlepdf.pdf
+	rm -f $(PDF) $(HTML) $(ERRS) $(REF) singlepdf.pdf
 	rm -rf tree_images
 
 clean_up:
 	rm -f *.log *.aux *.out *.errs *~
 
-.txt.html:
+.PRECIOUS: $(REF)
+
+%.ref: %.txt 
+	$(RST2REF) $<
+
+%.html: %.txt $(REF)
+	$(RST2HTML) $(REF) $< 
+
+%.tex: %.txt $(REF)
+	$(RST2LATEX) $(REF) $< 
+
+book.html: book.txt $(TUTORIALS)
 	$(RST2HTML) $<
 
-.txt.tex:
-	$(RST2LATEX) $<
+book.tex: book.txt $(TUTORIALS)
+	$(RST2LATEX) --documentclass=book $<
 
 # This fairly complex target here will cause pdflatex to only generate
 # output if it fails; and to clean up after itself if it fails.  Also,
 # it will only run a second pass if it detects that it's necessary (by
 # scanning the log file for a warning message).
 .tex.pdf:
+	rm -f $*.ind
 	@echo "pdflatex $< -> $*.pdf (first pass)"
 	@(true | $(PDFLATEX) $< >/dev/null) || \
                  (cat $*.log && rm -f $*.pdf && false)
@@ -72,6 +89,14 @@ clean_up:
 	        (true | $(PDFLATEX) $< >/dev/null) || \
                        (cat $*.log && rm -f $*.pdf && false);\
 	    fi
+	@(if [ -e $*.idx ]; \
+	    then \
+	        echo "makeindex $*.idx"; makeindex $*.idx; \
+	    fi)
+	@echo "pdflatex $< -> $*.pdf (last pass)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+                 (cat $*.log && rm -f $*.pdf && false)
+
 
 .txt.errs:
 	$(DOCTEST) $< --ellipsis --normalize_whitespace --udiff &> $@

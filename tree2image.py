@@ -42,6 +42,7 @@ from nltk_lite.draw import *
 from nltk_lite.draw.tree import *
 import tkFont
 import tempfile
+import pickle
 
 CONVERT = 'convert'
 
@@ -175,9 +176,9 @@ def tree_to_ps(s, outfile):
     bbox = widget.bbox()
     _canvas_frame.destroy_widget(widget)
 
-    # Testing..
-    for (key, val) in metrics.items():
-        print key, '\n  ', val
+    ## Testing..
+    #for (key, val) in metrics.items():
+    #    print key, '\n  ', val
     
     return bbox[2:]
 
@@ -213,9 +214,12 @@ def tree_to_image(s, outfile, density=72):
     cachefile = os.path.join(os.path.split(outfile)[0],
                              'treecache.pickle')
     if os.path.exists(cachefile):
-        cache = pickle.load(open(cachefile, 'r'))
-        if cache.get(outfile, None) == (s, density):
-            return
+        try:
+            cache = pickle.load(open(cachefile, 'r'))
+            if cache.get(outfile, None) == (s, density):
+                return
+        except:
+            cache = {}
     else:
         cache = {}
 
