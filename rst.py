@@ -205,11 +205,13 @@ class index(docutils.nodes.Element): pass
 def idxterm_role(name, rawtext, text, lineno, inliner,
                  options={}, content=[]):
     if name == 'dt': options['classes'] = ['termdef']
+    elif name == 'topic': options['classes'] = ['topic']
     else: options['classes'] = ['term']
     return [idxterm(rawtext, docutils.utils.unescape(text), **options)], []
 
 roles.register_canonical_role('dt', idxterm_role)
 roles.register_canonical_role('idx', idxterm_role)
+roles.register_canonical_role('topic', idxterm_role)
 
 def index_directive(name, arguments, options, content, lineno,
                     content_offset, block_text, state, state_machine):
@@ -894,7 +896,9 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_idxterm(self, node):
         self.body.append('\\index{%s}' % node.astext())
-        if 'termdef' in node['classes']:
+        if 'topic' in node['classes']:
+            raise docutils.nodes.SkipNode
+        elif 'termdef' in node['classes']:
             self.body.append('\\textbf{')
         else:
             self.body.append('\\textit{')
