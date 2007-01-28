@@ -75,13 +75,13 @@ clean_up:
 %.tex: %.txt $(REF)
 	$(RST2LATEX) $(REF) $< 
 
-%.bbl: %.tex
+%.bbl: %.tex $(BIBTEX_FILE)
 	rm -f $*.bbl
 	@echo "pdflatex $< -> $*.pdf (for bibtex)"
 	@(true | $(PDFLATEX) $< >/dev/null) || \
                  (cat $*.log && rm -f $*.pdf && false)
 	@echo $(BIBTEX) $*
-	@(true | $(BIBTEX) $* || (rm -f $*.pdf && false))
+	@(true | $(BIBTEX) $* || (rm -f $*.pdf $*.bbl && false))
 
 bibliography.html: $(BIBTEX_FILE) bib_template.html
 	cp bib_template.html $@
@@ -90,7 +90,7 @@ bibliography.html: $(BIBTEX_FILE) bib_template.html
 book.html: book.txt $(TUTORIALS)
 	$(RST2HTML) $<
 
-book.tex: book.txt $(TUTORIALS) book.bbl
+book.tex: book.txt $(TUTORIALS)
 	$(RST2LATEX) --documentclass=book --bibliography $<
 
 # This fairly complex target here will cause pdflatex to only generate
@@ -115,7 +115,11 @@ book.tex: book.txt $(TUTORIALS) book.bbl
 	@echo "pdflatex $< -> $*.pdf (last pass)"
 	@(true | $(PDFLATEX) $< >/dev/null) || \
                  (cat $*.log && rm -f $*.pdf && false)
+	@echo "cleaning up latex temp files..."
+	rm -f $*.log $*.aux $*.out $*.errs $*.bbl 
+	rm -f $*.idx $*.ilg $*.ind $*.toc
 
+book.pdf: book.bbl book.tex
 
 .txt.errs:
 	$(DOCTEST) $< --ellipsis --normalize_whitespace --udiff &> $@
