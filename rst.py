@@ -73,6 +73,14 @@ EXTERN_REFERENCE_FILES = []
 """A list of .ref files, for crossrefering to external documents (used
    when building one chapter at a time)."""
 
+BIBTEX_FILE = 'book.bib'
+"""The name of the bibtex file used to generate bibliographic entries.
+   """
+
+BIBLIOGRAPHY_HTML = "bibliography.html"
+"""The name of the HTML file containing the bibliography (for
+   hyperrefs from citations)."""
+
 ######################################################################
 #{ Directives
 ######################################################################
@@ -194,6 +202,86 @@ ifndef_directive.arguments = (1, 0, 0)
 ifndef_directive.content = True
 directives.register_directive('ifndef', ifndef_directive)
     
+######################################################################
+#{ Bibliography
+######################################################################
+
+class Citations(Transform):
+    default_priority = 500 # before footnotes.
+    def apply(self):
+        bibliography = self.read_bibinfo(BIBTEX_FILE)
+        for k, citation_refs in self.document.citation_refs.items():
+            for citation_ref in citation_refs:
+                cite = bibliography.get(citation_ref['refname'].lower())
+                if cite:
+                    new_cite = self.citeref(cite, citation_ref['refname'])
+                    citation_ref.replace_self(new_cite)
+                    self.document.citation_refs[k].remove(citation_ref)
+
+    def citeref(self, cite, key):
+        if OUTPUT_FORMAT == 'latex':
+            return docutils.nodes.raw('', '\cite{%s}' % key, format='latex')
+        else:
+            return docutils.nodes.reference('', '', docutils.nodes.Text(cite),
+                                    refuri='%s#%s' % (BIBLIOGRAPHY_HTML, key))
+
+    BIB_ENTRY = re.compile(r'@\w+{.*')
+    def read_bibinfo(self, filename):
+        bibliography = {} # key -> authors, year
+        key = None
+        for line in open(filename):
+            line = line.strip()
+            
+            # @InProceedings{<key>,
+            m = re.match(r'@\w+{([^,]+),$', line)
+            if m:
+                key = m.group(1).strip().lower()
+                bibliography[key] = [None, None]
+                
+            #   author = <authors>,
+            m = re.match(r'(?i)author\s*=\s*(.*)$', line)
+            if m and key:
+                bibliography[key][0] = self.bib_authors(m.group(1))
+                
+            #   year = <year>,
+            m = re.match(r'(?i)year\s*=\s*(.*)$', line)
+            if m and key:
+                bibliography[key][1] = self.bib_year(m.group(1))
+        for key in bibliography:
+            if bibliography[key][0] is None: print 'no author found:', key
+            if bibliography[key][1] is None: print 'no year found:', key
+            bibliography[key] = '[%s, %s]' % tuple(bibliography[key])
+            #print '%20s %s' % (key, `bibliography[key]`)
+        return bibliography
+
+    def bib_year(self, year):
+        return re.sub(r'["\'{},]', "", year)
+
+    def bib_authors(self, authors):
+        # Strip trailing comma:
+        if authors[-1:] == ',': authors=authors[:-1]
+        # Strip quotes or braces:
+        authors = re.sub(r'"(.*)"$', r'\1', authors)
+        authors = re.sub(r'{(.*)}$', r'\1', authors)
+        authors = re.sub(r"'(.*)'$", r'\1', authors)
+        # Split on 'and':
+        authors = re.split(r'\s+and\s+', authors)
+        # Keep last name only:
+        authors = [a.split()[-1] for a in authors]
+        # Combine:
+        if len(authors) == 1:
+            return authors[0]
+        elif len(authors) == 2:
+            return '%s & %s' % tuple(authors)
+        elif len(authors) == 3:
+            return '%s, %s, & %s' % tuple(authors)
+        else:
+            return '%s et al' % authors[0]
+        return authors
+
+        
+        
+
 ######################################################################
 #{ Indexing
 ######################################################################
@@ -802,8 +890,11 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     encoding = '\\usepackage[%s,utf8x]{inputenc}\n'
 
     linking = ('\\usepackage[colorlinks=%s,linkcolor=%s,urlcolor=%s,'
+               'citecolor=blue,'
                'bookmarks=true,bookmarksopenlevel=2]{hyperref}\n')
     
+    foot_prefix = [] # (used to add bibliography, when requested)
+
     def __init__(self, document):
         LaTeXTranslator.__init__(self, document)
         # This needs to go before the \usepackage{inputenc}:
@@ -843,6 +934,10 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.body.append(pysrc)
         self.body.append('\\end{alltt}\n')
         raise docutils.nodes.SkipNode
+
+    def depart_document(self, node):
+        self.body += self.foot_prefix
+        LaTeXTranslator.depart_document(self, node)
 
     def depart_doctest_block(self, node):
         pass
@@ -1090,6 +1185,7 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
 
 class CustomizedReader(StandaloneReader):
     _TRANSFORMS = [
+        Citations,                  #  500
         NumberNodes,                #  800
         SaveIndexTerms,             #  810
         NumberReferences,           #  830
@@ -1163,9 +1259,12 @@ def parse_args():
     optparser.add_option("--letter",
         action="store_const", dest="papersize", const="letterpaper",
         help="Use letter paper size.")
+    optparser.add_option("--bibliography",
+        action="store_const", dest="bibliography", const=True,
+        help="Include a bibliography (LaTeX only).")
 
     optparser.set_defaults(action='html', documentclass='report',
-                           papersize='letterpaper')
+                           papersize='letterpaper', bibliography=False)
 
     options, filenames = optparser.parse_args()
     return options, filenames
@@ -1195,6 +1294,10 @@ def main():
         NumberingVisitor.TOP_SECTION = 'section'
     else:
         NumberingVisitor.TOP_SECTION = 'chapter'
+
+    if options.bibliography:
+        foot_prefix += ['\\bibliographystyle{apalike}\n',
+                        '\\bibliography{%s}\n' % BIBTEX_FILE]
         
     OUTPUT_FORMAT = options.action
     if options.action == 'html':

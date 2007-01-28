@@ -16,6 +16,8 @@ ERRS := $(TUTORIALS:.txt=.errs)
 REF := $(TUTORIALS:.txt=.ref)
 PY := $(TUTORIALS:.txt=.py)
 
+BIBTEX_FILE = book.bib
+
 PYTHON = python
 PDFLATEX = TEXINPUTS=".:..:" pdflatex -halt-on-error
 EXAMPLES = ../examples.py
@@ -24,6 +26,10 @@ RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
 DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk_lite/test/doctest_driver.py
+BIBTEX = bibtex -terse
+
+# <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
+BIB2XHTML = bib2xhtml -s named
 
 WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs/lite
 RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
@@ -43,7 +49,7 @@ usage:
 	@echo "    make clean       -- Remove all built files"
 
 all: html pdf examples book clean_up
-html: $(HTML)
+html: $(HTML) bibliography.html 
 pdf: $(PDF)
 book: book.html book.pdf
 examples: $(PY)
@@ -51,11 +57,12 @@ errs: $(ERRS)
 	ls -l $(ERRS)
 
 clean:	clean_up
-	rm -f $(PDF) $(HTML) $(ERRS) $(REF) singlepdf.pdf
+	rm -f $(PDF) $(HTML) $(ERRS) $(REF)
+	rm -f book.pdf book.html
 	rm -rf tree_images
 
 clean_up:
-	rm -f *.log *.aux *.out *.errs *~
+	rm -f *.log *.aux *.out *.errs *~ *.bbl *.idx *.ilg *.ind *.toc
 
 .PRECIOUS: $(REF)
 
@@ -68,17 +75,29 @@ clean_up:
 %.tex: %.txt $(REF)
 	$(RST2LATEX) $(REF) $< 
 
+%.bbl: %.tex
+	rm -f $*.bbl
+	@echo "pdflatex $< -> $*.pdf (for bibtex)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+                 (cat $*.log && rm -f $*.pdf && false)
+	@echo $(BIBTEX) $*
+	@(true | $(BIBTEX) $* || (rm -f $*.pdf && false))
+
+bibliography.html: $(BIBTEX_FILE) bib_template.html
+	cp bib_template.html $@
+	$(BIB2XHTML) $< $@
+
 book.html: book.txt $(TUTORIALS)
 	$(RST2HTML) $<
 
-book.tex: book.txt $(TUTORIALS)
-	$(RST2LATEX) --documentclass=book $<
+book.tex: book.txt $(TUTORIALS) book.bbl
+	$(RST2LATEX) --documentclass=book --bibliography $<
 
 # This fairly complex target here will cause pdflatex to only generate
 # output if it fails; and to clean up after itself if it fails.  Also,
 # it will only run a second pass if it detects that it's necessary (by
 # scanning the log file for a warning message).
-.tex.pdf:
+%.pdf: %.tex
 	rm -f $*.ind
 	@echo "pdflatex $< -> $*.pdf (first pass)"
 	@(true | $(PDFLATEX) $< >/dev/null) || \
