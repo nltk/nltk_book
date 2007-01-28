@@ -987,7 +987,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         if '\255' in s:
             print 'Warning: literal contains char \\255'
             return self._markup_pysrc(s, tag)
-        s = re.sub(r'(\W|\w\b)', '\\1\255', s)
+        s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
         s = self.encode(s).replace('\255', '{\linebreak[0]}')
         return '\n'.join('\\pysrc%s{%s}' % (tag, line)
                          for line in s.split('\n'))
