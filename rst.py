@@ -834,7 +834,9 @@ class CustomizedHTMLTranslator(HTMLTranslator):
         raise docutils.nodes.SkipNode
                           
     def _markup_pysrc(self, s, tag):
-        return '<span class="pysrc-%s">%s</span>' % (tag, self.encode(s))
+        return '\n'.join('<span class="pysrc-%s">%s</span>' %
+                         (tag, self.encode(line))
+                         for line in s.split('\n'))
 
     def visit_example(self, node):
         self.body.append(
@@ -970,7 +972,8 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
                                  '\\noindent \\small\n')
 
     def _markup_pysrc(self, s, tag):
-        return '\\pysrc%s{%s}' % (tag, self.encode(s))
+        return '\n'.join('\\pysrc%s{%s}' % (tag, self.encode(line))
+                         for line in s.split('\n'))
 
     def visit_image(self, node):
         """So image scaling manually"""
@@ -1058,7 +1061,8 @@ DOCTEST_DIRECTIVE_RE = re.compile(r'#\s*doctest:.*')
 
 DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
                         r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
-                        r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|.+?""" %
+                        r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|"""
+                        r"""(?P<NEWLINE>\n)|(?P<OTHER>.)""" %
   (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2),
   re.MULTILINE | re.DOTALL)
 '''The regular expression used by L{_doctest_sub} to colorize doctest
@@ -1092,30 +1096,46 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
     if strip_directives:
         s = DOCTEST_DIRECTIVE_RE.sub('', s)
 
+    # Use this var to aggregate 'other' regions, since the regexp just
+    # gives it to us one character at a time:
+    other = [] 
+    
     def subfunc(match):
+        if match.group('OTHER'):
+            other.extend(match.group())
+            return ''
+        elif other:
+            v = markup_func(''.join(other), 'other')
+            del other[:]
+        else:
+            v = ''
+
+        if match.group('NEWLINE'):
+            return v+match.group() # No coloring newlines.
         if match.group('PROMPT1'):
-            return markup_func(match.group(), 'prompt')
+            return v+markup_func(match.group(), 'prompt')
 	if match.group('PROMPT2'):
-	    return markup_func(match.group(), 'more')
+	    return v+markup_func(match.group(), 'more')
         if match.group('KEYWORD'):
-            return markup_func(match.group(), 'keyword')
+            return v+markup_func(match.group(), 'keyword')
         if match.group('BUILTIN'):
-            return markup_func(match.group(), 'builtin')
+            return v+markup_func(match.group(), 'builtin')
         if match.group('COMMENT'):
-            return markup_func(match.group(), 'comment')
+            return v+markup_func(match.group(), 'comment')
         if match.group('STRING') and '\n' not in match.group():
-            return markup_func(match.group(), 'string')
+            return v+markup_func(match.group(), 'string')
         elif match.group('STRING'):
             # It's a multiline string; colorize the string & prompt
             # portion of each line.
             pieces = [markup_func(s, ['string','more'][i%2])
                       for i, s in enumerate(PROMPT2_RE.split(match.group()))]
-            return ''.join(pieces)
+            return v+''.join(pieces)
         else:
-            return markup_func(match.group(), 'other')
+            assert 0, 'unexpected match'
 
     if inline:
 	pysrc = DOCTEST_RE.sub(subfunc, s)
+        if other: pysrc += markup_func(''.join(other), 'other')
 	return pysrc.strip()
 
     # need to add a third state here for correctly formatting exceptions
@@ -1140,6 +1160,7 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
             pyout.append(line)
             if pysrc:
                 pysrc = DOCTEST_RE.sub(subfunc, '\n'.join(pysrc))
+                if other: pysrc += markup_func(''.join(other), 'other')
                 result.append(pysrc.strip())
                 #result.append(markup_func(pysrc.strip(), 'python'))
                 pysrc = []
@@ -1296,8 +1317,9 @@ def main():
         NumberingVisitor.TOP_SECTION = 'chapter'
 
     if options.bibliography:
-        foot_prefix += ['\\bibliographystyle{apalike}\n',
-                        '\\bibliography{%s}\n' % BIBTEX_FILE]
+        CustomizedLaTeXTranslator.foot_prefix += [
+            '\\bibliographystyle{apalike}\n',
+            '\\bibliography{%s}\n' % BIBTEX_FILE]
         
     OUTPUT_FORMAT = options.action
     if options.action == 'html':
