@@ -951,14 +951,25 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_literal(self, node):
         self.literal = True
-        pysrc = colorize_doctestblock(str(node[0]),
-                                      self._markup_pysrc_wrap, True)
+        if self.node_is_inside_title(node):
+            # Perhaps this should just add \texttt{node[0]}?
+            markup_func = self._markup_pysrc
+        else:
+            markup_func = self._markup_pysrc_wrap
+        pysrc = colorize_doctestblock(str(node[0]), markup_func, True)
         self.literal = False
         self.body.append('\\texttt{%s}' % pysrc)
         raise docutils.nodes.SkipNode
 
     def depart_literal(self, node):
 	pass
+
+    def node_is_inside_title(self, node):
+        while node.parent is not None:
+            if isinstance(node.parent, docutils.nodes.Titular):
+                return True
+            node = node.parent
+        return False
 
     def visit_literal_block(self, node):
         if (self.settings.use_verbatim_when_possible and (len(node) == 1)
