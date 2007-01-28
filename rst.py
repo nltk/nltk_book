@@ -81,6 +81,11 @@ BIBLIOGRAPHY_HTML = "bibliography.html"
 """The name of the HTML file containing the bibliography (for
    hyperrefs from citations)."""
 
+LOCAL_BIBLIOGRAPHY = False
+"""If true, assume that this document contains the bibliography, and
+   link to it locally; if false, assume that bibliographic links
+   should point to L{BIBLIOGRAPHY_HTML}."""
+
 ######################################################################
 #{ Directives
 ######################################################################
@@ -211,7 +216,7 @@ class Citations(Transform):
     def apply(self):
         bibliography = self.read_bibinfo(BIBTEX_FILE)
         for k, citation_refs in self.document.citation_refs.items():
-            for citation_ref in citation_refs:
+            for citation_ref in citation_refs[:]:
                 cite = bibliography.get(citation_ref['refname'].lower())
                 if cite:
                     new_cite = self.citeref(cite, citation_ref['refname'])
@@ -219,7 +224,7 @@ class Citations(Transform):
                     self.document.citation_refs[k].remove(citation_ref)
 
     def citeref(self, cite, key):
-        if OUTPUT_FORMAT == 'latex':
+        if LOCAL_BIBLIOGRAPHY:
             return docutils.nodes.raw('', '\cite{%s}' % key, format='latex')
         else:
             return docutils.nodes.reference('', '', docutils.nodes.Text(cite),
@@ -946,7 +951,8 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_literal(self, node):
         self.literal = True
-        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc, True)
+        pysrc = colorize_doctestblock(str(node[0]),
+                                      self._markup_pysrc_wrap, True)
         self.literal = False
         self.body.append('\\texttt{%s}' % pysrc)
         raise docutils.nodes.SkipNode
@@ -972,7 +978,18 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
                                  '\\noindent \\small\n')
 
     def _markup_pysrc(self, s, tag):
-        return '\n'.join('\\pysrc%s{%s}' % (tag, self.encode(line))
+        return '\n'.join('\\pysrc%s{%s}' % (tag, line)
+                         for line in self.encode(s).split('\n'))
+
+    def _markup_pysrc_wrap(self, s, tag):
+        """This version adds latex commands to allow for line wrapping
+        within literals."""
+        if '\255' in s:
+            print 'Warning: literal contains char \\255'
+            return self._markup_pysrc(s, tag)
+        s = re.sub(r'(\W|\w\b)', '\\1\255', s)
+        s = self.encode(s).replace('\255', '{\linebreak[0]}')
+        return '\n'.join('\\pysrc%s{%s}' % (tag, line)
                          for line in s.split('\n'))
 
     def visit_image(self, node):
@@ -1008,16 +1025,25 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.body.append('\\printindex')
         raise docutils.nodes.SkipNode
 
-    def depart_title(self, node):
-        LaTeXTranslator.depart_title(self, node)
-        if self.section_level == 1:
-            title = self.encode(node.children[0].astext())
-            sectnum = node.parent.get('sectnum')
-            if sectnum:
-                self.body.append('\\def\\chtitle{%s. %s}\n' %
-                                 (sectnum, title))
-            else:
-                self.body.append('\\def\\chtitle{}\n')
+    #def depart_title(self, node):
+    #    LaTeXTranslator.depart_title(self, node)
+    #    if self.section_level == 1:
+    #        title = self.encode(node.children[0].astext())
+    #        sectnum = node.parent.get('sectnum')
+    #        if sectnum:
+    #            self.body.append('\\def\\chtitle{%s. %s}\n' %
+    #                             (sectnum, title))
+    #        else:
+    #            self.body.append('\\def\\chtitle{}\n')
+
+    #def visit_reference(self, node):
+    #    """The visit_reference method in LaTeXTranslator escapes the
+    #    '#' in URLs; but this seems to be the wrong thing to do, at
+    #    least when using pdflatex.  So override that behavior."""
+    #    if node.has_key('refuri'):
+    #        self.body.append('\\href{%s}{' % node['refuri'])
+    #    else:
+    #        LaTeXTranslator.visit_reference(self, node)
 
 ######################################################################
 #{ Source Code Highlighting
@@ -1062,7 +1088,7 @@ DOCTEST_DIRECTIVE_RE = re.compile(r'#\s*doctest:.*')
 DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
                         r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
                         r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|"""
-                        r"""(?P<NEWLINE>\n)|(?P<OTHER>.)""" %
+                        r"""(?P<OTHER_WHITESPACE>\s)|(?P<OTHER>.)""" %
   (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2),
   re.MULTILINE | re.DOTALL)
 '''The regular expression used by L{_doctest_sub} to colorize doctest
@@ -1110,8 +1136,8 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
         else:
             v = ''
 
-        if match.group('NEWLINE'):
-            return v+match.group() # No coloring newlines.
+        if match.group('OTHER_WHITESPACE'):
+            return v+match.group() # No coloring for other-whitespace.
         if match.group('PROMPT1'):
             return v+markup_func(match.group(), 'prompt')
 	if match.group('PROMPT2'):
@@ -1317,6 +1343,7 @@ def main():
         NumberingVisitor.TOP_SECTION = 'chapter'
 
     if options.bibliography:
+        LOCAL_BIBLIOGRAPHY = True
         CustomizedLaTeXTranslator.foot_prefix += [
             '\\bibliographystyle{apalike}\n',
             '\\bibliography{%s}\n' % BIBTEX_FILE]
