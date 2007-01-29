@@ -32,7 +32,7 @@ the following ways:
       multiple times.
 """
 
-import re, os.path, textwrap, shelve
+import re, os.path, textwrap, shelve, sys
 from optparse import OptionParser
 from tree2image import tree_to_image
 
@@ -122,9 +122,9 @@ def doctest_directive(name, arguments, options, content, lineno,
     """
     text = '\n'.join(content)
     if re.match(r'.*\n\s*\n', block_text):
-        print ('WARNING: doctest-ignore on line %d will not be ignored, '
-               'because there is\na blank line between ".. doctest-ignore::"'
-               ' and the doctest example.' % lineno)
+        warning('doctest-ignore on line %d will not be ignored, '
+             'because there is\na blank line between ".. doctest-ignore::"'
+             ' and the doctest example.' % lineno)
     return [docutils.nodes.doctest_block(text, text)]
 doctest_directive.content = True
 directives.register_directive('doctest-ignore', doctest_directive)
@@ -155,7 +155,7 @@ def tree_directive(name, arguments, options, content, lineno,
         filename = os.path.join(TREE_IMAGE_DIR, filename)
         tree_to_image(text, filename, density)
     except Exception, e:
-        print 'Error parsing tree: %s\n%s' % (e, text)
+        warning('Error parsing tree: %s\n%s' % (e, text))
         return [example(text, text)]
 
     imagenode = docutils.nodes.image(uri=filename, scale=scale, align=align)
@@ -253,10 +253,10 @@ class Citations(Transform):
             if m and key:
                 bibliography[key][1] = self.bib_year(m.group(1))
         for key in bibliography:
-            if bibliography[key][0] is None: print 'no author found:', key
-            if bibliography[key][1] is None: print 'no year found:', key
+            if bibliography[key][0] is None: warning('no author found:', key)
+            if bibliography[key][1] is None: warning('no year found:', key)
             bibliography[key] = '[%s, %s]' % tuple(bibliography[key])
-            #print '%20s %s' % (key, `bibliography[key]`)
+            #debug('%20s %s' % (key, `bibliography[key]`))
         return bibliography
 
     def bib_year(self, year):
@@ -434,7 +434,7 @@ class ResolveExternalCrossrefs(Transform):
             else:
                 uri = os.path.split(basename)[-1]+'.pdf'
             if not os.path.exists('%s.ref' % basename):
-                print '%s.ref does not exist' % basename
+                warning('%s.ref does not exist' % basename)
             else:
                 d = shelve.open('%s.ref' % basename, 'r')
                 for ref in d['targets']:
@@ -461,8 +461,8 @@ class ExternalCrossrefVisitor(docutils.nodes.NodeVisitor):
         node_id = node.get('refid') or node.get('refname')
         if node_id in self.ref_dict:
             uri, label = self.ref_dict[node_id]
-            #print 'xref: %20s -> %-30s (label=%s)' % (
-            #    node_id, uri+'#'+node_id, label)
+            #debug('xref: %20s -> %-30s (label=%s)' % (
+            #    node_id, uri+'#'+node_id, label))
             node['refuri'] = '%s#%s' % (uri, node_id)
             node.resolved = True
 
@@ -596,7 +596,8 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
                     self.section_num = pieces
                     title.children[0].data = title.children[0].data[m.end():]
                 else:
-                    print 'Error: section depth mismatch'
+                    warning('Explicit section number (%s) does not match '
+                         'current section depth' % m.group(1))
                 self.prepend_raw_latex(node, r'\setcounter{%s}{%d}' %
                                (self.TOP_SECTION, self.section_num[0]-1))
 
@@ -713,7 +714,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
             elif target.has_key('ids'):
                 return target['ids']
             else:
-                print 'unable to find id for %s' % target
+                warning('unable to find id for %s' % target)
                 return []
         return []
 
@@ -996,7 +997,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         """This version adds latex commands to allow for line wrapping
         within literals."""
         if '\255' in s:
-            print 'Warning: literal contains char \\255'
+            warning('Literal contains char \\255')
             return self._markup_pysrc(s, tag)
         s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
         s = self.encode(s).replace('\255', '{\linebreak[0]}')
@@ -1186,8 +1187,8 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
                 if m:
                     pyout, pyexc = m.group(1).strip(), m.group(2).strip()
                     if pyout:
-                        print ('Warning: doctest does not allow for mixed '
-                               'output and exceptions!')
+                        warning('doctest does not allow for mixed '
+                             'output and exceptions!')
                         result.append(markup_func(pyout, 'output'))
                     result.append(markup_func(pyexc, 'except'))
                 else:
@@ -1259,9 +1260,11 @@ class CustomizedReader(StandaloneReader):
 
 try:
     from epydoc.cli import ConsoleLogger
+    from epydoc.log import DEBUG, ERROR, WARNING
     logger = ConsoleLogger(0)
     #def log(msg): logger.progress(0, msg)
 except Exception, e:
+    DEBUG = ERROR = WARNING = 0
     class FakeLogger:
         def __getattr__(self, a):
             return (lambda *args: None)
@@ -1290,6 +1293,21 @@ def _new_Publisher_apply_transforms(self):
     _old_Publisher_apply_transforms(self)
     logger.progress(.9, 'Writing Output')
 Publisher.apply_transforms = _new_Publisher_apply_transforms
+
+def debug(s):
+    if s.strip(): logger.log(DEBUG, s.strip())
+def warning(s):
+    if s.strip(): logger.log(WARNING, s.strip())
+def error(s):
+    if s.strip(): logger.log(ERROR, s.strip())
+
+class WarningStream:
+    isatty = False
+    closed = False
+    def write(self, s): warning(s)
+    def writelines(self, seq): warning(''.join(seq))
+    def flush(self): pass
+    def close(self): pass
 
 ######################################################################
 #{ Main Script
@@ -1329,14 +1347,15 @@ def parse_args():
 
 def main():
     global OUTPUT_FORMAT, OUTPUT_BASENAME, EXTERN_REFERENCE_FILES
+    global LOCAL_BIBLIOGRAPHY
     options, filenames = parse_args()
 
     if not os.path.exists(TREE_IMAGE_DIR):
         os.mkdir(TREE_IMAGE_DIR)
 
     if docutils.writers.html4css1.Image is None:
-        print ('WARNING: Cannot scale images in HTML unless Python '
-               'Imaging\n         Library (PIL) is installed!')
+        warning('Cannot scale images in HTML unless Python '
+             'Imaging\n         Library (PIL) is installed!')
 
     EXTERN_REFERENCE_FILES = [f for f in filenames if
                               f.endswith('.ref')]
@@ -1372,6 +1391,8 @@ def main():
     else:
         assert 0, 'bad action'
 
+    settings = { 'warning_stream': WarningStream(), }
+
     for in_file in filenames:
         OUTPUT_BASENAME = os.path.splitext(in_file)[0]
         out_file = os.path.splitext(in_file)[0] + output_ext
@@ -1381,12 +1402,18 @@ def main():
             if os.path.exists(out_file): os.remove(out_file)
             docutils.core.publish_doctree(source=None, source_path=in_file,
                                           source_class=docutils.io.FileInput,
-                                          reader=CustomizedReader())
+                                          reader=CustomizedReader(),
+                                          settings_overrides=settings)
         else:
             docutils.core.publish_file(source_path=in_file, writer=writer,
                                        destination_path=out_file,
-                                       reader=CustomizedReader())
+                                       reader=CustomizedReader(),
+                                       settings_overrides=settings)
         logger.end_progress()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except docutils.utils.SystemMessage, e:
+        print 'Fatal error encountered!'
+        sys.exit(-1)
