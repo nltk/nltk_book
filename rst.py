@@ -169,12 +169,26 @@ directives.register_directive('tree', tree_directive)
 def avm_directive(name, arguments, options, content, lineno,
                       content_offset, block_text, state, state_machine):
     text = '\n'.join(content)
-    node = example(text)
-    state.nested_parse(content, content_offset, node)
-    return [node]
+    try:
+        if OUTPUT_FORMAT == 'latex':
+            latex_avm = parse_avm(textwrap.dedent(text)).as_latex()
+            return [docutils.nodes.paragraph('','',
+                       docutils.nodes.raw('', latex_avm, format='latex'))]
+        elif OUTPUT_FORMAT == 'html':
+            return [parse_avm(textwrap.dedent(text)).as_table()]
+        elif OUTPUT_FORMAT == 'ref':
+            return [docutils.nodes.paragraph()]
+    except ValueError, e:
+        if isinstance(e.args[0], int):
+            warning('Error parsing avm on line %s' % (lineno+e.args[0]))
+        else:
+            raise
+            warning('Error parsing avm on line %s: %s' % (lineno, e))
+        node = example(text, text)
+        state.nested_parse(content, content_offset, node)
+        return [node]
 avm_directive.content = True
 directives.register_directive('avm', avm_directive)
-
 
 def def_directive(name, arguments, options, content, lineno,
                   content_offset, block_text, state, state_machine):
@@ -207,6 +221,101 @@ ifndef_directive.arguments = (1, 0, 0)
 ifndef_directive.content = True
 directives.register_directive('ifndef', ifndef_directive)
     
+######################################################################
+#{ RST In/Out table
+######################################################################
+
+def rst_example_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    raw = docutils.nodes.literal_block('', '\n'.join(content))
+    out = docutils.nodes.compound('')
+    state.nested_parse(content, content_offset, out)
+    if OUTPUT_FORMAT == 'latex':
+        return [
+            docutils.nodes.definition_list('',
+              docutils.nodes.definition_list_item('',
+                docutils.nodes.term('','Input'),
+                docutils.nodes.definition('', raw)),
+              docutils.nodes.definition_list_item('',
+                docutils.nodes.term('','Rendered'),
+                docutils.nodes.definition('', out)))]
+    else:
+        return [
+            docutils.nodes.table('',
+              docutils.nodes.tgroup('',
+                docutils.nodes.colspec(colwidth=5,classes=['rst-raw']),
+                docutils.nodes.colspec(colwidth=5),
+                docutils.nodes.thead('',
+                  docutils.nodes.row('',
+                    docutils.nodes.entry('',
+                      docutils.nodes.paragraph('','Input')),
+                    docutils.nodes.entry('',
+                      docutils.nodes.paragraph('','Rendered')))),
+                docutils.nodes.tbody('',
+                  docutils.nodes.row('',
+                    docutils.nodes.entry('',raw),
+                    docutils.nodes.entry('',out)))),
+              classes=["rst-example"])]
+
+rst_example_directive.arguments = (0, 0, 0)
+rst_example_directive.content = True
+directives.register_directive('rst_example', rst_example_directive)
+
+######################################################################
+#{ Glosses
+######################################################################
+
+"""
+.. gloss::
+   This  | is | used | to | make | aligned | glosses.
+    NN   | BE |  VB  | TO |  VB  |  JJ     |   NN
+   *Foog blogg blarg.*
+"""
+
+class gloss(docutils.nodes.Element): "glossrow+"
+class glossrow(docutils.nodes.Element): "paragraph+"
+
+class content_list(list): pass
+
+def gloss_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    # Transform into a table.
+    lines = list(content)
+    maxlen = max(len(line) for line in lines)
+    lines = [('|%-'+`maxlen`+'s|') % line for line in lines]
+    tablestr = ''
+    prevline = ''
+    for line in (lines+['']):
+        div = ['-']*(maxlen+2)
+        for m in re.finditer(r'\|', prevline):
+            div[m.start()] = '+'
+        for m in re.finditer(r'\|', line):
+            div[m.start()] = '+'
+        tablestr += ''.join(div) + '\n' + line + '\n'
+        prevline = line
+    new_content = content_list(tablestr.strip().split('\n'))
+    new_content.parent = None
+
+    # Parse the table.
+    node = docutils.nodes.compound('')
+    state.nested_parse(new_content, content_offset, node)
+    if not (len(node.children) == 1 and
+            isinstance(node[0], docutils.nodes.table)):
+        error = state_machine.reporter.error(
+            'Error in "%s" directive: may contain a single table '
+            'only.' % (name), line=lineno)
+    table = node[0]
+    table['classes'] = ['gloss', 'nolines']
+    
+    colspecs = table[0]
+    for colspec in colspecs:
+        colspec['colwidth'] = colspec.get('colwidth',4)/2
+    
+    return [example('', '', table)]
+gloss_directive.arguments = (0, 0, 0)
+gloss_directive.content = True
+directives.register_directive('gloss', gloss_directive)
+
 ######################################################################
 #{ Bibliography
 ######################################################################
@@ -300,7 +409,11 @@ def idxterm_role(name, rawtext, text, lineno, inliner,
     if name == 'dt': options['classes'] = ['termdef']
     elif name == 'topic': options['classes'] = ['topic']
     else: options['classes'] = ['term']
-    return [idxterm(rawtext, docutils.utils.unescape(text), **options)], []
+    # Recursively parse the contents of the index term, in case it
+    # contains a substitiution (like |alpha|).
+    nodes, msgs = inliner.parse(text, lineno, memo=inliner,
+                                parent=inliner.parent)
+    return [idxterm(rawtext, '', *nodes, **options)], []
 
 roles.register_canonical_role('dt', idxterm_role)
 roles.register_canonical_role('idx', idxterm_role)
@@ -314,7 +427,9 @@ def index_directive(name, arguments, options, content, lineno,
     return [index('', pending)]
 index_directive.arguments = (0, 0, 0)
 index_directive.content = False
+index_directive.options = {'extern': directives.flag}
 directives.register_directive('index', index_directive)
+
 
 class SaveIndexTerms(Transform):
     default_priority = 810 # before NumberReferences transform
@@ -336,11 +451,12 @@ class ConstructIndex(Transform):
         terms = v.terms
 
         # Check the extern reference files for additional terms.
-        for filename in EXTERN_REFERENCE_FILES:
-            basename = os.path.splitext(filename)[0]
-            d = shelve.open('%s.ref' % basename, 'r')
-            terms.update(d['terms'])
-            d.close()
+        if 'extern' in self.startnode.details:
+            for filename in EXTERN_REFERENCE_FILES:
+                basename = os.path.splitext(filename)[0]
+                d = shelve.open('%s.ref' % basename, 'r')
+                terms.update(d['terms'])
+                d.close()
 
         # Build the index & insert it into the document.
         index_node = self.build_index(terms)
@@ -387,9 +503,10 @@ class FindTermVisitor(docutils.nodes.SparseNodeVisitor):
         node['name'] = node['id'] = self.idxterm_key(node)
         node['names'] = node['ids'] = [node['id']]
         container = self.container_section(node)
-
+        
         entrytext = node.deepcopy()
-        sectnum = container.get('sectnum')
+        if container: sectnum = container.get('sectnum')
+        else: sectnum = '0'
         name = node['name']
         self.terms[node['name']] = (entrytext, name, sectnum)
             
@@ -563,6 +680,9 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     #////////////////////////////////////////////////////////////
 
     def visit_table(self, node):
+        if 'avm' in node['classes']: return
+        if 'gloss' in node['classes']: return
+        if 'rst-example' in node['classes']: return
         self.table_num += 1
         num = '%s.%s' % (self.format_section_num(1), self.table_num)
         for node_id in self.get_ids(node):
@@ -771,6 +891,173 @@ def expand_reference_text(node):
                 link.data = '%s %s' % (m.group(2), link.data)
 
 ######################################################################
+#{ Feature Structures (AVMs)
+######################################################################
+
+class AVM:
+    def __init__(self, ident):
+        self.ident = ident
+        self.keys = []
+        self.vals = {}
+    def assign(self, key, val):
+        if key in self.keys: raise ValueError('duplicate key')
+        self.keys.append(key)
+        self.vals[key] = val
+    def __str__(self):
+        vals = []
+        for key in self.keys:
+            val = self.vals[key]
+            if isinstance(val, AVMPointer):
+                vals.append('%s -> %s' % (key, val.ident))
+            else:
+                vals.append('%s = %s' % (key, val))
+        s = '{%s}' % ', '.join(vals)
+        if self.ident: s += '[%s]' % self.ident
+        return s
+
+    def as_latex(self):
+        return '\\begin{avm}\n%s\\end{avm}\n' % self._as_latex()
+
+    def _as_latex(self, indent=0):
+        if self.ident: ident = '\\@%s ' % self.ident
+        else: ident = ''
+        lines = ['%s %s & %s' % (indent*'    ', key,
+                                 self.vals[key]._as_latex(indent+1))
+                 for key in self.keys]
+        return ident + '\\[\n' + ' \\\\\n'.join(lines) + '\\]\n'
+
+    def _entry(self, val, cls):
+        if isinstance(val, basestring):
+            return docutils.nodes.entry('',
+                docutils.nodes.paragraph('', val), classes=[cls])
+        else:
+            return docutils.nodes.entry('', val, classes=[cls])
+
+    def _pointer(self, ident):
+        return docutils.nodes.paragraph('', '', 
+                    docutils.nodes.inline(ident, ident,
+                                          classes=['avm-pointer']))
+    def as_table(self):
+        rows = []
+        for key in self.keys:
+            val = self.vals[key]
+            key_node = self._entry(key, 'avm-key')
+            if isinstance(val, AVMPointer):
+                eq_node = self._entry(u'\u2192', 'avm-eq') # right arrow
+                val_node = self._entry(self._pointer(val.ident), 'avm-val')
+            elif isinstance(val, AVM):
+                eq_node = self._entry('=', 'avm-eq')
+                val_node = self._entry(val.as_table(), 'avm-val')
+            else:
+                value = ('%s' % val.val).replace(' ', u'\u00a0') # =nbsp
+                eq_node = self._entry('=', 'avm-eq')
+                val_node = self._entry(value, 'avm-val')
+                
+            rows.append(docutils.nodes.row('', key_node, eq_node, val_node))
+
+            # Add left/right bracket nodes:
+            if len(self.keys)==1: vpos = 'topbot'
+            elif key == self.keys[0]: vpos = 'top'
+            elif key == self.keys[-1]: vpos = 'bot'
+            else: vpos = ''
+            rows[-1].insert(0, self._entry(u'\u00a0', 'avm-%sleft' % vpos))
+            rows[-1].append(self._entry(u'\u00a0', 'avm-%sright' % vpos))
+
+            # Add id:
+            if key == self.keys[0] and self.ident:
+                rows[-1].append(self._entry(self._pointer(self.ident),
+                                            'avm-ident'))
+            else:
+                rows[-1].append(self._entry(u'\u00a0', 'avm-ident'))
+
+        colspecs = [docutils.nodes.colspec(colwidth=1) for i in range(6)]
+
+        tbody = docutils.nodes.tbody('', *rows)
+        tgroup = docutils.nodes.tgroup('', cols=3, *(colspecs+[tbody]))
+        table = docutils.nodes.table('', tgroup, classes=['avm'])
+        return table
+    
+class AVMValue:
+    def __init__(self, ident, val):
+        self.ident = ident
+        self.val = val
+    def __str__(self):
+        if self.ident: return '%s[%s]' % (self.val, self.ident)
+        else: return '%r' % self.val
+    def _as_latex(self, indent=0):
+        return '%s' % self.val
+
+class AVMPointer:
+    def __init__(self, ident):
+        self.ident = ident
+    def __str__(self):
+        return '[%s]' % self.ident
+    def _as_latex(self, indent=0):
+        return '\\@{%s}' % self.ident
+
+def parse_avm(s, ident=None):
+    lines = [l.rstrip() for l in s.split('\n') if l.strip()]
+    if not lines: raise ValueError(0)
+    lines.append('[%s]' % (' '*(len(lines[0])-2)))
+
+    # Create our new AVM.
+    avm = AVM(ident)
+    
+    w = len(lines[0]) # Line width
+    avmval_pos = None # (left, right, top) for nested AVMs
+    key = None        # Key for nested AVMs
+    ident = None      # Identifier for nested AVMs
+    
+    NESTED = re.compile(r'\[\s+(\[.*\])\s*\]$')
+    ASSIGN = re.compile(r'\[\s*(?P<KEY>[^\[=>]+?)\s*'
+                        r'(?P<EQ>=|->)\s*'
+                        r'(\((?P<ID>\d+)\))?\s*'
+                        r'((?P<VAL>.+?))\s*\]$')
+    BLANK = re.compile(r'\[\s+\]$')
+
+    for lineno, line in enumerate(lines):
+        #debug('%s %s %s %r' % (lineno, key, avmval_pos, line))
+        if line[0] != '[' or line[-1] != ']' or len(line) != w:
+            raise ValueError(lineno)
+
+        nested_m = NESTED.match(line)
+        assign_m = ASSIGN.match(line)
+        blank_m = BLANK.match(line)
+        if not (nested_m or assign_m or blank_m):
+            raise ValueError(lineno)
+        
+        if nested_m or (assign_m and assign_m.group('VAL').startswith('[')):
+            left, right = line.index('[',1), line.rindex(']', 0, -1)+1
+            if avmval_pos is None:
+                avmval_pos = (left, right, lineno)
+            elif avmval_pos[:2] != (left, right):
+                raise ValueError(lineno)
+
+        if assign_m:
+            if assign_m.group('VAL').startswith('['):
+                if key is not None: raise ValueError(lineno)
+                if assign_m.group('EQ') != '=': raise ValueError(lineno)
+                key = assign_m.group('KEY')
+                ident = assign_m.group('ID')
+            else:
+                if assign_m.group('EQ') == '=':
+                    avm.assign(assign_m.group('KEY'),
+                               AVMValue(assign_m.group('ID'),
+                                        assign_m.group('VAL')))
+                else:
+                    if assign_m.group('VAL').strip(): raise ValueError(lineno)
+                    avm.assign(assign_m.group('KEY'),
+                               AVMPointer(assign_m.group('ID')))
+
+        if blank_m and avmval_pos is not None:
+            left, right, top = avmval_pos
+            valstr = '\n'.join(l[left:right] for l in lines[top:lineno])
+            avm.assign(key, parse_avm(valstr, ident))
+            key = avmval_pos = None
+            
+    return avm
+
+######################################################################
 #{ Doctest Indentation
 ######################################################################
 
@@ -857,6 +1144,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_idxterm(self, node):
         self.body.append('<a name="%s" />' % node['name'])
         self.body.append('<span class="%s">' % ' '.join(node['classes']))
+        if 'topic' in node['classes']: raise docutils.nodes.SkipChildren
         
     def depart_idxterm(self, node):
         self.body.append('</span>')
@@ -928,11 +1216,15 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\newcommand{\\pysrcexcept}[1]{\\textbf{#1}}
             % Python interpreter: Output
             \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
+        # Tabularx conflicts with the avm package:
+        self.head_prefix = [l for l in self.head_prefix
+                            if ('{tabularx}' not in l and
+                                '{\\extrarowheight}' not in l)]
 
     def bookmark(self, node):
         # this seems broken; just use the hyperref package's
         # "bookmarks" option instead.
-        return 
+        return
 
     def visit_doctest_block(self, node):
         self.literal = True
@@ -1036,6 +1328,27 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def visit_index(self, node):
         self.body.append('\\printindex')
         raise docutils.nodes.SkipNode
+
+    def visit_docinfo(self, node):
+        self.docinfo = []
+        self.docinfo.append('\\begin{tabular}{ll}\n')
+
+    def depart_docinfo(self, node):
+        self.docinfo.append('\\end{tabular}\n')
+        self.body = self.docinfo + self.body
+        self.docinfo = None
+
+    def visit_table(self, node):
+        # For gloss tables, don't use 'longtable'.
+        if 'gloss' in node['classes'] or 'avm' in node['classes']:
+            self._orig_table_type = self.active_table._latex_type
+            self.active_table._latex_type = 'tabular'
+        LaTeXTranslator.visit_table(self, node)
+        
+    def depart_table(self, node):
+        LaTeXTranslator.depart_table(self, node)
+        if 'gloss' in node['classes'] or 'avm' in node['classes']:
+            self.active_table._latex_type = self._orig_table_type
 
     #def depart_title(self, node):
     #    LaTeXTranslator.depart_title(self, node)
@@ -1198,7 +1511,9 @@ def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
             pyout.append(line)
             if pysrc:
                 pysrc = DOCTEST_RE.sub(subfunc, '\n'.join(pysrc))
-                if other: pysrc += markup_func(''.join(other), 'other')
+                if other:
+                    pysrc += markup_func(''.join(other), 'other')
+                    del other[:]
                 result.append(pysrc.strip())
                 #result.append(markup_func(pysrc.strip(), 'python'))
                 pysrc = []
