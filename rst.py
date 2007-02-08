@@ -44,6 +44,8 @@ from docutils.parsers.rst import directives, roles
 from docutils.readers.standalone import Reader as StandaloneReader
 from docutils.transforms import Transform
 import docutils.writers.html4css1
+from doctest import DocTestParser
+import docutils.statemachine
 
 LATEX_VALIGN_IS_BROKEN = True
 """Set to true to compensate for a bug in the latex writer.  I've
@@ -86,6 +88,19 @@ LOCAL_BIBLIOGRAPHY = False
    link to it locally; if false, assume that bibliographic links
    should point to L{BIBLIOGRAPHY_HTML}."""
 
+PYLISTING_DIR = 'pylisting/'
+"""The directory where pylisting files should be written."""
+
+PYLISTING_EXTENSION = ".py"
+"""Extension for pylisting files."""
+
+INCLUDE_DOCTESTS_IN_PYLISTING_FILES = False
+"""If true, include code from doctests in the generated pylisting
+   files. """
+
+CALLOUT_IMG = '<img src="callouts/callout%s.gif" alt="[%s]" class="callout" />'
+"""HTML code for callout images in pylisting blocks."""
+
 ######################################################################
 #{ Directives
 ######################################################################
@@ -125,7 +140,7 @@ def doctest_directive(name, arguments, options, content, lineno,
         warning('doctest-ignore on line %d will not be ignored, '
              'because there is\na blank line between ".. doctest-ignore::"'
              ' and the doctest example.' % lineno)
-    return [docutils.nodes.doctest_block(text, text)]
+    return [docutils.nodes.doctest_block(text, text, codeblock=True)]
 doctest_directive.content = True
 directives.register_directive('doctest-ignore', doctest_directive)
 
@@ -222,6 +237,110 @@ ifndef_directive.content = True
 directives.register_directive('ifndef', ifndef_directive)
     
 ######################################################################
+#{ Program Listings
+######################################################################
+# We define a new attribute for doctest blocks: 'is_codeblock'.  If
+# this attribute is true, then the block contains python code only
+# (i.e., don't expect to find prompts.)
+
+class pylisting(docutils.nodes.General, docutils.nodes.Element):
+    """
+    Python source cod listing.
+
+    Children: doctest_block+ caption?
+    """
+class callout_marker(docutils.nodes.Inline, docutils.nodes.Element):
+    """
+    A callout marker for doctest block.  This element contains no
+    children; and defines the attribute 'number'.
+    """
+
+DOCTEST_BLOCK_RE = re.compile('((?:[ ]*>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
+                              re.MULTILINE)
+CALLOUT_RE = re.compile(r'#[ ]+\[_([\w-]+)\][ ]*$', re.MULTILINE)
+
+from docutils.nodes import fully_normalize_name as normalize_name
+
+_listing_ids = set()
+def pylisting_directive(name, arguments, options, content, lineno,
+                      content_offset, block_text, state, state_machine):
+    # The identifier for this listing.
+    listing_id = arguments[0]
+    if listing_id in _listing_ids:
+        warning("Duplicate listing id %r" % listing_id)
+    _listing_ids.add(listing_id)
+    
+    # Create the pylisting element itself.
+    listing = pylisting('\n'.join(content), name=listing_id, callouts={})
+
+    # Create a target element for the pylisting.
+    target = docutils.nodes.target(names=[listing_id])
+    state_machine.document.note_explicit_target(target)
+
+    # Divide the text into doctest blocks.
+    callouts = listing['callouts']
+    for i, v in enumerate(DOCTEST_BLOCK_RE.split('\n'.join(content))):
+        pysrc = re.sub(r'\A( *\n)+', '', v.rstrip())
+        if pysrc.strip():
+            listing.append(docutils.nodes.doctest_block(pysrc, pysrc,
+                                                        is_codeblock=(i%2==0)))
+            for callout_id in CALLOUT_RE.findall(pysrc):
+                callouts[callout_id] = len(callouts)+1
+
+    # Add an optional caption.
+    if options.get('caption'):
+        cap = options['caption'].split('\n')
+        caption = docutils.nodes.compound()
+        state.nested_parse(docutils.statemachine.StringList(cap),
+                           content_offset, caption)
+        if (len(caption) == 1 and isinstance(caption[0],
+                                             docutils.nodes.paragraph)):
+            listing.append(docutils.nodes.caption('', '', *caption[0]))
+        else:
+            warning("Caption should be a single paragraph")
+            listing.append(docutils.nodes.caption('', '', *caption))
+
+    return [target, listing]
+
+pylisting_directive.arguments = (1,0,0) # 1 required arg, no whitespace
+pylisting_directive.content = True
+pylisting_directive.options = {'caption': directives.unchanged}
+directives.register_directive('pylisting', pylisting_directive)
+
+def callout_directive(name, arguments, options, content, lineno,
+                      content_offset, block_text, state, state_machine):
+    if arguments:
+        prefix = '%s-' % arguments[0]
+    else:
+        prefix = ''
+    node = docutils.nodes.compound('')
+    state.nested_parse(content, content_offset, node)
+    if not (len(node.children) == 1 and
+            isinstance(node[0], docutils.nodes.field_list)):
+        return [state_machine.reporter.error(
+            'Error in "%s" directive: may contain a single defintion '
+            'list only.' % (name), line=lineno)]
+
+    node[0]['classes'] = ['callouts']
+    for field in node[0]:
+        if len(field[0]) != 1:
+            return [state_machine.reporter.error(
+                'Error in "%s" directive: bad field id' % (name), line=lineno)]
+            
+        field_name = prefix+str(field[0][0])
+        field[0].clear()
+        field[0].append(docutils.nodes.reference(field_name, field_name,
+                                                 refid=field_name))
+        field[0]['classes'] = ['callout']
+
+    return [node[0]]
+
+callout_directive.arguments = (0,1,0) # 1 optional arg, no whitespace
+callout_directive.content = True
+directives.register_directive('callouts', callout_directive)
+
+
+######################################################################
 #{ RST In/Out table
 ######################################################################
 
@@ -275,8 +394,6 @@ directives.register_directive('rst_example', rst_example_directive)
 class gloss(docutils.nodes.Element): "glossrow+"
 class glossrow(docutils.nodes.Element): "paragraph+"
 
-class content_list(list): pass
-
 def gloss_directive(name, arguments, options, content, lineno,
                     content_offset, block_text, state, state_machine):
     # Transform into a table.
@@ -293,8 +410,8 @@ def gloss_directive(name, arguments, options, content, lineno,
             div[m.start()] = '+'
         tablestr += ''.join(div) + '\n' + line + '\n'
         prevline = line
-    new_content = content_list(tablestr.strip().split('\n'))
-    new_content.parent = None
+    table_lines = tablestr.strip().split('\n')
+    new_content = docutils.statemachine.StringList(table_lines)
 
     # Parse the table.
     node = docutils.nodes.compound('')
@@ -304,6 +421,7 @@ def gloss_directive(name, arguments, options, content, lineno,
         error = state_machine.reporter.error(
             'Error in "%s" directive: may contain a single table '
             'only.' % (name), line=lineno)
+        return [error]
     table = node[0]
     table['classes'] = ['gloss', 'nolines']
     
@@ -584,7 +702,8 @@ class ExternalCrossrefVisitor(docutils.nodes.NodeVisitor):
             node.resolved = True
 
             if label is not None:
-                node.children[:] = [docutils.nodes.Text(label)]
+                node.clear()
+                node.append(docutils.nodes.Text(label))
                 expand_reference_text(node)
 
 ######################################################################
@@ -629,11 +748,13 @@ class NumberNodes(Transform):
         v = NumberingVisitor(self.document)
         self.document.walkabout(v)
         self.document.reference_labels = v.reference_labels
+        self.document.callout_labels = v.callout_labels
 
 class NumberReferences(Transform):
     default_priority = 830
     def apply(self):
-        v = ReferenceVisitor(self.document, self.document.reference_labels)
+        v = ReferenceVisitor(self.document, self.document.reference_labels,
+                             self.document.callout_labels)
         self.document.walkabout(v)
 
         # Save reference info to a pickle file.
@@ -661,6 +782,8 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         self.table_num = 0
         self.example_num = [0]
         self.section_num = [0]
+        self.listing_num = 0
+        self.callout_labels = {} # name -> number
         self.set_section_context = None
         self.section_context = 'body' # preface, appendix, body
         
@@ -688,6 +811,20 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         for node_id in self.get_ids(node):
             self.reference_labels[node_id] = '%s' % num
         self.label_node(node, 'Table %s' % num)
+
+    #////////////////////////////////////////////////////////////
+    # Listings
+    #////////////////////////////////////////////////////////////
+
+    def visit_pylisting(self, node):
+        self.listing_num += 1
+        num = '%s.%s' % (self.format_section_num(1), self.listing_num)
+        for node_id in self.get_ids(node):
+            self.reference_labels[node_id] = '%s' % num
+        pyfile = re.sub('\W', '_', node['name'])+'.py'
+        self.label_node(node, 'Listing %s (%s)' % (num, pyfile),
+                      PYLISTING_DIR + node['name'] + PYLISTING_EXTENSION)
+        self.callout_labels.update(node['callouts'])
 
     #////////////////////////////////////////////////////////////
     # Sections
@@ -734,8 +871,16 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
                                              classes=['sectnum'])
             title.insert(0, label)
             title['auto'] = 1
-        
+
+        # Record the section number.
         self.section_num.append(0)
+
+        # If this was a top-level section, then restart the figure,
+        # table, and listing counters
+        if len(self.section_num) == 2:
+            self.figure_num = 0
+            self.table_num = 0
+            self.listing_num = 0
 
     def start_new_context(self,node):
         # Set the 'section_context' var.
@@ -838,21 +983,24 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
                 return []
         return []
 
-    def label_node(self, node, label):
-        if isinstance(node[-1], docutils.nodes.caption):
-            if OUTPUT_FORMAT == 'html':
-                text = docutils.nodes.Text("%s: " % label)
-                node[-1].children.insert(0, text)
-        else:
-            if OUTPUT_FORMAT == 'html':
-                text = docutils.nodes.Text(label)
-                node.append(docutils.nodes.caption('', '', text))
-            else:
-                node.append(docutils.nodes.caption()) # empty.
+    def label_node(self, node, label, refuri=None, cls='caption-label'):
+        if not isinstance(node[-1], docutils.nodes.caption):
+            node.append(docutils.nodes.caption())
+        caption = node[-1]
+
+        if OUTPUT_FORMAT == 'html':
+            cap = docutils.nodes.inline('', label, classes=[cls])
+            if refuri:
+                cap = docutils.nodes.reference('', '', cap, refuri=refuri,
+                                               mimetype='text/x-python')
+            caption.insert(0, cap)
+            if len(caption) > 1:
+                caption.insert(1, docutils.nodes.Text(': '))
         
 class ReferenceVisitor(docutils.nodes.NodeVisitor):
-    def __init__(self, document, reference_labels):
+    def __init__(self, document, reference_labels, callout_labels):
         self.reference_labels = reference_labels
+        self.callout_labels = callout_labels
         self.targets = set()
         docutils.nodes.NodeVisitor.__init__(self, document)
     def unknown_visit(self, node):
@@ -867,15 +1015,27 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
             raise docutils.nodes.SkipNode
 
     def visit_reference(self, node):
-        node_id = node.get('refid') or node.get('refname')
+        node_id = (node.get('refid') or
+                   self.document.nameids.get(node.get('refname')) or
+                   node.get('refname'))
         if node_id in self.reference_labels:
             label = self.reference_labels[node_id]
-            node.children[:] = [docutils.nodes.Text(label)]
+            node.clear()
+            node.append(docutils.nodes.Text(label))
             expand_reference_text(node)
+        elif node_id in self.callout_labels:
+            label = self.callout_labels[node_id]
+            node.clear()
+            node.append(callout_marker(number=label, name='ref-%s' % node_id))
+            expand_reference_text(node)
+            # There's no explicitly encoded target element, so manually
+            # resolve the reference:
+            node['refid'] = node_id
+            node.resolved = True
 
 _EXPAND_REF_RE = re.compile(r'(?is)^(.*)(%s)\s+$' % '|'.join(
     ['figure', 'table', 'example', 'chapter', 'section', 'appendix',
-     'sentence', 'tree']))
+     'sentence', 'tree', 'listing', 'program']))
 def expand_reference_text(node):
     """If the reference is immediately preceeded by the word 'figure'
     or the word 'table' or 'example', then include that word in the
@@ -1087,6 +1247,9 @@ class UnindentDoctestVisitor(docutils.nodes.NodeVisitor):
 ######################################################################
 #{ HTML Output
 ######################################################################
+from epydoc.docwriter.html_colorize import PythonSourceColorizer
+import epydoc.docwriter.html_colorize
+epydoc.docwriter.html_colorize .PYSRC_EXPANDTO_JAVASCRIPT = ''
 
 class CustomizedHTMLWriter(HTMLWriter):
     settings_defaults = HTMLWriter.settings_defaults.copy()
@@ -1106,25 +1269,98 @@ class CustomizedHTMLWriter(HTMLWriter):
     #    HTMLWriter.translate(self)
 
 class CustomizedHTMLTranslator(HTMLTranslator):
-    def visit_doctest_block(self, node):
-        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
-        self.body.append(self.starttag(node, 'pre', CLASS='doctest-block'))
-        self.body.append(pysrc)
-        self.body.append('\n</pre>\n')
-        raise docutils.nodes.SkipNode
+    def __init__(self, document):
+        HTMLTranslator.__init__(self, document)
+        self.head_prefix.append(COPY_CLIPBOARD_JS)
 
-    def depart_doctest_block(self, node):
-        pass
+    def visit_pylisting(self, node):
+        self._write_pylisting_file(node)
+        self.body.append(self.CODEBOX_HEADER % ('pylisting', 'pylisting'))
+
+    def depart_pylisting(self, node):
+        self.body.append(self.CODEBOX_FOOTER)
+
+    def visit_doctest_block(self, node):
+        # Collect the text content of the doctest block.
+        text = ''.join(str(c) for c in node)
+
+        # Colorize the contents of the doctest block.
+        colorizer = HTMLDoctestColorizer(self.encode, node.parent)
+        if node.get('is_codeblock'):
+            pysrc = colorizer.colorize_codeblock(text)
+        else:
+            pysrc = colorizer.colorize_doctest(text)
+
+        if node.get('is_codeblock'): typ = 'codeblock' 
+        else: typ = 'doctest'
+        pysrc = self.CODEBOX_ROW % (typ, typ, pysrc)
+
+        if not isinstance(node.parent, pylisting):
+            self.body.append(self.CODEBOX_HEADER % ('doctest', 'doctest'))
+            self.body.append(pysrc)
+            self.body.append(self.CODEBOX_FOOTER)
+        else:
+            self.body.append(pysrc)
+            
+        raise docutils.nodes.SkipNode() # Content already processed
+
+    CODEBOX_HEADER = ('<div class="%s">\n'
+                        '<table border="0" cellpadding="0" cellspacing="0" '
+                        'class="%s" width="95%%">\n')
+    CODEBOX_FOOTER = '</table></div>\n'
+    CODEBOX_ROW = textwrap.dedent('''\
+      <tr><td class="%s">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%%">
+      <tr><td width="1" class="copybar"
+              onclick="javascript:copy_%s_to_clipboard(this.nextSibling);"
+              >&nbsp;</td>
+      <td class="pysrc">%s</td>
+      </tr></table></td></tr>\n''')
+
+    # For generated pylisting files:
+    _PYLISTING_FILE_HEADER = "# Natural Language Toolkit: %s\n\n"
+
+    def _write_pylisting_file(self, node):
+        if not os.path.exists(PYLISTING_DIR):
+            os.mkdir(PYLISTING_DIR)
+            
+        name = re.sub('\W', '_', node['name'])
+        filename = os.path.join(PYLISTING_DIR, name+PYLISTING_EXTENSION)
+        out = open(filename, 'w')
+        out.write(self._PYLISTING_FILE_HEADER % name)
+        for child in node:
+            if not isinstance(child, docutils.nodes.doctest_block):
+                continue
+            elif child['is_codeblock']:
+                out.write(''.join(str(c) for c in child)+'\n\n')
+            elif INCLUDE_DOCTESTS_IN_PYLISTING_FILES:
+                lines = ''.join(str(c) for c in child).split('\n')
+                in_doctest_block = False
+                for line in lines:
+                    if line.startswith('>>> '):
+                        out.write(line[4:]+'\n')
+                        in_doctest_block = True
+                    elif line.startswith('... ') and in_doctest_block:
+                        out.write(line[4:]+'\n')
+                    elif line.strip():
+                        if in_doctest_block:
+                            out.write('# Expect:\n')
+                        out.write('#     ' + line+'\n')
+                        in_doctest_block = False
+                    else:
+                        out.write(line+'\n')
+                        in_doctest_block = False
+        out.close()
 
     def visit_literal(self, node):
         """Process text to prevent tokens from wrapping."""
-        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc, True)
-        self.body.append(
-	    self.starttag(node, 'tt', '', CLASS='doctest'))
-	self.body.append('<span class="pre">%s</span>' % pysrc)
-        self.body.append('</tt>')
-        # Content already processed:
-        raise docutils.nodes.SkipNode
+        text = ''.join(str(c) for c in node)
+        colorizer = HTMLDoctestColorizer(self.encode)
+        pysrc = colorizer.colorize_inline(text)
+        #pysrc = colorize_doctestblock(text, self._markup_pysrc, True)
+        self.body+= [self.starttag(node, 'tt', '', CLASS='doctest'),
+                     '<span class="pre">%s</span>\n</tt>\n' % pysrc]
+        raise docutils.nodes.SkipNode() # Content already processed
                           
     def _markup_pysrc(self, s, tag):
         return '\n'.join('<span class="pysrc-%s">%s</span>' %
@@ -1154,6 +1390,171 @@ class CustomizedHTMLTranslator(HTMLTranslator):
         
     def depart_index(self, node):
         self.body.append('</div>\n')
+
+    _seen_callout_markers = set()
+    def visit_callout_marker(self, node):
+        # Only add an id to a marker the first time we see it.
+        add_id = (node['name'] not in self._seen_callout_markers)
+        self._seen_callout_markers.add(node['name'])
+        if add_id:
+            self.body.append('<span id="%s">' % node['name'])
+        self.body.append(CALLOUT_IMG % (node['number'], node['number']))
+        if add_id:
+            self.body.append('</span>')
+        raise docutils.nodes.SkipNode() # Done with this node.
+
+    def depart_field_name(self, node):
+        # Don't add ":" in callout field lists.
+        if 'callout' in node['classes']:
+            self.body.append(self.context.pop())
+        else:
+            HTMLTranslator.depart_field_name(self, node)
+    
+    def _striphtml_len(self, s):
+        return len(re.sub(r'&[^;]+;', 'x', re.sub(r'<[^<]+>', '', s)))
+
+    def visit_caption(self, node):
+        if isinstance(node.parent, pylisting):
+            self.body.append('<tr><td class="caption">')
+        HTMLTranslator.visit_caption(self, node)
+        
+    def depart_caption(self, node):
+        if isinstance(node.parent, pylisting):
+            self.body.append('</td></tr>')
+        HTMLTranslator.depart_caption(self, node)
+
+    def starttag(self, node, tagname, suffix='\n', empty=0, **attributes):
+        if node.get('mimetype'):
+            attributes['type'] = node.get('mimetype')
+        return HTMLTranslator.starttag(self, node, tagname, suffix,
+                                       empty, **attributes)
+        
+COPY_CLIPBOARD_JS = '''
+<script language="javascript" type="text/javascript">
+
+function astext(node)
+{
+    return node.innerHTML.replace(/(<([^>]+)>)/ig,"")
+                         .replace(/&gt;/ig, ">")
+                         .replace(/&lt;/ig, "<")
+                         .replace(/&quot;/ig, \'"\')
+                         .replace(/&amp;/ig, "&");
+}
+
+function copy_notify(node, bar_color)
+{
+    // The outer box: relative + inline positioning.
+    var box1 = document.createElement("div");
+    box1.style.position = "relative";
+    box1.style.display = "inline";
+    box1.style.top = "2em";
+    box1.style.left = "1em";
+  
+    // A shadow for fun
+    var shadow = document.createElement("div");
+    shadow.style.position = "absolute";
+    shadow.style.left = "-1.3em";
+    shadow.style.top = "-1.3em";
+    shadow.style.background = "#404040";
+    
+    // The inner box: absolute positioning.
+    var box2 = document.createElement("div");
+    box2.style.position = "relative";
+    box2.style.border = "1px solid #a0a0a0";
+    box2.style.left = "-.2em";
+    box2.style.top = "-.2em";
+    box2.style.background = "white";
+    box2.style.padding = ".3em .4em .3em .4em";
+    box2.style.fontStyle = "normal";
+
+    node.insertBefore(box1, node.childNodes.item(0));
+    box1.appendChild(shadow);
+    shadow.appendChild(box2);
+    box2.innerHTML="Example copied to the clipboard.";
+    setTimeout(function() { node.removeChild(box1); }, 1000);
+
+    var elt = node.parentNode.firstChild;
+    elt.style.background = "#ffc0c0";
+    setTimeout(function() { elt.style.background = bar_color; }, 200);
+}
+
+function copy_codeblock_to_clipboard(node)
+{
+    var data = astext(node)+"\\n";
+    if (copy_text_to_clipboard(data)) {
+        copy_notify(node, "#40a060");
+    }
+}
+
+function copy_doctest_to_clipboard(node)
+{
+    var s = astext(node)+"\\n   ";
+    var data = "";
+
+    var start = 0;
+    var end = s.indexOf("\\n");
+    while (end >= 0) {
+        if (s.substring(start, start+4) == ">>> ") {
+            data += s.substring(start+4, end+1);
+        }
+        else if (s.substring(start, start+4) == "... ") {
+            data += s.substring(start+4, end+1);
+        }
+        /*
+        else if (end-start > 1) {
+            data += "# " + s.substring(start, end+1);
+        }*/
+        // Grab the next line.
+        start = end+1;
+        end = s.indexOf("\\n", start);
+    }
+    
+    if (copy_text_to_clipboard(data)) {
+        copy_notify(node, "#4060a0");
+    }
+}
+    
+function copy_text_to_clipboard(data)
+{
+    if (window.clipboardData) {
+        window.clipboardData.setData("Text", data);
+        return true;
+     }
+    else if (window.netscape) {
+        // w/ default firefox settings, permission will be denied for this:
+        netscape.security.PrivilegeManager
+                      .enablePrivilege("UniversalXPConnect");
+    
+        var clip = Components.classes["@mozilla.org/widget/clipboard;1"]
+                      .createInstance(Components.interfaces.nsIClipboard);
+        if (!clip) return;
+    
+        var trans = Components.classes["@mozilla.org/widget/transferable;1"]
+                       .createInstance(Components.interfaces.nsITransferable);
+        if (!trans) return;
+    
+        trans.addDataFlavor("text/unicode");
+    
+        var str = new Object();
+        var len = new Object();
+    
+        var str = Components.classes["@mozilla.org/supports-string;1"]
+                     .createInstance(Components.interfaces.nsISupportsString);
+        var datacopy=data;
+        str.data=datacopy;
+        trans.setTransferData("text/unicode",str,datacopy.length*2);
+        var clipid=Components.interfaces.nsIClipboard;
+    
+        if (!clip) return false;
+    
+        clip.setData(trans,null,clipid.kGlobalClipboard);
+        return true;
+    }
+    return false;
+}
+//-->
+</script>
+'''
 
 ######################################################################
 #{ LaTeX Output
@@ -1210,6 +1611,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\newcommand{\\pysrcbuiltin}[1]{\\textbf{#1}}
             \\newcommand{\\pysrcstring}[1]{\\textit{#1}}
             \\newcommand{\\pysrcother}[1]{\\textbf{#1}}
+            \\newcommand{\\pysrcdefname}[1]{\\textbf{#1}}
             % Python source code: Comments
             \\newcommand{\\pysrccomment}[1]{\\textrm{#1}}
 	    % Python interpreter: Traceback message
@@ -1228,12 +1630,14 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_doctest_block(self, node):
         self.literal = True
-        pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
+        colorizer = LaTeXDoctestColorizer(self.encode)
+        pysrc = colorizer.colorize_doctest(str(node[0]))
+        #pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
         self.literal = False
-        self.body.append('\\begin{alltt}\n')
+        #self.body.append('\\begin{alltt}\n')
         self.body.append(pysrc)
-        self.body.append('\\end{alltt}\n')
-        raise docutils.nodes.SkipNode
+        #self.body.append('\\end{alltt}\n')
+        raise docutils.nodes.SkipNode() # Content already processed
 
     def depart_document(self, node):
         self.body += self.foot_prefix
@@ -1244,15 +1648,13 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_literal(self, node):
         self.literal = True
-        if self.node_is_inside_title(node):
-            # Perhaps this should just add \texttt{node[0]}?
-            markup_func = self._markup_pysrc
-        else:
-            markup_func = self._markup_pysrc_wrap
-        pysrc = colorize_doctestblock(str(node[0]), markup_func, True)
+        wrap = (not self.node_is_inside_title(node))
+        colorizer = LaTeXDoctestColorizer(self.encode, wrap)
+        pysrc = colorizer.colorize_inline(str(node[0]))
+        #pysrc = colorize_doctestblock(str(node[0]), markup_func, True)
         self.literal = False
         self.body.append('\\texttt{%s}' % pysrc)
-        raise docutils.nodes.SkipNode
+        raise docutils.nodes.SkipNode() # Content already processed
 
     def depart_literal(self, node):
 	pass
@@ -1281,20 +1683,20 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
                 self.body.append('{\\ttfamily \\raggedright '
                                  '\\noindent \\small\n')
 
-    def _markup_pysrc(self, s, tag):
-        return '\n'.join('\\pysrc%s{%s}' % (tag, line)
-                         for line in self.encode(s).split('\n'))
+#     def _markup_pysrc(self, s, tag):
+#         return '\n'.join('\\pysrc%s{%s}' % (tag, line)
+#                          for line in self.encode(s).split('\n'))
 
-    def _markup_pysrc_wrap(self, s, tag):
-        """This version adds latex commands to allow for line wrapping
-        within literals."""
-        if '\255' in s:
-            warning('Literal contains char \\255')
-            return self._markup_pysrc(s, tag)
-        s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
-        s = self.encode(s).replace('\255', '{\linebreak[0]}')
-        return '\n'.join('\\pysrc%s{%s}' % (tag, line)
-                         for line in s.split('\n'))
+#     def _markup_pysrc_wrap(self, s, tag):
+#         """This version adds latex commands to allow for line wrapping
+#         within literals."""
+#         if '\255' in s:
+#             warning('Literal contains char \\255')
+#             return self._markup_pysrc(s, tag)
+#         s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
+#         s = self.encode(s).replace('\255', '{\linebreak[0]}')
+#         return '\n'.join('\\pysrc%s{%s}' % (tag, line)
+#                          for line in s.split('\n'))
 
     def visit_image(self, node):
         """So image scaling manually"""
@@ -1316,7 +1718,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def visit_idxterm(self, node):
         self.body.append('\\index{%s}' % node.astext())
         if 'topic' in node['classes']:
-            raise docutils.nodes.SkipNode
+            raise docutils.nodes.SkipNode()
         elif 'termdef' in node['classes']:
             self.body.append('\\textbf{')
         else:
@@ -1327,7 +1729,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     
     def visit_index(self, node):
         self.body.append('\\printindex')
-        raise docutils.nodes.SkipNode
+        raise docutils.nodes.SkipNode() # Content already processed
 
     def visit_docinfo(self, node):
         self.docinfo = []
@@ -1349,6 +1751,54 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         LaTeXTranslator.depart_table(self, node)
         if 'gloss' in node['classes'] or 'avm' in node['classes']:
             self.active_table._latex_type = self._orig_table_type
+
+    def visit_callout_marker(self, node):
+        self.body.append(self.encode(unichr(0x2460+node['number']-1)))
+        raise docutils.nodes.SkipNode()
+
+    def visit_pylisting(self, node):
+        self.body.append('\n\\begin{figure}\n')
+        self.context.append('\n\\end{figure}\n')
+
+    def depart_pylisting(self, node):
+        self.body.append( self.context.pop() )
+
+    def visit_pysrc_block(self, node):
+        print 'pysrc', `str(node[0])`
+        self.literal = True
+        colorizer = LaTeXDoctestColorizer(self.encode,
+                                          container=node.parent)
+        if node['is_doctest']:
+            pysrc = colorizer.colorize_doctest(str(node[0]))
+        else:
+            pysrc = colorizer.colorize_codeblock(str(node[0]))
+        self.literal = False
+
+        # If we're the first child of a pylisting, then begin a
+        # boxedminipage environment.
+        if (node.parent[0] is node):
+            self.body.append('\n\n\\noindent\n'
+                             '\\begin{boxedminipage}{\\textwidth}\n')
+            
+        self.body.append(pysrc)
+
+        # If we're the last non-caption child of a pylisting, then end
+        # the boxedminipage environment; otherwise, draw a horizontal
+        # rule to separate pysrc blocks in a listing.  The vspace
+        # arguments were picked via experimentation, to make the
+        # spacing look right.
+        if (node.parent[-1] is node or
+            (isinstance(node.parent[-1], docutils.nodes.caption) and
+             node.parent[-2] is node)):  # (the last child of a pylisting)
+            self.body.append('\\end{boxedminipage}\n')
+        else:                            # (not the last child)
+            self.body.append('\\vspace{-3.5ex}\\rule{\\textwidth}{1pt}'
+                             '\\vspace{-2.5ex}\n')
+            
+        raise docutils.nodes.SkipNode() # Content already processed
+
+    def circledigit(self, n):
+        return docutils.nodes.Text(unichr(0x2460+n-1))
 
     #def depart_title(self, node):
     #    LaTeXTranslator.depart_title(self, node)
@@ -1374,155 +1824,210 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 #{ Source Code Highlighting
 ######################################################################
 
-# Regular expressions for colorize_doctestblock
-# set of keywords as listed in the Python Language Reference 2.4.1
-# added 'as' as well since IDLE already colorizes it as a keyword.
-# The documentation states that 'None' will become a keyword
-# eventually, but IDLE currently handles that as a builtin.
-_KEYWORDS = """
-and       del       for       is        raise    
-assert    elif      from      lambda    return   
-break     else      global    not       try      
-class     except    if        or        while    
-continue  exec      import    pass      yield    
-def       finally   in        print
-as
-""".split()
-_KEYWORD = '|'.join([r'\b%s\b' % _KW for _KW in _KEYWORDS])
+# [xx] Note: requires the very latest svn version of epydoc!
+from epydoc.markup.doctest import DoctestColorizer
 
-_BUILTINS = [_BI for _BI in dir(__builtins__) if not _BI.startswith('__')]
-_BUILTIN = '|'.join([r'\b%s\b' % _BI for _BI in _BUILTINS])
+class HTMLDoctestColorizer(DoctestColorizer):
+    PREFIX = '<pre class="doctest">\n'
+    SUFFIX = '</pre>\n'
+    def __init__(self, encode_func, container=None):
+        self.encode = encode_func
+        self.container = container
+    def markup(self, s, tag):
+        if tag == 'other':
+            return self.encode(s)
+        elif (tag == 'comment' and self.container is not None and
+              CALLOUT_RE.match(s)):
+            callout_id = CALLOUT_RE.match(s).group(1)
+            callout_num = self.container['callouts'][callout_id]
+            img = CALLOUT_IMG % (callout_num, callout_num)
+            return ('<a name="%s" /><a href="#ref-%s">%s</a>' %
+                    (callout_id, callout_id, img))
+        else:
+            return ('<span class="pysrc-%s">%s</span>' %
+                    (tag, self.encode(s)))
 
-_STRING = '|'.join([r'("""("""|.*?((?!").)"""))', r'("("|.*?((?!").)"))',
-                    r"('''('''|.*?[^\\']'''))", r"('('|.*?[^\\']'))"])
-_COMMENT = '(#.*?$)'
-_PROMPT1 = r'^\s*>>>(?:\s|$)'
-_PROMPT2 = r'^\s*\.\.\.(?:\s|$)'
+class LaTeXDoctestColorizer(DoctestColorizer):
+    PREFIX = '\\begin{alltt}\\small\\textbf{\n'
+    SUFFIX = '}\\end{alltt}\n'
+    def __init__(self, encode_func, wrap=False, container=None):
+        self.encode = encode_func
+        self.wrap = wrap
+        self.container = container
+    def markup(self, s, tag):
+        if (tag == 'comment' and self.container is not None and
+            CALLOUT_RE.match(s)):
+            callout_id = CALLOUT_RE.match(s).group(1)
+            callout_num = self.container['callouts'][callout_id]
+            return self.encode(unichr(0x2460+int(callout_num)-1))
+            
+        if self.wrap and '\255' not in s:
+            s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
+            s = self.encode(s).replace('\255', '{\linebreak[0]}')
+        else:
+            if self.wrap: warning('Literal contains char \\255')
+            s = self.encode(s)
+        if tag == 'other':
+            return s
+        else:
+            return '\\pysrc%s{%s}' % (tag, s)
 
-PROMPT_RE = re.compile('(%s|%s)' % (_PROMPT1, _PROMPT2),
-		       re.MULTILINE | re.DOTALL)
-PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
-'''The regular expression used to find Python prompts (">>>" and
-"...") in doctest blocks.'''
 
-EXCEPT_RE = re.compile(r'(.*)(^Traceback \(most recent call last\):.*)',
-                       re.DOTALL | re.MULTILINE)
+# # Regular expressions for colorize_doctestblock
+# # set of keywords as listed in the Python Language Reference 2.4.1
+# # added 'as' as well since IDLE already colorizes it as a keyword.
+# # The documentation states that 'None' will become a keyword
+# # eventually, but IDLE currently handles that as a builtin.
+# _KEYWORDS = """
+# and       del       for       is        raise    
+# assert    elif      from      lambda    return   
+# break     else      global    not       try      
+# class     except    if        or        while    
+# continue  exec      import    pass      yield    
+# def       finally   in        print
+# as
+# """.split()
+# _KEYWORD = '|'.join([r'\b%s\b' % _KW for _KW in _KEYWORDS])
 
-DOCTEST_DIRECTIVE_RE = re.compile(r'#\s*doctest:.*')
+# _BUILTINS = [_BI for _BI in dir(__builtins__) if not _BI.startswith('__')]
+# _BUILTIN = (r'(?<!\.)(?:%s)' %
+#             '|'.join([r'\b%s\b' % _BI for _BI in _BUILTINS]))
 
-DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
-                        r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
-                        r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|"""
-                        r"""(?P<OTHER_WHITESPACE>\s)|(?P<OTHER>.)""" %
-  (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _PROMPT1, _PROMPT2),
-  re.MULTILINE | re.DOTALL)
-'''The regular expression used by L{_doctest_sub} to colorize doctest
-blocks.'''
+# _STRING = '|'.join([r'("""("""|.*?((?!").)"""))', r'("("|.*?((?!").)"))',
+#                     r"('''('''|.*?[^\\']'''))", r"('('|.*?[^\\']'))"])
+# _COMMENT = '(#.*?$)'
+# _PROMPT1 = r'^\s*>>>(?:\s|$)'
+# _PROMPT2 = r'^\s*\.\.\.(?:\s|$)'
 
-def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
-    """
-    Colorize the given doctest string C{s} using C{markup_func()}.
-    C{markup_func()} should be a function that takes a substring and a
-    tag, and returns a colorized version of the substring.  E.g.:
+# _DEFNAME = r'(?<=def )\w+|(?<=def  )\w+'
 
-        >>> def html_markup_func(s, tag):
-        ...     return '<span class="%s">%s</span>' % (tag, s)
+# PROMPT_RE = re.compile('(%s|%s)' % (_PROMPT1, _PROMPT2),
+# 		       re.MULTILINE | re.DOTALL)
+# PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
+# '''The regular expression used to find Python prompts (">>>" and
+# "...") in doctest blocks.'''
 
-    The tags that will be passed to the markup function are: 
-        - C{prompt} -- the Python PS1 prompt (>>>)
-	- C{more} -- the Python PS2 prompt (...)
-        - C{keyword} -- a Python keyword (for, if, etc.)
-        - C{builtin} -- a Python builtin name (abs, dir, etc.)
-        - C{string} -- a string literal
-        - C{comment} -- a comment
-	- C{except} -- an exception traceback (up to the next >>>)
-        - C{output} -- the output from a doctest block.
-        - C{other} -- anything else (does *not* include output.)
-    """
-    pysrc = [] # the source code part of a docstest block (lines)
-    pyout = [] # the output part of a doctest block (lines)
-    result = []
-    out = result.append
+# EXCEPT_RE = re.compile(r'(.*)(^Traceback \(most recent call last\):.*)',
+#                        re.DOTALL | re.MULTILINE)
 
-    if strip_directives:
-        s = DOCTEST_DIRECTIVE_RE.sub('', s)
+# DOCTEST_DIRECTIVE_RE = re.compile(r'#\s*doctest:.*')
 
-    # Use this var to aggregate 'other' regions, since the regexp just
-    # gives it to us one character at a time:
-    other = [] 
+# DOCTEST_RE = re.compile(r"""(?P<STRING>%s)|(?P<COMMENT>%s)|"""
+#                         r"""(?P<KEYWORD>(%s))|(?P<BUILTIN>(%s))|"""
+#                         r"""(?P<DEFNAME>%s)|"""
+#                         r"""(?P<PROMPT1>%s)|(?P<PROMPT2>%s)|"""
+#                         r"""(?P<OTHER_WHITESPACE>\s)|(?P<OTHER>.)""" %
+#   (_STRING, _COMMENT, _KEYWORD, _BUILTIN, _DEFNAME, _PROMPT1, _PROMPT2),
+#   re.MULTILINE | re.DOTALL)
+# '''The regular expression used by L{_doctest_sub} to colorize doctest
+# blocks.'''
+
+# def colorize_doctestblock(s, markup_func, inline=False, strip_directives=True):
+#     """
+#     Colorize the given doctest string C{s} using C{markup_func()}.
+#     C{markup_func()} should be a function that takes a substring and a
+#     tag, and returns a colorized version of the substring.  E.g.:
+
+#         >>> def html_markup_func(s, tag):
+#         ...     return '<span class="%s">%s</span>' % (tag, s)
+
+#     The tags that will be passed to the markup function are: 
+#         - C{prompt} -- the Python PS1 prompt (>>>)
+# 	- C{more} -- the Python PS2 prompt (...)
+#         - C{keyword} -- a Python keyword (for, if, etc.)
+#         - C{builtin} -- a Python builtin name (abs, dir, etc.)
+#         - C{string} -- a string literal
+#         - C{comment} -- a comment
+# 	- C{except} -- an exception traceback (up to the next >>>)
+#         - C{output} -- the output from a doctest block.
+#         - C{other} -- anything else (does *not* include output.)
+#     """
+#     pysrc = [] # the source code part of a docstest block (lines)
+#     pyout = [] # the output part of a doctest block (lines)
+#     result = []
+#     out = result.append
+
+#     if strip_directives:
+#         s = DOCTEST_DIRECTIVE_RE.sub('', s)
+
+#     # Use this var to aggregate 'other' regions, since the regexp just
+#     # gives it to us one character at a time:
+#     other = [] 
     
-    def subfunc(match):
-        if match.group('OTHER'):
-            other.extend(match.group())
-            return ''
-        elif other:
-            v = markup_func(''.join(other), 'other')
-            del other[:]
-        else:
-            v = ''
+#     def subfunc(match):
+#         if match.group('OTHER'):
+#             other.extend(match.group())
+#             return ''
+#         elif other:
+#             v = markup_func(''.join(other), 'other')
+#             del other[:]
+#         else:
+#             v = ''
 
-        if match.group('OTHER_WHITESPACE'):
-            return v+match.group() # No coloring for other-whitespace.
-        if match.group('PROMPT1'):
-            return v+markup_func(match.group(), 'prompt')
-	if match.group('PROMPT2'):
-	    return v+markup_func(match.group(), 'more')
-        if match.group('KEYWORD'):
-            return v+markup_func(match.group(), 'keyword')
-        if match.group('BUILTIN'):
-            return v+markup_func(match.group(), 'builtin')
-        if match.group('COMMENT'):
-            return v+markup_func(match.group(), 'comment')
-        if match.group('STRING') and '\n' not in match.group():
-            return v+markup_func(match.group(), 'string')
-        elif match.group('STRING'):
-            # It's a multiline string; colorize the string & prompt
-            # portion of each line.
-            pieces = [markup_func(s, ['string','more'][i%2])
-                      for i, s in enumerate(PROMPT2_RE.split(match.group()))]
-            return v+''.join(pieces)
-        else:
-            assert 0, 'unexpected match'
+#         if match.group('OTHER_WHITESPACE'):
+#             return v+match.group() # No coloring for other-whitespace.
+#         if match.group('PROMPT1'):
+#             return v+markup_func(match.group(), 'prompt')
+# 	if match.group('PROMPT2'):
+# 	    return v+markup_func(match.group(), 'more')
+#         if match.group('KEYWORD'):
+#             return v+markup_func(match.group(), 'keyword')
+#         if match.group('BUILTIN'):
+#             return v+markup_func(match.group(), 'builtin')
+#         if match.group('DEFNAME'):
+#             return v+markup_func(match.group(), 'defname')
+#         if match.group('COMMENT'):
+#             return v+markup_func(match.group(), 'comment')
+#         if match.group('STRING') and '\n' not in match.group():
+#             return v+markup_func(match.group(), 'string')
+#         elif match.group('STRING'):
+#             # It's a multiline string; colorize the string & prompt
+#             # portion of each line.
+#             pieces = [markup_func(s, ['string','more'][i%2])
+#                       for i, s in enumerate(PROMPT2_RE.split(match.group()))]
+#             return v+''.join(pieces)
+#         else:
+#             assert 0, 'unexpected match'
 
-    if inline:
-	pysrc = DOCTEST_RE.sub(subfunc, s)
-        if other: pysrc += markup_func(''.join(other), 'other')
-	return pysrc.strip()
+#     if inline:
+# 	pysrc = DOCTEST_RE.sub(subfunc, s)
+#         if other: pysrc += markup_func(''.join(other), 'other')
+# 	return pysrc.strip()
 
-    # need to add a third state here for correctly formatting exceptions
+#     # need to add a third state here for correctly formatting exceptions
 
-    for line in s.split('\n')+['\n']:
-        if PROMPT_RE.match(line):
-            pysrc.append(line)
-            if pyout:
-                pyout = '\n'.join(pyout).rstrip()
-                m = EXCEPT_RE.match(pyout)
-                if m:
-                    pyout, pyexc = m.group(1).strip(), m.group(2).strip()
-                    if pyout:
-                        warning('doctest does not allow for mixed '
-                             'output and exceptions!')
-                        result.append(markup_func(pyout, 'output'))
-                    result.append(markup_func(pyexc, 'except'))
-                else:
-                    result.append(markup_func(pyout, 'output'))
-                pyout = []
-        else:
-            pyout.append(line)
-            if pysrc:
-                pysrc = DOCTEST_RE.sub(subfunc, '\n'.join(pysrc))
-                if other:
-                    pysrc += markup_func(''.join(other), 'other')
-                    del other[:]
-                result.append(pysrc.strip())
-                #result.append(markup_func(pysrc.strip(), 'python'))
-                pysrc = []
+#     for line in s.split('\n')+['\n']:
+#         if PROMPT_RE.match(line):
+#             pysrc.append(line)
+#             if pyout:
+#                 pyout = '\n'.join(pyout)
+#                 m = EXCEPT_RE.match(pyout)
+#                 if m:
+#                     pyout, pyexc = m.group(1).strip(), m.group(2).strip()
+#                     if pyout:
+#                         warning('doctest does not allow for mixed '
+#                              'output and exceptions!')
+#                         result.append(markup_func(pyout, 'output'))
+#                     result.append(markup_func(pyexc, 'except'))
+#                 else:
+#                     result.append(markup_func(pyout, 'output'))
+#                 pyout = []
+#         else:
+#             pyout.append(line)
+#             if pysrc:
+#                 pysrc = DOCTEST_RE.sub(subfunc, '\n'.join(pysrc))
+#                 if other:
+#                     pysrc += markup_func(''.join(other), 'other')
+#                     del other[:]
+#                 result.append(pysrc.strip())
+#                 #result.append(markup_func(pysrc.strip(), 'python'))
+#                 pysrc = []
 
-    remainder = '\n'.join(pyout).rstrip()
-    if remainder:
-        result.append(markup_func(remainder, 'output'))
+#     remainder = '\n'.join(pyout).rstrip()
+#     if remainder:
+#         result.append(markup_func(remainder, 'output'))
         
-    return '\n'.join(result)
+#     return '\n'.join(result)
 
 ######################################################################
 #{ Old Code
@@ -1610,10 +2115,13 @@ def _new_Publisher_apply_transforms(self):
 Publisher.apply_transforms = _new_Publisher_apply_transforms
 
 def debug(s):
+    s = str(s)
     if s.strip(): logger.log(DEBUG, s.strip())
 def warning(s):
+    s = str(s)
     if s.strip(): logger.log(WARNING, s.strip())
 def error(s):
+    s = str(s)
     if s.strip(): logger.log(ERROR, s.strip())
 
 class WarningStream:
