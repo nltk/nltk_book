@@ -12,7 +12,8 @@ Extract the code samples from a file in restructured text format
 """
 
 import sys
-from rst import PROMPT_RE
+from epydoc.markup.doctest import DoctestColorizer
+PROMPT_RE = DoctestColorizer.PROMPT_RE        
 
 for file in sys.argv:
     in_code = False
@@ -23,9 +24,6 @@ for file in sys.argv:
         elif in_code:
             in_code = False
             print
-        
-        
-
 
 
 
