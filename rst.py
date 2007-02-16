@@ -278,14 +278,11 @@ def pylisting_directive(name, arguments, options, content, lineno,
     state_machine.document.note_explicit_target(target)
 
     # Divide the text into doctest blocks.
-    callouts = listing['callouts']
     for i, v in enumerate(DOCTEST_BLOCK_RE.split('\n'.join(content))):
         pysrc = re.sub(r'\A( *\n)+', '', v.rstrip())
         if pysrc.strip():
             listing.append(docutils.nodes.doctest_block(pysrc, pysrc,
                                                         is_codeblock=(i%2==0)))
-            for callout_id in CALLOUT_RE.findall(pysrc):
-                callouts[callout_id] = len(callouts)+1
 
     # Add an optional caption.
     if options.get('caption'):
@@ -826,6 +823,17 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
                       PYLISTING_DIR + node['name'] + PYLISTING_EXTENSION)
         self.callout_labels.update(node['callouts'])
 
+    def visit_doctest_block(self, node):
+        if isinstance(node.parent, pylisting):
+            callouts = node['callouts'] = node.parent['callouts']
+        else:
+            callouts = node['callouts'] = {}
+        
+        pysrc = ''.join(str(c) for c in node)
+        for callout_id in CALLOUT_RE.findall(pysrc):
+            callouts[callout_id] = len(callouts)+1
+        self.callout_labels.update(callouts)
+
     #////////////////////////////////////////////////////////////
     # Sections
     #////////////////////////////////////////////////////////////
@@ -1285,7 +1293,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
         text = ''.join(str(c) for c in node)
 
         # Colorize the contents of the doctest block.
-        colorizer = HTMLDoctestColorizer(self.encode, node.parent)
+        colorizer = HTMLDoctestColorizer(self.encode, node['callouts'])
         if node.get('is_codeblock'):
             pysrc = colorizer.colorize_codeblock(text)
         else:
@@ -1356,10 +1364,10 @@ class CustomizedHTMLTranslator(HTMLTranslator):
         """Process text to prevent tokens from wrapping."""
         text = ''.join(str(c) for c in node)
         colorizer = HTMLDoctestColorizer(self.encode)
-        pysrc = colorizer.colorize_inline(text)
+        pysrc = colorizer.colorize_inline(text)#.strip()
         #pysrc = colorize_doctestblock(text, self._markup_pysrc, True)
         self.body+= [self.starttag(node, 'tt', '', CLASS='doctest'),
-                     '<span class="pre">%s</span>\n</tt>\n' % pysrc]
+                     '<span class="pre">%s</span></tt>' % pysrc]
         raise docutils.nodes.SkipNode() # Content already processed
                           
     def _markup_pysrc(self, s, tag):
@@ -1766,8 +1774,8 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def visit_pysrc_block(self, node):
         print 'pysrc', `str(node[0])`
         self.literal = True
-        colorizer = LaTeXDoctestColorizer(self.encode,
-                                          container=node.parent)
+        colorizer = LaTeXDoctestColorizer(self.encode, wrap=False, 
+                                          callouts=node['callouts'])
         if node['is_doctest']:
             pysrc = colorizer.colorize_doctest(str(node[0]))
         else:
@@ -1830,16 +1838,16 @@ from epydoc.markup.doctest import DoctestColorizer
 class HTMLDoctestColorizer(DoctestColorizer):
     PREFIX = '<pre class="doctest">\n'
     SUFFIX = '</pre>\n'
-    def __init__(self, encode_func, container=None):
+    def __init__(self, encode_func, callouts=None):
         self.encode = encode_func
-        self.container = container
+        self.callouts = callouts
     def markup(self, s, tag):
         if tag == 'other':
             return self.encode(s)
-        elif (tag == 'comment' and self.container is not None and
+        elif (tag == 'comment' and self.callouts is not None and
               CALLOUT_RE.match(s)):
             callout_id = CALLOUT_RE.match(s).group(1)
-            callout_num = self.container['callouts'][callout_id]
+            callout_num = self.callouts[callout_id]
             img = CALLOUT_IMG % (callout_num, callout_num)
             return ('<a name="%s" /><a href="#ref-%s">%s</a>' %
                     (callout_id, callout_id, img))
@@ -1850,15 +1858,15 @@ class HTMLDoctestColorizer(DoctestColorizer):
 class LaTeXDoctestColorizer(DoctestColorizer):
     PREFIX = '\\begin{alltt}\\small\\textbf{\n'
     SUFFIX = '}\\end{alltt}\n'
-    def __init__(self, encode_func, wrap=False, container=None):
+    def __init__(self, encode_func, wrap=False, callouts=None):
         self.encode = encode_func
         self.wrap = wrap
-        self.container = container
+        self.callouts = callouts
     def markup(self, s, tag):
-        if (tag == 'comment' and self.container is not None and
+        if (tag == 'comment' and self.callouts is not None and
             CALLOUT_RE.match(s)):
             callout_id = CALLOUT_RE.match(s).group(1)
-            callout_num = self.container['callouts'][callout_id]
+            callout_num = self.callouts[callout_id]
             return self.encode(unichr(0x2460+int(callout_num)-1))
             
         if self.wrap and '\255' not in s:
