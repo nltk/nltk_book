@@ -627,7 +627,7 @@ Figure dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:g
 
 .. _dottededge:
 .. figure:: ../images/chart_intro_dottededge.png
-   :scale: 25
+   :scale: 30
 
 |nopar| These `dotted edges`:dt: are used to record all of the hypotheses that a
 chart parser makes about constituents in a sentence.  
@@ -659,7 +659,7 @@ an incomplete edge.
 
 .. _incomplete:   
 .. figure:: ../images/chart_intro_incomplete.png
-   :scale: 25
+   :scale: 30
     
 If `n = 0`:math: (i.e., if `c`:sub:`1` |dots| `c`:sub:`n` is empty),
 then the edge is called a `self-loop edge`:dt:.  
@@ -667,7 +667,7 @@ This is illustrated in Figure selfloop_.
 
 .. _selfloop:
 .. figure:: ../images/chart_intro_selfloop.png
-   :scale: 25
+   :scale: 30
 
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
@@ -676,7 +676,7 @@ Figure parseedge_, [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse e
 
 .. _parseedge:      
 .. figure:: ../images/chart_intro_parseedge.png
-   :scale: 25
+   :scale: 30
 
 The Chart Parser
 ----------------
@@ -687,8 +687,8 @@ knowledge about the sentence, and adds them to the chart one at a time
 until one or more parse edges are found.  The edges that it adds can
 be licensed in one of three ways:
       
-1. The *sentence* can license an edge.  In particular, each word `w`:sub:`i`
-   in the sentence licenses the complete edge [`w`:sub:`i` |rarr|
+1. The *input* can license an edge.  In particular, each word `w`:sub:`i`
+   in the input licenses the complete edge [`w`:sub:`i` |rarr|
    |dot|, (*i*, *i*\ +1)].
 
 #. The *grammar* can license an edge.  In particular, each grammar
@@ -704,7 +704,7 @@ the grammar), it will never be used in a complete parse:
 
 .. _uselessedge:        
 .. figure:: ../images/chart_useless_edge.png
-   :scale: 25
+   :scale: 30
 
 Chart parsers therefore use a set of `rules`:dt: to heuristically decide
 when an edge should be added to a chart.  This set of rules, along
@@ -715,9 +715,7 @@ The Fundamental Rule
 --------------------
 
 One rule is particularly important, since it is used by every chart
-parser: the `Fundamental Rule`:dt:.[#]_  
-.. [#] The Fundamental Rule corresponds to the Completer
-       function in [Jurafsky2000SLP]_.
+parser: the `Fundamental Rule`:dt:.\ [#]_  
 This rule is used to combine an
 incomplete edge that's expecting a nonterminal *B* with a complete
 edge immediately following it whose left hand side is *B*.  Formally,
@@ -732,59 +730,90 @@ then the parser should add the new edge:
 
 A somewhat more intuitive version of the operation of the Fundamental
 Rule can be given using chart diagrams. Thus, if we have a chart of
-the form Figure fr1_,
+the form shown in Figure fr1_,
 
 .. _fr1:
 .. figure:: ../images/chart_fr1.png
-   :scale: 25
+   :scale: 30
 
-we can add the new complete edge shown in Figure fr2_.
+then we can add a new complete edge to the chart as illustrated in Figure fr2_.
 
 .. _fr2:
 .. figure:: ../images/chart_fr2.png
-   :scale: 25
+   :scale: 30
 
+.. [#] The Fundamental Rule corresponds to the Completer
+   function in [Jurafsky2000SLP]_.
 
-
-Bottom Up Parsing
+Bottom-Up Parsing
 -----------------
 
-To create a bottom-up parser, we need to add two rules: the `Bottom-Up
-Initialization Rule`:dt:; and the `Bottom-Up Predict Rule`:dt:.
+Bottom-up chart parsing can be seen as a parsing strategy, using our
+earlier terminology. In other words, bottom-up is a particular choice
+of heuristics for adding new edges to a chart. The general procedures
+is inductive: we start with a base case, and then show how we can move
+from a given state of the chart to a new state. Since we are working
+bottom-up, the base case for our induction will be determined by the
+words in the input string, so we add new edges for each word.  Now,
+for the induction step, suppose the chart contains an edge labeled
+with constituent *A*. Since we are working bottom-up, we want to build
+constituents which can have an *A* as a daughter. In other words, we
+are going to look for rules of the form *B* |rarr| *A* |beta| and use
+these to label new edges.
+
+Let's look at the procedure a bit more formally.  To create a
+bottom-up chart parser, we add to the Fundamental Rule two new rules:
+the `Bottom-Up Initialization Rule`:dt:; and the `Bottom-Up Predict
+Rule`:dt:.
 
 The Bottom-Up Initialization Rule says to add all edges licensed by
-the sentence.  In particular, it states that for every word w\ :subscript:`i`, the
+the input.  In particular, it states that for every word w\ :subscript:`i`, the
 parser should add the edge:
 
 
 #. [`w`:subscript:`i` |rarr|  |dot| , (*i*, *i*\ +1)]
 
+.. _buinit:
 .. figure:: ../images/chart_bu_init.png
-   :scale: 25
+   :scale: 30
 
-
-.. ouch: write this better! :)
-
-|nopar| The Bottom-Up Predict Rule says that if the chart contains a complete
-edge, then the parser should add a self-loop edge at the complete edge's left
-boundary for each grammar production whose right-hand side begins with
-the completed edge's left-hand side.  In other words, it states that
-if the chart contains the complete edge:
-
-.. figure:: ../images/chart_bu_predict1.png
-   :scale: 25
+|nopar| Next, suppose the chart contains a complete edge *e* whose
+lefthand category is *A*. Then the Bottom-Up Predict Rule requires the
+parser to add a self-loop edge at the left boundary of *e*
+for each grammar production whose right-hand side begins with category
+*A*.  In other words, it states that if
+the chart contains the complete edge:
 
 1. [*A* |rarr| |alpha| |dot| , (*i*, *j*\ )]
 
-|nopar| And the grammar contains the production:
+|nopar| and the grammar contains the production
 
 2. *B* |rarr| *A* |beta|
 
-|nopar| Then the parser should add the self-loop edge:
-
-.. figure:: ../images/chart_bu_predict2.png
+|nopar| then the parser should add the self-loop edge:
 
 3. [*B* |rarr|  |dot| *A* |beta| , (*i*, *i*\ )]
+
+Graphically, if the chart looks as in Figure bupredict1_, 
+
+.. _bupredict1:
+.. figure:: ../images/chart_bu_predict1.png
+   :scale: 30
+
+then the Bottom-Up Predict Rule tells the parser to augment the chart
+as shown in Figure bupredict2_.
+
+.. _bupredict2:
+.. figure:: ../images/chart_bu_predict2.png
+   :scale: 30
+
+Once we have a chart like Figure bupredict2_, we can use the
+Fundamental Rule to add an edge where we have "moved the dot" one
+position to the right.
+
+.. _bufr:
+.. figure:: ../images/chart_bu_fr.png
+   :scale: 30
         
 |nopar| Using these three rules, we can parse a sentence as follows:
 
