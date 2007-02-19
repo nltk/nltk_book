@@ -394,17 +394,17 @@ We use the following utility function to pretty-print the
 
     >>> wfst0 = init_wfst(tokens, grammar)
     >>> display(wfst0, tokens)
-	 1    2    3    4    5    6    7    8   
-    ========================================
-     0|  Det                                     |
-     1|       N                                  |
-     2|            V                             |
-     3|                 Det                      |
-     4|                      N                   |
-     5|                           P              |
-     6|                                Det       |
-     7|                                     N    |
-    ========================================
+	1    2    3    4    5    6    7    8   
+       ========================================
+    0|  Det                                     |
+    1|       N                                  |
+    2|            V                             |
+    3|                 Det                      |
+    4|                      N                   |
+    5|                           P              |
+    6|                                Det       |
+    7|                                     N    |
+       ========================================
 
 |nopar| As promised, there is a `v`:gc: in cell (2, 3).
 The same information can be represented in a directed acyclic graph,
@@ -480,21 +480,17 @@ The following function uses this inference step to complete the
     ...
     >>> wfst1 = complete_wfst(wfst0, tokens, index)
     >>> display(wfst1, tokens)
-
-
-|nopar| This produces the following table::
-
-	 1    2    3    4    5    6    7    8   
-	========================================
-     0|  Det  NP             S              S    |
-     1|       N                                  |
-     2|            V         VP             VP   |
-     3|                 Det  NP             NP   |
-     4|                      N                   |
-     5|                           P         PP   |
-     6|                                Det  NP   |
-     7|                                     N    |
-	========================================
+	1    2    3    4    5    6    7    8   
+       ========================================
+    0|  Det  NP             S              S    |
+    1|       N                                  |
+    2|            V         VP             VP   |
+    3|                 Det  NP             NP   |
+    4|                      N                   |
+    5|                           P         PP   |
+    6|                                Det  NP   |
+    7|                                     N    |
+       ========================================
 
 |nopar| The tabular algorithm above gives an intuitive idea of why
 parsing context-free grammar is proportional to `n`:sup:`3`: there is a triply nested
@@ -502,18 +498,20 @@ loop, and the size of each loop is based
 on the length of the input.
 
 By setting ``trace`` to ``True`` when calling the function ``complete_wfst()``, we get 
-additional output that is intended to be reminiscent of a chart representation::
+additional output that is intended to be reminiscent of a chart representation.
 
-   [0] Det [1]   N [2] ==> [0]  NP [2]
-   [3] Det [4]   N [5] ==> [3]  NP [5]
-   [6] Det [7]   N [8] ==> [6]  NP [8]
-   [2]   V [3]  NP [5] ==> [2]  VP [5]
-   [5]   P [6]  NP [8] ==> [5]  PP [8]
-   [0]  NP [2]  VP [5] ==> [0]   S [5]
-   [3]  NP [5]  PP [8] ==> [3]  NP [8]
-   [2]   V [3]  NP [8] ==> [2]  VP [8]
-   [2]  VP [5]  PP [8] ==> [2]  VP [8]
-   [0]  NP [2]  VP [8] ==> [0]   S [8]
+    >>> wfst2 = complete_wfst(wfst0, tokens, index, True)
+    >>> display(wfst2, tokens)
+    [0] Det [1]   N [2] ==> [0]  NP [2]
+    [3] Det [4]   N [5] ==> [3]  NP [5]
+    [6] Det [7]   N [8] ==> [6]  NP [8]
+    [2]   V [3]  NP [5] ==> [2]  VP [5]
+    [5]   P [6]  NP [8] ==> [5]  PP [8]
+    [0]  NP [2]  VP [5] ==> [0]   S [5]
+    [3]  NP [5]  PP [8] ==> [3]  NP [8]
+    [2]   V [3]  NP [8] ==> [2]  VP [8]
+    [2]  VP [5]  PP [8] ==> [2]  VP [8]
+    [0]  NP [2]  VP [8] ==> [0]   S [8]
 
 |nopar| For example, this says that since we found ``Det`` at
 ``wfst[0][1]`` and ``N`` at ``wfst[1][2]``, we can add ``NP`` to
@@ -624,13 +622,23 @@ edge's right hand side.  The children to the left of the dot specify
 what children the constituent starts with; and the children to the
 right of the dot specify what children still need to be found in order
 to form a complete constituent.  For example, the edge in the
-following chart records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
+Figure dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
 `likes`:lx:, but still needs an `np`:gc: to become complete":
 
-.. image:: ../images/chart_intro_dottededge.png
+.. _dottededge:
+.. figure:: ../images/chart_intro_dottededge.png
+   :scale: 25
 
 |nopar| These `dotted edges`:dt: are used to record all of the hypotheses that a
-chart parser makes about constituents in a sentence.  Formally, we can
+chart parser makes about constituents in a sentence.  
+We write dotted edges as a pair of the form [`A` |rarr| `c`:sub:`1`
+|dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*,
+*j*)], where `A` |rarr| `c`:sub:`1`
+|dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n` is a
+production annotated with a dot, and (*i*,
+*j*) is a pair of indices that record the input words which are
+covered by the production.
+More formally, we 
 define a dotted edge as follows:
 
 A dotted edge [`A` |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*, *j*)] 
@@ -641,30 +649,34 @@ A dotted edge [`A` |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |do
   (where both `c`:sub:`1` |dots| `c`:sub:`d` and
   `c`:sub:`d+1` |dots| `c`:sub:`n` may be empty.)
 
-|nopar| 
-If `d = n`:math: (i.e., if `c`:sub:`d+1` |dots| `c`:sub:`n` is
+|nopar| If `d = n`:math: (i.e., if `c`:sub:`d+1` |dots| `c`:sub:`n` is
 empty) then the edge represents a complete constituent, and is called
 a `complete edge`:dt:.  Otherwise, the edge represents an incomplete
-constituent, and is called an `incomplete edge`:dt:.  In the following
-chart, [`vp`:gc: |rarr| `v`:gc: `np`:gc: |dot|, (1, 3)] is a complete
-edge, and [`vp`:gc: |rarr| `v`:gc: |dot| `np`:gc:, (1, 2)] is an
-incomplete edge.
-    
-.. image:: ../images/chart_intro_incomplete.png
+constituent, and is called an `incomplete edge`:dt:.  In Figure
+incomplete_, [`vp`:gc: |rarr| `v`:gc: `np`:gc: |dot|, (1, 3)] is a
+complete edge, and [`vp`:gc: |rarr| `v`:gc: |dot| `np`:gc:, (1, 2)] is
+an incomplete edge.
+
+.. _incomplete:   
+.. figure:: ../images/chart_intro_incomplete.png
+   :scale: 25
     
 If `n = 0`:math: (i.e., if `c`:sub:`1` |dots| `c`:sub:`n` is empty),
-then the edge is called a `self-loop edge`:dt:.  In the following
-chart, [`vp`:gc: |rarr| |dot| `v`:gc: `np`:gc:, (1, 1)] is a self-loop
-edge.
+then the edge is called a `self-loop edge`:dt:.  
+This is illustrated in Figure selfloop_.
 
-.. image:: ../images/chart_intro_selfloop.png
+.. _selfloop:
+.. figure:: ../images/chart_intro_selfloop.png
+   :scale: 25
 
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
 edge`:dt:, and it encodes one or more parse trees for the sentence.  In
-the following chart, [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
-      
-.. image:: ../images/chart_intro_parseedge.png
+Figure parseedge_, [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
+
+.. _parseedge:      
+.. figure:: ../images/chart_intro_parseedge.png
+   :scale: 25
 
 The Chart Parser
 ----------------
@@ -681,7 +693,7 @@ be licensed in one of three ways:
 
 #. The *grammar* can license an edge.  In particular, each grammar
    production A |rarr| |alpha| licenses the self-loop edge [*A* |rarr|
-   |dot| |alpha|, (*i*, *i*)] for every *i*, 0\ |leq|\ *i* <  *n*.
+   |dot| |alpha|, (*i*, *i*)] for every *i*, 0 |leq| *i* < *n*.
 
 #. The *current chart contents* can license an edge.
           
@@ -689,8 +701,10 @@ However, it is not wise to add `all`:em: licensed edges to the chart,
 since many of them will not be used in any complete parse.  For
 example, even though the edge in the following chart is licensed (by
 the grammar), it will never be used in a complete parse:
-        
-.. image:: ../images/chart_useless_edge.png
+
+.. _uselessedge:        
+.. figure:: ../images/chart_useless_edge.png
+   :scale: 25
 
 Chart parsers therefore use a set of `rules`:dt: to heuristically decide
 when an edge should be added to a chart.  This set of rules, along
@@ -701,21 +715,35 @@ The Fundamental Rule
 --------------------
 
 One rule is particularly important, since it is used by every chart
-parser: the `Fundamental Rule`:dt:.  This rule is used to combine an
+parser: the `Fundamental Rule`:dt:.[#]_  
+.. [#] The Fundamental Rule corresponds to the Completer
+       function in [Jurafsky2000SLP]_.
+This rule is used to combine an
 incomplete edge that's expecting a nonterminal *B* with a complete
 edge immediately following it whose left hand side is *B*.  Formally,
 it states that if the chart contains the edges:
 
-.. image:: ../images/chart_fr1.png
-
 1. [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*\ )]
 2. [*B* |rarr| |gamma| |dot| , (*j*, *k*\ )]
 
-Then the parser should add the edge:
-
-.. image:: ../images/chart_fr2.png
+then the parser should add the new edge:
 
 3. [*A* |rarr| |alpha| *B* |dot| |beta| , (*i*, *k*)]
+
+A somewhat more intuitive version of the operation of the Fundamental
+Rule can be given using chart diagrams. Thus, if we have a chart of
+the form Figure fr1_,
+
+.. _fr1:
+.. figure:: ../images/chart_fr1.png
+   :scale: 25
+
+we can add the new complete edge shown in Figure fr2_.
+
+.. _fr2:
+.. figure:: ../images/chart_fr2.png
+   :scale: 25
+
 
 
 Bottom Up Parsing
@@ -728,9 +756,12 @@ The Bottom-Up Initialization Rule says to add all edges licensed by
 the sentence.  In particular, it states that for every word w\ :subscript:`i`, the
 parser should add the edge:
 
-.. image:: ../images/chart_bu_init.png
 
-#. [`w`:subscript:`i`; |rarr|  |dot| , (*i*, *i*\ +1)]
+#. [`w`:subscript:`i` |rarr|  |dot| , (*i*, *i*\ +1)]
+
+.. figure:: ../images/chart_bu_init.png
+   :scale: 25
+
 
 .. ouch: write this better! :)
 
@@ -740,7 +771,8 @@ boundary for each grammar production whose right-hand side begins with
 the completed edge's left-hand side.  In other words, it states that
 if the chart contains the complete edge:
 
-.. image:: ../images/chart_bu_predict1.png
+.. figure:: ../images/chart_bu_predict1.png
+   :scale: 25
 
 1. [*A* |rarr| |alpha| |dot| , (*i*, *j*\ )]
 
@@ -750,7 +782,7 @@ if the chart contains the complete edge:
 
 |nopar| Then the parser should add the self-loop edge:
 
-.. image:: ../images/chart_bu_predict2.png
+.. figure:: ../images/chart_bu_predict2.png
 
 3. [*B* |rarr|  |dot| *A* |beta| , (*i*, *i*\ )]
         
@@ -790,7 +822,7 @@ production:
 
 The parser should add the self-loop edge: 
 
-.. image:: ../images/chart_td_init.png
+.. figure:: ../images/chart_td_init.png
 
 2. [`s`:gc: |rarr|  |dot| |alpha|\ , (0:0)]
 
@@ -800,7 +832,7 @@ should add any self-loop edges licensed by the grammar whose left-hand
 side is ``B``.  In particular, if the chart contains the incomplete
 edge:
 
-.. image:: ../images/chart_td_expand1.png
+.. figure:: ../images/chart_td_expand1.png
 
 1. [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*\ )]
 
@@ -810,7 +842,7 @@ Then for each grammar production:
 
 The parser should add the edge: 
 
-.. image:: ../images/chart_td_expand2.png
+.. figure:: ../images/chart_td_expand2.png
 
 3. [*B* |rarr|  |dot| |gamma| , (*j*, *j*\ )]
 
@@ -819,14 +851,14 @@ edge whose dot is followed by a terminal w, then the parser should
 add an edge if the terminal corresponds to the text.  In particular,
 if the chart contains the incomplete edge:
 
-.. image:: ../images/chart_td_match1.png
+.. figure:: ../images/chart_td_match1.png
 
 
 1. [*A* |rarr| |alpha| |dot| w\ :subscript:`j` |beta|\ , (*i*, *j*\ )]
 
 Then the parser should add the complete edge: 
 
-.. image:: ../images/chart_td_match2.png
+.. figure:: ../images/chart_td_match2.png
 
 2. [`w`:subscript:`j` |rarr| |dot| , (*j*, *j*\ +1)]
 
@@ -844,7 +876,7 @@ Using these four rules, we can parse a sentence as follows:
    For example, the following diagram shows the order in which get added
    when applying top-down parsing to a simple example sentence:
 
-   .. image:: ../images/chart_top_down.png
+   .. figure:: ../images/chart_top_down.png
 
 
 Chart Parsing in NLTK-Lite
