@@ -11,8 +11,7 @@ WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs/lite
 TEX = introduction.tex programming.tex tag.tex chunk.tex data.tex
 PDF = introduction.pdf programming.pdf tag.pdf chunk.pdf data.pdf
 
-CSS_STYLESHEET_PATH = ../default.css
-RST2HTML = rst2html.py
+RST2HTML = ../rst.py --html
 
 RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
@@ -29,7 +28,7 @@ clean_up:
 	rm -f *.log *.aux *.snm *.vrb index*.html
 
 index.html:	index.txt
-	$(RST2HTML) --stylesheet-path=$(CSS_STYLESHEET_PATH) index.txt > index.html
+	$(RST2HTML) index.txt > index.html
 
 .tex.pdf:
 	pdflatex $<
