@@ -7,7 +7,6 @@
 8. Advanced Parsing
 ===================
 
-.. TODO: more image conversion (Ewan)
 
 ------------
 Introduction
@@ -886,7 +885,7 @@ Using the three rules just presented, we can parse a sentence as follows:
 
 #. Return all of the parse trees corresponding to the parse edges in the chart. 
 
-|NLTK| provides a useful tool for visualizing the way in which charts
+|NLTK| provides a useful interactive tool for visualizing the way in which charts
 are built; it can be invoked as follows:
 
 .. doctest-ignore::
@@ -932,12 +931,12 @@ parser discussed in Chapter chap-parse_, in that it starts off with
 the top-level goal of finding an `s`:gc:. This goal is then broken into
 the subgoals of trying to find constituents such as `np`:gc: and
 `vp`:gc: which can be immediatedly dominated by  `s`:gc:.
-To create a top-down chart parser, we to use the Fundamental Rule as before plus
+To create a top-down chart parser, we use the Fundamental Rule as before plus
 three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
 Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
 
-The Top-Down Initialization rule captures the fact that root of any
-parse must be the start symbol.  It states that for every grammar
+The Top-Down Initialization rule captures the fact that the root of any
+parse must be the start symbol `s`:gc.  It states that for every grammar
 production of the form
 
 1. `s`:gc: |rarr| |alpha|
@@ -950,7 +949,22 @@ the parser should add the self-loop edge:
 .. figure:: ../images/chart_td_init.png
    :scale: 30
 
-The Top-Down Expand rule says that if the chart contains an incomplete
+Let's reuse our earlier example, but this time working top-down. So
+our initial chart might look like Figure tdex1_.
+
+.. _tdex1:
+.. figure:: ../images/chart_td_ex1.png
+   :scale: 30
+
+As we mentioned before, the dot on the righthand side of a production
+can be interpreted as a record of
+how far our goals have been satisfied. So in the case of Figure
+tdex1_, we are predicting that we will be able to find an `np`:gc: and a
+`vp`:gc:, but have not yet satisfied these subgoals. So how do we
+pursue them? In order to find an  `np`:gc:, for instance, we need to
+invoke a production which has `np`:gc: on its lefthand side. The step
+of adding the required edge to the chart is accomplished with the
+Top-Down Expand rule. This tells us that if our chart contains an incomplete
 edge whose dot is followed by a nonterminal *B*, then the parser
 should add any self-loop edges licensed by the grammar whose left-hand
 side is *B*.  In particular, if the chart contains the incomplete
@@ -958,34 +972,76 @@ edge
 
 1. [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*)]
 
-then for each grammar production
+|nopar| then for each grammar production
 
 2. *B* |rarr| |gamma|
 
-the parser should add the edge
+|nopar| the parser should add the edge
 
 3. [*B* |rarr|  |dot| |gamma| , (*j*, *j*\ )]
 
-.. figure:: ../images/chart_td_expand2.png
+|nopar| Thus, given a chart that looks like Figure tdexp1_, 
+
+.. _tdexp1:
 .. figure:: ../images/chart_td_expand1.png
+   :scale: 30
 
-The top-down match rule says that if the chart contains an incomplete
-edge whose dot is followed by a terminal w, then the parser should
-add an edge if the terminal corresponds to the text.  In particular,
-if the chart contains the incomplete edge:
+|nopar| the Top-Down
+Expand rule augments it with the edge shown in Figure tdexp2_.
 
-.. figure:: ../images/chart_td_match1.png
 
+.. _tdexp2:
+.. figure:: ../images/chart_td_expand2.png
+   :scale: 30
+
+In terms of our example, therefore, we can augment our chart to Figure
+tdex2_.
+
+.. _tdex2:
+.. figure:: ../images/chart_td_ex2.png
+   :scale: 30
+
+The Top-Down Match rule allows the predictions of the grammar to be
+matched against the input string. Thus, if the chart contains an incomplete
+edge whose dot is followed by a terminal *w*, then the parser should
+add an edge if the terminal corresponds to the current input symbol.  In particular,
+if the chart contains the incomplete edge
 
 1. [*A* |rarr| |alpha| |dot| w\ :subscript:`j` |beta|\ , (*i*, *j*\ )]
 
-Then the parser should add the complete edge: 
-
-.. figure:: ../images/chart_td_match2.png
+then the parser should add a complete edge:
 
 2. [`w`:subscript:`j` |rarr| |dot| , (*j*, *j*\ +1)]
 
-Using these four rules, we can parse a sentence as follows:
+|nopar| Graphically, the Top-Down Match rule takes us from Figure tdmatch1_, 
+
+.. _tdmatch1:
+.. figure:: ../images/chart_td_match1.png
+   :scale: 30
+
+|nopar| to Figure tdmatch2_.
+
+
+.. _tdmatch2:
+.. figure:: ../images/chart_td_match2.png
+   :scale: 30
+
+Figure tdex3_ illustrates how our example chart after applying the
+Top-Down Match rule.
+
+.. _tdex3:
+.. figure:: ../images/chart_td_ex3.png
+   :scale: 30
+
+What rule is relevant now? The Fundamental Rule. If we remove the
+self-loop edges from Figure tdex3_  for simplicity, the Fundamental
+Rule gives us Figure tdex4_.
+
+.. _tdex4:
+.. figure:: ../images/chart_td_ex4.png
+   :scale: 30
+
+Using these four rules, we can parse a sentence top-down as follows:
 
 1. Create an empty chart spanning the sentence. 
 #. Apply the Top-Down Initialization Rule to each word. 
@@ -997,11 +1053,8 @@ Using these four rules, we can parse a sentence as follows:
 
 #. Return all of the parse trees corresponding to the parse edges in the chart. 
 
-.. 
-   For example, the following diagram shows the order in which get added
-   when applying top-down parsing to a simple example sentence:
-
-   .. figure:: ../images/chart_top_down.png
+We encourage you to experiment with the  |NLTK| chart parser demo,
+as before, in order to test out the top-down strategy yourself.
 
 
 Chart Parsing in NLTK-Lite
@@ -1011,15 +1064,15 @@ Chart Parsing in NLTK-Lite
 ``nltk_lite.parse.chart`` defines a simple yet flexible chart parser,
 ``ChartParse``.  A new chart parser is constructed from a
 grammar and a list of chart rules (also known as a *strategy*).  These
-rules will be applied, on order, until no new edges are added to the
-chart.  In particular, ``ChartParse`` uses the following algorithm:
-      
-| Until no new edges are added:
-|   For each chart rule *$*:
-|     Apply *R* to any applicable edges in the chart. 
-| Return any complete parses in the chart. 
+rules will be applied, in order, until no new edges are added to the
+chart.  In particular, ``ChartParse`` uses the following algorithm::
+     
+    Until no new edges are added:
+      For each chart rule *R*:
+	Apply *R* to any applicable edges in the chart. 
+    Return any complete parses in the chart. 
         
-``nltk_lite.parse.chart`` defines two pre-made strategies:
+``nltk_lite.parse.chart`` defines two ready-made strategies:
 ``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
 basic bottom-up strategy.  When constructing a chart parser, you
 can use either of these strategies, or create your own.
@@ -1038,7 +1091,7 @@ We start by defining a simple grammar:
     ...   P -> "on" | "by" | "with"
     ...   ''')
 
-Next we tokenize a sentence.  We make sure it is a list (not an iterator), since
+Next, we tokenize a sentence.  We make sure it is a list (not an iterator), since
 we wish to use the same tokenized sentence several times.
 
     >>> sent = list(tokenize.whitespace('John saw a cat with my cookie'))
@@ -1060,7 +1113,7 @@ we wish to use the same tokenized sentence several times.
 
 The ``trace`` parameter can be specified when creating a parser, to
 turn on tracing (higher trace levels produce more verbose output).
-The following examples show the trace output for parsing a
+The example butrace_ shows the trace output for parsing a
 sentence with the bottom-up strategy:
 
 .. pylisting:: butrace
@@ -1136,12 +1189,9 @@ sentence with the bottom-up strategy:
   (S: (NP: 'John') (VP: (VP: (V: 'saw') (NP: (Det: 'a') (N: 'cat'))) 
   (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))
 
-A more interactive interface to the chart-parser can be found in the
-graphical demo:
-
-.. doctest-ignore::
-   >>> from nltk_lite.draw.chart import demo
-   >>> demo()
+|nopar| Notice that in this output, ``[-----]`` indicates a complete edge,
+``>`` indicates a self-loop edge, and ``[----->`` indicates an
+incomplete edge.
 
 Exercises
 ---------
