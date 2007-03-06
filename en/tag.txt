@@ -131,7 +131,10 @@ of two NLTK functions, ``tokenize.whitespace()`` and ``tag2tuple``:
     ... accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
     ... interest/nn of/in both/abx governments/nns ''/'' ./.
     ... '''
-    >>> [tag2tuple(t) for t in tokenize.whitespace(sent)]
+    >>> tagged_words = []
+    >>> for t in tokenize.whitespace(sent):
+    ...     tagged_words.append(tag2tuple(t))
+    >>> tagged_words
     [('The', 'at'), ('grand', 'jj'), ('jury', 'nn'), ('commented', 'vbd'),
     ('on', 'in'), ('a', 'at'), ('number', 'nn'), ... ('.', '.')]
 
@@ -235,18 +238,29 @@ words tagged with `vb`:gc:, `vbz`:gc:, `vbg`:gc:, `vbd`:gc: or `vbn`:gc:.
     'knew/vbd', 'find/vb', 'going/vbg']
 
 Let's study nouns, and find the most frequent nouns of each noun
-part-of-speech type.  There are many noun pos tags; the most important
+part-of-speech type.  The program in Listing findtags_ finds all
+tags starting with ``nn``, and provides a few example words for each
+one.  Observe that there are many noun tags; the most important
 of these have ``$`` for possessive nouns, ``s`` for plural nouns (since plural
 nouns typically end in `s`:lx:), ``p`` for proper nouns.
 
-    >>> from nltk_lite.probability import ConditionalFreqDist
-    >>> cfd = ConditionalFreqDist()
-    >>> for sent in brown.tagged():
-    ...     for word, tag in sent:
-    ...         if tag[:2] == 'nn':
-    ...             cfd[tag].inc(word)
-    >>> for tag in sorted(cfd.conditions()):
-    ...     print tag, cfd[tag].sorted_samples()[:5]
+.. pylisting:: findtags
+
+    from nltk_lite.probability import ConditionalFreqDist
+    def findtags(tag_prefix, tagged_text):
+        cfd = ConditionalFreqDist()
+        for sent in tagged_text:
+            for word, tag in sent:
+                if tag.startswith(tag_prefix):
+                    cfd[tag].inc(word)
+        tagdict = {}
+        for tag in cfd.conditions():
+            tagdict[tag] = cfd[tag].sorted_samples()[:5]
+        return tagdict
+    
+    >>> tagdict = findtags('nn', brown.tagged('a'))):
+    >>> for tag in sorted(tagdict):
+    ...     print tag, tagdict[tag]
     nn ['time', 'man', 'Af', 'way', 'world']
     nn$ ["man's", "father's", "year's", "mother's", "child's"]
     nn$-hl ["Drug's", "Golf's", "Navy's", "amendment's", "drug's"]
@@ -351,6 +365,21 @@ Exercises
    either a noun or a verb (e.g. `contest`:lx:); the opponent has to
    predict which one is likely to be the most frequent in the Brown corpus; check the
    opponents prediction, and tally the score over several turns.
+   
+#. Above we gave an example of the ``tag.accuracy()`` function.  It has two
+   arguments, a tagger and some tagged text, and it works out how accurately
+   the tagger performs on this text.  For example, if the supplied tagged text
+   was ``[('the', 'dt'), ('dog', 'nn')]`` and the tagger produced the output
+   ``[('the', 'nn'), ('dog', 'nn')]``, then the accuracy score would be ``0.5``.
+   Can you figure out how the ``tag.accuracy()`` function works?
+   
+   a) A tagger takes a list of words as input, and produces a list of tagged words
+      as output.  However, ``tag.accuracy()`` is given correctly tagged text as its input.
+      What must the ``tag.accuracy()`` function do with this input before performing the tagging?
+   
+   b) Once the supplied tagger has created newly tagged text, how would ``tag.accuracy()``
+      go about comparing it with the original tagged text and computing the accuracy score?
+      
 
 
 -----------------------------
@@ -571,20 +600,21 @@ The Lookup Tagger
 -----------------
 
 A lot of high-frequency words do not have the ``nn`` tag.
-Let's find some of these words and their tags.  The following
-function takes a list of sentences and counts up the words,
-and returns the *n* most frequent words.
+Let's find some of these words and their tags.  The
+function in Listing wordcounts_
+takes a list of sentences and counts up the words,
+and returns the *n* most frequent words.  We'll test out
+this function for the 100 most frequent words:
 
-    >>> def wordcounts(sents, n):
-    ...     "find the n most frequent words"
-    ...     fd = FreqDist()
-    ...     for sent in sents:
-    ...         for word in sent:
-    ...             fd.inc(word)    # count the word
-    ...     return fd.sorted_samples()[:n]
+.. pylisting:: wordcounts
 
-|nopar|
-Now let's look at the 100 most frequent words:
+    def wordcounts(sents, n):
+        "find the n most frequent words"
+        fd = FreqDist()
+        for sent in sents:
+            for word in sent:
+                fd.inc(word)    # count the word
+        return fd.sorted_samples()[:n]
 
     >>> frequent_words = wordcounts(brown.raw('a'), 100)
     >>> frequent_words
@@ -608,18 +638,20 @@ this in the most obvious (but highly inefficient) way:
 A much better approach is to set up a dictionary which maps each of the
 100 most frequent words to its most likely tag.  We can do this by
 setting up a frequency distribution ``cfd`` over the tags, conditioned on each
-of the frequent words.  This gives us, for each word, a count of the
-frequency of different tags that occur with the word.  We
+of the frequent words, as shown in Listing wordtags_.  This gives us,
+for each word, a count of the frequency of different tags that occur with the word.
 
-    >>> from nltk_lite.probability import ConditionalFreqDist
-    >>> def wordtags(tagged_sents, words):
-    ...     "Find the most likely tag for these words in the tagged sentences"
-    ...     cfd = ConditionalFreqDist()
-    ...     for sent in tagged_sents:
-    ...         for (w,t) in sent:
-    ...             if w in words:
-    ...                 cfd[w].inc(t)   # count the word's tag
-    ...     return dict((word, cfd[word].max()) for word in words)
+.. pylisting:: wordtags
+
+    from nltk_lite.probability import ConditionalFreqDist
+    def wordtags(tagged_sents, words):
+        "Find the most likely tag for these words in the tagged sentences"
+        cfd = ConditionalFreqDist()
+        for sent in tagged_sents:
+            for (w,t) in sent:
+                if w in words:
+                    cfd[w].inc(t)   # count the word's tag
+        return dict((word, cfd[word].max()) for word in words)
 
 |nopar|
 Now for any word that appears in this section of the corpus,
@@ -676,15 +708,18 @@ Choosing a good baseline
 ------------------------
 
 We can write a simple (but somewhat inefficient) program create and
-evaluate lookup taggers having a range of different sizes.  We create
+evaluate lookup taggers having a range of different sizes.  In Listing baseline_tagger_ we create
 two taggers, one with no backoff, and one that backs off to a default
 tagger that tags everything as a noun.
 
-    >>> def performance(size):
-    ...     frequent_words = wordcounts(brown.raw('a'), size)
-    ...     table = wordtags(brown.tagged('a'), frequent_words)
-    ...     baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
-    ...     return baseline_tagger, tag.accuracy(baseline_tagger, brown.tagged('a'))
+.. pylisting:: baseline_tagger
+
+    def performance(size):
+        frequent_words = wordcounts(brown.raw('a'), size)
+        table = wordtags(brown.tagged('a'), frequent_words)
+        baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
+        return baseline_tagger, tag.accuracy(baseline_tagger, brown.tagged('a'))
+        
     >>> for size in (100,200,500,1000,2000,5000,10000,20000,50000):
     ...     print performance(size)
     (<Lookup Tagger: size=100>, 0.58177695566561249)
