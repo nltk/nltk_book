@@ -842,8 +842,12 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     TOP_SECTION = 'chapter'
 
     def visit_document(self, node):
-        if len(node)>0 and isinstance(node[0], docutils.nodes.title):
-            self.visit_section(node) # (hack..)
+        if (len(node)>0 and isinstance(node[0], docutils.nodes.title) and
+            isinstance(node[0].children[0], docutils.nodes.Text) and
+            re.match(r'(\d+(.\d+)*)\.?\s+', node[0].children[0].data)):
+                node['sectnum'] = node[0].children[0].data.split()[0]
+                for node_id in node.get('ids', []):
+                    self.reference_labels[node_id] = '%s' % node['sectnum']
 
     def visit_section(self, node):
         title = node[0]
@@ -1743,7 +1747,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.body.append('}')
     
     def visit_index(self, node):
-        self.body.append('\\printindex')
+        self.body.append('\\printindex\n')
         raise docutils.nodes.SkipNode() # Content already processed
 
     def visit_docinfo(self, node):
@@ -2216,7 +2220,8 @@ def main():
         LOCAL_BIBLIOGRAPHY = True
         CustomizedLaTeXTranslator.foot_prefix += [
             '\\bibliographystyle{apalike}\n',
-            '\\bibliography{%s}\n' % BIBTEX_FILE]
+            '\\bibliography{%s}\n' %
+            os.path.splitext(BIBTEX_FILE)[0]]
         
     OUTPUT_FORMAT = options.action
     if options.action == 'html':
