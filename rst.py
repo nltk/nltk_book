@@ -841,6 +841,10 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     no_section_numbers_in_preface = True
     TOP_SECTION = 'chapter'
 
+    def visit_document(self, node):
+        if len(node)>0 and isinstance(node[0], docutils.nodes.title):
+            self.visit_section(node) # (hack..)
+
     def visit_section(self, node):
         title = node[0]
         
@@ -910,9 +914,12 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         self.prepend_raw_latex(node, raw_latex)
 
     def prepend_raw_latex(self, node, raw_latex):
-        node_index = node.parent.children.index(node)
-        node.parent.insert(node_index, docutils.nodes.raw('', raw_latex,
-                                                          format='latex'))
+        if isinstance(node, docutils.nodes.document):
+            node.insert(0, docutils.nodes.raw('', raw_latex, format='latex'))
+        else:
+            node_index = node.parent.children.index(node)
+            node.parent.insert(node_index, docutils.nodes.raw('', raw_latex,
+                                                              format='latex'))
         
     def depart_section(self, node):
         self.section_num.pop()
