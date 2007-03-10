@@ -2129,10 +2129,12 @@ def _new_Publisher_apply_transforms(self):
     logger.progress(.9, 'Writing Output')
 Publisher.apply_transforms = _new_Publisher_apply_transforms
 
+supress_warnings = False
 def debug(s):
     s = str(s)
     if s.strip(): logger.log(DEBUG, s.strip())
 def warning(s):
+    if supress_warnings: return
     s = str(s)
     if s.strip(): logger.log(WARNING, s.strip())
 def error(s):
@@ -2225,6 +2227,8 @@ def main():
         output_ext = '.tex'
     elif options.action == 'ref':
         writer = None
+        global supress_warnings
+        supress_warnings = True
         output_ext = '.ref'
     else:
         assert 0, 'bad action'
