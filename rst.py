@@ -1747,6 +1747,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.body.append('}')
     
     def visit_index(self, node):
+        self.body.append('\\addcontentsline{toc}{chapter}{Subject Index}\n')
         self.body.append('\\printindex\n')
         raise docutils.nodes.SkipNode() # Content already processed
 
@@ -2220,6 +2221,7 @@ def main():
         LOCAL_BIBLIOGRAPHY = True
         CustomizedLaTeXTranslator.foot_prefix += [
             '\\bibliographystyle{apalike}\n',
+            '\\addcontentsline{toc}{chapter}{Bibliography}\n',
             '\\bibliography{%s}\n' %
             os.path.splitext(BIBTEX_FILE)[0]]
         
