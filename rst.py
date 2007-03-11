@@ -101,6 +101,9 @@ INCLUDE_DOCTESTS_IN_PYLISTING_FILES = False
 CALLOUT_IMG = '<img src="callouts/callout%s.gif" alt="[%s]" class="callout" />'
 """HTML code for callout images in pylisting blocks."""
 
+REF_SHELF_EXTENSION = '.db'
+"""File extension for reference files."""
+
 ######################################################################
 #{ Directives
 ######################################################################
@@ -553,7 +556,7 @@ class SaveIndexTerms(Transform):
         self.document.walkabout(v)
         
         if OUTPUT_FORMAT == 'ref':
-            d = shelve.open('%s.ref' % OUTPUT_BASENAME)
+            d = shelve.open(OUTPUT_BASENAME+REF_SHELF_EXTENSION)
             d['terms'] = v.terms
             d.close()
 
@@ -569,7 +572,7 @@ class ConstructIndex(Transform):
         if 'extern' in self.startnode.details:
             for filename in EXTERN_REFERENCE_FILES:
                 basename = os.path.splitext(filename)[0]
-                d = shelve.open('%s.ref' % basename, 'r')
+                d = shelve.open(basename+REF_SHELF_EXTENSION, 'r')
                 terms.update(d['terms'])
                 d.close()
 
@@ -665,10 +668,10 @@ class ResolveExternalCrossrefs(Transform):
                 uri = os.path.split(basename)[-1]+'.html'
             else:
                 uri = os.path.split(basename)[-1]+'.pdf'
-            if not os.path.exists('%s.ref' % basename):
-                warning('%s.ref does not exist' % basename)
+            if not os.path.exists(basename+REF_SHELF_EXTENSION):
+                warning('%s does not exist' % (basename+REF_SHELF_EXTENSION))
             else:
-                d = shelve.open('%s.ref' % basename, 'r')
+                d = shelve.open(basename+REF_SHELF_EXTENSION, 'r')
                 for ref in d['targets']:
                     label = d['reference_labels'].get(ref)
                     ref_dict[ref] = (uri, label)
@@ -756,7 +759,7 @@ class NumberReferences(Transform):
 
         # Save reference info to a pickle file.
         if OUTPUT_FORMAT == 'ref':
-            d = shelve.open('%s.ref' % OUTPUT_BASENAME)
+            d = shelve.open(OUTPUT_BASENAME+REF_SHELF_EXTENSION)
             d['reference_labels'] = self.document.reference_labels
             d['targets'] = v.targets
             d.close()
@@ -2203,8 +2206,9 @@ def main():
              'Imaging\n         Library (PIL) is installed!')
 
     EXTERN_REFERENCE_FILES = [f for f in filenames if
-                              f.endswith('.ref')]
-    filenames = [f for f in filenames if not f.endswith('.ref')]
+                              f.endswith(REF_SHELF_EXTENSION)]
+    filenames = [f for f in filenames if
+                 not f.endswith(REF_SHELF_EXTENSION)]
 
     CustomizedLaTeXWriter.settings_defaults.update(dict(
         documentclass = options.documentclass,
@@ -2236,7 +2240,7 @@ def main():
         writer = None
         global supress_warnings
         supress_warnings = True
-        output_ext = '.ref'
+        output_ext = REF_SHELF_EXTENSION
     else:
         assert 0, 'bad action'
 
