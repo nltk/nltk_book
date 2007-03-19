@@ -245,6 +245,7 @@ of these have ``$`` for possessive nouns, ``s`` for plural nouns (since plural
 nouns typically end in `s`:lx:), ``p`` for proper nouns.
 
 .. pylisting:: findtags
+   :caption: Program to Find the Most Frequent Noun Tags
 
     from nltk_lite.probability import ConditionalFreqDist
     def findtags(tag_prefix, tagged_text):
@@ -607,6 +608,7 @@ and returns the *n* most frequent words.  We'll test out
 this function for the 100 most frequent words:
 
 .. pylisting:: wordcounts
+   :caption: Program to Find the N Most Frequent Words
 
     def wordcounts(sents, n):
         "find the n most frequent words"
@@ -642,6 +644,7 @@ of the frequent words, as shown in Listing wordtags_.  This gives us,
 for each word, a count of the frequency of different tags that occur with the word.
 
 .. pylisting:: wordtags
+   :caption: Program to Find the Most Likely Tags for the Specified Words
 
     from nltk_lite.probability import ConditionalFreqDist
     def wordtags(tagged_sents, words):
@@ -707,38 +710,52 @@ in case it can't assign a tag itself.
 Choosing a good baseline
 ------------------------
 
-We can write a simple (but somewhat inefficient) program create and
-evaluate lookup taggers having a range of different sizes.  In Listing baseline_tagger_ we create
-two taggers, one with no backoff, and one that backs off to a default
-tagger that tags everything as a noun.
+We can write a simple (but somewhat inefficient) program to create and
+evaluate lookup taggers having a range of sizes, as shown in Listing baseline_tagger_.
+We include a backoff tagger that tags everything as a noun.  A consequence
+of using this backoff tagger is that the lookup tagger only has to store word/tag
+pairs for words other than nouns.
 
 .. pylisting:: baseline_tagger
+   :caption: Lookup Tagger Performace with Varying Model Size
 
     def performance(size):
         frequent_words = wordcounts(brown.raw('a'), size)
         table = wordtags(brown.tagged('a'), frequent_words)
         baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
-        return baseline_tagger, tag.accuracy(baseline_tagger, brown.tagged('a'))
+        return tag.accuracy(baseline_tagger, brown.tagged('a'))
         
-    >>> for size in (100,200,500,1000,2000,5000,10000,20000,50000):
-    ...     print performance(size)
-    (<Lookup Tagger: size=100>, 0.58177695566561249)
-    (<Lookup Tagger: size=200>, 0.62016428983431793)
-    (<Lookup Tagger: size=500>, 0.6791276329136583)
-    (<Lookup Tagger: size=1000>, 0.7248443622332279)
-    (<Lookup Tagger: size=2000>, 0.77832806253356401)
-    (<Lookup Tagger: size=5000>, 0.85188058157805757)
-    (<Lookup Tagger: size=10000>, 0.90473775284921532)
-    (<Lookup Tagger: size=14394>, 0.9349006503968017)
-    (<Lookup Tagger: size=14394>, 0.9349006503968017)
+    >>> from pylab import *
+    >>> sizes = 2**arange(15)
+    >>> perfs = [performance(size) for size in sizes]
+    >>> plot(sizes, perfs, '-bo')
+    >>> title('Lookup Tagger Performance with Varying Model Size')
+    >>> xlabel('Model Size')
+    >>> ylabel('Performance')
+    >>> show()
+
+.. _tag-lookup:
+.. figure:: ../images/tag-lookup.png
+
+   Lookup Tagger
+   :scale:10
+   
+Observe that performance initially increases rapidly as the model size grows, eventually
+reaching a plateau, when large increases in model size yield little improvement
+in performance.
 
 Exercises
 ---------
 
-#. Create a lookup tagger that uses the 1,000 most likely words.  What
-   is its performance?  What happens to the performance when you
-   include backoff to the default tagger?
+#. Explore the following issues that arise in connection with the lookup tagger:
 
+   a) What happens to the tagger performance for the various
+      model sizes when a backoff tagger is omitted?
+   b) Consider the curve in Figure tag-lookup_; suggest a
+      good size for a lookup tagger that balances memory and performance.
+      Can you come up with scenarios where it would be preferable to
+      minimize memory usage, or to maximize performance with no regard for memory usage?
+   
 #. What is the upper limit of performance for a lookup tagger,
    assuming no limit to the size of its table?  (Hint: write a program
    to work out what percentage of tokens of a word are assigned
@@ -1008,10 +1025,11 @@ the current word together with the part-of-speech tags of the
 *n-1*: preceding tokens, as shown in the following diagram. It then
 picks the tag which is most likely for that context. The tag to be
 chosen, *t*\ `n`:subscript:, is circled, and the context is shaded
-in grey. In this example of an n-gram tagger, we have *n=3*;
-that is, we consider the tags of the two preceding words in addition
+in grey. In the example of an n-gram tagger shown in Figure tag-context_,
+we have *n=3*; that is, we consider the tags of the two preceding words in addition
 to the current word.
 
+.. _tag-context:
 .. figure:: ../images/tag-context.png
 
    Tagger Context
