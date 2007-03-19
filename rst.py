@@ -32,7 +32,7 @@ the following ways:
       multiple times.
 """
 
-import re, os.path, textwrap, shelve, sys
+import re, os.path, textwrap, sys, pickle
 from optparse import OptionParser
 from tree2image import tree_to_image
 
@@ -101,8 +101,36 @@ INCLUDE_DOCTESTS_IN_PYLISTING_FILES = False
 CALLOUT_IMG = '<img src="callouts/callout%s.gif" alt="[%s]" class="callout" />'
 """HTML code for callout images in pylisting blocks."""
 
-REF_SHELF_EXTENSION = '.db'
+REF_EXTENSION = '.ref'
 """File extension for reference files."""
+
+######################################################################
+#{ Reference files
+######################################################################
+
+def read_ref_file(basename=None):
+    if basename is None: basename = OUTPUT_BASENAME
+    if not os.path.exists(basename + REF_EXTENSION):
+        warning('File %r does not exist!' %
+                (basename + REF_EXTENSION))
+        return dict(targets=(),terms={},reference_labes={})
+    f = open(basename + REF_EXTENSION)
+    ref_info = pickle.load(f)
+    f.close()
+    return ref_info
+
+def write_ref_file(ref_info):
+    f = open(OUTPUT_BASENAME + REF_EXTENSION, 'w')
+    pickle.dump(ref_info, f)
+    f.close()
+
+def add_to_ref_file(**ref_info):
+    if os.path.exists(OUTPUT_BASENAME + REF_EXTENSION):
+        info = read_ref_file()
+        info.update(ref_info)
+        write_ref_file(info)
+    else:
+        write_ref_file(ref_info)
 
 ######################################################################
 #{ Directives
@@ -556,9 +584,7 @@ class SaveIndexTerms(Transform):
         self.document.walkabout(v)
         
         if OUTPUT_FORMAT == 'ref':
-            d = shelve.open(OUTPUT_BASENAME+REF_SHELF_EXTENSION)
-            d['terms'] = v.terms
-            d.close()
+            add_to_ref_file(terms=v.terms)
 
 class ConstructIndex(Transform):
     default_priority = 820 # after NumberNodes, before NumberReferences.
@@ -572,9 +598,7 @@ class ConstructIndex(Transform):
         if 'extern' in self.startnode.details:
             for filename in EXTERN_REFERENCE_FILES:
                 basename = os.path.splitext(filename)[0]
-                d = shelve.open(basename+REF_SHELF_EXTENSION, 'r')
-                terms.update(d['terms'])
-                d.close()
+                terms.update(read_ref_file(basename)['terms'])
 
         # Build the index & insert it into the document.
         index_node = self.build_index(terms)
@@ -668,14 +692,13 @@ class ResolveExternalCrossrefs(Transform):
                 uri = os.path.split(basename)[-1]+'.html'
             else:
                 uri = os.path.split(basename)[-1]+'.pdf'
-            if not os.path.exists(basename+REF_SHELF_EXTENSION):
-                warning('%s does not exist' % (basename+REF_SHELF_EXTENSION))
+            if not os.path.exists(basename+REF_EXTENSION):
+                warning('%s does not exist' % (basename+REF_EXTENSION))
             else:
-                d = shelve.open(basename+REF_SHELF_EXTENSION, 'r')
-                for ref in d['targets']:
-                    label = d['reference_labels'].get(ref)
+                ref_info = read_ref_file(basename)
+                for ref in ref_info['targets']:
+                    label = ref_info['reference_labels'].get(ref)
                     ref_dict[ref] = (uri, label)
-                d.close()
 
         return ref_dict
     
@@ -759,10 +782,8 @@ class NumberReferences(Transform):
 
         # Save reference info to a pickle file.
         if OUTPUT_FORMAT == 'ref':
-            d = shelve.open(OUTPUT_BASENAME+REF_SHELF_EXTENSION)
-            d['reference_labels'] = self.document.reference_labels
-            d['targets'] = v.targets
-            d.close()
+            add_to_ref_file(reference_labels=self.document.reference_labels,
+                            targets=v.targets)
 
 class NumberingVisitor(docutils.nodes.NodeVisitor):
     """
@@ -2206,9 +2227,8 @@ def main():
              'Imaging\n         Library (PIL) is installed!')
 
     EXTERN_REFERENCE_FILES = [f for f in filenames if
-                              f.endswith(REF_SHELF_EXTENSION)]
-    filenames = [f for f in filenames if
-                 not f.endswith(REF_SHELF_EXTENSION)]
+                              f.endswith(REF_EXTENSION)]
+    filenames = [f for f in filenames if not f.endswith(REF_EXTENSION)]
 
     CustomizedLaTeXWriter.settings_defaults.update(dict(
         documentclass = options.documentclass,
@@ -2240,7 +2260,7 @@ def main():
         writer = None
         global supress_warnings
         supress_warnings = True
-        output_ext = REF_SHELF_EXTENSION
+        output_ext = REF_EXTENSION
     else:
         assert 0, 'bad action'
 
@@ -2251,12 +2271,16 @@ def main():
         out_file = os.path.splitext(in_file)[0] + output_ext
         logger.start_progress()#'%s -> %s' % (in_file, out_file))
         if in_file == out_file: out_file += output_ext
+
+        # For .ref files:
         if writer is None:
             if os.path.exists(out_file): os.remove(out_file)
             docutils.core.publish_doctree(source=None, source_path=in_file,
                                           source_class=docutils.io.FileInput,
                                           reader=CustomizedReader(),
                                           settings_overrides=settings)
+
+        # For .tex and .html files:
         else:
             docutils.core.publish_file(source_path=in_file, writer=writer,
                                        destination_path=out_file,
