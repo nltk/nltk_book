@@ -369,35 +369,34 @@ that there is no lexical ambiguity.)
 |nopar| 
 For our |WFST|, we create an *n* |times| *n* matrix (where *n* is the number of
 tokens plus 1) as a list of lists in Python, and we initialize the matrix
-with the lexical categories of each token in the input.
-    
-    >>> def init_wfst(tokens, grammar):
-    ...     numtokens = len(tokens)
-    ...     wfst = [['' for i in range(numtokens+1)] for j in range(numtokens+1)]
-    ...     for i in range(numtokens):
-    ...         prod_rhs = grammar.productions(rhs=tokens[i])
-    ...         wfst[i][i+1] = prod_rhs[0].lhs()
-    ...     return wfst
+with the lexical categories of each token in the input, in the ``init_wfst()``
+function in Listing init_wfst_.  We also define a utility function ``display()``
+to pretty-print the |WFST| for us.
 
-|nopar| 
-We use the following utility function to pretty-print the
-|WFST| for us.
+.. _init_wfst:
+.. pylisting::
+   :caption: Initializing Well-Formed Substring Table
 
-    >>> def display(wfst, tokens):
-    ...     numfields = len(wfst)
-    ...     hline = "   " + "=" * 5 * len(tokens)
-    ...     print
-    ...     print '    ' + ' '.join([("%-4d" % i) for i in range(1, numfields)])
-    ...     print hline
-    ...     for i in range(numfields-1):
-    ...         rownum = i
-    ...         print "%d| " % rownum,
-    ...         for j in range(1, numfields):
-    ...             print "%-4s" % wfst[i][j],
-    ...         print "|"
-    ...     print hline
-
-|nopar| We create the initialized |WFST| and display it:
+    def init_wfst(tokens, grammar):
+        numtokens = len(tokens)
+        wfst = [['' for i in range(numtokens+1)] for j in range(numtokens+1)]
+        for i in range(numtokens):
+            prod_rhs = grammar.productions(rhs=tokens[i])
+            wfst[i][i+1] = prod_rhs[0].lhs()
+        return wfst
+    def display(wfst, tokens):
+        numfields = len(wfst)
+        hline = "   " + "=" * 5 * len(tokens)
+        print
+        print '    ' + ' '.join([("%-4d" % i) for i in range(1, numfields)])
+        print hline
+        for i in range(numfields-1):
+            rownum = i
+            print "%d| " % rownum,
+            for j in range(1, numfields):
+                print "%-4s" % wfst[i][j],
+            print "|"
+        print hline
 
     >>> wfst0 = init_wfst(tokens, grammar)
     >>> display(wfst0, tokens)
@@ -413,7 +412,7 @@ We use the following utility function to pretty-print the
     7|                                     N    |
        ========================================
 
-|nopar| As promised, there is a `v`:gc: in cell (2, 3).
+|nopar| As promised, the output from Listing wfst_init has a `v`:gc: in cell (2, 3).
 The same information can be represented in a directed acyclic graph,
 as shown in Figure chartinit0_. This graph is usually called a `chart`:dt:.
 
@@ -466,25 +465,28 @@ nonterminals *B*, *C*, and an integer `k` such that:
  - *C* is in cell (`k, j`); and
  - *A* |rarr| *B* *C* is a production of the grammar.
 
-The following function uses this inference step to complete the
-|WFST|.
+Listing wfst_ uses this inference step to complete the |WFST|.
 
-    >>> def complete_wfst(wfst, tokens, index, trace=False):
-    ...     numtokens = len(tokens)
-    ...     for span in range(2, numtokens+1):
-    ...         for start in range(numtokens+1-span):
-    ...             end = start + span
-    ...             for mid in range(start+1, end):
-    ...                 nt1 = wfst[start][mid]
-    ...                 nt2 = wfst[mid][end]
-    ...                 if (nt1,nt2) in index:
-    ...                     nt3 = index[(nt1,nt2)]
-    ...                     if trace:
-    ...                         print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
-    ...                         (start, nt1, mid, nt2, end, start, nt3, end)
-    ...                     wfst[start][end] = index[(nt1,nt2)]
-    ...     return wfst
-    ...
+.. _wfst:
+.. pylisting::
+   :caption: Compute the Well-Formed Substring Table
+
+    def complete_wfst(wfst, tokens, index, trace=False):
+        numtokens = len(tokens)
+        for span in range(2, numtokens+1):
+            for start in range(numtokens+1-span):
+                end = start + span
+                for mid in range(start+1, end):
+                    nt1 = wfst[start][mid]
+                    nt2 = wfst[mid][end]
+                    if (nt1,nt2) in index:
+                        nt3 = index[(nt1,nt2)]
+                        if trace:
+                            print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
+                            (start, nt1, mid, nt2, end, start, nt3, end)
+                        wfst[start][end] = index[(nt1,nt2)]
+        return wfst
+        
     >>> wfst1 = complete_wfst(wfst0, tokens, index)
     >>> display(wfst1, tokens)
 	1    2    3    4    5    6    7    8   
@@ -499,13 +501,11 @@ The following function uses this inference step to complete the
     7|                                     N    |
        ========================================
 
-|nopar| The tabular algorithm above gives an intuitive idea of why
+|nopar| The tabular algorithm in Listing wfst_ gives an intuitive idea of why
 parsing context-free grammar is proportional to `n`:sup:`3`: there is a triply nested
-loop, and the size of each loop is based
-on the length of the input.
-
+loop, and the size of each loop is based on the length of the input.
 By setting ``trace`` to ``True`` when calling the function ``complete_wfst()``, we get 
-additional output that is intended to be reminiscent of a chart representation.
+additional output that is reminiscent of a chart representation.
 
     >>> wfst1 = complete_wfst(wfst0, tokens, index, trace=True)
     [0] Det [1]   N [2] ==> [0]  NP [2]
@@ -559,7 +559,7 @@ Exercises
    function which will convert a |WFST| in this form to a parse tree.
 
 
-
+-------------
 Active Charts
 -------------
 
@@ -1056,9 +1056,8 @@ We encourage you to experiment with the  |NLTK| chart parser demo,
 as before, in order to test out the top-down strategy yourself.
 
 
-Chart Parsing in NLTK-Lite
---------------------------
-
+Chart Parsing in NLTK
+---------------------
 
 ``nltk_lite.parse.chart`` defines a simple yet flexible chart parser,
 ``ChartParse``.  A new chart parser is constructed from a
@@ -1122,76 +1121,75 @@ sentence with the bottom-up strategy:
 
 .. pylisting:: butrace
 
-  # Parse the sentence, bottom-up, with tracing turned on.
-  >>> parser = ChartParse(grammar, BU_STRATEGY, trace=2)
-  >>> parser.get_parse(sent)
-  |. John. saw .  a  . cat . with.  my .cooki.|
-  Bottom Up Init Rule:
-  |[-----]     .     .     .     .     .     .| [0:1] 'John' 
-  |.     [-----]     .     .     .     .     .| [1:2] 'saw' 
-  |.     .     [-----]     .     .     .     .| [2:3] 'a' 
-  |.     .     .     [-----]     .     .     .| [3:4] 'cat' 
-  |.     .     .     .     [-----]     .     .| [4:5] 'with' 
-  |.     .     .     .     .     [-----]     .| [5:6] 'my' 
-  |.     .     .     .     .     .     [-----]| [6:7] 'cookie' 
-  Bottom Up Predict Rule:
-  |>     .     .     .     .     .     .     .| [0:0] NP -> * 'John' 
-  |.     >     .     .     .     .     .     .| [1:1] V  -> * 'saw' 
-  |.     .     >     .     .     .     .     .| [2:2] Det -> * 'a' 
-  |.     .     .     >     .     .     .     .| [3:3] N  -> * 'cat' 
-  |.     .     .     .     >     .     .     .| [4:4] P  -> * 'with' 
-  |.     .     .     .     .     >     .     .| [5:5] Det -> * 'my' 
-  |.     .     .     .     .     .     >     .| [6:6] N  -> * 'cookie' 
-  Fundamental Rule:
-  |[-----]     .     .     .     .     .     .| [0:1] NP -> 'John' * 
-  |.     [-----]     .     .     .     .     .| [1:2] V  -> 'saw' * 
-  |.     .     [-----]     .     .     .     .| [2:3] Det -> 'a' * 
-  |.     .     .     [-----]     .     .     .| [3:4] N  -> 'cat' * 
-  |.     .     .     .     [-----]     .     .| [4:5] P  -> 'with' * 
-  |.     .     .     .     .     [-----]     .| [5:6] Det -> 'my' * 
-  |.     .     .     .     .     .     [-----]| [6:7] N  -> 'cookie' * 
-  Bottom Up Predict Rule:
-  |>     .     .     .     .     .     .     .| [0:0] S  -> * NP VP 
-  |>     .     .     .     .     .     .     .| [0:0] NP -> * NP PP 
-  |.     >     .     .     .     .     .     .| [1:1] VP -> * V NP 
-  |.     .     >     .     .     .     .     .| [2:2] NP -> * Det N 
-  |.     .     .     .     >     .     .     .| [4:4] PP -> * P NP 
-  |.     .     .     .     .     >     .     .| [5:5] NP -> * Det N 
-  Fundamental Rule:
-  |[----->     .     .     .     .     .     .| [0:1] S  -> NP * VP 
-  |[----->     .     .     .     .     .     .| [0:1] NP -> NP * PP 
-  |.     [----->     .     .     .     .     .| [1:2] VP -> V * NP 
-  |.     .     [----->     .     .     .     .| [2:3] NP -> Det * N 
-  |.     .     [-----------]     .     .     .| [2:4] NP -> Det N * 
-  |.     .     .     .     [----->     .     .| [4:5] PP -> P * NP 
-  |.     .     .     .     .     [----->     .| [5:6] NP -> Det * N 
-  |.     .     .     .     .     [-----------]| [5:7] NP -> Det N * 
-  |.     [-----------------]     .     .     .| [1:4] VP -> V NP * 
-  |.     .     .     .     [-----------------]| [4:7] PP -> P NP * 
-  |[-----------------------]     .     .     .| [0:4] S  -> NP VP * 
-  Bottom Up Predict Rule:
-  |.     .     >     .     .     .     .     .| [2:2] S  -> * NP VP 
-  |.     .     >     .     .     .     .     .| [2:2] NP -> * NP PP 
-  |.     .     .     .     .     >     .     .| [5:5] S  -> * NP VP 
-  |.     .     .     .     .     >     .     .| [5:5] NP -> * NP PP 
-  |.     >     .     .     .     .     .     .| [1:1] VP -> * VP PP 
-  Fundamental Rule:
-  |.     .     [----------->     .     .     .| [2:4] S  -> NP * VP 
-  |.     .     [----------->     .     .     .| [2:4] NP -> NP * PP 
-  |.     .     .     .     .     [----------->| [5:7] S  -> NP * VP 
-  |.     .     .     .     .     [----------->| [5:7] NP -> NP * PP 
-  |.     [----------------->     .     .     .| [1:4] VP -> VP * PP 
-  |.     .     [-----------------------------]| [2:7] NP -> NP PP * 
-  |.     [-----------------------------------]| [1:7] VP -> VP PP * 
-  |.     .     [----------------------------->| [2:7] S  -> NP * VP 
-  |.     .     [----------------------------->| [2:7] NP -> NP * PP 
-  |.     [----------------------------------->| [1:7] VP -> VP * PP 
-  |.     [-----------------------------------]| [1:7] VP -> V NP * 
-  |[=========================================]| [0:7] S  -> NP VP * 
-  |[=========================================]| [0:7] S  -> NP VP * 
-  |.     [----------------------------------->| [1:7] VP -> VP * PP 
-  (S: (NP: 'John') (VP: (VP: (V: 'saw') (NP: (Det: 'a') (N: 'cat'))) 
-  (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))
+    # Parse the sentence, bottom-up, with tracing turned on.
+    >>> parser = ChartParse(grammar, BU_STRATEGY, trace=2)
+    >>> parser.get_parse(sent)
+    |. John. saw .  a  . cat . with.  my .cooki.|
+    Bottom Up Init Rule:
+    |[-----]     .     .     .     .     .     .| [0:1] 'John' 
+    |.     [-----]     .     .     .     .     .| [1:2] 'saw' 
+    |.     .     [-----]     .     .     .     .| [2:3] 'a' 
+    |.     .     .     [-----]     .     .     .| [3:4] 'cat' 
+    |.     .     .     .     [-----]     .     .| [4:5] 'with' 
+    |.     .     .     .     .     [-----]     .| [5:6] 'my' 
+    |.     .     .     .     .     .     [-----]| [6:7] 'cookie' 
+    Bottom Up Predict Rule:
+    |>     .     .     .     .     .     .     .| [0:0] NP -> * 'John' 
+    |.     >     .     .     .     .     .     .| [1:1] V  -> * 'saw' 
+    |.     .     >     .     .     .     .     .| [2:2] Det -> * 'a' 
+    |.     .     .     >     .     .     .     .| [3:3] N  -> * 'cat' 
+    |.     .     .     .     >     .     .     .| [4:4] P  -> * 'with' 
+    |.     .     .     .     .     >     .     .| [5:5] Det -> * 'my' 
+    |.     .     .     .     .     .     >     .| [6:6] N  -> * 'cookie' 
+    Fundamental Rule:
+    |[-----]     .     .     .     .     .     .| [0:1] NP -> 'John' * 
+    |.     [-----]     .     .     .     .     .| [1:2] V  -> 'saw' * 
+    |.     .     [-----]     .     .     .     .| [2:3] Det -> 'a' * 
+    |.     .     .     [-----]     .     .     .| [3:4] N  -> 'cat' * 
+    |.     .     .     .     [-----]     .     .| [4:5] P  -> 'with' * 
+    |.     .     .     .     .     [-----]     .| [5:6] Det -> 'my' * 
+    |.     .     .     .     .     .     [-----]| [6:7] N  -> 'cookie' * 
+    Bottom Up Predict Rule:
+    |>     .     .     .     .     .     .     .| [0:0] S  -> * NP VP 
+    |>     .     .     .     .     .     .     .| [0:0] NP -> * NP PP 
+    |.     >     .     .     .     .     .     .| [1:1] VP -> * V NP 
+    |.     .     >     .     .     .     .     .| [2:2] NP -> * Det N 
+    |.     .     .     .     >     .     .     .| [4:4] PP -> * P NP 
+    |.     .     .     .     .     >     .     .| [5:5] NP -> * Det N 
+    Fundamental Rule:
+    |[----->     .     .     .     .     .     .| [0:1] S  -> NP * VP 
+    |[----->     .     .     .     .     .     .| [0:1] NP -> NP * PP 
+    |.     [----->     .     .     .     .     .| [1:2] VP -> V * NP 
+    |.     .     [----->     .     .     .     .| [2:3] NP -> Det * N 
+    |.     .     [-----------]     .     .     .| [2:4] NP -> Det N * 
+    |.     .     .     .     [----->     .     .| [4:5] PP -> P * NP 
+    |.     .     .     .     .     [----->     .| [5:6] NP -> Det * N 
+    |.     .     .     .     .     [-----------]| [5:7] NP -> Det N * 
+    |.     [-----------------]     .     .     .| [1:4] VP -> V NP * 
+    |.     .     .     .     [-----------------]| [4:7] PP -> P NP * 
+    |[-----------------------]     .     .     .| [0:4] S  -> NP VP * 
+    Bottom Up Predict Rule:
+    |.     .     >     .     .     .     .     .| [2:2] S  -> * NP VP 
+    |.     .     >     .     .     .     .     .| [2:2] NP -> * NP PP 
+    |.     .     .     .     .     >     .     .| [5:5] S  -> * NP VP 
+    |.     .     .     .     .     >     .     .| [5:5] NP -> * NP PP 
+    |.     >     .     .     .     .     .     .| [1:1] VP -> * VP PP 
+    Fundamental Rule:
+    |.     .     [----------->     .     .     .| [2:4] S  -> NP * VP 
+    |.     .     [----------->     .     .     .| [2:4] NP -> NP * PP 
+    |.     .     .     .     .     [----------->| [5:7] S  -> NP * VP 
+    |.     .     .     .     .     [----------->| [5:7] NP -> NP * PP 
+    |.     [----------------->     .     .     .| [1:4] VP -> VP * PP 
+    |.     .     [-----------------------------]| [2:7] NP -> NP PP * 
+    |.     [-----------------------------------]| [1:7] VP -> VP PP * 
+    |.     .     [----------------------------->| [2:7] S  -> NP * VP 
+    |.     .     [----------------------------->| [2:7] NP -> NP * PP 
+    |.     [----------------------------------->| [1:7] VP -> VP * PP 
+    |.     [-----------------------------------]| [1:7] VP -> V NP * 
+    |[=========================================]| [0:7] S  -> NP VP * 
+    |[=========================================]| [0:7] S  -> NP VP * 
+    |.     [----------------------------------->| [1:7] VP -> VP * PP 
+    (S: (NP: 'John') (VP: (VP: (V: 'saw') (NP: (Det: 'a') (N: 'cat'))) (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))
 
 |nopar| Notice that in this output, ``'[-----]'`` indicates a complete edge,
 ``'>'`` indicates a self-loop edge, and ``'[----->'`` indicates an
@@ -1306,83 +1304,35 @@ context free grammar does, and assigns a probability to each parse.
 The probability of a parse generated by a PCFG is simply the product
 of the probabilities of the productions used to generate it.
 
-Probabilistic context free grammars are implemented by the
-``nltk_lite.parse.pcfg.WeightedGrammar`` class.  Like CFGs, each PCFG consists
-of a start state and a list of productions.  But the productions are
-represented by ``pcfg.WeightedProduction``, a subclass of ``cfg.Production``
-that associates a probability with a context free grammar
-production.
+The simplest way to define a PCFG is to read it in from a specially
+formatted string consisting of a sequence of weighted productions,
+where weights appear in brackets.
 
-PCFG Productions
-----------------
-      
-Each PCFG production specifies that a nonterminal (the *left-hand
-side*) can be expanded to a sequence of terminals and nonterminals
-(the *right-hand side*).  In addition, each production has a
-probability associated with it.  Productions are created using the
-``nltk_lite.parse.pcfg.WeightedProduction`` constructor, which takes a
-probability, a nonterminal left-hand side, and zero or more terminals
-and nonterminals for the right-hand side.
-
-  >>> from nltk_lite.parse import cfg
-  >>> S, VP, V, NP = cfg.nonterminals('S, VP, V, NP')
-
-  >>> from nltk_lite.parse import pcfg
-  >>> prod1 = pcfg.WeightedProduction(VP, [V, NP], prob=0.23)
-  >>> prod1
-  VP -> V NP (p=0.23)
-
-  >>> prod2 = pcfg.WeightedProduction(V, ['saw'], prob=0.12)
-  >>> prod2
-  V -> 'saw' (p=0.12)
-
-  >>> prod3 = pcfg.WeightedProduction(NP, ['cookie'], prob=0.04)
-  >>> prod3
-  NP -> 'cookie' (p=0.04)
-
-The probability associated with a production is returned by the
-``prob`` method:
-
-  >>> print prod1.prob(), prod2.prob(), prod3.prob() 
-  0.23 0.12 0.04
-
-As with CFG productions, the left-hand side of a PCFG production is
-returned by the ``lhs`` method; and the right-hand side is returned by
-the ``rhs`` method:
-
-  >>> prod1.lhs() 
-  <VP>
-  >>> prod1.rhs() 
-  (<V>, <NP>)
-
-
-PCFGs
------
-
-PCFGs are created using the ``pcfg.WeightedGrammar`` constructor, which takes
-a start symbol and a list of productions:
-
-  >>> prods = [pcfg.WeightedProduction(S, [NP, VP], prob=1.0),
-  ...          pcfg.WeightedProduction(VP, ['saw', NP], prob=0.4),
-  ...          pcfg.WeightedProduction(VP, ['ate'], prob=0.3),
-  ...          pcfg.WeightedProduction(VP, ['gave', NP, NP], prob=0.3),
-  ...          pcfg.WeightedProduction(NP, ['the', 'cookie'], prob=0.8),
-  ...          pcfg.WeightedProduction(NP, ['Jack'], prob=0.2)]
-
-  >>> grammar = pcfg.WeightedGrammar(S, prods) 
-  >>> print grammar
-  Grammar with 6 productions (start state = S)
-      S -> NP VP (p=1.0)
-      VP -> 'saw' NP (p=0.4)
-      VP -> 'ate' (p=0.3)
-      VP -> 'gave' NP NP (p=0.3)
-      NP -> 'the' 'cookie' (p=0.8)
-      NP -> 'Jack' (p=0.2)
+    from nltk_lite import pcfg
+    grammar = pcfg.parse_grammar("""
+        S  -> NP VP           [1.0]
+        VP -> 'saw' NP        [0.4]
+        VP -> 'ate'           [0.3]
+        VP -> 'gave' NP NP    [0.3]
+        NP -> 'the' 'cookie'  [0.8]
+        NP -> 'Jack'          [0.2]
+        """)
+    >>> print grammar
+    Grammar with 6 productions (start state = S)
+        S -> NP VP [1.0]
+        VP -> 'saw' NP [0.4]
+        VP -> 'ate' [0.3]
+        VP -> 'gave' NP NP [0.3]
+        NP -> 'the' 'cookie' [0.8]
+        NP -> 'Jack' [0.2]
+        
+It is sometimes convenient to combine multiple productions into a single line,
+e.g. ``VP -> 'saw' NP [0.4] | 'ate' [0.3] | 'gave' NP NP [0.3]``.
 
 In order to ensure that the trees generated by the grammar form a
-proper probability distribution, PCFG grammars impose the constraint
+probability distribution, PCFG grammars impose the constraint
 that all productions with a given left-hand side must have
-probabilities that sum to one:
+probabilities that sum to one, formally:
 
   for all *lhs*:
     |Sigma|\ :subscript:`rhs` P(*lhs* |rarr| *rhs*) = 1
@@ -1391,40 +1341,21 @@ The example grammar given above obeys this constraint: for ``S``,
 there is only one production, with a probability of 1.0; for ``VP``,
 0.4+0.3+0.3=1.0; and for ``NP``, 0.8+0.2=1.0.
 
-As with CFGs, the start state of a PCFG is returned by the ``start``
-method; and the productions are returned by the ``productions``
-method:
-
-  >>> grammar.start()
-  <S>
-  >>> from pprint import pprint
-  >>> pprint(grammar.productions())
-  [S -> NP VP (p=1.0),
-   VP -> 'saw' NP (p=0.4),
-   VP -> 'ate' (p=0.3),
-   VP -> 'gave' NP NP (p=0.3),
-   NP -> 'the' 'cookie' (p=0.8),
-   NP -> 'Jack' (p=0.2)]
-
----------------------
-Probabilistic Parsers
----------------------
-
 The Probabilistic Parser Interface
 ----------------------------------
 
 The parse trees returned by ``parse`` and ``get_parse_list`` include
 probabilities:
 
-  >>> from nltk_lite.parse import ViterbiParse
-  >>> from nltk_lite import tokenize
-  >>> viterbi_parser = ViterbiParse(grammar)
-  >>> sent = list(tokenize.whitespace('Jack saw the cookie'))
-  >>> viterbi_parser.get_parse(sent)
-  (S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)
+    >>> from nltk_lite.parse import ViterbiParse
+    >>> from nltk_lite import tokenize
+    >>> viterbi_parser = ViterbiParse(grammar)
+    >>> sent = list(tokenize.whitespace('Jack saw the cookie'))
+    >>> viterbi_parser.get_parse(sent)
+    (S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)
 
-  >>> viterbi_parser.get_parse_list(sent)
-  [(S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)]
+    >>> viterbi_parser.get_parse_list(sent)
+    [(S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)]
 
 
 Probabilistic Parser Implementations
@@ -1556,48 +1487,48 @@ Using ``ViterbiParse``
 
 Viterbi parsers are created using the ``ViterbiParse`` constructor:
 
-  >>> from nltk_lite.parse.viterbi import *
-  >>> ViterbiParse(grammar)
-  <ViterbiParser for <Grammar with 6 productions>>
+    >>> from nltk_lite.parse.viterbi import *
+    >>> ViterbiParse(grammar)
+    <ViterbiParser for <Grammar with 6 productions>>
 
 Note that since ``ViterbiParse`` only finds the single most likely
 parse, that ``get_parse_list`` will never return more than one parse.
 
-  >>> viterbi_parser1 = ViterbiParse(pcfg.toy1)
-  >>> sent1 = list(tokenize.whitespace('I saw John with my cookie'))
-  >>> tree1 = viterbi_parser1.parse(sent1)
-  >>> print tree1
-  (S:
-    (NP: 'I')
-    (VP:
-      (V: 'saw')
-      (NP:
-        (NP: 'John')
-        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+    >>> viterbi_parser1 = ViterbiParse(pcfg.toy1)
+    >>> sent1 = list(tokenize.whitespace('I saw John with my cookie'))
+    >>> tree1 = viterbi_parser1.parse(sent1)
+    >>> print tree1
+    (S:
+      (NP: 'I')
+      (VP:
+        (V: 'saw')
+        (NP:
+          (NP: 'John')
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
 
       
-  >>> viterbi_parser2 = ViterbiParse(pcfg.toy2)
-  >>> sent2 = list(tokenize.whitespace('the boy saw Jack with Bob under the table with a telescope'))
-  >>> trees = viterbi_parser2.get_parse_list(sent2)
-  >>> for tree in trees:
-  ...     print tree
-  (S:
-    (NP: (Det: 'the') (N: 'boy'))
-    (VP:
-      (V: 'saw')
-      (NP:
-        (NP: (Name: 'Jack'))
-        (PP:
-          (P: 'with')
-          (NP:
+    >>> viterbi_parser2 = ViterbiParse(pcfg.toy2)
+    >>> sent2 = list(tokenize.whitespace('the boy saw Jack with Bob under the table with a telescope'))
+    >>> trees = viterbi_parser2.get_parse_list(sent2)
+    >>> for tree in trees:
+    ...     print tree
+    (S:
+      (NP: (Det: 'the') (N: 'boy'))
+      (VP:
+        (V: 'saw')
+        (NP:
+          (NP: (Name: 'Jack'))
+          (PP:
+            (P: 'with')
             (NP:
-              (NP: (Name: 'Bob'))
+              (NP:
+                (NP: (Name: 'Bob'))
+                (PP:
+                  (P: 'under')
+                  (NP: (Det: 'the') (N: 'table'))))
               (PP:
-                (P: 'under')
-                (NP: (Det: 'the') (N: 'table'))))
-            (PP:
-              (P: 'with')
-              (NP: (Det: 'a') (N: 'telescope')))))))) (p=7.53678903935e-11)
+                (P: 'with')
+                (NP: (Det: 'a') (N: 'telescope')))))))) (p=7.53678903935e-11)
 
 The ``trace`` method can be used to set the level of tracing output
 that is generated when parsing a text.  Trace output displays the
@@ -1605,38 +1536,38 @@ constituents that are considered, and indicates which ones are added
 to the most likely constituent table.  It also indicates the
 likelihood for each constituent.
 
-  >>> viterbi_parser1.trace(3)
-  >>> tree = viterbi_parser1.parse(sent1)
-  Inserting tokens into the most likely constituents table...
-     Insert: |=.....| I
-     Insert: |.=....| saw
-     Insert: |..=...| John
-     Insert: |...=..| with
-     Insert: |....=.| my
-     Insert: |.....=| cookie
-  Finding the most likely constituents spanning 1 text elements...
-     Insert: |=.....| NP -> 'I' (p=0.15)              0.1500000000 
-     Insert: |.=....| V -> 'saw' (p=0.65)             0.6500000000 
-     Insert: |.=....| VP -> V (p=0.2)                 0.1300000000 
-     Insert: |..=...| NP -> 'John' (p=0.1)            0.1000000000 
-     Insert: |...=..| P -> 'with' (p=0.61)            0.6100000000 
-     Insert: |....=.| Det -> 'my' (p=0.2)             0.2000000000 
-     Insert: |.....=| N -> 'cookie' (p=0.5)           0.5000000000 
-  Finding the most likely constituents spanning 2 text elements...
-     Insert: |==....| S -> NP VP (p=1.0)              0.0195000000 
-     Insert: |.==...| VP -> V NP (p=0.7)              0.0455000000 
-     Insert: |....==| NP -> Det N (p=0.5)             0.0500000000 
-  Finding the most likely constituents spanning 3 text elements...
-     Insert: |===...| S -> NP VP (p=1.0)              0.0068250000 
-     Insert: |...===| PP -> P NP (p=1.0)              0.0305000000 
-  Finding the most likely constituents spanning 4 text elements...
-     Insert: |..====| NP -> NP PP (p=0.25)            0.0007625000 
-  Finding the most likely constituents spanning 5 text elements...
-     Insert: |.=====| VP -> VP PP (p=0.1)             0.0001387750 
-     Insert: |.=====| VP -> V NP (p=0.7)              0.0003469375 
-    Discard: |.=====| VP -> VP PP (p=0.1)             0.0001387750 
-  Finding the most likely constituents spanning 6 text elements...
-     Insert: |======| S -> NP VP (p=1.0)              0.0000520406 
+    >>> viterbi_parser1.trace(3)
+    >>> tree = viterbi_parser1.parse(sent1)
+    Inserting tokens into the most likely constituents table...
+       Insert: |=.....| I
+       Insert: |.=....| saw
+       Insert: |..=...| John
+       Insert: |...=..| with
+       Insert: |....=.| my
+       Insert: |.....=| cookie
+    Finding the most likely constituents spanning 1 text elements...
+       Insert: |=.....| NP -> 'I' [0.15]              0.1500000000 
+       Insert: |.=....| V -> 'saw' [0.65]             0.6500000000 
+       Insert: |.=....| VP -> V [0.2]                 0.1300000000 
+       Insert: |..=...| NP -> 'John' [0.1]            0.1000000000 
+       Insert: |...=..| P -> 'with' [0.61]            0.6100000000 
+       Insert: |....=.| Det -> 'my' [0.2]             0.2000000000 
+       Insert: |.....=| N -> 'cookie' [0.5]           0.5000000000 
+    Finding the most likely constituents spanning 2 text elements...
+       Insert: |==....| S -> NP VP [1.0]              0.0195000000 
+       Insert: |.==...| VP -> V NP [0.7]              0.0455000000 
+       Insert: |....==| NP -> Det N [0.5]             0.0500000000 
+    Finding the most likely constituents spanning 3 text elements...
+       Insert: |===...| S -> NP VP [1.0]              0.0068250000 
+       Insert: |...===| PP -> P NP [1.0]              0.0305000000 
+    Finding the most likely constituents spanning 4 text elements...
+       Insert: |..====| NP -> NP PP [0.25]            0.0007625000 
+    Finding the most likely constituents spanning 5 text elements...
+       Insert: |.=====| VP -> VP PP [0.1]             0.0001387750 
+       Insert: |.=====| VP -> V NP [0.7]              0.0003469375 
+      Discard: |.=====| VP -> VP PP [0.1]             0.0001387750 
+    Finding the most likely constituents spanning 6 text elements...
+       Insert: |======| S -> NP VP [1.0]              0.0000520406 
 
 The level of tracing output can also be set with an optional argument to
 the ``ViterbiParse`` constructor.  By default, no tracing output is generated.
@@ -1876,34 +1807,34 @@ See the reference documentation for the ``BottomUpChartParse`` module
 for a complete list of subclasses.  Unless a subclass overrides the
 constructor, it takes a single PCFG:
 
-  >>> from nltk_lite.parse.pchart import *
-  >>> inside_parser = InsideParse(pcfg.toy1)
-  >>> longest_parser = LongestParse(pcfg.toy1)
-  >>> beam_parser = BeamParse(20, pcfg.toy1)
+    >>> from nltk_lite.parse.pchart import *
+    >>> inside_parser = InsideParse(pcfg.toy1)
+    >>> longest_parser = LongestParse(pcfg.toy1)
+    >>> beam_parser = BeamParse(20, pcfg.toy1)
 
-  >>> print inside_parser.parse(sent1)
-  (S:
-    (NP: 'I')
-    (VP:
-      (V: 'saw')
-      (NP:
-        (NP: 'John')
-        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+    >>> print inside_parser.parse(sent1)
+    (S:
+      (NP: 'I')
+      (VP:
+        (V: 'saw')
+        (NP:
+          (NP: 'John')
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
       
-  >>> for tree in inside_parser.get_parse_list(sent1):
-  ...     print tree
-  (S:
-    (NP: 'I')
-    (VP:
-      (V: 'saw')
-      (NP:
-        (NP: 'John')
-        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
-  (S:
-    (NP: 'I')
-    (VP:
-      (VP: (V: 'saw') (NP: 'John'))
-      (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie'))))) (p=2.081625e-05)
+    >>> for tree in inside_parser.get_parse_list(sent1):
+    ...     print tree
+    (S:
+      (NP: 'I')
+      (VP:
+        (V: 'saw')
+        (NP:
+          (NP: 'John')
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+    (S:
+      (NP: 'I')
+      (VP:
+        (VP: (V: 'saw') (NP: 'John'))
+        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie'))))) (p=2.081625e-05)
 
 .. Warning:: ``BottomUpChartParse`` is an abstract class; you should not directly
    instantiate it.  If you try to use it to parse a text, it will raise an exception,
@@ -1914,63 +1845,63 @@ that is generated when parsing a text.  Trace output displays edges as
 they are added to the chart, and shows the probability for each edges'
 tree.
 
-  >>> inside_parser.trace(3)
-  >>> trees = inside_parser.get_parse_list(sent1)
-    |. . . . . [-]| [5:6] 'cookie'                     prob=1.0
-    |. . . . [-] .| [4:5] 'my'                         prob=1.0
-    |. . . [-] . .| [3:4] 'with'                       prob=1.0
-    |. . [-] . . .| [2:3] 'John'                       prob=1.0
-    |. [-] . . . .| [1:2] 'saw'                        prob=1.0
-    |[-] . . . . .| [0:1] 'I'                          prob=1.0
-    |. [-] . . . .| [1:2] V  -> 'saw' *                prob=0.65
-    |. > . . . . .| [1:1] VP -> * V NP                 prob=0.7
-    |. > . . . . .| [1:1] V  -> * 'saw'                prob=0.65
-    |. . . [-] . .| [3:4] P  -> 'with' *               prob=0.61
-    |. . . > . . .| [3:3] PP -> * P NP                 prob=1.0
-    |. . . [-> . .| [3:4] PP -> P * NP                 prob=0.61
-    |. . . > . . .| [3:3] P  -> * 'with'               prob=0.61
-    |. . . . . [-]| [5:6] N  -> 'cookie' *             prob=0.5
-    |. . . . . > .| [5:5] N  -> * 'cookie'             prob=0.5
-    |. [-> . . . .| [1:2] VP -> V * NP                 prob=0.455
-    |. > . . . . .| [1:1] VP -> * V                    prob=0.2
-    |. . . . [-] .| [4:5] Det -> 'my' *                prob=0.2
-    |. . . . > . .| [4:4] NP -> * Det N                prob=0.5
-    |. . . . > . .| [4:4] Det -> * 'my'                prob=0.2
-    |[-] . . . . .| [0:1] NP -> 'I' *                  prob=0.15
-    |> . . . . . .| [0:0] S  -> * NP VP                prob=1.0
-    |> . . . . . .| [0:0] NP -> * NP PP                prob=0.25
-    |[-> . . . . .| [0:1] S  -> NP * VP                prob=0.15
-    |> . . . . . .| [0:0] NP -> * 'I'                  prob=0.15
-    |. [-] . . . .| [1:2] VP -> V *                    prob=0.13
-    |. > . . . . .| [1:1] VP -> * VP PP                prob=0.1
-    |. . . . [-> .| [4:5] NP -> Det * N                prob=0.1
-    |. . [-] . . .| [2:3] NP -> 'John' *               prob=0.1
-    |. . > . . . .| [2:2] S  -> * NP VP                prob=1.0
-    |. . > . . . .| [2:2] NP -> * NP PP                prob=0.25
-    |. . [-> . . .| [2:3] S  -> NP * VP                prob=0.1
-    |. . > . . . .| [2:2] NP -> * 'John'               prob=0.1
-    |. . . . [---]| [4:6] NP -> Det N *                prob=0.05
-    |. . . . > . .| [4:4] S  -> * NP VP                prob=1.0
-    |. . . . > . .| [4:4] NP -> * NP PP                prob=0.25
-    |. . . . [--->| [4:6] S  -> NP * VP                prob=0.05
-    |. [---] . . .| [1:3] VP -> V NP *                 prob=0.0455
-    |[-> . . . . .| [0:1] NP -> NP * PP                prob=0.0375
-    |. . . [-----]| [3:6] PP -> P NP *                 prob=0.0305
-    |. . [-> . . .| [2:3] NP -> NP * PP                prob=0.025
-    |[---] . . . .| [0:2] S  -> NP VP *                prob=0.0195
-    |. [-> . . . .| [1:2] VP -> VP * PP                prob=0.013
-    |. . . . [--->| [4:6] NP -> NP * PP                prob=0.0125
-    |[-----] . . .| [0:3] S  -> NP VP *                prob=0.006825
-    |. [---> . . .| [1:3] VP -> VP * PP                prob=0.00455
-    |. . [-------]| [2:6] NP -> NP PP *                prob=0.0007625
-    |. . [------->| [2:6] S  -> NP * VP                prob=0.0007625
-    |. [---------]| [1:6] VP -> V NP *                 prob=0.0003469375
-    |. . [------->| [2:6] NP -> NP * PP                prob=0.000190625
-    |. [---------]| [1:6] VP -> VP PP *                prob=0.000138775
-    |[===========]| [0:6] S  -> NP VP *                prob=5.2040625e-05
-    |. [--------->| [1:6] VP -> VP * PP                prob=3.469375e-05
-    |[===========]| [0:6] S  -> NP VP *                prob=2.081625e-05
-    |. [--------->| [1:6] VP -> VP * PP                prob=1.38775e-05
+    >>> inside_parser.trace(3)
+    >>> trees = inside_parser.get_parse_list(sent1)
+      |. . . . . [-]| [5:6] 'cookie'                     [1.0]
+      |. . . . [-] .| [4:5] 'my'                         [1.0]
+      |. . . [-] . .| [3:4] 'with'                       [1.0]
+      |. . [-] . . .| [2:3] 'John'                       [1.0]
+      |. [-] . . . .| [1:2] 'saw'                        [1.0]
+      |[-] . . . . .| [0:1] 'I'                          [1.0]
+      |. [-] . . . .| [1:2] V  -> 'saw' *                [0.65]
+      |. > . . . . .| [1:1] VP -> * V NP                 [0.7]
+      |. > . . . . .| [1:1] V  -> * 'saw'                [0.65]
+      |. . . [-] . .| [3:4] P  -> 'with' *               [0.61]
+      |. . . > . . .| [3:3] PP -> * P NP                 [1.0]
+      |. . . [-> . .| [3:4] PP -> P * NP                 [0.61]
+      |. . . > . . .| [3:3] P  -> * 'with'               [0.61]
+      |. . . . . [-]| [5:6] N  -> 'cookie' *             [0.5]
+      |. . . . . > .| [5:5] N  -> * 'cookie'             [0.5]
+      |. [-> . . . .| [1:2] VP -> V * NP                 [0.455]
+      |. > . . . . .| [1:1] VP -> * V                    [0.2]
+      |. . . . [-] .| [4:5] Det -> 'my' *                [0.2]
+      |. . . . > . .| [4:4] NP -> * Det N                [0.5]
+      |. . . . > . .| [4:4] Det -> * 'my'                [0.2]
+      |[-] . . . . .| [0:1] NP -> 'I' *                  [0.15]
+      |> . . . . . .| [0:0] S  -> * NP VP                [1.0]
+      |> . . . . . .| [0:0] NP -> * NP PP                [0.25]
+      |[-> . . . . .| [0:1] S  -> NP * VP                [0.15]
+      |> . . . . . .| [0:0] NP -> * 'I'                  [0.15]
+      |. [-] . . . .| [1:2] VP -> V *                    [0.13]
+      |. > . . . . .| [1:1] VP -> * VP PP                [0.1]
+      |. . . . [-> .| [4:5] NP -> Det * N                [0.1]
+      |. . [-] . . .| [2:3] NP -> 'John' *               [0.1]
+      |. . > . . . .| [2:2] S  -> * NP VP                [1.0]
+      |. . > . . . .| [2:2] NP -> * NP PP                [0.25]
+      |. . [-> . . .| [2:3] S  -> NP * VP                [0.1]
+      |. . > . . . .| [2:2] NP -> * 'John'               [0.1]
+      |. . . . [---]| [4:6] NP -> Det N *                [0.05]
+      |. . . . > . .| [4:4] S  -> * NP VP                [1.0]
+      |. . . . > . .| [4:4] NP -> * NP PP                [0.25]
+      |. . . . [--->| [4:6] S  -> NP * VP                [0.05]
+      |. [---] . . .| [1:3] VP -> V NP *                 [0.0455]
+      |[-> . . . . .| [0:1] NP -> NP * PP                [0.0375]
+      |. . . [-----]| [3:6] PP -> P NP *                 [0.0305]
+      |. . [-> . . .| [2:3] NP -> NP * PP                [0.025]
+      |[---] . . . .| [0:2] S  -> NP VP *                [0.0195]
+      |. [-> . . . .| [1:2] VP -> VP * PP                [0.013]
+      |. . . . [--->| [4:6] NP -> NP * PP                [0.0125]
+      |[-----] . . .| [0:3] S  -> NP VP *                [0.006825]
+      |. [---> . . .| [1:3] VP -> VP * PP                [0.00455]
+      |. . [-------]| [2:6] NP -> NP PP *                [0.0007625]
+      |. . [------->| [2:6] S  -> NP * VP                [0.0007625]
+      |. [---------]| [1:6] VP -> V NP *                 [0.0003469375]
+      |. . [------->| [2:6] NP -> NP * PP                [0.000190625]
+      |. [---------]| [1:6] VP -> VP PP *                [0.000138775]
+      |[===========]| [0:6] S  -> NP VP *                [5.2040625e-05]
+      |. [--------->| [1:6] VP -> VP * PP                [3.469375e-05]
+      |[===========]| [0:6] S  -> NP VP *                [2.081625e-05]
+      |. [--------->| [1:6] VP -> VP * PP                [1.38775e-05]
 
 
 -----------------
@@ -2004,16 +1935,16 @@ three parse trees in the Penn Treebank corpus:
     >>> grammar = pcfg.induce(S, productions)
     >>> for production in grammar.productions()[:10]:
     ...      print production
-    PP -> IN NP (p=1.0)
-    NNP -> 'Nov.' (p=0.0714285714286)
-    NNP -> 'Agnew' (p=0.0714285714286)
-    JJ -> 'industrial' (p=0.142857142857)
-    NP -> CD NNS (p=0.133333333333)
-    , -> ',' (p=1.0)
-    CC -> 'and' (p=1.0)
-    NNP -> 'Pierre' (p=0.0714285714286)
-    NP -> NNP NNP NNP NNP (p=0.0666666666667)
-    NNP -> 'Rudolph' (p=0.0714285714286)
+    PP -> IN NP [1.0]
+    NNP -> 'Nov.' [0.0714285714286]
+    NNP -> 'Agnew' [0.0714285714286]
+    JJ -> 'industrial' [0.142857142857]
+    NP -> CD NNS [0.133333333333]
+    , -> ',' [1.0]
+    CC -> 'and' [1.0]
+    NNP -> 'Pierre' [0.0714285714286]
+    NP -> NNP NNP NNP NNP [0.0666666666667]
+    NNP -> 'Rudolph' [0.0714285714286]
 
 .. Note:: Grammar induction usually involves normalizing the grammar
    in various ways.  The ``nltk_lite.parse.treetransforms`` module
