@@ -25,6 +25,50 @@ exercises which you should try yourself.
 More Fundamentals
 -----------------
 
+.. _sec-assignment:
+
+Assignment
+----------
+
+Python's assignment statement operates on `values`:em:.  Thus
+when we write ``word1 = 'Monty'``, the value of the string ``'Monty'``
+is assigned to ``word1``.  This makes a copy of the string, and overwriting
+``word1`` with a new string does not affect the copy we made, as the
+following example illustrates:
+
+    >>> word1 = 'Monty'
+    >>> word2 = word1
+    >>> word1 = 'Python'
+    >>> word2
+    'Monty'
+    
+An important subtlety of Python is that the value of a structured object
+(such as a list) is actually a `reference`:em: to the object.  Assignment
+does not copy the object itself:
+
+    >>> words1 = ['Monty', 'Python']
+    >>> words2 = words1
+    >>> words1[1] = 'Bodkin'
+    >>> words2
+    ['Monty', 'Bodkin']
+    
+Initially this might seem strange.  However, the line ``words2 = words1``
+does not perform a copy, but assigns an object reference.
+
+To understand why, we need to
+know how lists are stored in the computer's memory.  [Arrays]
+
+.. _array-memory:
+.. figure:: ../images/array-memory.png
+   :scale: 20
+
+   Arrays and Computer Memory
+
+|nopar|
+Deep copy:
+
+    >>> sent2 = sent1[:]
+
 Sequences: Strings, Lists and Tuples
 ------------------------------------
 
@@ -128,8 +172,8 @@ of a word and its length.
     [('The', 3), ('dog', 3), ('gave', 4), ('John', 4),
      ('the', 3), ('newspaper', 9)]
 
-Putting it Together
--------------------
+Combining different sequence types
+----------------------------------
 
 Let's combine our knowledge of the three sequence types and list
 comprehensions to perform the task of sorting the words in a string by
@@ -311,54 +355,6 @@ follows: ``filter(lambda c: c in "AEIOUaeiou", word)``.
 
     >>> map(lambda w: len(filter(lambda c: c in "AEIOUaeiou", w)), sent)
     [1, 1, 2, 1, 1, 3]
-
-Making Copies
--------------
-
-Variables as named locations:
-
-    >>> a = 'cat'
-    >>> b = a
-    >>> b
-    'cat'
-
-|nopar|
-If we modify ``a``, ``b`` is unchanged:
-
-    >>> a = 'dog'
-    >>> b
-    'cat'
-
-What happens with lists?  
-
-    >>> sent1 = ['the', 'cat']
-    >>> sent2 = sent1
-    >>> sent2
-    ['the', 'cat']
-
-|nopar|
-So far so good, that's exactly what we expected.
-Now let's modify ``a``:
-
-    >>> sent1[1] = 'dog'
-    >>> sent1
-    ['the', 'dog']
-    >>> sent2
-    ['the', 'dog']
-
-Why has ``b`` changed, when we didn't touch it?  To understand why, we need to
-know how lists are stored in the computer's memory.  [Arrays]
-
-.. _array-memory:
-.. figure:: ../images/array-memory.png
-   :scale: 20
-
-   Arrays and Computer Memory
-
-|nopar|
-Deep copy:
-
-    >>> sent2 = sent1[:]
 
 Strings and Formats
 -------------------
@@ -551,7 +547,7 @@ Once you have been programming for a while, you will find that you need
 to perform a task that you have done in the past.  In fact, over time,
 the number of completely novel things you have to do in creating a program
 decreases significantly.  Half of the work may involve simple tasks that
-you have done before.  Thus it is important for you code to be *re-usable*.
+you have done before.  Thus it is important for your code to be `re-usable`:em:.
 One effective way to do this is to abstract commonly used sequences of steps
 into a `function`:dt:.
 
@@ -723,11 +719,16 @@ We can also iterate over it in the usual way:
     ...     print noun,
     cat mat
 
-Some Important Subtleties
--------------------------
+An Important Subtlety
+---------------------
 
-
-* call by reference vs call by name
+Back in Section sec-assignment_ you saw that in Python, assignment works on values,
+but that the value of a structured object is a reference to that object.  The same
+is true for functions.  Python interprets function parameters as values (this is
+known as `call-by-value`:dt:.  Consider the following function; it has two parameters,
+both of which are modified inside the function.  We begin by assigning an empty string
+to ``w`` and an empty dictionary to ``p``.  After calling the function, ``w`` is unchanged,
+while ``p`` is changed:
 
     >>> def set_up(word, properties):
     ...     word = 'cat'
@@ -739,35 +740,77 @@ Some Important Subtleties
     ''
     >>> p
     {'pos': 'noun'}
+    
+To understand why ``w`` was not changed, it is necessary to understand call-by-value.
+When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
+a new local variable ``word``.  Inside the function, the value of ``word`` was modified.
+However, that had no affect on the external value of ``w``.  This parameter passing is
+identical to the following sequence of assignments:
 
+    >>> w = ''
+    >>> word = w
+    >>> word = 'cat'
+    >>> w
+    ''
+ 
+Now, in the case of the structured object, matters are quite different.
+When we called ``set_up(w, p)``, the value of ``p`` (an empty
+dictionary) was assigned to a new local variable ``properties``.  Since the
+value of ``p`` was an object reference, both variables reference the same
+memory location.  Modifying something inside ``properties`` will also
+change ``p``, just as if we had done the following sequence of assignments:
+ 
+    >>> p = {}
+    >>> properties = p
+    >>> properties['pos'] = 'noun'
+    >>> p
+    {'pos': 'noun'}
+
+Return Values
+-------------
 
 * return
 * need for consistent type
 * avoid deeply nested returns
 
+Passing a Function as an Argument
+---------------------------------
 
-* function pointers
+So far the arguments we have passed into functions have been simple objects like
+strings, or structured objects like lists.  These arguments allow us to parameterise
+the behavior of a function.  As a result, functions are very flexible and powerful
+abstractions, permitting us to repeatedly apply the `same operation`:em: on `different data`:em:.
+Python also lets us pass a function as
+an argument to another function.  Now we can abstract out the operation, and apply
+a `different operation`:em: on the `same data`:em:.  As the following examples show,
+we can pass the built-in function ``len()``, a user-defined function ``last_letter()``,
+and an anonymous function ``lambda w: w[-1]``:
+
+    >>> def extract_property(prop):
+    ...     words = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    ...     return [prop(word) for word in words]
+    >>> extract_property(len)
+    [3, 3, 4, 4, 3, 9]
+    >>> def last_letter(word):
+    ...     return word[-1]
+    >>> extract_property(last_letter)
+    ['e', 'g', 'e', 'n', 'e', 'r']
+    >>> extract_property(lambda w: w[-1])
+    ['e', 'g', 'e', 'n', 'e', 'r']
+    
+Here is an example of passing a function to the list sort method.
+When we call ``sorted()`` with a single argument (the list to be sorted),
+it uses the built-in lexicographic comparison function ``cmp()``.
+However, we can supply our own sort function, e.g. to sort by decreasing
+length.
 
     >>> words = 'I turned off the spectroroute'.split()
-    >>> words.sort(cmp)
-    >>> words
+    >>> sorted(words)
     ['I', 'off', 'spectroroute', 'the', 'turned']
-    >>> words.sort(lambda x, y: cmp(len(y), len(x)))
-    >>> words
+    >>> sorted(words, cmp)
+    ['I', 'off', 'spectroroute', 'the', 'turned']
+    >>> sorted(words, lambda x, y: cmp(len(y), len(x)))
     ['spectroroute', 'turned', 'off', 'the', 'I']
-
-This is inefficient when the list of items gets long, as
-we compute ``len()`` twice for every comparison (about 2nlog(n) times).
-The following is more efficient:
-
-    >>> [pair[1] for pair in sorted((len(w), w) for w in words)[::-1]]
-    ['spectroroute', 'turned', 'the', 'off', 'I']
-
-This technique is called `decorate-sort-undecorate`:dt:.
-
-
-
-NOW: doing this with functions...
 
 Recursive Functions
 -------------------
@@ -820,18 +863,18 @@ We can use recursive functions to build deeply-nested objects.
 
 Building a letter trie.
 
+.. _trie:
+.. pylisting::
+   :caption: Building a Letter Trie
 
-    >>> def insert(trie, key, value):
-    ...     if key:
-    ...         first, rest = key[0], key[1:]
-    ...         if first not in trie:
-    ...             trie[first] = {}
-    ...         insert(trie[first], rest, value)
-    ...     else:
-    ...         trie['value'] = value
-
-
-Initialize and insert, then display
+    def insert(trie, key, value):
+        if key:
+            first, rest = key[0], key[1:]
+            if first not in trie:
+                trie[first] = {}
+            insert(trie[first], rest, value)
+        else:
+            trie['value'] = value
 
     >>> trie = {}
     >>> insert(trie, 'chat', 'cat')
@@ -840,14 +883,9 @@ Initialize and insert, then display
     {'a': {'t': {'value': 'cat'}}, 'i': {'e': {'n': {'value': 'dog'}}}}
     >>> trie['c']['h']['a']['t']['value']
     'cat'
-
-Also pretty-print entire object:
-
     >>> pprint(trie)
     {'c': {'h': {'a': {'t': {'value': 'cat'}},
                  'i': {'e': {'n': {'value': 'dog'}}}}}}
-
-
 
 
 Functional Decomposition
@@ -873,6 +911,7 @@ Function should do one thing only.
 Errors -- how a function reports the fact that it could not accomplish its task.
 
 
+.. MORE: block structure
 
 Exercises
 ---------
@@ -892,7 +931,7 @@ Exercises
 Trees
 -----
 
-In this part of the book we will be investigating the constituent
+In the following chapters in Part II of the book we will be investigating the constituent
 structure of sentences, and we will see how these can be represented
 using syntactic trees.  Here we will look at tree structures in NLTK.
 
@@ -1166,6 +1205,7 @@ Dictionaries
 * persistent storage
 * dictionary keys and immutability
 * indexing and space-time trade-offs (more efficient concordancing)
+* catching exceptions?
 
 -------------------------
 Writing Complete Programs
