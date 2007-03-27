@@ -276,7 +276,7 @@ directives.register_directive('ifndef', ifndef_directive)
 
 class pylisting(docutils.nodes.General, docutils.nodes.Element):
     """
-    Python source cod listing.
+    Python source code listing.
 
     Children: doctest_block+ caption?
     """
@@ -1805,7 +1805,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_pylisting(self, node):
         self.body.append('\n\\begin{figure}\n')
-        self.context.append('\n\\end{figure}\n')
+        self.context.append('\n\\vspace{1ex}\n\\hrule\n\\end{figure}\n')
 
     def depart_pylisting(self, node):
         self.body.append( self.context.pop() )
