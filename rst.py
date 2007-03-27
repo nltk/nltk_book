@@ -1641,6 +1641,9 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.head_prefix.insert(1, '\\usepackage[cjkgb,postscript]{ucs}\n')
         # Make sure we put these *before* the stylesheet include line.
         self.head_prefix.insert(-2, textwrap.dedent("""\
+            % Unicode font:
+            \usepackage{ttfucs}
+            \DeclareTruetypeFont{cyberbit}{cyberbit}
             % Index:
             \\usepackage{makeidx}
             \\makeindex
