@@ -324,6 +324,7 @@ Note that we can open and read a file in one step:
 
     >>> text = open('corpus.txt', 'rU').read()
 
+|nopar|
 We can also read a file one line at a time using the ``for`` loop construct:
 
     >>> f = open('corpus.txt', 'rU')
@@ -716,11 +717,14 @@ surprised to learn that this stemmer does not attempt to identify
     >>> from nltk_lite.stem.porter import * 
     >>> stemmer = Porter()
     >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
-    >>> lemmas = [stemmer.stem(verb) for verb in verbs]
-    >>> set(lemmas)
-    set(['call', 'appear'])
-
-
+    >>> stems = []
+    >>> for verb in verbs:
+    ...     stemmed_verb = stemmer.stem(verb)
+    ...     if stemmed_verb not in stems:
+    ...         stems.append(stemmed_verb)
+    >>> stems
+    ['appear', 'call']
+    
 Lemmatization and stemming can be regarded as special cases of
 `normalization`:dt:.  They identify a canonical representative for a
 group of related word forms.  By its nature, normalization collapses
@@ -757,6 +761,60 @@ form to two separate forms: `did`:lx: and `not`:lx:.
    rate at which new entities are discovered and described outstrips
    these efforts at present.
 
+.. _sec-list-comprehensions:
+
+Aside: List Comprehensions
+--------------------------
+
+Lemmatization and normalization involve applying the same operation to
+each word token in a text.  `List comprehensions`:dt: are a convenient Python
+construct for doing this.  Here we lowercase each word:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> [word.lower() for word in sent]
+    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
+    
+Here we rewrite the loop for identifying verb stems, from
+the previous section:
+
+    >>> [stemmer.stem(verb) for verb in verbs]
+    ['appear', 'appear', 'appear', 'call', 'call']
+    >>> set(stemmer.stem(verb) for verb in verbs)
+    set(['call', 'appear'])
+
+|nopar|
+This syntax might be reminiscent of the notation used for building
+sets, e.g. {(x,y) | x\ :superscript:`2` + y\ :superscript:`2` = 1}.
+Just as this set definition incorporates a constraint, list
+comprehensions can constrain the items they include.  In the next
+example we remove all determiners from a list of words:
+
+    >>> def is_lexical(word):
+    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
+    >>> [word for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'John', 'newspaper']
+
+|nopar|
+Now we can combine the two ideas, to pull out the content words
+and normalize them.
+
+    >>> [word.lower() for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'john', 'newspaper']
+
+List comprehensions can build nested structures too.  For example,
+the following code builds a list of tuples, where each tuple consists
+of a word and its length.
+
+    >>> sent = extract(0, brown.raw())
+    >>> [(x, stemmer.stem(x).lower()) for x in sent]
+    [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
+    ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
+    ('an', 'an'), ('investigation', 'investig'), ('of', 'of'),
+    ("Atlanta's", "atlanta'"), ('recent', 'recent'), ('primary', 'primari'),
+    ('election', 'elect'), ('produced', 'produc'), ('``', '``'), ('no', 'no'),
+    ('evidence', 'evid'), ("''", "''"), ('that', 'that'), ('any', 'ani'),
+    ('irregularities', 'irregular'), ('took', 'took'), ('place', 'place'), ('.', '.')]
+
 Exercises
 ---------
 
@@ -774,6 +832,16 @@ Exercises
       the following kinds of expression: monetary amounts; dates; names
       of people and companies.
 
+#. |easy| Rewrite the following loop as a list comprehension:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> result = []
+    >>> for word in sent:
+    ...     word_len = (word, len(word))
+    ...     result.append(word_len)
+    >>> result
+    [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
+
 #. |soso| Use the Porter Stemmer to normalize some tokenized text, calling
    the stemmer on each word.
 
@@ -786,6 +854,21 @@ Exercises
    where |mu|\ :subscript:`s` is the mean sentence length (in words).
    With the help of your word and sentence
    tokenizers, compute the ARI scores for a collection of texts.
+
+#. |hard| Rewrite the following nested loop as a nested list comprehension:
+
+    >>> words = ['attribution', 'confabulation', 'elocution', 'sequoia', 'tenacious', 'unidirectional']
+    >>> vsequences = set()
+    >>> for word in words:
+    ...     vowels = []
+    ...     for char in word:
+    ...         if char in 'aeiou':
+    ...             vowels.append(char)
+    ...     vsequences.add(vowels)
+    >>> sorted(vsequences)
+    ['aiuio', 'eaiou', 'eouio', 'euoia', 'oauaio', 'uiieioa']    
+
+.. sorted(set(''.join(c for c in word if c in 'aeiou') for word in words))
 
 #. |hard| **Sentence tokenizers:**
    Develop a sentence tokenizer.  Test it on the Brown Corpus, which
