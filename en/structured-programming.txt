@@ -17,8 +17,8 @@ We assume you are confident with the material presented there and have
 tried lots of exercises in the intervening chapters.  Here we will
 consolidate your knowledge of the key programming concepts and explain
 many of the minor points that could easily trip you up.  We also
-introduce new topics in structured programming and algorithmic problem
-solving.  The chapter contains many working program fragments and
+introduce new topics in structured programming, including functions
+and modules.  The chapter contains many working program fragments and
 exercises which you should try yourself.
 
 ------------------
@@ -277,7 +277,8 @@ where each cell is a set, we would do the following:
 
 Sometimes we use a list comprehension as part of a larger aggregation task.
 Here we calculate the average length of words in part of the Brown Corpus.
-Notice that we don't bother storing the list comprehension.
+Notice that we don't bother storing the list comprehension in a temporary
+variable, but just pass it as an argument to the ``average()`` function.
 
     >>> from numpy import average
     >>> average(len(w) for sent in brown.raw('a') for w in sent)
@@ -286,34 +287,6 @@ Notice that we don't bother storing the list comprehension.
 Generator expressions: when a list comprehension occurs as the argument
 of a function we can leave out the brackets.
 
-Earlier we saw an example of filtering out some items in a list comprehension.
-Thus we can restrict the list to just the lexical words, using
-``[word for word in sent if is_lexical(word)]``.  This is a little cumbersome
-as it mentions the ``word`` variable three times.  A more compact way to say
-the same thing is as follows:
-
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> filter(is_lexical, sent)
-    ['dog', 'gave', 'John', 'newspaper']
-
-|nopar|
-Here we have used the function itself as an argument.  Functions are ultimately
-just another kind of object that can be passed around a program.  The ``filter()``
-function applies its first argument (a function) to its second (a sequence),
-applying the function to each item in turn, only passing it through if the function
-returns true for that item.  Thus ``filter(f, seq)`` is equivalent to
-``[item for item in seq if apply(f,item) == True]``.
-    
-Python provides some other helpful functions like ``filter()``.  Here is a simple
-way to find the average length of a sentence in a section of the Brown Corpus:
-
-    >>> average(map(len, brown.raw('a')))
-    21.7461072664
-
-|nopar|
-This code applies the function (in this case ``len()``) to each item in the
-sequence, and builds a new sequence containing the results.
-
 Dictionaries
 ------------
 
@@ -321,13 +294,14 @@ Dictionaries
 * dictionary keys and immutability
 * indexing and space-time trade-offs (more efficient concordancing)
 * catching exceptions?
+* dictionary of sets (Shakespeare)
 
 Exercises
 ---------
 
 #. |easy| Find out more about sequence objects using Python's help facility.
    In the interpreter, type ``help(str)``, ``help(list)``, and ``help(tuple)``.
-   This will provide a full list of the functions supported by each type.
+   This will give you a full list of the functions supported by each type.
    Some functions have special names flanked with underscore; as the
    help documentation shows, each such function corresponds to something
    more familiar.  For example ``x.__getitem__(y)`` is just a long-winded
@@ -338,10 +312,52 @@ Exercises
    E.g. if the input list contained 10 instances of the word ``table`` and 9 instances
    of the word ``chair``, then ``table`` would appear before ``chair`` in the output
    list.
+   
+#. |soso| We saw code to initialize a two-dimensional array of sets.  Write code
+   to initialize an array ``word_vowels`` and process a list of words, adding each
+   word to ``word_vowels[l][v]`` where ``l`` is the length of the word and ``v`` is
+   the number of vowels it contains.
+
+#. |soso| Initialize an n-by-m list of lists of empty strings using list
+   multiplication, e.g. ``word_table = [[''] * n] * m``.  What happens
+   when you set one of its values, e.g. ``word_table[1][2] = "hello"``?
+   Explain why this happens.  Now write an expression using ``range()``
+   to construct a list of lists, and show that it does not have this problem.
+
+#. |soso| Write code that builds a dictionary of dictionaries of sets...
+
+#. |soso| Create a list of words and store it in a variable ``sent1``.
+   Now assign ``sent2 = sent1``.  Modify one of the items in ``sent1``
+   and verify that ``sent2`` has changed.
+   
+   a) Now try the same exercise but instead assign ``sent2 = sent1[:]``.
+      Modify ``sent1`` again and see what happens to ``sent2``.  Explain.
+   b) Now define ``text1`` to be a list of lists of strings (e.g. to
+      represent a text consisting of multiple sentences.  Now assign
+      ``text2 = text1[:]``, assign a new value to one of the words,
+      e.g. ``text1[1][1] = 'Monty'``.  Check what this did to ``text2``.
+      Explain.
+
+
+SyntaxError: invalid syntax
+>>> b[1]='x'
+>>> b
+['a', 'x', 'c']
+>>> a = [['a', 'b'], ['c', 'd']]
+>>> b = a[:]
+>>> b
+[['a', 'b'], ['c', 'd']]
+>>> b[1][1] = 'x'
+>>> b
+[['a', 'b'], ['c', 'x']]
+>>> a
+[['a', 'b'], ['c', 'x']]
 
 ------------------
 Presenting Results
 ------------------
+
+[Motivation]
 
 
 Strings and Formats
@@ -383,8 +399,19 @@ maintain.  Instead:
     ...    print '%s->%d;' % (word, wordcount[word]),
     dog->4; cat->3; snake->1
     
-Example: Tabulation
--------------------
+Lining things up
+----------------
+
+So far our formatting strings have contained specifications of fixed width, such
+as ``%6s``, a string that is padded to width 6.  Let's experiment
+with this for a moment to make sure we remember the details:
+
+    >>> '%6s' % 'dog'
+    '   dog'
+    >>> '%-6s' % 'dog'
+    'dog   '
+    >>> '%6s' % 'giraffe'
+    'giraffe'
 
 An important use of formatting strings is for tabulating data.
 The code in Listing modal-tabulate_ iterates over the fifteen genres of the Brown Corpus
@@ -439,23 +466,6 @@ the latter is characterised by the use of ``could`` and ``might``.
 With some further work it might be possible to guess the genre of a
 new text automatically, according to its distribution of modals.
 
-
-
-Example: Concordance Display
-----------------------------
-
-In this section we see another example of formatted output.  So far our
-formatting strings have contained specifications of fixed width, such
-as ``%6s``, a string that is padded to width 6.  Let's experiment
-with this for a moment to make sure we remember the details:
-
-    >>> '%6s' % 'dog'
-    '   dog'
-    >>> '%-6s' % 'dog'
-    'dog   '
-    >>> '%6s' % 'giraffe'
-    'giraffe'
-
 Sometimes we don't know how wide a displayed value should be in advance.
 We can replace the digit specifier with an asterisk:
 
@@ -463,20 +473,27 @@ We can replace the digit specifier with an asterisk:
     >>> '%-*s' % (width, 'dog')
     'dog   '
 
-We use the left/right justification of strings, and the variable width, in the
-following example, to get vertical alignment of a variable-width window:
+We use the left/right justification of strings, and the variable width, in
+Listing concordance_, to get vertical alignment of a variable-width window:
 
-    >>> context = 32
-    >>> word = 'line'
-    >>> for sent in brown.raw('a'):
-    ...     try:
-    ...         pos = sent.index(word)
-    ...         left = ' '.join(sent[:pos])
-    ...         right = ' '.join(sent[pos+1:])
-    ...         print '%*s %s %-*s' %\
-    ...             (context, left[-context:], word, context, right[:context])
-    ...     except ValueError:
-    ...         pass
+.. NOTE: the following would be better if the corpus was an argument, and if
+   brown.raw() behaved like other raw() methods and generated words not lists
+
+.. pylisting:: concordance
+   :caption: Simple Concordance Display
+
+    def concordance(word, context)
+        for sent in brown.raw('a'):
+            try:
+                pos = sent.index(word)
+                left = ' '.join(sent[:pos])
+                right = ' '.join(sent[pos+1:])
+                print '%*s %s %-*s' %\
+                    (context, left[-context:], word, context, right[:context])
+            except ValueError:
+                pass
+
+    >>> concordance('line', 32)
     ce , is today closer to the NATO line .                               
     n more activity across the state line in Massachusetts than in Rhode I
      , gained five yards through the line and then uncorked a 56-yard touc
@@ -509,6 +526,8 @@ patterns.  For example, in Listing modal-tabulate_ we saw a table of numbers
 showing the frequency of particular modal verbs in the Brown Corpus, classified
 by genre.  In Listing modal-plot_ we present the same information in graphical
 format.  The output is shown in Figure modal_genre_ (a color figure in the online version).
+
+[Explain pylab]
 
 .. pylisting:: modal-plot
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
@@ -562,9 +581,9 @@ Exercises
    Plot the performance curve for a unigram tagger, as the amount of training
    data is varied.
 
----------
-Functions
----------
+---------------------
+Functions and Modules
+---------------------
 
 Once you have been programming for a while, you will find that you need
 to perform a task that you have done in the past.  In fact, over time,
@@ -596,7 +615,7 @@ steps we only have to call the function.
 Using functions has the benefit of saving space in our program.  More
 importantly, our choice of name for the function helps make the program *readable*.
 In the case of the above example, whenever our program needs to read cleaned-up
-text from a file we don't have to clutter the program with 4 lines of code, we
+text from a file we don't have to clutter the program with four lines of code, we
 simply need to call ``get_text()``.  This naming helps to provide some "semantic
 interpretation" |mdash| it helps a reader of our program to see what the program "means".
 
@@ -629,133 +648,6 @@ Return Values
 * return
 * need for consistent type
 * avoid deeply nested returns
-
-Named Arguments
----------------
-
-One of the difficulties in re-using functions is remembering the order of arguments.
-Consider the following function, which finds the ``n`` most frequent words that are
-at least ``min_len`` characters long:
-
-    >>> from nltk_lite.probability import FreqDist
-    >>> from nltk_lite import tokenize
-    >>> def freq_words(file, min, num):
-    ...     freqdist = FreqDist()
-    ...     text = open(file).read()
-    ...     for word in tokenize.wordpunct(text):
-    ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...     return freqdist.sorted_samples()[:num]
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
-    'very', 'using']
-
-This function has three arguments.  It follows the convention of listing the most
-basic and substantial argument first (the file).  However, it might be hard to remember
-the order of the second and third arguments on subsequent use.  We can make this function
-more readable by using `keyword arguments`:dt:.  These appear in the function's argument
-list with an equals sign and a default value:
-
-    >>> def freq_words(file, min=1, num=10):
-    ...     freqdist = FreqDist()
-    ...     text = open(file).read()
-    ...     for word in tokenize.wordpunct(text):
-    ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...     return freqdist.sorted_samples()[:num]
-
-|nopar|
-Now there are several equivalent ways to call this function:
-
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', min=4, num=10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', num=10, min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-|nopar|
-When we use an integrated development environment such as IDLE,
-simply typing the name of a function at the command prompt will
-list the arguments.  Using named arguments helps someone to re-use the code...
-
-A side-effect of having named arguments is that they permit optionality.  Thus we
-can leave out any arguments for which we are happy with the default value.
-
-    >>> freq_words('programming.txt', min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', 4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-Another common use of optional arguments is to permit a flag, e.g.:
-
-    >>> def freq_words(file, min=1, num=10, trace=False):
-    ...     freqdist = FreqDist()
-    ...     if trace: print "Opening", file
-    ...     text = open(file).read()
-    ...     if trace: print "Read in %d characters" % len(file)
-    ...     for word in tokenize.wordpunct(text):
-    ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...             if trace and freqdist.N() % 100 == 0: print "."
-    ...     if trace: print
-    ...     return freqdist.sorted_samples()[:num]
-
-
-Accumulative Functions
-----------------------
-
-These functions start by initializing some storage, and iterate over
-input to build it up, before returning some final object (a large structure
-or aggregated result).  The standard way to do this is to initialize an
-empty list, accumulate the material, then return the list:
-
-    >>> def find_nouns(tagged_text):
-    ...     nouns = []
-    ...     for word, tag in tagged_text:
-    ...         if tag[:2] == 'NN':
-    ...             nouns.append(word)
-    ...     return nouns
-
-|nopar|
-We can apply this function to some tagged text to extract the nouns:
-
-    >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-    ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-    >>> find_nouns(tagged_text)
-    ['cat', 'mat']
-
-However, a superior way to do this is to define a `generator`:dt:
-
-    >>> def find_nouns(tagged_text):
-    ...     for word, tag in tagged_text:
-    ...         if tag[:2] == 'NN':
-    ...             yield word
-
-|nopar|
-The first time this function is called, it gets as far as the ``yield``
-statement and stops.  The calling program gets the first word and does
-any necessary processing.  Once the calling program is ready for another
-word, execution of the function is continued from where it stopped, until
-the next time it encounters a ``yield`` statement.
-
-Let's see what happens when we call the function:
-
-    >>> find_nouns(tagged_text)
-    <generator object at 0x14b2f30>
-
-|nopar|
-We cannot call it directly.  Instead, we can convert it to a list.
-
-    >>> list(find_nouns(tagged_text))
-    ['cat', 'mat']
-
-|nopar|
-We can also iterate over it in the usual way:
-
-    >>> for noun in find_nouns(tagged_text):
-    ...     print noun,
-    cat mat
 
 An Important Subtlety
 ---------------------
@@ -855,7 +747,35 @@ length.
     >>> sorted(words, lambda x, y: cmp(len(y), len(x)))
     ['spectroroute', 'turned', 'off', 'the', 'I']
 
-Earlier in this chapter we used the ``map()`` function to apply ``len()`` to
+Earlier we saw an example of filtering out some items in a list comprehension.
+Thus we can restrict the list to just the lexical words, using
+``[word for word in sent if is_lexical(word)]``.  This is a little cumbersome
+as it mentions the ``word`` variable three times.  A more compact way to say
+the same thing is as follows:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> filter(is_lexical, sent)
+    ['dog', 'gave', 'John', 'newspaper']
+
+|nopar|
+Here we have used the function itself as an argument.  Functions are ultimately
+just another kind of object that can be passed around a program.  The ``filter()``
+function applies its first argument (a function) to its second (a sequence),
+applying the function to each item in turn, only passing it through if the function
+returns true for that item.  Thus ``filter(f, seq)`` is equivalent to
+``[item for item in seq if apply(f,item) == True]``.
+    
+Python provides some other helpful functions like ``filter()``.  Here is a simple
+way to find the average length of a sentence in a section of the Brown Corpus:
+
+    >>> average(map(len, brown.raw('a')))
+    21.7461072664
+
+|nopar|
+This code applies the function (in this case ``len()``) to each item in the
+sequence, and builds a new sequence containing the results.
+
+Above we used the ``map()`` function to apply ``len()`` to
 each item in a sequence.  Instead of ``len()``, we could have passed in any
 other function we liked:
 
@@ -901,6 +821,19 @@ Defensive programming: assert
 
 .. MORE: block structure
 
+Modules
+-------
+
+[Overview of Python modules]
+
+Scope
+-----
+
+[Explanation of variable scope in functions and modules]
+
+* local variables
+* global variables: introduces dependency on context, limits the reusability of a function
+
 Exercises
 ---------
 
@@ -912,7 +845,7 @@ Exercises
 #. |soso| Import the ``itemgetter()`` function from the ``operator`` module in Python's
    standard library (i.e. ``from operator import itemgetter``).  Create a list
    ``words`` containing several words.  Now try calling:
-   sorted(words, key=itemgetter(1)), and sorted(words, key=itemgetter(-1)).
+   ``sorted(words, key=itemgetter(1))``, and ``sorted(words, key=itemgetter(-1))``.
    Explain what ``itemgetter()`` is doing.
 
 
@@ -949,6 +882,7 @@ and labels to indicate the structure, as shown here:
                (Det 'the')
                (N  'dog'))))
 
+|nopar|
 The conventions for displaying trees in NLTK are similar:
 
 .. doctest-ignore::
@@ -971,17 +905,19 @@ Trees are created with the ``Tree`` constructor, which takes a
 node value and a list of zero or more children.  Here's an example of
 a simple NLTK tree with a single child node, where the latter is a token:
 
-    >>> from nltk_lite.parse.tree import Tree
+    >>> from nltk_lite.parse import Tree
     >>> tree1 = Tree('NP', ['John'])
     >>> print tree1
     (NP: 'John')
 
+|nopar|
 Here is an example with two children:
 
     >>> tree2 = Tree('NP', ['the', 'man'])
     >>> print tree2
     (NP: 'the' 'man')
 
+|nopar|
 Finally, here is a more complex example, where one of the
 children is itself a tree:
 
@@ -989,6 +925,7 @@ children is itself a tree:
     >>> print tree3
     (VP: 'saw' (NP: 'the' 'man'))
 
+|nopar|
 A tree's root node value is accessed with the ``node`` property, and
 its leaves are accessed with the ``leaves()`` method:
 
@@ -1007,6 +944,7 @@ positions`:dt:. Consider ``tree4`` defined as follows:
     >>> print tree4
     (S: (NP: 'John') (VP: 'saw' (NP: 'the' 'man')))
 
+|nopar|
 Now we can just use indexing to access the subtrees of this tree:
 
     >>> print tree4[0]
@@ -1014,6 +952,7 @@ Now we can just use indexing to access the subtrees of this tree:
     >>> print tree4[1]
     (VP: 'saw' (NP: 'the' 'man'))
 
+|nopar|
 Since the value of ``tree4[1]`` is itself a tree, we can index into that as well:
 
     >>> print tree4[1][0]
@@ -1082,7 +1021,7 @@ XML and ElementTree
 
 * inspecting and processing XML
 * example: find nodes matching some criterion and add an attribute
-
+* Shakespeare XML corpus example
 
 Exercises
 ---------
@@ -1278,6 +1217,11 @@ Exercises
    chat: 'cat'
    --ien: 'dog'
    -???: ???
+
+-----------
+Probability
+-----------
+
 
 -------------------------
 Writing Complete Programs

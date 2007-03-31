@@ -692,6 +692,140 @@ Non-Deterministic Search
     42 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
 
 
+----------
+Miscellany
+----------
+
+Named Arguments
+---------------
+
+One of the difficulties in re-using functions is remembering the order of arguments.
+Consider the following function, which finds the ``n`` most frequent words that are
+at least ``min_len`` characters long:
+
+    >>> from nltk_lite.probability import FreqDist
+    >>> from nltk_lite import tokenize
+    >>> def freq_words(file, min, num):
+    ...     freqdist = FreqDist()
+    ...     text = open(file).read()
+    ...     for word in tokenize.wordpunct(text):
+    ...         if len(word) >= min:
+    ...             freqdist.inc(word)
+    ...     return freqdist.sorted_samples()[:num]
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
+    'very', 'using']
+
+This function has three arguments.  It follows the convention of listing the most
+basic and substantial argument first (the file).  However, it might be hard to remember
+the order of the second and third arguments on subsequent use.  We can make this function
+more readable by using `keyword arguments`:dt:.  These appear in the function's argument
+list with an equals sign and a default value:
+
+    >>> def freq_words(file, min=1, num=10):
+    ...     freqdist = FreqDist()
+    ...     text = open(file).read()
+    ...     for word in tokenize.wordpunct(text):
+    ...         if len(word) >= min:
+    ...             freqdist.inc(word)
+    ...     return freqdist.sorted_samples()[:num]
+
+|nopar|
+Now there are several equivalent ways to call this function:
+
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', min=4, num=10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', num=10, min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+|nopar|
+When we use an integrated development environment such as IDLE,
+simply typing the name of a function at the command prompt will
+list the arguments.  Using named arguments helps someone to re-use the code...
+
+A side-effect of having named arguments is that they permit optionality.  Thus we
+can leave out any arguments for which we are happy with the default value.
+
+    >>> freq_words('programming.txt', min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', 4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+Another common use of optional arguments is to permit a flag, e.g.:
+
+    >>> def freq_words(file, min=1, num=10, trace=False):
+    ...     freqdist = FreqDist()
+    ...     if trace: print "Opening", file
+    ...     text = open(file).read()
+    ...     if trace: print "Read in %d characters" % len(file)
+    ...     for word in tokenize.wordpunct(text):
+    ...         if len(word) >= min:
+    ...             freqdist.inc(word)
+    ...             if trace and freqdist.N() % 100 == 0: print "."
+    ...     if trace: print
+    ...     return freqdist.sorted_samples()[:num]
+
+Accumulative Functions
+----------------------
+
+These functions start by initializing some storage, and iterate over
+input to build it up, before returning some final object (a large structure
+or aggregated result).  The standard way to do this is to initialize an
+empty list, accumulate the material, then return the list:
+
+    >>> def find_nouns(tagged_text):
+    ...     nouns = []
+    ...     for word, tag in tagged_text:
+    ...         if tag[:2] == 'NN':
+    ...             nouns.append(word)
+    ...     return nouns
+
+|nopar|
+We can apply this function to some tagged text to extract the nouns:
+
+    >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+    ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+    >>> find_nouns(tagged_text)
+    ['cat', 'mat']
+
+However, a superior way to do this is to define a `generator`:dt:
+
+    >>> def find_nouns(tagged_text):
+    ...     for word, tag in tagged_text:
+    ...         if tag[:2] == 'NN':
+    ...             yield word
+
+|nopar|
+The first time this function is called, it gets as far as the ``yield``
+statement and stops.  The calling program gets the first word and does
+any necessary processing.  Once the calling program is ready for another
+word, execution of the function is continued from where it stopped, until
+the next time it encounters a ``yield`` statement.
+
+Let's see what happens when we call the function:
+
+    >>> find_nouns(tagged_text)
+    <generator object at 0x14b2f30>
+
+|nopar|
+We cannot call it directly.  Instead, we can convert it to a list.
+
+    >>> list(find_nouns(tagged_text))
+    ['cat', 'mat']
+
+|nopar|
+We can also iterate over it in the usual way:
+
+    >>> for noun in find_nouns(tagged_text):
+    ...     print noun,
+    cat mat
+
+
+[Efficiency]
+
+
 -------------------------------
 Sets and Mathematical Functions
 -------------------------------
