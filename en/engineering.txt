@@ -136,9 +136,15 @@ a larger sample of data.  NLTK provides a function called
 ``tag.accuracy`` to automate the task.  In the simplest case, we
 can test the tagger using the same data it was trained on:
 
+    >>> from nltk_lite import tag
+    >>> from nltk_lite.corpora import brown
+    >>> from itertools import islice
+    >>> train_sents = list(islice(brown.tagged(), 500))  # sents 0..499
+    >>> unigram_tagger = tag.Unigram()
+    >>> unigram_tagger.train(train_sents)
     >>> acc = tag.accuracy(unigram_tagger, train_sents)
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
-    Accuracy = 81.8%
+    Accuracy = 79.6%
 
 However, testing a language processing system over its training data is unwise.
 A system which simply memorized the training data would get a perfect
@@ -153,11 +159,11 @@ against *unseen data*, and replace ``train_sents`` above with
 Now we train the tagger using ``train_sents`` and evaluate it using
 ``unseen_sents``, as follows:
 
-    >>> unigram_tagger = tag.Unigram(backoff=nn_cd_tagger)
+    >>> unigram_tagger = tag.Unigram(backoff=tag.Default('nn'))
     >>> unigram_tagger.train(train_sents)
     >>> acc = tag.accuracy(unigram_tagger, unseen_sents)
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
-    Accuracy = 74.7%
+    Accuracy = 74.6%
 
 The accuracy scores produced by this evaluation method are lower, but
 they give a more realistic picture of the performance of the tagger.
@@ -501,7 +507,8 @@ of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
 During evaluation of a chunk parser, it is useful to flatten a chunk
 structure into a tree consisting only of a root node and leaves:
 
-    >>> correct = tree.chunk(
+    >>> from nltk_lite import chunk
+    >>> correct = chunk.tagstr2tree(
     ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
     >>> correct.flatten()
     (S: ('the', 'DT') ('little', 'JJ') ('cat', 'NN') ('sat', 'VBD')
@@ -510,11 +517,11 @@ structure into a tree consisting only of a root node and leaves:
 We run a chunker over this flattened data, and compare the
 resulting chunked sentences with the originals, as follows:
 
-    >>> from nltk_lite import parse
-    >>> chunkscore = parse.ChunkScore()
-    >>> rule = parse.ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+',
+    >>> from nltk_lite.chunk import *
+    >>> chunkscore = ChunkScore()
+    >>> rule = ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+',
     ...              "Chunk items that often occur in NPs")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
+    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
     >>> guess = chunkparser.parse(correct.flatten())
     >>> chunkscore.score(correct, guess)
     >>> print chunkscore
@@ -533,9 +540,10 @@ class.  In this example, ``chunkparser`` is being tested on each
 sentence from the Wall Street Journal tagged files.
 
     >>> from itertools import islice
-    >>> rule = parse.ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = parse.ChunkScore()
+    >>> from nltk_lite.corpora import treebank
+    >>> rule = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
+    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
+    >>> chunkscore = ChunkScore()
     >>> for chunk_struct in islice(treebank.chunked(), 10):
     ...     test_sent = chunkparser.parse(chunk_struct.flatten())
     ...     chunkscore.score(chunk_struct, test_sent)
@@ -592,8 +600,8 @@ Here are the incorrect chunks:
    ``max_fn_examples`` (maximum false negative examples) keyword
    arguments to the ``ChunkScore`` constructor:
 
-    >>> chunkscore = parse.ChunkScore(max_fp_examples=1000,
-    ...                        max_fn_examples=1000)
+    >>> chunkscore = ChunkScore(max_fp_examples=1000,
+    ...                         max_fn_examples=1000)
 
 As we saw with tagging, we need to interpret the performance scores
 for a chunker relative to a baseline.  Perhaps the most naive chunking
@@ -626,9 +634,9 @@ shown below:
 
 Now, in the evaluation phase we chunk any sequence of those tags:
 
-    >>> rule = parse.ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
-    >>> chunkparser = parse.RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = parse.ChunkScore()
+    >>> rule = ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
+    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
+    >>> chunkscore = ChunkScore()
     >>> for chunk_struct in test:
     ...     test_sent = chunkparser.parse(chunk_struct.flatten())
     ...     chunkscore.score(chunk_struct, test_sent)
