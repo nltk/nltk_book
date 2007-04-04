@@ -7,10 +7,11 @@
 8. Advanced Parsing
 ===================
 
-
 ------------
 Introduction
 ------------
+
+[Summary of previous parsing chapter; terminology, key concepts, existence of shortcomings.]
 
 As we have seen, parsing builds trees over sentences, according to a
 phrase structure grammar.  However, as the coverage of the grammar
@@ -78,7 +79,8 @@ numbers.
 .. _pp:
 .. ex:: Put the block in the box on the table.
 
-Moreover, as soon as we try to construct a broad-coverage grammar, we
+So much for structural ambiguity; what about lexical ambiguity?
+As soon as we try to construct a broad-coverage grammar, we
 are forced to make lexical entries highly ambiguous for their part of
 speech.  In a toy grammar, `a`:lx: is only a determiner, `dog`:lx: is
 only a noun, and `runs`:lx: is only a verb.  However, in a
@@ -93,24 +95,30 @@ complete gibberish will often have a reading, e.g. `the a are of
 I`:lx:.  As [Abney1996]_ has pointed out, this is not word salad but a
 grammatical noun phrase, in which `are`:lx: is a noun meaning a
 hundredth of a hectare (or 100 sq m), and `a`:lx: and `I`:lx: are
-nouns designating coordinates:
+nouns designating coordinates, as shown in Figure are_.
 
+.. _are:
 .. figure:: ../images/are.png
    :scale: 25
 
    The a are of I
 
-|nopar| Given this unlikely phrase, a broad-coverage parser should
-find this surprising reading.  Similarly, sentences which seem to be
+|nopar|
+Even though this phrase is unlikely, it is still grammatical and a
+a broad-coverage parser should be able to construct a parse tree
+for it.  Similarly, sentences which seem to be
 unambiguous, such as `John saw Mary`:lx:, turn out to have other
 readings we would not have anticipated (as Abney explains).  This
 ambiguity is unavoidable, and leads to horrendous inefficiency in
 parsing seemingly inoccuous sentences. 
 
-Let's look more closely at the
-issue of efficiency. The top-down recursive-descent parser presented
+Let's look more closely at this issue of efficiency.
+The top-down recursive-descent parser presented
 in Chapter chap-parse_ can be very inefficient, since it often builds
-and discards the same sub-structure many times over.
+and discards the same sub-structure many times over.  We see this
+in Figure parser-problem_, where a phrase `the block`:lx: is identified
+as a noun phrase several times, and where this information is discarded
+each time we backtrack.
 
 .. Note::
    You should try the recursive-descent parser demo if you haven't
@@ -119,6 +127,8 @@ and discards the same sub-structure many times over.
    .. doctest-ignore::
        >>> from nltk_lite.draw import srparser
        >>> srparser.demo()
+
+.. _parser-problem:
 
 +-------------------------------------------------------+
 |                                                       |
@@ -143,31 +153,25 @@ and discards the same sub-structure many times over.
    :scale: 85
 
 
-
-In this chapter, we will
-present two, independent, methods for dealing with ambiguity:
-
-Dynamic Programming and Chart Parsing:
-  These techniques allow us to derive the parses of an ambiguous
-  sentence more `efficiently`:em:.
-
-Probabilistic Parsing:
-  These techniques allow us to `rank`:em: the parses of an ambiguous
-  sentence on the basis of evidence from corpora.
-
+In this chapter, we will present two independent methods for dealing with ambiguity.
+The first is `chart parsing`:em:, which uses the algorithmic technique
+of dynamic programming to derive the parses of an ambiguous
+sentence more `efficiently`:em:.  The second is
+`probabilistic parsing`:em:, which allows us to `rank`:em:
+the parses of an ambiguous sentence on the basis of evidence from corpora.
 
 -------------------
 Dynamic programming
 -------------------
 
-The simple parsers discussed in Chapter chap-parse_ have significant
+The simple parsers discussed in Chapter chap-parse_ have major
 limitations.  The bottom-up shift-reduce parser can only find one
 parse, and it often fails to find a parse even if one exists.  As just
 pointed out, the top-down recursive-descent parser can be very
 inefficient, and if the grammar contains left-recursive rules, it can
 enter into an infinite loop.  In order to address these problems of
 completeness and efficiency, we will explore a technique called
-`dynamic programming`:dt:, which stores intermediate results, and
+`dynamic programming`:dt:, which stores intermediate results and
 re-uses them when appropriate.
 
 Dynamic programming is a general technique for designing algorithms
@@ -177,12 +181,8 @@ to mean planning or scheduling.  Dynamic programming is used when a
 problem contains overlapping sub-problems.  Instead of computing
 solutions to these sub-problems repeatedly, we simply store them in a
 lookup table.
-
 In the remainder of this section we will introduce dynamic programming,
 but in a rather different context to syntactic parsing.
-
-Sanscrit Meter
---------------
 
 Pingala was an Indian author who lived around the 5th century B.C.,
 and wrote a treatise on Sanscrit prosody called the *Chandas Shastra*.
@@ -198,12 +198,8 @@ subsets, those starting with *L: {LL, LSS}*, and those starting with
 |    LL, LSS; or L prefixed to each item of *V*\ :subscript:`2` = {L, SS}
 |    SSL, SLS, SSSS; or S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
 
-|nopar| 
-With this observation, we can write a little recursive function to
-compute these meters, shown in Listing virahanka1_.
-
-.. pylisting:: virahanka1
-   :caption: Recursive Function to Compute Sansrit Meter (Version 1)
+.. pylisting:: virahanka
+   :caption: Three Ways to Compute Sansrit Meter
 
     def virahanka1(n):
         if n == 0:
@@ -214,10 +210,32 @@ compute these meters, shown in Listing virahanka1_.
             s = ["S" + prosody for prosody in virahanka1(n-1)]
             l = ["L" + prosody for prosody in virahanka1(n-2)]
             return s + l
+            
+    def virahanka2(n):
+        lookup = [[""], ["S"]]
+        for i in range(n-1):
+            s = ["S" + prosody for prosody in lookup[i]]
+            l = ["L" + prosody for prosody in lookup[i+1]]
+            lookup.append(s + l)
+        return lookup[n]
 
+    def virahanka3(n, lookup={0:[""], 1:["S"]}):
+        if n not in lookup:
+            s = ["S" + prosody for prosody in virahanka3(n-1)]
+            l = ["L" + prosody for prosody in virahanka3(n-2)]
+            lookup[n] = s + l
+        return lookup[n]
+            
     >>> virahanka1(4)
     ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+    >>> virahanka2(4)
+    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+    >>> virahanka3(4)
+    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
 
+|nopar| 
+With this observation, we can write a little recursive function called
+``virahanka1()`` to compute these meters, shown in Listing virahanka_.
 Notice that, in order to compute *V*\ :subscript:`4` we first compute
 *V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
 we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This `call
@@ -231,59 +249,37 @@ As you can see, *V*\ :subscript:`2` is computed twice.
 This might not seem like a significant problem, but 
 it turns out to be rather wasteful as *n* gets large:
 to compute *V*\ :subscript:`10` using this recursive technique, we
-would computes
-*V*\ :subscript:`2` 34 times;
+would compute *V*\ :subscript:`2` 34 times;
 for *V*\ :subscript:`20` we would compute *V*\ :subscript:`2` 4,181 times;
 for *V*\ :subscript:`30` we would compute *V*\ :subscript:`2` 514,229 times;
 and
 for *V*\ :subscript:`40` we would compute *V*\ :subscript:`2` 63,245,986 times!
 A much better alternative is to store the value of *V*\ :subscript:`2` in a table
 and look it up whenever we need it.  The same goes for other values, such
-as *V*\ :subscript:`3` and so on.  Here is a dynamic programming
-approach which computes the same result as the earlier program, only
-much more efficiently.  It uses some auxiliary storage, a table
-called ``lookup``:
+as *V*\ :subscript:`3` and so on.  Function ``virahanka2()`` implements a
+dynamic programming approach to the problem.  It works by filling up a
+table (called ``lookup``) with solutions to *all* smaller instances of the
+problem, stopping as soon as we reach the value we're interested in.
+At this point we read off the value and return it.  Crucially, each
+sub-problem is only ever solved once.
 
-    >>> lookup = [None] * 100
-    >>> lookup[0] = [""]
-    >>> lookup[1] = ["S"]
-    >>> def virahanka2(n):
-    ...     for i in range(n-1):
-    ...         s = ["S" + prosody for prosody in lookup[i]]
-    ...         l = ["L" + prosody for prosody in lookup[i+1]]
-    ...         lookup[i+2] = s + l
-    ...     return lookup[n]
-
-|nopar|
-This is the classic `bottom-up`:dt: approach to dynamic programming, where
-we fill up a table with solutions to all smaller sub-problems, then simply
-read off the result we are interested in.  Notice that each sub-problem
-is only ever solved once.  
-
-However, this method is still wasteful for some applications, because
-it may compute solutions to sub-problems that are never used in
+Notice that the approach taken in ``virahanka2()`` is to solve smaller
+problems on the way to solving larger problems.  Accordingly, this is known as the
+`bottom-up`:dt: approach to dynamic programming.  Unfortunately it turns out
+to be quite wasteful for some applications, since it
+may compute solutions to sub-problems that are never required for
 solving the main problem.  This wasted computation can be avoided
-using the *top-down* approach to dynamic programming:
-
-    >>> lookup = [None] * 100
-    >>> lookup[0] = [""]
-    >>> lookup[1] = ["S"]
-    >>> def virahanka3(n):
-    ...     if not lookup[n]:
-    ...         s = ["S" + prosody for prosody in virahanka3(n-1)]
-    ...         l = ["L" + prosody for prosody in virahanka3(n-2)]
-    ...         lookup[n] = s + l
-    ...     return lookup[n]
-
-|nopar|
+using the `top-down`:dt: approach to dynamic programming, which is
+illustrated in the function ``virahanka3()`` in Listing virahanka_.
 Unlike the bottom-up approach, this approach is recursive.  It avoids
-the huge wastage of our first version by checking whether it has
+the huge wastage of ``virahanka1()`` by checking whether it has
 previously stored the result.  If not, it computes the result
 recursively and stores it in the table.  The last step is to return
 the stored result.
 
-This concludes our introduction to dynamic programming.  In the next
-section we will see this method applied to syntactic parsing.
+This concludes our brief introduction to dynamic programming.
+Now we return to the topic of parsing, and see how dynamic
+programming is applied.
 
 -------------
 Chart Parsing
@@ -314,15 +310,15 @@ depending on where the `pp`:gc: is attached.
 
 .. ex::
   .. ex::
-    .. tree:: (S (NP (Det the) (N kids)) (VP (V opened)(NP (NP (Det the) (N box))(PP (P on (NP (Det the)(N floor)))))))
+    .. tree:: (VP (V opened)(NP (NP (Det the) (N box))(PP (P on (NP (Det the)(N floor))))))
  
   .. ex::
-    .. tree:: (S (NP (Det the) (N kids)) (VP (VP (V opened)(NP (Det the) (N box)))(PP (P on (NP (Det the)(N floor))))))
+    .. tree:: (VP (VP (V opened)(NP (Det the) (N box)))(PP (P on (NP (Det the)(N floor)))))
 
 Dynamic programming allows us to build the `pp`:gc: `on the floor`:lx:
-just once; we enter the information into a table, and then look it
+just once.  The first time we build it we save it in a table, then we look it
 up when we need to use it as a subconstituent of either the object `np`:gc: or
-the higher `vp`:gc:. The table that holds this information is often called a
+the higher `vp`:gc:. This table is known as a
 `well-formed substring table`:dt: (or |WFST| for short). 
 We will show how to construct the |WFST| bottom-up so as to systematically record
 what syntactic constituents have been found.
@@ -342,30 +338,26 @@ This allows us to say that, for instance, the word `opened`:lx: can be
 found at position `2, 3` in the input. 
 This of course is what we get when we split an input string into a list of tokens.
 
-    >>> sent = "the kids opened the box on the floor"
-    >>> tokens = sent.split()
-    >>> tokens[2:3]
+    tokens = ["the", "kids", "opened", "the", "box", "on", "the", "floor"]
+    tokens[2:3]
     ['opened']
 
-|nopar| We can also just use the start position of a token to refer to
-it. So we can also get hold of `opened`:lx: as ``tokens[2]``. 
+|nopar|
 In a |WFST|, we record the
-position of the words by filling in cells in a triangular matrix.  We
-will take the vertical axis of the matrix as giving the start
-position of a substring, and the horizontal axis as giving the end
-position. In such a matrix, therefore, we might expect to find the
-word `opened`:lx: in the cell with coordinates (2, 3). To make our
-life easier, however, we will look up the lexical category of each word, and
-place that category in the matrix instead. So  cell (2, 3) will
-contain the entry `v`:gc:. More generally, if our input string is
+position of the words by filling in cells in a triangular matrix:
+the vertical axis will denote the start position of a substring,
+while the horizontal axis will denote the end position
+(thus `opened`:lx: will appear in the cell with coordinates (2, 3)).
+To simplify this presentation, we will assume each word has a unique
+lexical category, and we will store this (not the word) in the matrix.
+So cell (2, 3) will contain the entry `v`:gc:.
+More generally, if our input string is
 `a`:sub:`1`\ `a`:sub:`2`\ |cdots|\ `a`:sub:`n`, and our grammar
 contains a rule of the form *A* |rarr| `a`:sub:`i`, then we add *A* to
 the cell (`i`-1, `i`).
 
-
-So, for every word in ``tokens``, we can look up in our grammar productions what
-category it belongs to. (We make the simplifying assumption for now
-that there is no lexical ambiguity.)
+So, for every word in ``tokens``, we can look up in our grammar what
+category it belongs to.
 
     >>> grammar.productions(rhs=tokens[2])
     [V -> 'opened']
