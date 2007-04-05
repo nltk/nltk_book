@@ -334,17 +334,16 @@ list. We have illustrated this in Figure stringpos_.
    Slice Points in the Input String
 
 |nopar|
-This allows us to say that, for instance, the word `opened`:lx: can be
-found at position `2, 3` in the input. 
-This of course is what we get when we split an input string into a list of tokens.
+This allows us to say that, for instance, the word `opened`:lx: spans
+(2, 3) in the input.  This is reminiscent of the slice notation:
 
-    tokens = ["the", "kids", "opened", "the", "box", "on", "the", "floor"]
-    tokens[2:3]
+    >>> tokens = ["the", "kids", "opened", "the", "box", "on", "the", "floor"]
+    >>> tokens[2:3]
     ['opened']
 
 |nopar|
-In a |WFST|, we record the
-position of the words by filling in cells in a triangular matrix:
+In a |WFST|, we record the position of the words
+by filling in cells in a triangular matrix:
 the vertical axis will denote the start position of a substring,
 while the horizontal axis will denote the end position
 (thus `opened`:lx: will appear in the cell with coordinates (2, 3)).
@@ -363,143 +362,104 @@ category it belongs to.
     [V -> 'opened']
 
 |nopar| 
-For our |WFST|, we create an *n* |times| *n* matrix (where *n* is the number of
-tokens plus 1) as a list of lists in Python, and we initialize the matrix
-with the lexical categories of each token in the input, in the ``init_wfst()``
-function in Listing init_wfst_.  We also define a utility function ``display()``
+For our |WFST|, we create an *n-1* |times| *n-1* matrix
+as a list of lists in Python, and initialize it
+with the lexical categories of each token, in the ``init_wfst()``
+function in Listing wfst_.  We also define a utility function ``display()``
 to pretty-print the |WFST| for us.
+As expected, there is a `v`:gc: in cell (2, 3).
 
-.. pylisting:: init_wfst
-   :caption: Initializing Well-Formed Substring Table
+.. pylisting:: wfst
+   :caption: Acceptor Using Well-Formed Substring Table (based on |CYK| algorithm)
 
     def init_wfst(tokens, grammar):
         numtokens = len(tokens)
-        wfst = [['' for i in range(numtokens+1)] for j in range(numtokens+1)]
+        wfst = [['.' for i in range(numtokens+1)] for j in range(numtokens+1)]
         for i in range(numtokens):
-            prod_rhs = grammar.productions(rhs=tokens[i])
-            wfst[i][i+1] = prod_rhs[0].lhs()
+            productions = grammar.productions(rhs=tokens[i])
+            wfst[i][i+1] = productions[0].lhs()
         return wfst
-    def display(wfst, tokens):
-        numfields = len(wfst)
-        hline = "   " + "=" * 5 * len(tokens)
-        print
-        print '    ' + ' '.join([("%-4d" % i) for i in range(1, numfields)])
-        print hline
-        for i in range(numfields-1):
-            rownum = i
-            print "%d| " % rownum,
-            for j in range(1, numfields):
-                print "%-4s" % wfst[i][j],
-            print "|"
-        print hline
-
-    >>> wfst0 = init_wfst(tokens, grammar)
-    >>> display(wfst0, tokens)
-	1    2    3    4    5    6    7    8   
-       ========================================
-    0|  Det                                     |
-    1|       N                                  |
-    2|            V                             |
-    3|                 Det                      |
-    4|                      N                   |
-    5|                           P              |
-    6|                                Det       |
-    7|                                     N    |
-       ========================================
-
-|nopar| As promised, the output from Listing wfst_init has a `v`:gc: in cell (2, 3).
-The same information can be represented in a directed acyclic graph,
-as shown in Figure chartinit0_. This graph is usually called a `chart`:dt:.
-
-.. _chartinit0:
-.. figure:: ../images/chart_init0.png
-   :scale: 25
-
-   A Graph Representation of the Initialized |WFST|
-
-Returning to our tabular representation, given that we have `det`:gc:
-in cell (0, 1), and `n`:gc: in cell (1, 2), what should we put into
-cell (0, 2)? In other words, what syntactic category derives the
-string `the kids`:lx:? We have already established that `Det`:gc:
-derives `the`:lx: and `n`:gc: derives `kids`:lx:, so we need to find a
-rule of the form *A* |rarr| `det`:gc: `n`:gc:, that is, a rule whose
-righthand side matches the categories in the cells we have already
-found. To help us easily retrieve production rules by their righthand
-sides, we create an index for the grammar.
-
-    >>> index = {}
-    >>> for prod in grammar.productions():
-    ...     index[prod.rhs()] = prod.lhs()
-    >>> r = grammar.productions()[2].rhs()
-    >>> r
-    (<Det>, <N>)
-    >>> index[r]
-    <NP>
-
-|nopar| 
-This is an example of a space-time trade-off: we do a reverse lookup
-on the grammar, instead of having to check through entire list of
-productions each time we want to look up via the right-hand side.  In
-the case at hand, we know that we can enter `n`:gc: in cell (0,2).
-Figure chartinit1_ is the corresponding graph representation, where
-we add a new edge labeled `n`:gc: to cover the input from `0` to `2`.
-
-.. _chartinit1:
-.. figure:: ../images/chart_init1.png
-   :scale: 25
-
-   Adding an `np`:gc: Edge to the Chart
-
-More generally, given an input `a`:sub:`1`\ `a`:sub:`2`\ |cdots|\
-`a`:sub:`n`, we need to decide what to enter into cell (`i, j`), where
-0 |leq| `i` < `j` |leq| `n`.  We can enter *A* in (`i, j`) if we find
-nonterminals *B*, *C*, and an integer `k` such that:
-
- - `i` < `k` < `j`;
- - *B* is in cell (`i, k`);
- - *C* is in cell (`k, j`); and
- - *A* |rarr| *B* *C* is a production of the grammar.
-
-Listing wfst_ uses this inference step to complete the |WFST|.
-
-.. pylisting:: wfst
-   :caption: Compute the Well-Formed Substring Table
-
-    def complete_wfst(wfst, tokens, index, trace=False):
+    def complete_wfst(wfst, tokens, trace=False):
+        index = {}
+        for prod in grammar.productions():
+            index[prod.rhs()] = prod.lhs()
         numtokens = len(tokens)
         for span in range(2, numtokens+1):
             for start in range(numtokens+1-span):
                 end = start + span
                 for mid in range(start+1, end):
-                    nt1 = wfst[start][mid]
-                    nt2 = wfst[mid][end]
+                    nt1, nt2 = wfst[start][mid], wfst[mid][end]
                     if (nt1,nt2) in index:
-                        nt3 = index[(nt1,nt2)]
                         if trace:
                             print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
-                            (start, nt1, mid, nt2, end, start, nt3, end)
+                            (start, nt1, mid, nt2, end, start, index[(nt1,nt2)], end)
                         wfst[start][end] = index[(nt1,nt2)]
         return wfst
-        
-    >>> wfst1 = complete_wfst(wfst0, tokens, index)
-    >>> display(wfst1, tokens)
-	1    2    3    4    5    6    7    8   
-       ========================================
-    0|  Det  NP             S              S    |
-    1|       N                                  |
-    2|            V         VP             VP   |
-    3|                 Det  NP             NP   |
-    4|                      N                   |
-    5|                           P         PP   |
-    6|                                Det  NP   |
-    7|                                     N    |
-       ========================================
+    def display(wfst, tokens):
+        print
+        print 'WFST ' + ' '.join([("%-4d" % i) for i in range(1, len(wfst))])
+        for i in range(len(wfst)-1):
+            print "%d " % i,
+            for j in range(1, len(wfst)):
+                print "%-4s" % wfst[i][j],
 
-|nopar| The tabular algorithm in Listing wfst_ gives an intuitive idea of why
-parsing context-free grammar is proportional to `n`:sup:`3`: there is a triply nested
-loop, and the size of each loop is based on the length of the input.
+    >>> wfst0 = init_wfst(tokens, grammar)
+    >>> display(wfst0, tokens)
+    WFST 1    2    3    4    5    6    7    8   
+    0    Det  .    .    .    .    .    .    .    
+    1    .    N    .    .    .    .    .    .
+    2    .    .    V    .    .    .    .    .    
+    3    .    .    .    Det  .    .    .    .
+    4    .    .    .    .    N    .    .    .
+    5    .    .    .    .    .    P    .    .    
+    6    .    .    .    .    .    .    Det       
+    7    .    .    .    .    .    .    .    N    
+    >>> wfst1 = complete_wfst(wfst0, tokens)
+    >>> display(wfst1, tokens)
+    WFST 1    2    3    4    5    6    7    8   
+    0    Det  NP   .    .    S    .    .    S
+    1    .    N    .    .    .    .    .    .
+    2    .    .    V    .    VP   .    .    VP
+    3    .    .    .    Det  NP   .    .    NP
+    4    .    .    .    .    N    .    .    .
+    5    .    .    .    .    .    P    .    PP
+    6    .    .    .    .    .    .    Det  NP
+    7    .    .    .    .    .    .    .    N
+
+Returning to our tabular representation, given that we have `det`:gc:
+in cell (0, 1), and `n`:gc: in cell (1, 2), what should we put into
+cell (0, 2)? In other words, what syntactic category derives
+`the kids`:lx:? We have already established that `Det`:gc:
+derives `the`:lx: and `n`:gc: derives `kids`:lx:, so we need to find a
+rule of the form *A* |rarr| `det`:gc: `n`:gc:, that is, a rule whose
+right hand side matches the categories in the cells we have already
+found.  From the grammar, we know that we can enter `np`:gc: in cell (0,2).
+
+More generally, we can enter *A* in (`i, j`) if there
+is a production *A* |rarr| *B* *C*, and we find
+nonterminal *B* in (`i, k`) and *C* in (`k, j`).
+Listing wfst_ uses this inference step to complete the |WFST|.
+
+.. note::
+   To help us easily retrieve production rules by their right hand
+   sides, we create an index for the grammar.
+   This is an example of a space-time trade-off: we do a reverse lookup
+   on the grammar, instead of having to check through entire list of
+   productions each time we want to look up via the right hand side.
+
+We conclude that there is a parse for the whole input string once
+we have constructed an `s`:gc: node that covers the whole input, from
+position `0` to position `8`; i.e., we can conclude that `s`:gc:
+|DoubleRightArrow|\ * `a`:sub:`1`\ `a`:sub:`2`\ |cdots|\ `a`:sub:`n`.
+
+Notice that we have not used any built-in parsing functions here.
+We've implemented a primitive chart parser from the ground up.
+
+Charts
+------
+
 By setting ``trace`` to ``True`` when calling the function ``complete_wfst()``, we get 
-additional output that is reminiscent of a chart representation.
+additional output.
 
     >>> wfst1 = complete_wfst(wfst0, tokens, index, trace=True)
     [0] Det [1]   N [2] ==> [0]  NP [2]
@@ -515,24 +475,54 @@ additional output that is reminiscent of a chart representation.
 
 |nopar| For example, this says that since we found ``Det`` at
 ``wfst[0][1]`` and ``N`` at ``wfst[1][2]``, we can add ``NP`` to
-``wfst[0][2]``. 
+``wfst[0][2]``.
+The same information can be represented in a directed acyclic graph,
+as shown in Figure chartinit_\ (a). This graph is usually called a `chart`:dt:.
+Figure chartinit_\ (b) is the corresponding graph representation, where
+we add a new edge labeled `np`:gc: to cover the input from `0` to `2`.
 
-We conclude that there is a parse for the whole input string once
-we have constructed an `s`:gc: node that covers the whole input, from
-position `0` to position `8`; i.e., we can conclude that `s`:gc:
-|DoubleRightArrow|\ * `a`:sub:`1`\ `a`:sub:`2`\ |cdots|\ `a`:sub:`n`. 
+.. _chartinit:
+
++-----------------------------------------------+
+|                                               |
+|  A Graph Representation for the WFST          |
++===============================================+
+| a. Initialized WFST                           |
+|                                               |
+| |chart_init0|                                 |
++-----------------------------------------------+
+| b. Adding an `np`:gc: Edge                    |
+|                                               |
+| |chart_init1|                                 |
++-----------------------------------------------+
+
+.. |chart_init0| image:: ../images/chart_init0.png
+   :scale: 25
+
+.. |chart_init1| image:: ../images/chart_init1.png
+   :scale: 25
+
+(Charts are more general than the |WFST|\ s we have seen, since they
+can hold multiple hypotheses for a given span.)
 
 A |WFST| is a data structure that can be used by a variety of parsing
 algorithms. The particular method for constructing a |WFST| that we
-have just presented is based on the |CYK| algorithm [ref?]. As you can
-see, the |WFST| is not itself a parse tree, so the technique is
-strictly speaking `recognizing`:dt that a sentence is admitted by a
-grammar, rather than parsing it. One significant limitation of |CYK|
-is that it requires every non-lexical grammar production to be
-`binary`:em:. A grammar where this holds is said to be in `Chomsky
-Normal Form`:dt:. Although it is possible to convert an arbitrary
-|CFG| into Chomsky Normal Form (cf. [Jurafsky2000SLP]_), we would
-prefer to use an approach without such a requirement.
+have just seen and has some shortcomings.
+First, as you can see, the |WFST| is not itself a parse tree, so the technique is
+strictly speaking `recognizing`:dt: that a sentence is admitted by a
+grammar, rather than parsing it.
+Second, it requires every non-lexical grammar production to be
+`binary`:em: (see Section sec-normal-forms_).
+Although it is possible to convert an arbitrary |CFG| into this form,
+we would prefer to use an approach without such a requirement.
+Third, as a bottom-up approach it is potentially wasteful, being
+able to propose constituents in locations that would not be licensed by
+the grammar.
+Finally, the |WFST| did not represent the structural ambiguity in
+the sentence (i.e. the two verb phrase readings).  The `vp`:gc:
+in cell (`2,8`) was actually entered twice, once for a `v np`:gc:
+reading, and oce for a `vp pp`:gc: reading.
+In the next section we will address these issues.
 
 Exercises
 ---------
@@ -542,16 +532,17 @@ Exercises
    How is this using dynamic programming?  Does it use the bottom-up or
    top-down approach?
 
+#. |soso| Consider the algorithm in Listing wfst_.  Can you explain why
+   parsing context-free grammar is proportional to `n`:sup:`3`\ ?
+
 #. |soso| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
    that the contents of each cell in the |WFST| is a set of
-   non-terminal symbols rather than a single non-terminal. *Hint*. Something about
-   avoiding deep copies.
-
+   non-terminal symbols rather than a single non-terminal.
+   
 #. |hard| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
    that when a non-terminal symbol is added to a cell in the |WFST|, it includes
    a record of the cells from which it was derived. Implement a
    function which will convert a |WFST| in this form to a parse tree.
-
 
 -------------
 Active Charts
@@ -560,35 +551,41 @@ Active Charts
 One important aspect of the tabular approach to parsing can be seen more
 clearly if we look at the graph representation: given our grammar, there are two
 different ways to derive a top-level `vp`:gc: for the input, as shown in
-Figures chartnp0_ and chartnp1_.
+Figure chartnp_\ (a,b).
+In our graph representation, we simply combine the
+two sets of edges to yield Figure chartnp_\ (c).
 
-.. _chartnp0:
-.. figure:: ../images/chart_np0.png
+.. _chartnp:
+
++-----------------------------------------------+
+|                                               |
+|  Combining Multiple Parses in a Single Chart  |
++===============================================+
+| a. `vp`:gc: |rarr| `v`:gc: `np`:gc:           |
+|                                               |
+| |chartnp0|                                    |
++-----------------------------------------------+
+| b. `vp`:gc: |rarr| `vp`:gc: `pp`:gc:          |
+|                                               |
+| |chartnp1|                                    |
++-----------------------------------------------+
+| c. Merged Chart                               |
+|                                               |
+| |chartnp2|                                    |
++-----------------------------------------------+
+
+.. |chartnp0| image:: ../images/chart_np0.png
    :scale: 25
 
-   `vp`:gc: |rarr| `v`:gc: `np`:gc:
-
-.. _chartnp1:
-.. figure:: ../images/chart_np1.png
+.. |chartnp1| image:: ../images/chart_np1.png
    :scale: 25
 
-   `vp`:gc: |rarr| `vp`:gc: `pp`:gc:
-
-|nopar| For the sake of simplicity, we did not try to show this
-structural ambiguity in our
-matrix representation. Nevertheless, it is possible to extend the
-approch so that each cell contains a `set`:em: of non-terminals rather
-than a single one. In our graph representation, we simply merge the
-two sets of edges in Figures chartnp0_ and chartnp1_ to yield Figure
-chartnp2_ (which also contains the final `s`:gc: edge).
-
-.. _chartnp2:
-.. figure:: ../images/chart_np2.png
+.. |chartnp2| image:: ../images/chart_np2.png
    :scale: 25
 
 |nopar| However, we cannot necessarily read off from the |WFST| what
 the justification was for adding a specific edge. For example, in
-chartnp1_, the longest `vp`:gc: edge might be interpreted as having
+chartnp_\ (b), the longest `vp`:gc: edge might be interpreted as having
 arisen by virtue of a rule `vp`:gc: |rarr| `v np pp`:gc:. Unlike
 phrase structure trees, a |WFST| does not encode a relation of
 immediate dominance. In order to make such information available, we
@@ -599,7 +596,8 @@ illustrated in Figure chartprods_.
 .. _chartprods:
 .. figure:: ../images/chart_prods.png
    :scale: 25
-
+   
+   Chart Annotated with Productions
 
 In general, a parser hypothesizes constituents based on the grammar
 and its current knowledge about the tokens it has seen and the
@@ -630,53 +628,47 @@ Figure dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:g
    :scale: 30
 
 |nopar| These `dotted edges`:dt: are used to record all of the hypotheses that a
-chart parser makes about constituents in a sentence.  
-We write dotted edges as a pair of the form [`A` |rarr| `c`:sub:`1`
-|dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*,
-*j*)], where `A` |rarr| `c`:sub:`1`
-|dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n` is a
-production annotated with a dot, and (*i*,
-*j*) is a pair of indices that record the input words which are
-covered by the production.
-More formally, we 
-define a dotted edge as follows:
-
-A dotted edge [`A` |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*, *j*)] 
-  records the hypothesis that
-  a constituent of type `A` starts with children `c`:sub:`1` |dots|
-  `c`:sub:`d` covering words `w`:sub:`i` |dots| `w`:sub:`j`, but still
-  needs children `c`:sub:`d+1` |dots| `c`:sub:`n` to be complete
-  (where both `c`:sub:`1` |dots| `c`:sub:`d` and
-  `c`:sub:`d+1` |dots| `c`:sub:`n` may be empty.)
-
-|nopar| If `d = n`:math: (i.e., if `c`:sub:`d+1` |dots| `c`:sub:`n` is
-empty) then the edge represents a complete constituent, and is called
+chart parser makes about constituents in a sentence.  Formally
+a dotted edge [`A` |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*, *j*)] 
+records the hypothesis that a constituent of type `A` with span (`i, j`)
+starts with children `c`:sub:`1` |dots| `c`:sub:`d`, but still
+needs children `c`:sub:`d+1` |dots| `c`:sub:`n` to be complete
+(`c`:sub:`1` |dots| `c`:sub:`d` and `c`:sub:`d+1` |dots| `c`:sub:`n` may be empty).
+If `d = n`:math:, then `c`:sub:`d+1` |dots| `c`:sub:`n` is
+empty and the edge represents a complete constituent and is called
 a `complete edge`:dt:.  Otherwise, the edge represents an incomplete
 constituent, and is called an `incomplete edge`:dt:.  In Figure
-incomplete_, [`vp`:gc: |rarr| `v`:gc: `np`:gc: |dot|, (1, 3)] is a
+chart_terms_\ (a), [`vp`:gc: |rarr| `v`:gc: `np`:gc: |dot|, (1, 3)] is a
 complete edge, and [`vp`:gc: |rarr| `v`:gc: |dot| `np`:gc:, (1, 2)] is
 an incomplete edge.
 
-.. _incomplete:   
-.. figure:: ../images/chart_intro_incomplete.png
-   :scale: 30
-    
-If `n = 0`:math: (i.e., if `c`:sub:`1` |dots| `c`:sub:`n` is empty),
-then the edge is called a `self-loop edge`:dt:.  
-This is illustrated in Figure selfloop_.
-
-.. _selfloop:
-.. figure:: ../images/chart_intro_selfloop.png
-   :scale: 30
-
+If `d = 0`:math:, then `c`:sub:`1` |dots| `c`:sub:`n` is empty
+and the edge is called a `self-loop edge`:dt:.  
+This is illustrated in Figure chart_terms_\ (b).
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
 edge`:dt:, and it encodes one or more parse trees for the sentence.  In
-Figure parseedge_, [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
+Figure chart_terms_\ (c), [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
 
-.. _parseedge:      
-.. figure:: ../images/chart_intro_parseedge.png
-   :scale: 30
+.. _chart_terms:   
+
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  Chart Terminology                                                          |
++==========================+========================+=========================+
+| a. Incomplete Edge       | b. Self Loop Edge      | c. Parse Edge           |
+|                          |                        |                         |
+| |chart_intro_incomplete| | |chart_intro_selfloop| | |chart_intro_parseedge| |
++--------------------------+------------------------+-------------------------+
+
+.. |chart_intro_incomplete| image:: ../images/chart_intro_incomplete.png
+   :scale: 25
+
+.. |chart_intro_selfloop| image:: ../images/chart_intro_selfloop.png
+   :scale: 25
+
+.. |chart_intro_parseedge| image:: ../images/chart_intro_parseedge.png
+   :scale: 25
 
 The Chart Parser
 ----------------
@@ -717,9 +709,11 @@ The Fundamental Rule
 One rule is particularly important, since it is used by every chart
 parser: the `Fundamental Rule`:dt:.\ [#]_  
 This rule is used to combine an
-incomplete edge that's expecting a nonterminal *B* with a complete
-edge immediately following it whose left hand side is *B*.  Formally,
-it states that if the chart contains the edges:
+incomplete edge that's expecting a nonterminal *B* with a following, complete
+edge whose left hand side is *B*.
+Suppose that |alpha|, |beta|, and |gamma| are (possibly empty) sequences
+of terminals or non-terminals.
+Formally, the Fundamental Rule states that if the chart contains the edges:
 
 1. [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*\ )]
 2. [*B* |rarr| |gamma| |dot| , (*j*, *k*\ )]
@@ -727,6 +721,10 @@ it states that if the chart contains the edges:
 then the parser should add the new edge:
 
 3. [*A* |rarr| |alpha| *B* |dot| |beta| , (*i*, *k*)]
+
+Note that the dot has moved one place to the right, and the span of this new edige is the combined
+span of the other two.  Note also that in adding this new edge we do not remove the other two.
+They might be used again.
 
 A somewhat more intuitive version of the operation of the Fundamental
 Rule can be given using chart diagrams. Thus, if we have a chart of
@@ -750,7 +748,7 @@ Bottom-Up Parsing
 
 As we saw in Chapter chap-parse_, bottom-up parsing starts from the
 input string, and tries to find sequences of words and phrases that
-correspond to the *right-hand* side of a grammar production. The
+correspond to the *right hand* side of a grammar production. The
 parser then replaces these with the left-hand side of the production,
 until the whole sentence is reduced to an `S`:gc:.  Bottom-up chart
 parsing is an extension of this approach in which hypotheses about
@@ -787,7 +785,7 @@ parser should add the edge:
    :scale: 30
 
 
-|nopar| Notice that the dot on the righthand side of these productions
+|nopar| Notice that the dot on the right hand side of these productions
 is telling us that we have complete edges for the lexical items. Bby
 including this information, we
 can give a uniform statement of how the Fundamental Rule operates in
@@ -803,7 +801,7 @@ initialization for the input `Lee likes coffee`:lx:.
 Next, suppose the chart contains a complete edge *e* whose
 lefthand category is *A*. Then the Bottom-Up Predict Rule requires the
 parser to add a self-loop edge at the left boundary of *e*
-for each grammar production whose right-hand side begins with category
+for each grammar production whose right hand side begins with category
 *A*.  In other words, it states that if
 the chart contains the complete edge:
 
@@ -866,17 +864,18 @@ omitted the self-loop edges for simplicity.)
 [`vp`:gc: |rarr|  |dot| `vp`:gc: `np`:gc:, (1, 1)], and use these to
 build more complete edges.
 
-Using the three rules just presented, we can parse a sentence as follows:
+Using the three rules just presented, we can parse a sentence as shown in
+bottom-up-algorithm_.
 
-1. Create an empty chart spanning the sentence. 
+.. ex::
+   .. bottom-up-algorithm::
 
-#. Apply the Bottom-Up Initialization Rule to each word. 
-#. Until no more edges are added: 
-
-   a) Apply the Bottom-Up Predict Rule everywhere it applies. 
-   #) Apply the Fundamental Rule everywhere it applies. 
-
-#. Return all of the parse trees corresponding to the parse edges in the chart. 
+   Create an empty chart spanning the sentence. 
+   Apply the Bottom-Up Initialization Rule to each word. 
+   Until no more edges are added: 
+      Apply the Bottom-Up Predict Rule everywhere it applies. 
+      Apply the Fundamental Rule everywhere it applies. 
+   Return all of the parse trees corresponding to the parse edges in the chart. 
 
 |NLTK| provides a useful interactive tool for visualizing the way in which charts
 are built; it can be invoked as follows:
@@ -949,7 +948,7 @@ our initial chart might look like Figure tdex1_.
 .. figure:: ../images/chart_td_ex1.png
    :scale: 30
 
-As we mentioned before, the dot on the righthand side of a production
+As we mentioned before, the dot on the right hand side of a production
 can be interpreted as a record of
 how far our goals have been satisfied. So in the case of Figure
 tdex1_, we are predicting that we will be able to find an `np`:gc: and a
@@ -1034,21 +1033,22 @@ Rule gives us Figure tdex4_.
 .. figure:: ../images/chart_td_ex4.png
    :scale: 30
 
-Using these four rules, we can parse a sentence top-down as follows:
+Using these four rules, we can parse a sentence top-down as shown in
+top-down-algorithm_.
 
-1. Create an empty chart spanning the sentence. 
-#. Apply the Top-Down Initialization Rule to each word. 
-#. Until no more edges are added: 
+.. ex::
+   .. top-down-algorithm::
 
-   a) Apply the Top-Down Expand Rule everywhere it applies. 
-   #) Apply the Top-Down Match Rule everywhere it applies. 
-   #) Apply the Fundamental Rule everywhere it applies. 
-
-#. Return all of the parse trees corresponding to the parse edges in the chart. 
+   Create an empty chart spanning the sentence. 
+   Apply the Top-Down Initialization Rule to each word. 
+   Until no more edges are added: 
+      Apply the Top-Down Expand Rule everywhere it applies. 
+      Apply the Top-Down Match Rule everywhere it applies. 
+      Apply the Fundamental Rule everywhere it applies. 
+   Return all of the parse trees corresponding to the parse edges in the chart. 
 
 We encourage you to experiment with the  |NLTK| chart parser demo,
 as before, in order to test out the top-down strategy yourself.
-
 
 Chart Parsing in NLTK
 ---------------------
@@ -1073,7 +1073,9 @@ basic bottom-up strategy.  When constructing a chart parser, you
 can use either of these strategies, or create your own.
 
 The following example illustrates the use of the chart parser.
-We start by defining a simple grammar:
+We start by defining a simple grammar, and tokenizing a sentence.
+We make sure it is a list (not an iterator), since
+we wish to use the same tokenized sentence several times.
 
     >>> grammar = cfg.parse_grammar('''
     ...   S -> NP VP
@@ -1086,13 +1088,10 @@ We start by defining a simple grammar:
     ...   P -> "on" | "by" | "with"
     ... ''')
 
-Next, we tokenize a sentence.  We make sure it is a list (not an iterator), since
-we wish to use the same tokenized sentence several times.
-
     >>> from nltk_lite import tokenize
-    >>> from nltk_lite.parse import *
+    >>> from nltk_lite.parse import chart
     >>> sent = list(tokenize.whitespace('John saw a cat with my cookie'))
-    >>> parser = ChartParse(grammar, BU_STRATEGY)
+    >>> parser = chart.ChartParse(grammar, chart.BU_STRATEGY)
     >>> for tree in parser.get_parse_list(sent):
     ...     print tree
     (S:
@@ -1117,7 +1116,7 @@ sentence with the bottom-up strategy:
    :caption: Trace of Bottom-Up Parser
    
     # Parse the sentence, bottom-up, with tracing turned on.
-    >>> parser = ChartParse(grammar, BU_STRATEGY, trace=2)
+    >>> parser = chart.ChartParse(grammar, chart.BU_STRATEGY, trace=2)
     >>> parser.get_parse(sent)
     |. John. saw .  a  . cat . with.  my .cooki.|
     Bottom Up Init Rule:
@@ -1201,6 +1200,11 @@ Exercises
    the structure of the grammar? What do you think of the prospects for
    significant performance boosts from cleverer rule invocation
    strategies?
+
+#. |easy| We have seen that a chart parser adds but never removes edges
+   from a chart.  Why?
+
+#. |soso| [Question about efficiency; use ``timeit`` to compare parser speed.]
 
 ---------------------
 Probabilistic Parsing
@@ -1350,10 +1354,10 @@ probabilities:
     >>> viterbi_parser = ViterbiParse(grammar)
     >>> sent = list(tokenize.whitespace('Jack saw the cookie'))
     >>> viterbi_parser.get_parse(sent)
-    (S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)
+    (S: (NP: 'Jack') [0.2] (VP: 'saw' (NP: 'the' 'cookie') [0.8]) [0.32]) [0.064]
 
     >>> viterbi_parser.get_parse_list(sent)
-    [(S: (NP: 'Jack') (p=0.2) (VP: 'saw' (NP: 'the' 'cookie') (p=0.8)) (p=0.32)) (p=0.064)]
+    [(S: (NP: 'Jack') [0.2] (VP: 'saw' (NP: 'the' 'cookie') [0.8]) [0.32]) [0.064]]
 
 
 Probabilistic Parser Implementations
@@ -1483,15 +1487,11 @@ original constituent; so ``ViterbiParse`` will discard it.
 Using ``ViterbiParse``
 ----------------------
 
-Viterbi parsers are created using the ``ViterbiParse`` constructor:
-
-    >>> from nltk_lite.parse.viterbi import *
-    >>> ViterbiParse(grammar)
-    <ViterbiParser for <Grammar with 6 productions>>
-
+Viterbi parsers are created using the ``ViterbiParse`` constructor.
 Note that since ``ViterbiParse`` only finds the single most likely
 parse, that ``get_parse_list`` will never return more than one parse.
 
+    >>> from nltk_lite.parse import ViterbiParse
     >>> viterbi_parser1 = ViterbiParse(pcfg.toy1)
     >>> sent1 = list(tokenize.whitespace('I saw John with my cookie'))
     >>> tree1 = viterbi_parser1.parse(sent1)
@@ -1502,7 +1502,7 @@ parse, that ``get_parse_list`` will never return more than one parse.
         (V: 'saw')
         (NP:
           (NP: 'John')
-          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) [5.2040625e-05]
 
       
     >>> viterbi_parser2 = ViterbiParse(pcfg.toy2)
@@ -1526,7 +1526,7 @@ parse, that ``get_parse_list`` will never return more than one parse.
                   (NP: (Det: 'the') (N: 'table'))))
               (PP:
                 (P: 'with')
-                (NP: (Det: 'a') (N: 'telescope')))))))) (p=7.53678903935e-11)
+                (NP: (Det: 'a') (N: 'telescope')))))))) [7.53678903935e-11]
 
 The ``trace`` method can be used to set the level of tracing output
 that is generated when parsing a text.  Trace output displays the
@@ -1571,14 +1571,10 @@ The level of tracing output can also be set with an optional argument to
 the ``ViterbiParse`` constructor.  By default, no tracing output is generated.
 Tracing output can be turned off by calling ``trace`` with a value of ``0``.
 
------------------------------
 A Bottom-Up PCFG Chart Parser
 -----------------------------
 
 .. TODO: cull implementation discussion (Steven)
-
-Introduction
-------------
 
 The Viterbi-style algorithm described in the previous section finds
 the single most likely parse for a given text.  But for many
@@ -1602,9 +1598,6 @@ that can find multiple parses for a text.  It assumes that you have
 already read the chart parsing tutorial, and are familiar with the
 data structures and productions used for chart parsing.
 
-The Basic Algorithm
--------------------
-
 ``BottomUpChartParser`` is a bottom-up parser for PCFGs that uses
 a ``Chart`` to record partial results.  It maintains a queue of
 edges, and adds them to the chart one at a time.  The ordering
@@ -1625,16 +1618,13 @@ An ``Edge`` associates a dotted production and a location with a
 of this tree is the product of the probability of the production that
 generated it and the probabilities of its children.  For example, the
 probability associated with an edge ``[Edge: S`` |rarr| ``NP`` |dot|
-``VP, (0:2]`` is the probability of its NP child times the probability
+``VP, 0:2]`` is the probability of its NP child times the probability
 of the PCFG production ``S`` |rarr| ``NP VP``.  Note that an edge's
 tree only includes children for elements to the left of the
 edge's dot.  Thus, the edge's probability does *not* include any
 probabilities for the elements to the right of the edge's dot.
 
-The Edge Queue
---------------
-
-The edge queue is a sorted list of edges that can be added to the
+The `edge queue`:dt: is a sorted list of edges that can be added to the
 chart.  It is initialized with a single edge for each token in the
 text.  These *token edges* have the form [Edge: token |rarr| |dot|]
 where *token* is the word.
@@ -1817,7 +1807,7 @@ constructor, it takes a single PCFG:
         (V: 'saw')
         (NP:
           (NP: 'John')
-          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) [5.2040625e-05]
       
     >>> for tree in inside_parser.get_parse_list(sent1):
     ...     print tree
@@ -1827,12 +1817,12 @@ constructor, it takes a single PCFG:
         (V: 'saw')
         (NP:
           (NP: 'John')
-          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) (p=5.2040625e-05)
+          (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie')))))) [5.2040625e-05]
     (S:
       (NP: 'I')
       (VP:
         (VP: (V: 'saw') (NP: 'John'))
-        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie'))))) (p=2.081625e-05)
+        (PP: (P: 'with') (NP: (Det: 'my') (N: 'cookie'))))) [2.081625e-05]
 
 .. Warning:: ``BottomUpChartParse`` is an abstract class; you should not directly
    instantiate it.  If you try to use it to parse a text, it will raise an exception,
@@ -1944,14 +1934,20 @@ three parse trees in the Penn Treebank corpus:
     NNP -> 'Pierre' [0.0714285714286]
     NP -> NNP NNP NNP NNP [0.0666666666667]
     NNP -> 'Rudolph' [0.0714285714286]
+    
+.. _sec-normal-forms:
 
-.. Note:: Grammar induction usually involves normalizing the grammar
-   in various ways.  The ``nltk_lite.parse.treetransforms`` module
-   supports binarization (Chomsky Normal Form), parent annotation,
-   Markov order-N smoothing, and unary collapsing.  This information
-   can be accessed by importing ``treetransforms`` from
-   ``nltk_lite.parse``, then calling ``help(treetransforms)``.
+Normal Forms
+------------
 
+Grammar induction usually involves normalizing the grammar
+in various ways.  The ``nltk_lite.parse.treetransforms`` module
+supports binarization (Chomsky Normal Form), parent annotation,
+Markov order-N smoothing, and unary collapsing.  This information
+can be accessed by importing ``treetransforms`` from
+``nltk_lite.parse``, then calling ``help(treetransforms)``.
+
+[MORE]
 
 ---------------
 Further Reading
