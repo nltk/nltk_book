@@ -160,9 +160,11 @@ sentence more `efficiently`:em:.  The second is
 `probabilistic parsing`:em:, which allows us to `rank`:em:
 the parses of an ambiguous sentence on the basis of evidence from corpora.
 
--------------------
-Dynamic programming
--------------------
+-------------
+Chart Parsing
+-------------
+
+`chart parsing`:topic:
 
 The simple parsers discussed in Chapter chap-parse_ have major
 limitations.  The bottom-up shift-reduce parser can only find one
@@ -170,129 +172,11 @@ parse, and it often fails to find a parse even if one exists.  As just
 pointed out, the top-down recursive-descent parser can be very
 inefficient, and if the grammar contains left-recursive rules, it can
 enter into an infinite loop.  In order to address these problems of
-completeness and efficiency, we will explore a technique called
-`dynamic programming`:dt:, which stores intermediate results and
-re-uses them when appropriate.
-
-Dynamic programming is a general technique for designing algorithms
-which is widely used in natural language processing.  The term
-'programming' is used in a different sense to what you might expect,
-to mean planning or scheduling.  Dynamic programming is used when a
-problem contains overlapping sub-problems.  Instead of computing
-solutions to these sub-problems repeatedly, we simply store them in a
-lookup table.
-In the remainder of this section we will introduce dynamic programming,
-but in a rather different context to syntactic parsing.
-
-Pingala was an Indian author who lived around the 5th century B.C.,
-and wrote a treatise on Sanscrit prosody called the *Chandas Shastra*.
-Virahanka extended this work around the 6th century A.D., studying the
-number of ways of combining short and long syllables to create a meter
-of length *n*.  He found, for example, that there are five ways to
-construct a meter of length 4: *V*\ :subscript:`4` = *{LL, SSL, SLS,
-LSS, SSSS}*.  Observe that we can split *V*\ :subscript:`4` into two
-subsets, those starting with *L* and those starting with
-*S*, as shown in v4_.
-
-
-.. _v4:
-.. ex::
-   .. parsed-literal::
-   
-    *V*\ :subscript:`4` =
-      LL, LSS
-        i.e. L prefixed to each item of *V*\ :subscript:`2` = {L, SS}
-      SSL, SLS, SSSS
-        i.e. S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
-
-.. pylisting:: virahanka
-   :caption: Three Ways to Compute Sansrit Meter
-
-    def virahanka1(n):
-        if n == 0:
-            return [""]
-        elif n == 1:
-            return ["S"]
-        else:
-            s = ["S" + prosody for prosody in virahanka1(n-1)]
-            l = ["L" + prosody for prosody in virahanka1(n-2)]
-            return s + l
-            
-    def virahanka2(n):
-        lookup = [[""], ["S"]]
-        for i in range(n-1):
-            s = ["S" + prosody for prosody in lookup[i+1]]
-            l = ["L" + prosody for prosody in lookup[i]]
-            lookup.append(s + l)
-        return lookup[n]
-
-    def virahanka3(n, lookup={0:[""], 1:["S"]}):
-        if n not in lookup:
-            s = ["S" + prosody for prosody in virahanka3(n-1)]
-            l = ["L" + prosody for prosody in virahanka3(n-2)]
-            lookup[n] = s + l
-        return lookup[n]
-            
-    >>> virahanka1(4)
-    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
-    >>> virahanka2(4)
-    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
-    >>> virahanka3(4)
-    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
-
-|nopar| 
-With this observation, we can write a little recursive function called
-``virahanka1()`` to compute these meters, shown in Listing virahanka_.
-Notice that, in order to compute *V*\ :subscript:`4` we first compute
-*V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
-we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This `call
-structure`:dt: is depicted in the following tree:
-
-.. ex:: 
-   .. tree:: (V4 (V3 (V2 V1 V0) V1) (V2 V1 V0))
-
-|nopar| 
-As you can see, *V*\ :subscript:`2` is computed twice.
-This might not seem like a significant problem, but 
-it turns out to be rather wasteful as *n* gets large:
-to compute *V*\ :subscript:`10` using this recursive technique, we
-would compute *V*\ :subscript:`2` 34 times;
-for *V*\ :subscript:`20` we would compute *V*\ :subscript:`2` 4,181 times;
-for *V*\ :subscript:`30` we would compute *V*\ :subscript:`2` 514,229 times;
-and
-for *V*\ :subscript:`40` we would compute *V*\ :subscript:`2` 63,245,986 times!
-A much better alternative is to store the value of *V*\ :subscript:`2` in a table
-and look it up whenever we need it.  The same goes for other values, such
-as *V*\ :subscript:`3` and so on.  Function ``virahanka2()`` implements a
-dynamic programming approach to the problem.  It works by filling up a
-table (called ``lookup``) with solutions to *all* smaller instances of the
-problem, stopping as soon as we reach the value we're interested in.
-At this point we read off the value and return it.  Crucially, each
-sub-problem is only ever solved once.
-
-Notice that the approach taken in ``virahanka2()`` is to solve smaller
-problems on the way to solving larger problems.  Accordingly, this is known as the
-`bottom-up`:dt: approach to dynamic programming.  Unfortunately it turns out
-to be quite wasteful for some applications, since it
-may compute solutions to sub-problems that are never required for
-solving the main problem.  This wasted computation can be avoided
-using the `top-down`:dt: approach to dynamic programming, which is
-illustrated in the function ``virahanka3()`` in Listing virahanka_.
-Unlike the bottom-up approach, this approach is recursive.  It avoids
-the huge wastage of ``virahanka1()`` by checking whether it has
-previously stored the result.  If not, it computes the result
-recursively and stores it in the table.  The last step is to return
-the stored result.
-
-This concludes our brief introduction to dynamic programming.
-Now we return to the topic of parsing, and see how dynamic
-programming is applied.
-
--------------
-Chart Parsing
--------------
-
-
+completeness and efficiency, we will apply the algorithm design technique
+of `dynamic programming`:idx: to the parsing problem.  As we saw in
+Section sec-dynamic-programming_, dynamic programming
+stores intermediate results and re-uses them when appropriate,
+achieving significant efficiency gains.
 
 Well-formed Substring Tables
 ----------------------------
