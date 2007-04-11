@@ -365,6 +365,42 @@ representation.
             groups[key].add(word)
         return sorted(join(sorted(v)) for v in groups.values() if len(v) > 1)
 
+The second important use of dictionaries is for mappings that involve structured
+keys.
+
+.. pylisting:: structured-keys
+
+    from nltk_lite.corpora import ppattach
+    attachment = {}
+    prepositions = set()
+    N, V = 0, 1
+    for entry in ppattach.dictionary('training'):
+        prep = entry['prep']
+        verb = entry['verb']
+        prepositions.add(prep)
+        key = verb, prep
+        if key not in attachment:
+            attachment[key] = [0,0]
+        if entry['attachment'] == 'N':
+            attachment[key][N] += 1
+        else:
+            attachment[key][V] += 1
+    prep_list = sorted(prepositions)
+
+    >>> for verb in ['bought', 'paid', 'sold', 'took', 'acquired']:
+    ...     print verb + ':',
+    ...     for prep in sorted(prepositions):
+    ...         key = verb, prep
+    ...         if key in attachment:
+    ...             print prep, `attachment[key][N]` + '/' + `attachment[key][V]`,
+    ...     print
+    bought: as 0/2 at 0/2 for 1/7 from 1/8 in 11/11 of 19/0 on 0/1 to 1/0
+    paid: after 1/0 at 0/1 for 3/14 from 0/1 in 5/5 of 10/0 on 0/2 through 0/1 to 2/8
+    sold: as 0/1 at 0/5 for 0/10 from 0/1 in 17/10 into 0/1 of 25/1 on 1/4 than 1/0 to 0/29
+    took: after 0/2 against 1/1 amid 0/1 as 0/7 at 1/4 before 0/1 between 0/1 by 0/1 for 2/2 from 2/7 in 4/16 into 0/1 of 22/0 off 0/1 on 3/2 to 1/7 toward 1/0 with 2/2
+    acquired: as 1/0 at 0/1 before 0/1 by 0/2 for 0/7 from 0/4 in 5/9 of 11/0 outside 0/1 to 1/0 
+
+* shared values between multiple dictionaries (advanced programming?)
 
 * catching exceptions (dictionary addition)
 * compound keys (use tuples not concatenated strings)
@@ -440,7 +476,7 @@ Exercises
 #. |soso| Use ``sorted()`` and ``set()`` to get a sorted list of tags used in the Brown
    corpus, removing duplicates.
 
-[More exercises involving corpora]
+.. NOTE: More exercises involving corpora?
 
 ------------------
 Presenting Results
@@ -498,29 +534,32 @@ Lining things up
 ----------------
 
 So far our formatting strings have contained specifications of fixed width, such
-as ``%6s``, a string that is padded to width 6.  Let's experiment
-with this for a moment to make sure we remember the details:
+as ``%6s``, a string that is padded to width 6 and right-justified.
+We can include a minus sign to make it left-justified.
+In case we don't know in advance how wide a displayed value should be,
+the width value can be replaced with a star in the formatting string,
+then specified using a variable.
 
     >>> '%6s' % 'dog'
     '   dog'
     >>> '%-6s' % 'dog'
     'dog   '
-    >>> '%6s' % 'giraffe'
-    'giraffe'
+    >>> width = 6
+    >>> '%-*s' % (width, 'dog')
+    'dog   '
 
 An important use of formatting strings is for tabulating data.
-The code in Listing modal-tabulate_ iterates over the fifteen genres of the Brown Corpus
-(accessed using ``brown.items()``).  Each of these is tokenized in
-turn.  The next step is to check if the token has the ``md`` tag.  For
-each of these words we increment a count.  This uses the conditional
-frequency distribution, where the condition is the current genre, and
-the event is the modal.
-The conditional frequency distribution is nothing more than a mapping
-from each genre to the distribution of modals in that genre.
+The program in Listing modal-tabulate_ iterates over five genres of the Brown Corpus.
+For each token having the ``md`` tag we increment a count.  To do this we
+have used ``ConditionalFreqDist()``, where the condition is the current genre
+and the event is the modal, i.e. this constructs a frequency distribution of
+the modal verbs in each genre.
 Line modals-of-interest_
 identifies a small set of modals of interest, and calls
 the function ``tabulate()`` which
 processes the data structure to output the required counts.
+Note that we have been careful to separate the language processing
+from the tabulation of results.
 
 .. pylisting:: modal-tabulate
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
@@ -562,18 +601,14 @@ the latter is characterised by the use of ``could`` and ``might``.
 With some further work it might be possible to guess the genre of a
 new text automatically, according to its distribution of modals.
 
-Sometimes we don't know how wide a displayed value should be in advance.
-We can replace the digit specifier with an asterisk:
-
-    >>> width = 6
-    >>> '%-*s' % (width, 'dog')
-    'dog   '
-
-We use the left/right justification of strings, and the variable width, in
-Listing concordance_, to get vertical alignment of a variable-width window:
+Our next example, in Listing concordance_, generates a concordance display.
+We use the left/right justification of strings and the variable width
+to get vertical alignment of a variable-width window.
 
 .. NOTE: the following would be better if the corpus was an argument, and if
    brown.raw() behaved like other raw() methods and generated words not lists
+
+.. NOTE: explain ValueError exception
 
 .. pylisting:: concordance
    :caption: Simple Concordance Display
@@ -611,12 +646,16 @@ Listing concordance_, to get vertical alignment of a variable-width window:
     l be particularly sensitive to a line between first and second class c
     A skilled worker on the assembly line , for example , earns $37 a week
 
-.. _sec-graphics:
+
+.. NOTE: give table of formatting string conversions
 
 Format Conversion
 -----------------
 
 * reading and writing files
+* string conversions with ``\`expr\```
+
+.. _sec-graphics:
 
 Graphical Presentation
 ----------------------
@@ -629,8 +668,9 @@ showing the frequency of particular modal verbs in the Brown Corpus, classified
 by genre.  In Listing modal-plot_ we present the same information in graphical
 format.  The output is shown in Figure modal_genre_ (a color figure in the online version).
 
-* [MORE: Explain pylab briefly -- note that details are beyond the scope of the book.]
-* [MORE: Discuss the need to separate processing from display]
+.. Note:: Listing modal-plot_ uses the PyLab package which supports sophisticated
+   plotting functions with a MATLAB-style interface.  For more information about
+   this package please see ``http://matplotlib.sourceforge.net/``.
 
 .. pylisting:: modal-plot
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
@@ -680,7 +720,15 @@ Exercises
 
    #) do this task using regular expression substitutions
 
-#. (Dictionaries in formatting strings...)
+#. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
+   are used to display strings that are longer than six characters?
+
+#. |easy| We can use a dictionary to specify the values to be
+   substituted into a formatting string.  Read Python's library
+   documentation for formatting strings
+   (``http://docs.python.org/lib/typesseq-strings.html``),
+   and use this method to display today's date in two
+   different formats.
 
 #. |soso| Listing baseline_tagger_ in Chapter chap-tag_ plotted a curve showing
    change in the performance of a lookup tagger as the model size was increased.
@@ -1000,7 +1048,7 @@ Scope
 [Explanation of variable scope in functions and modules]
 
 * local variables
-* global variables: introduces dependency on context, limits the reusability of a function
+* global variables (global statement): introduces dependency on context, limits the reusability of a function
 * hiding, avoid side-effects
 
 Exercises
@@ -1337,5 +1385,7 @@ Further Reading
 [Harel2004]_
 
 [Levitin2004]_
+
+http://docs.python.org/lib/typesseq-strings.html
 
 .. include:: footer.txt
