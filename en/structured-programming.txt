@@ -796,8 +796,8 @@ transparent semantics.
 
 * [More: overview of section]
 
-Checking Arguments
-------------------
+Defensive Programming
+---------------------
 
 Python is a `dynamically typed`:dt: language.  It does not force us to
 declare the type of a variable when we write a program.  This feature
@@ -813,9 +813,7 @@ function behaves sensibly for string arguments, but that it does not
 complain when it is passed a dictionary.
 
     >>> def tag(word):
-    ...     if word in ['and', 'or']:
-    ...         return 'cc'
-    ...     elif word in ['a', 'the', 'all']:
+    ...     if word in ['a', 'the', 'all']:
     ...         return 'dt'
     ...     else:
     ...         return 'nn'
@@ -826,21 +824,59 @@ complain when it is passed a dictionary.
     >>> tag({'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']})
     'nn'
 
-[MORE: assert, raising errors]
+It would be helpful if the author of this function took some extra steps to
+ensure that the ``word`` parameter of the ``tag()`` function is a string.
+A naive approach would be to check the type of the argument and return
+a diagnostic value, e.g.:
 
-Return Values
--------------
+    >>> def tag(word):
+    ...     if not type(word) is str:
+    ...         return 0
+    ...     if word in ['a', 'the', 'all']:
+    ...         return 'dt'
+    ...     else:
+    ...         return 'nn'
 
-* return
-* need for consistent type
-* avoid deeply nested returns
-* using tuples:
+However, this approach is dangerous, because the calling program
+may not detect the error, and the diagnostic return value may be
+propagated to later parts of the program, with unpredictable consequences.
+A better solution is to add an assertion to the function definition, e.g.
+``assert type(word) is str``.  If the assertion isn't true, an
+``AssertionError`` message is generated.  However, this message is not
+very informative.  An even better solution is as follows:
 
-Another common way to use tuples is in the return values of functions,
-in those situations where we want to return multiple items of
-different types.  Here we define a function that returns a tuple
+    >>> def tag(word):
+    ...     if not type(word) is str:
+    ...         raise ValueError, "argument to tag() must be a string"
+    ...     if word in ['a', 'the', 'all']:
+    ...         return 'dt'
+    ...     else:
+    ...         return 'nn'
+
+This produces an error that cannot be ignored, since it halts program execution.
+Additionally, the error message is easy to interpret.  (We will see an even
+better approach, known as "duck typing" in Chapter chap-advanced-programming_.)
+
+Another aspect of defensive programming concerns the return statement of a function.
+In order to be confident that all execution paths through a function lead to a
+return statement, it is best to have a single return statement at the end of
+the function definition.
+This approach has a further benefit: it makes it more likely that the
+function will only return a single type.
+Thus, the following version of our ``tag()`` function is safer:
+
+    >>> def tag(word):
+    ...     result = 'nn'                       # default value, a string
+    ...     if word in ['a', 'the', 'all']:     # in certain cases...
+    ...         result = 'dt'                   #   overwrite the value
+    ...     return result                       # all paths lead to this return statement
+
+A return statement can be used to pass multiple values back to the calling
+program, by packing them into a tuple.
+Here we define a function that returns a tuple
 consisting of the average word length of a sentence, and the inventory
-of letters used in the sentence.
+of letters used in the sentence.  It would have been clearer to write
+two separate functions.
 
     >>> def proc_words(words):
     ...     avg_wordlen = sum(len(word) for word in words)/len(words)
@@ -849,23 +885,20 @@ of letters used in the sentence.
     >>> proc_words(words)
     (5, 'Icdefhnoprstu')
     
-* this sort of thing is seldom a good idea!
+Of course, functions do not need to have a return statement at all.
+Some functions do their work as a side effect, printing a result,
+modifying a file, or updating the contents of a parameter to the function.
+Consider the following three sort functions; the last approach is dangerous
+because a programmer could use it without realizing that it had modified
+its input.
 
-* when to modify a parameter vs return a value
-* related issue with side-effects:
-
-    >>> def my_sort(l):
+    >>> def my_sort1(l):       # good: modifies its argument, no return value
+    ...     l.sort()
+    >>> def my_sort2(l):       # good: does not touch its argument, returns a value
+    ...     return sorted(l)
+    >>> def my_sort3(l):       # bad: modifies its argument and returns it
     ...     l.sort()
     ...     return l
-    >>> a = [2, 1]
-    >>> b = my_sort(a)
-    >>> b
-    [1, 2]
-    >>> a
-    [1, 2]
-
-[Function was misleading...]
-
 
 An Important Subtlety
 ---------------------
@@ -914,8 +947,8 @@ change ``p``, just as if we had done the following sequence of assignments:
     >>> p
     {'pos': 'noun'}
 
-Passing a Function as an Argument
----------------------------------
+Functions as Arguments
+----------------------
 
 So far the arguments we have passed into functions have been simple objects like
 strings, or structured objects like lists.  These arguments allow us to parameterise
@@ -1014,33 +1047,32 @@ define a lambda expression as follows:
     >>> map(lambda w: len(filter(lambda c: c in "AEIOUaeiou", w)), sent)
     [1, 1, 2, 1, 1, 3]
 
+[TODO: discuss itemgetter]
+
 Functional Decomposition (notes)
 --------------------------------
 
 Well-structured programs often make extensive use of functions.  Often
 when a block of program code grows longer than 10-20 lines, it is a
 great help to readability if it is decomposed into one or more
-functions.
-
-This is analogous to a paragraph in essay writing: one main idea; split up
-overlong paragraphs; somewhat arbitrary.
+functions (just like a good essay should be divided into paragraphs,
+each expressing one main idea).
 
 * Functions as an opportunity to associate a name with functionality
-* Abstraction
-* Motivations: maintainability, correctness
+* Motivations: abstraction, maintainability, correctness
 * We can reimplement a function while maintaining the same behavior (hiding)
-* Main program can be written at a higher level, making its structure transparent, e.g.
+* Refactoring
+* Main program can be written at a higher level, making its structure transparent
+* corresponds to block structure (diagram)
 
     >>> def main():
     ...     data = load_corpus()
     ...     results = analyze(data)
     ...     present(results)
 
-* corresponds to block structure (diagram)
+The following function does two tasks: it creates a frequency distribution
+and it returns a list.  A function should do one thing only.
 
-
-Example -- function does two tasks: creates freqdist and returns list.
-Function should do one thing only.
 
     >>> def freq_words(file, freqdist, n):
     ...     text = open(file).read()
@@ -1049,32 +1081,15 @@ Function should do one thing only.
     ...     return freqdist.sorted_samples()[:n]
 
 
-
-Errors -- how a function reports the fact that it could not accomplish its task.
-
-Defensive programming: assert
-
-Refactoring
-
-
-.. MORE: block structure
-
-Modules
--------
-
-[Overview of Python modules]
-
-Documentation
--------------
+Documentation (notes)
+---------------------
 
 * some guidelines for literate programming (e.g. variable, function, module naming)
 * documenting functions
 * documenting modules
 
-Scope
------
-
-[Explanation of variable scope in functions and modules]
+Scope (notes)
+-------------
 
 * local variables
 * global variables (global statement): introduces dependency on context, limits the reusability of a function
@@ -1099,8 +1114,13 @@ Exercises
 Algorithm Design
 ----------------
 
-Recursion
----------
+* Introduction
+* Divide-and-Conquer: mergesort example
+* Reduce-and-Conquer: binary search example
+* Transform-and-Conquer: presorting for duplicate detection
+
+Recursion (notes)
+-----------------
 
 We first saw recursion in Chapter chap-words_, in a function that navigated
 the hypernym hierarchy of WordNet...
@@ -1120,6 +1140,8 @@ Recursive solution (base case, induction step)
     ...         return n
     ...     else:
     ...         return n * factorial(n-1)
+
+[Simple example of recursion on strings.]
 
 Generating all permutations of words, to check which ones are
 grammatical:
@@ -1288,8 +1310,9 @@ With this observation, we can write a little recursive function called
 Notice that, in order to compute *V*\ :subscript:`4` we first compute
 *V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
 we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This `call
-structure`:dt: is depicted in the following tree:
+structure`:dt: is depicted in call-structure_.
 
+.. _call-structure:
 .. ex:: 
    .. tree:: (V4 (V3 (V2 V1 V0) V1) (V2 V1 V0))
 
@@ -1297,12 +1320,9 @@ structure`:dt: is depicted in the following tree:
 As you can see, *V*\ :subscript:`2` is computed twice.
 This might not seem like a significant problem, but 
 it turns out to be rather wasteful as *n* gets large:
-to compute *V*\ :subscript:`10` using this recursive technique, we
-would compute *V*\ :subscript:`2` 34 times;
-for *V*\ :subscript:`20` we would compute *V*\ :subscript:`2` 4,181 times;
-for *V*\ :subscript:`30` we would compute *V*\ :subscript:`2` 514,229 times;
-and
-for *V*\ :subscript:`40` we would compute *V*\ :subscript:`2` 63,245,986 times!
+to compute *V*\ :subscript:`20` using this recursive technique, we
+would compute *V*\ :subscript:`2` 4,181 times;
+and for *V*\ :subscript:`40` we would compute *V*\ :subscript:`2` 63,245,986 times!
 A much better alternative is to store the value of *V*\ :subscript:`2` in a table
 and look it up whenever we need it.  The same goes for other values, such
 as *V*\ :subscript:`3` and so on.  Function ``virahanka2()`` implements a
@@ -1332,64 +1352,10 @@ We will encounter it again in Chapter chap-advanced-parsing_.
 Exercises
 ---------
 
-#. |easy| Write a recursive function to traverse a tree and return the
-   depth of the tree, such that a tree with a single node would have
-   depth zero.  (Hint: the depth of a subtree is the maximum depth
-   of its children, plus one.)
-
-#. |soso| Write a recursive function that produces a nested bracketing for
-   a tree, leaving out the leaf nodes, and displaying the non-terminal
-   labels after their subtrees.  So the above example about Pierre
-   Vinken would produce:
-   ``[[[NNP NNP]NP , [ADJP [CD NNS]NP JJ]ADJP ,]NP-SBJ MD [VB [DT NN]NP [IN [DT JJ NN]NP]PP-CLR [NNP CD]NP-TMP]VP .]S``
-   Consecutive categories should be separated by space.
-
-#. |soso| Write a recursive function to produce an XML representation for a
-   tree, with non-terminals represented as XML elements, and leaves represented
-   as text content, e.g.:
-
-|   <S>
-|     <NP type="SBJ">
-|       <NP>
-|         <NNP>Pierre</NNP>
-|         <NNP>Vinken</NNP>
-|       </NP>
-|       <COMMA>,</COMMA>
-|       <ADJP>
-|         <NP>
-|           <CD>61</CD>
-|           <NNS>years</NNS>
-|         </NP>
-|         <JJ>old</JJ>
-|       <COMMA>,</COMMA>
-|     </NP>
-|     <VP>
-|       <MD>will</MD>
-|       <VP>
-|         <VB>join</VB>
-|         <NP>
-|           <DT>the</DT>
-|           <NN>board</NN>
-|         </NP>
-|         <PP type="CLR">
-|           <IN>as</IN>
-|           <NP>
-|             <DT>a</DT>
-|             <JJ>nonexecutive</JJ>
-|             <NN>director</NN>
-|           </NP>
-|         </PP>
-|         <NP type="TMP">
-|           <NNP>Nov.</NNP>
-|           <CD>29</CD>
-|         </NP>
-|       </VP>
-|     </VP>
-|     <PERIOD>.</PERIOD>
-|   </S>
-
 #. |soso| Write a recursive function ``lookup(trie, key)`` that looks up a key in a trie,
-   and returns the value it finds.
+   and returns the value it finds.  Extend the function to return a word when it is uniquely
+   determined by its prefix (e.g. ``vanguard`` is the only word which starts with ``vang-``,
+   so ``lookup(trie, 'vang')`` should return the same thing as ``lookup(trie, 'vanguard')``).
 
 #. |hard| Write a recursive function that pretty prints a trie in alphabetically
    sorted order, as follows
@@ -1398,7 +1364,9 @@ Exercises
    --ien: 'dog'
    -???: ???
 
-
+#. |fun| Write a recursive function that processes text, locating the uniqueness point in
+   each word, and discarding the remainder of each word.  How much compression does this
+   give?  How readable is the resulting text?
 
 ----------
 Conclusion
