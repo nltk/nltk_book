@@ -266,6 +266,42 @@ def ifndef_directive(name, arguments, options, content, lineno,
 ifndef_directive.arguments = (1, 0, 0)
 ifndef_directive.content = True
 directives.register_directive('ifndef', ifndef_directive)
+
+######################################################################
+#{ Table Directive
+######################################################################
+_table_ids = set()
+def table_directive(name, arguments, options, content, lineno,
+                    content_offset, block_text, state, state_machine):
+    # The identifier for this table.
+    table_id = arguments[0]
+    if table_id in _table_ids:
+        warning("Duplicate table id %r" % table_id)
+    _table_ids.add(table_id)
+
+    node = docutils.nodes.compound('')
+    state.nested_parse(content, content_offset, node)
+
+    if len(node) == 0 or not isinstance(node[0], docutils.nodes.table):
+        raise ValueError('xx')
+
+    # Create a target element for the table
+    target = docutils.nodes.target(names=[table_id])
+    state_machine.document.note_explicit_target(target)
+
+    # Move the caption into the table.
+    table = node[0]
+    caption = docutils.nodes.caption('','', *node[1:])
+    table.append(caption)
+
+    # Return the target and the table.
+    return [target, table]
+    
+    
+table_directive.arguments = (1,0,0) # 1 required arg, no whitespace
+table_directive.content = True
+table_directive.options = {'caption': directives.unchanged}
+directives.register_directive('table', table_directive)
     
 ######################################################################
 #{ Program Listings
@@ -1647,6 +1683,11 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             % Index:
             \\usepackage{makeidx}
             \\makeindex
+            % Environment for source code listings:
+            \\usepackage{float}
+            \\floatstyle{ruled}
+            \\newfloat{pylisting}{thp}{lop}
+            \\floatname{pylisting}{Listing}
             % For Python source code:
             \\usepackage{alltt}
             % Python source code: Prompt
@@ -1675,15 +1716,19 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         return
 
     def visit_doctest_block(self, node):
+        text = ''.join(str(c) for c in node)
+        colorizer = LaTeXDoctestColorizer(self.encode, wrap=False,
+                                          callouts=node['callouts'])
         self.literal = True
-        colorizer = LaTeXDoctestColorizer(self.encode)
-        pysrc = colorizer.colorize_doctest(str(node[0]))
-        #pysrc = colorize_doctestblock(str(node[0]), self._markup_pysrc)
+        if node.get('is_codeblock'):
+            pysrc = colorizer.colorize_codeblock(text)
+        else:
+            pysrc = colorizer.colorize_doctest(text)
         self.literal = False
-        #self.body.append('\\begin{alltt}\n')
+
         self.body.append(pysrc)
-        #self.body.append('\\end{alltt}\n')
         raise docutils.nodes.SkipNode() # Content already processed
+    
 
     def depart_document(self, node):
         self.body += self.foot_prefix
@@ -1804,14 +1849,13 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         raise docutils.nodes.SkipNode()
 
     def visit_pylisting(self, node):
-        self.body.append('\n\\begin{figure}\n')
-        self.context.append('\n\\vspace{1ex}\n\\hrule\n\\end{figure}\n')
+        self.body.append('\n\\begin{pylisting}\n')
+        self.context.append('\n\\vspace{1ex}\n\\hrule\n\\end{pylisting}\n')
 
     def depart_pylisting(self, node):
         self.body.append( self.context.pop() )
 
     def visit_pysrc_block(self, node):
-        print 'pysrc', `str(node[0])`
         self.literal = True
         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False, 
                                           callouts=node['callouts'])
@@ -1914,6 +1958,7 @@ class LaTeXDoctestColorizer(DoctestColorizer):
         else:
             if self.wrap: warning('Literal contains char \\255')
             s = self.encode(s)
+            
         if tag == 'other':
             return s
         else:
