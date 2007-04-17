@@ -1939,7 +1939,7 @@ class HTMLDoctestColorizer(DoctestColorizer):
                     (tag, self.encode(s)))
 
 class LaTeXDoctestColorizer(DoctestColorizer):
-    PREFIX = '\\begin{alltt}\\small\\textbf{\n'
+    PREFIX = '\\begin{alltt}\\small\\textbf{'
     SUFFIX = '}\\end{alltt}\n'
     def __init__(self, encode_func, wrap=False, callouts=None):
         self.encode = encode_func
