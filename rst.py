@@ -274,20 +274,23 @@ _table_ids = set()
 def table_directive(name, arguments, options, content, lineno,
                     content_offset, block_text, state, state_machine):
     # The identifier for this table.
-    table_id = arguments[0]
-    if table_id in _table_ids:
-        warning("Duplicate table id %r" % table_id)
-    _table_ids.add(table_id)
+    if arguments:
+        table_id = arguments[0]
+        if table_id in _table_ids:
+            warning("Duplicate table id %r" % table_id)
+        _table_ids.add(table_id)
 
+        # Create a target element for the table
+        target = docutils.nodes.target(names=[table_id])
+        state_machine.document.note_explicit_target(target)
+
+    # Parse the contents.
     node = docutils.nodes.compound('')
     state.nested_parse(content, content_offset, node)
-
     if len(node) == 0 or not isinstance(node[0], docutils.nodes.table):
-        raise ValueError('xx')
-
-    # Create a target element for the table
-    target = docutils.nodes.target(names=[table_id])
-    state_machine.document.note_explicit_target(target)
+        return [state_machine.reporter.error(
+            'Error in "%s" directive: expected table as first child' %
+            name)]
 
     # Move the caption into the table.
     table = node[0]
@@ -295,10 +298,13 @@ def table_directive(name, arguments, options, content, lineno,
     table.append(caption)
 
     # Return the target and the table.
-    return [target, table]
+    if arguments:
+        return [target, table]
+    else:
+        return [table]
     
     
-table_directive.arguments = (1,0,0) # 1 required arg, no whitespace
+table_directive.arguments = (0,1,0) # 1 optional arg, no whitespace
 table_directive.content = True
 table_directive.options = {'caption': directives.unchanged}
 directives.register_directive('table', table_directive)
