@@ -734,7 +734,9 @@ class ResolveExternalCrossrefs(Transform):
                 uri = os.path.split(basename)[-1]+'.html'
             else:
                 uri = os.path.split(basename)[-1]+'.pdf'
-            if not os.path.exists(basename+REF_EXTENSION):
+            if basename == OUTPUT_BASENAME:
+                pass # don't read our own ref file.
+            elif not os.path.exists(basename+REF_EXTENSION):
                 warning('%s does not exist' % (basename+REF_EXTENSION))
             else:
                 ref_info = read_ref_file(basename)
@@ -767,9 +769,14 @@ class ExternalCrossrefVisitor(docutils.nodes.NodeVisitor):
             node.resolved = True
 
             if label is not None:
-                node.clear()
-                node.append(docutils.nodes.Text(label))
-                expand_reference_text(node)
+                if node.get('expanded_ref'):
+                    warning('Label %s is defined both locally (%s) and '
+                            'externally (%s)' % (node_id, node[0], label))
+                    # hmm...
+                else:
+                    node.clear()
+                    node.append(docutils.nodes.Text(label))
+                    expand_reference_text(node)
 
 ######################################################################
 #{ Figure & Example Numbering
@@ -1125,6 +1132,8 @@ def expand_reference_text(node):
     """If the reference is immediately preceeded by the word 'figure'
     or the word 'table' or 'example', then include that word in the
     link (rather than just the number)."""
+    if node.get('expanded_ref'):
+        assert 0, ('Already expanded!!  %s' % node)
     node_index = node.parent.children.index(node)
     if node_index > 0:
         prev_node = node.parent.children[node_index-1]
@@ -1134,6 +1143,7 @@ def expand_reference_text(node):
                 prev_node.data = m.group(1)
                 link = node.children[0]
                 link.data = '%s %s' % (m.group(2), link.data)
+                node['expanded_ref'] = True
 
 ######################################################################
 #{ Feature Structures (AVMs)
@@ -1897,6 +1907,24 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def circledigit(self, n):
         return docutils.nodes.Text(unichr(0x2460+n-1))
 
+    # Unfortunately, parbox doesn't interact well with alltt.  As a result,
+    # any doctest or pysrc blocks inside an adominition get wrapped oddly.
+    # To fix this, we replace the default code for visit_admonition, which
+    # uses an fbox & parbox, with code that uses a boxedminipage instead.
+    def visit_admonition(self, node, name=''):
+        self.body.append('\\begin{center}\\begin{sffamily}\n')
+        self.body.append('\\begin{boxedminipage}{\\admonitionwidth}\n')
+        #self.body.append('\\fbox{\\parbox{\\admonitionwidth}{\n')
+        if name:
+            self.body.append('\\textbf{\\large '+ self.language.labels[name] + '}\n');
+        self.body.append('\\vspace{2mm}\n')
+
+
+    def depart_admonition(self, node=None):
+        #self.body.append('}}\n') # end parbox fbox
+        self.body.append('\\end{boxedminipage}\n')
+        self.body.append('\\end{sffamily}\n\\end{center}\n');
+        
     #def depart_title(self, node):
     #    LaTeXTranslator.depart_title(self, node)
     #    if self.section_level == 1:
@@ -1951,12 +1979,17 @@ class LaTeXDoctestColorizer(DoctestColorizer):
         self.encode = encode_func
         self.wrap = wrap
         self.callouts = callouts
+    def _callout(self, m):
+        callout_id = m.group(1)
+        callout_num = self.callouts[callout_id]
+        return self.encode(unichr(0x2460+int(callout_num)-1))
     def markup(self, s, tag):
         if (tag == 'comment' and self.callouts is not None and
             CALLOUT_RE.match(s)):
-            callout_id = CALLOUT_RE.match(s).group(1)
-            callout_num = self.callouts[callout_id]
-            return self.encode(unichr(0x2460+int(callout_num)-1))
+            return self._callout(CALLOUT_RE.match(s))
+
+        if tag == 'output':
+            s = CALLOUT_RE.sub(self._callout, s)
             
         if self.wrap and '\255' not in s:
             s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
