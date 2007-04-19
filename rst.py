@@ -929,6 +929,9 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         if len(self.section_num) == 1 and self.set_section_context:
             self.start_new_context(node)
 
+        # Record the section's context in its title.
+        title['section_context'] = self.section_context
+
         # Increment the section counter.
         self.section_num[-1] += 1
         
@@ -1730,6 +1733,14 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         # this seems broken; just use the hyperref package's
         # "bookmarks" option instead.
         return
+
+    def visit_title(self, node):
+        LaTeXTranslator.visit_title(self, node)
+        
+        # hack: remove '*' in preface sections.
+        if node.get('section_context') == 'preface':
+            assert self.body[-1][-1] == '{'
+            self.body[-1] = self.body[-1][:-1] + '*{'
 
     def visit_doctest_block(self, node):
         text = ''.join(str(c) for c in node)
