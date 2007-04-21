@@ -9,6 +9,7 @@
 ===================================
 
 .. TODO: introduce the concept of search, backtracking
+.. TODO: introduce diagnostic print statements
 .. TODO: timeit()
 
 ------------
@@ -30,7 +31,8 @@ we will introduce important concepts in structured programming that
 help you write readable, well-organized programs that you and others will
 be able to re-use.
 As before, this chapter contains many examples and
-exercises.  Readers new to programming should work through them carefully
+exercises (and as before, some exercises introduce new material).
+Readers new to programming should work through them carefully
 and consult other introductions to programming if necessary;
 experienced programmers can quickly skim this chapter.
 
@@ -99,7 +101,7 @@ When we modify something inside ``list1`` on line assignment4_, we can see
 that the contents of ``list2`` have also been changed.
 
     >>> list1 = ['Monty', 'Python']
-    >>> list2 = list1            # [_assignment3]
+    >>> list2 = list1             # [_assignment3]
     >>> list1[1] = 'Bodkin'       # [_assignment4]
     >>> list2
     ['Monty', 'Bodkin']
@@ -168,7 +170,7 @@ We can convert between these sequence types.  For example,
 ``tuple(s)`` converts any kind of sequence into a tuple, and
 ``list(s)`` converts any kind of sequence into a list.
 We can convert a list of strings to a single string using the
-``join`` function, e.g. ``':'.join(words)``.
+``join()`` function, e.g. ``':'.join(words)``.
 
 Notice in the above code sample that we computed multiple values on a
 single line, separated by commas.  These comma-separated expressions
@@ -231,7 +233,7 @@ their length.
     >>> wordlens
     [(1, 'I'), (6, 'turned'), (3, 'off'), (3, 'the'), (12, 'spectroroute')
     >>> wordlens.sort()                                     # [_sequence3]
-    >>> ' '.join([word for count, word in wordlens])          # [_sequence4]
+    >>> ' '.join([word for count, word in wordlens])        # [_sequence4]
     'I off the turned spectroroute'
 
 Each of the above lines of code contains a significant feature.
@@ -284,6 +286,82 @@ confirm for yourself.
     >>> lexicon.sort()
     >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
     >>> del lexicon[0]
+
+.. _stacks-and-queues:
+
+Stacks and Queues
+-----------------
+
+Lists are a particularly versatile data type.  We can use lists to
+implement higher-level data types such as stacks and queues.
+A stack is a container that has a `first-in-first-out`:dt: policy
+for adding and removing items.  [FIGURE]
+Stacks are used to keep track of the current context in
+computer processing of natural languages (and programming languages too).
+We will seldom have to deal with stacks explicitly, as the implementation
+of NLTK parsers (and even Python functions), uses stacks behind the scenes.
+However, it is important to understand what stacks are and how they work.
+
+In Python, we treat a list as a stack, by limiting ourselves to the three
+operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
+``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
+item on the top of the stack.  Listing check-parens_ processes a sentence with
+phrase markers, and checks that the parentheses are balanced.
+The loop pushes material onto the stack when it gets an open parenthesis,
+and pops the stack when it gets a close parenthesis.
+We see that two of the parentheses are not balanced.
+
+.. pylisting:: check-parens
+
+    def check_parens(tokens):
+        stack = []
+        for token in tokens:
+            if token == '(':     # push
+                stack.append(token)
+            elif token == ')':   # pop
+                stack.pop()
+        return stack
+
+    >>> phrase = "( the cat ) ( sat ( on ( the mat )"
+    >>> print check_parens(phrase.split())
+    ['(', '(']
+
+Although Listing check-parens_ is a useful illustration of stacks,
+it is overkill because we could have done a direct count:
+``phrase.count('(') == phrase.count(')')``.  However, we
+can use stacks for more sophisticated processing of strings
+containing nested structure, as shown in Listing convert-parens_.
+Here we build a (potentially deeply-nested) list of lists.
+Each time a token other than a parenthesis is encountered,
+we have to add it to a list at the appropriate level of nesting.
+The stack cleverly keeps track of this level of nesting, exploiting
+the fact that the item at the top of the stack is identical to a
+more deeply nested item.  (Hint: add diagnostic print statements to
+the function to help you see what it is doing.)
+
+.. pylisting:: convert-parens
+
+    def convert_parens(tokens):
+        stack = [[]]
+        for token in input:
+            if token == '(':     # push
+                sublist = []
+                stack[-1].append(sublist)
+                stack.append(sublist)
+            elif token == ')':   # pop
+                stack.pop()
+            else:                # update top of stack
+                stack[-1].append(token)
+        return stack[0]
+
+    >>> phrase = "( the cat ) ( sat ( on ( the mat ) ) )"
+    >>> print convert_parens(phrase.split())
+    [['the', 'cat'], ['sat', ['on', ['the', 'mat']]]]    
+
+
+
+[TODO: discuss queues]
+
 
 .. _sec-more-list-comprehensions:
 
@@ -420,6 +498,8 @@ this dictionary are an open set, and it would not be feasible to use
 a integer keys, as would be required if we used lists or tuples for the
 representation.
 
+.. TODO: discussion ''.join() vs join()
+
 .. pylisting:: mystery
 
     from string import join
@@ -489,6 +569,9 @@ Exercises
    list ``['NLP', 'is', 'fun', '!']``.  Now do the same transformation
    using tuple assignment.
 
+#. |easy| Does the method for creating a sliding window of n-grams
+   behave correctly for the two limiting cases: `n`:math: = 1, and `n`:math: = ``len(sent)``?
+
 #. |soso| Create a list of words and store it in a variable ``sent1``.
    Now assign ``sent2 = sent1``.  Modify one of the items in ``sent1``
    and verify that ``sent2`` has changed.
@@ -528,9 +611,6 @@ Exercises
    the number of vowels it contains.
 
 #. |soso| Write code that builds a dictionary of dictionaries of sets.
-
-#. |easy| Does the method for creating a sliding window of n-grams
-   behave correctly for the two limiting cases: `n`:math: = 1, and `n`:math: = ``len(sent)``?
 
 #. |soso| Use ``sorted()`` and ``set()`` to get a sorted list of tags used in the Brown
    corpus, removing duplicates.
@@ -786,23 +866,23 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
 .. pylisting:: modal-plot
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
 
-    from pylab import *
     from nltk_lite.corpora import brown
     colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
     def bar_chart(categories, words, counts):
         "Plot a bar chart showing counts for each word by category"
-        ind = arange(len(words))
+        import pylab
+        ind = pylab.arange(len(words))
         width = 1.0 / (len(categories) + 1)
         bar_groups = []
         for c in range(len(categories)):
-            bars = bar(ind+c*width, counts, width, color=colors[c % len(colors)])
+            bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
             bar_groups.append(bars)
-        xticks(ind+width, words)
-        legend([b[0] for b in bar_groups], [brown.item_name[c][:18] for c in categories], loc='upper left')
-        ylabel('Frequency')
-        title('Frequency of Six Modal Verbs by Genre')
-        show()
-        
+        pylab.xticks(ind+width, words)
+        pylab.legend([b[0] for b in bar_groups], [brown.item_name[c][:18] for c in categories], loc='upper left')
+        pylab.ylabel('Frequency')
+        pylab.title('Frequency of Six Modal Verbs by Genre')
+        pylab.show()
+
     >>> genres = ['a', 'd', 'e', 'h', 'n']
     >>> cfdist = count_words_by_tag('md', genres)
     >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
@@ -921,15 +1001,18 @@ as a list, a tuple, or an iterator.
 
 However, often we want to write programs for later use by others, and want
 to program in a defensive style, providing useful warnings when functions
-have not been invoked correctly.  Observe that the following ``tag()``
-function behaves sensibly for string arguments, but that it does not
-complain when it is passed a dictionary.
+have not been invoked correctly.  Observe that the ``tag()``
+function in Listing tag1_ behaves sensibly for string arguments,
+but that it does not complain when it is passed a dictionary.
 
-    >>> def tag(word):
-    ...     if word in ['a', 'the', 'all']:
-    ...         return 'dt'
-    ...     else:
-    ...         return 'nn'
+.. pylisting:: tag1
+
+    def tag(word):
+        if word in ['a', 'the', 'all']:
+            return 'dt'
+        else:
+            return 'nn'
+
     >>> tag('the')
     'dt'
     >>> tag('dog')
@@ -940,33 +1023,33 @@ complain when it is passed a dictionary.
 It would be helpful if the author of this function took some extra steps to
 ensure that the ``word`` parameter of the ``tag()`` function is a string.
 A naive approach would be to check the type of the argument and return
-a diagnostic value, e.g.:
+a diagnostic value, such as Python's special empty value, ``None``,
+as shown in Listing tag2_.
 
-    >>> def tag(word):
-    ...     if not type(word) is str:
-    ...         return 0
-    ...     if word in ['a', 'the', 'all']:
-    ...         return 'dt'
-    ...     else:
-    ...         return 'nn'
+.. pylisting:: tag2
 
-.. TODO: discussion return None
+    def tag(word):
+        if not type(word) is str:
+            return None
+        if word in ['a', 'the', 'all']:
+            return 'dt'
+        else:
+            return 'nn'
 
-However, this approach is dangerous, because the calling program
+However, this approach is dangerous because the calling program
 may not detect the error, and the diagnostic return value may be
-propagated to later parts of the program, with unpredictable consequences.
-A better solution is to add an assertion to the function definition, e.g.
-``assert type(word) is str``.  If the assertion isn't true, an
-``AssertionError`` message is generated.  However, this message is not
-very informative.  An even better solution is as follows:
+propagated to later parts of the program with unpredictable consequences.
+A better solution is shown in Listing tag3_.
 
-    >>> def tag(word):
-    ...     if not type(word) is str:
-    ...         raise ValueError, "argument to tag() must be a string"
-    ...     if word in ['a', 'the', 'all']:
-    ...         return 'dt'
-    ...     else:
-    ...         return 'nn'
+.. pylisting:: tag3
+
+    def tag(word):
+        if not type(word) is str:
+            raise ValueError, "argument to tag() must be a string"
+        if word in ['a', 'the', 'all']:
+            return 'dt'
+        else:
+            return 'nn'
 
 This produces an error that cannot be ignored, since it halts program execution.
 Additionally, the error message is easy to interpret.  (We will see an even
@@ -992,6 +1075,8 @@ Here we define a function that returns a tuple
 consisting of the average word length of a sentence, and the inventory
 of letters used in the sentence.  It would have been clearer to write
 two separate functions.
+
+.. EK: wouldn't it be better to use an example which isn't then open to criticism?
 
     >>> def proc_words(words):
     ...     avg_wordlen = sum(len(word) for word in words)/len(words)
@@ -1215,7 +1300,7 @@ Scope (notes)
 Exercises
 ---------
 
-#. Review the answers that you gave for the exercises in sec-back-to-the-basics_,
+#. |easy| Review the answers that you gave for the exercises in sec-back-to-the-basics_,
    and rewrite the code as one or more functions.
 
 #. |soso| In this section we saw examples of some special functions such as ``filter()`` and
@@ -1534,7 +1619,7 @@ Exercises
    --ien: 'dog'
    -???: ???
 
-#. |fun| Write a recursive function that processes text, locating the uniqueness point in
+#. |hard| Write a recursive function that processes text, locating the uniqueness point in
    each word, and discarding the remainder of each word.  How much compression does this
    give?  How readable is the resulting text?
 
