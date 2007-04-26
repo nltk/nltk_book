@@ -11,13 +11,46 @@
 Introduction
 ------------
 
+Chapter chap-parse_ started with an introduction to constituent
+structure in English, showing how words in a sentence group together
+in predictable ways. We showed how to describe this structure using
+syntactic tree diagrams, and observed that it is sometimes desirable
+to assign more than one such tree to a given string. In this case, we
+said that the string was structurally ambiguous; and example was `old
+men and women`:lx:. 
 
-[Summary of previous parsing chapter; terminology, key concepts, existence of shortcomings.]
+Treebanks are language resources in which the syntactic structure of a
+corpus of sentences has been annotated, usually by hand. However, we
+would also like to be able to produce trees algorithmically. A
+context-free phrase structure grammar (|CFG|) is a formal model for
+describing whether a given string can be assigned a particular
+constituent structure. Given a set of syntactic categories, the |CFG|
+uses a set of productions to say how a phrase of some category *A* can
+be analysed into a sequence of smaller parts |alpha|\ :sub:`1`
+... |alpha|\ :sub:`n`.  But a grammar is a static description of a set
+of strings; it does not tell us what sequence of steps we need to take
+to build a constituent structure for a string. For this, we need to
+use a parsing algorithm.  We presented two such algorithms: Top-Down Recursive
+Descent (sec-recursive-descent_) and Bottom-Up Shift-Reduce
+(sec-shift-reduce_). As we pointed out, both parsing approaches suffer
+from important shortcomings. The Recursive Descent parser cannot
+handle left-recursive productions (e.g., productions such as `np`:gc:
+|rarr| `np pp`:gc:), and blindly expands categories top-down without
+checking whether they are compatible with the input string. The
+Shift-Reduce parser is not guaranteed to find a valid parse for the
+input even if one exists, and builds substructure without checking
+whether it is globally consistent with the grammar. As we will
+describe further below, the Recursive Descent parser is also
+inefficient in its search for parses.
 
-As we have seen, parsing builds trees over sentences, according to a
-phrase structure grammar.  However, as the coverage of the grammar
-increases and the length of the input sentence grows, the number of
-parse trees grows rapidly.  In fact, it grows at an astronomical rate.
+So, parsing builds trees over sentences, according to a phrase
+structure grammar.  Now, all the examples we gave in Chapter
+chap-parse_ only involved toy grammars containing a handful of
+productions. What happens if we try to scale up this approach to deal
+with realistic corpora of language? Unfortunately, as the coverage of
+the grammar increases and the length of the input sentences grows, the
+number of parse trees grows rapidly.  In fact, it grows at an
+astronomical rate.
 
 Let's explore this issue with the help of a simple example.  (For a
 similar example, and relevant links, see
@@ -165,22 +198,29 @@ Chart Parsing
 
 `chart parsing`:topic:
 
-The simple parsers discussed in Chapter chap-parse_ have major
-limitations.  The bottom-up shift-reduce parser can only find one
-parse, and it often fails to find a parse even if one exists.  As just
-pointed out, the top-down recursive-descent parser can be very
-inefficient, and if the grammar contains left-recursive productions, it can
-enter into an infinite loop.  In order to address these problems of
-completeness and efficiency, we will apply the algorithm design technique
-of `dynamic programming`:idx: to the parsing problem.  As we saw in
-Section sec-dynamic-programming_, dynamic programming
-stores intermediate results and re-uses them when appropriate,
-achieving significant efficiency gains.
+..
+ The simple parsers discussed in Chapter chap-parse_ have major
+ limitations.  The bottom-up shift-reduce parser can only find one
+ parse, and it often fails to find a parse even if one exists.  As just
+ pointed out, the top-down recursive-descent parser can be very
+ inefficient, and if the grammar contains left-recursive productions, it can
+ enter into an infinite loop.  
+
+In the introduction to this chapter, we pointed out that the simple
+parsers discussed in Chapter chap-parse_ suffered from limitations in
+both completeness and efficiency. In order to remedy these, we will
+apply the algorithm design technique of `dynamic programming`:idx: to
+the parsing problem.  As we saw in Section sec-dynamic-programming_,
+dynamic programming stores intermediate results and re-uses them when
+appropriate, achieving significant efficiency gains. This technique
+can be applied to syntactic parsing, allowing us to store
+partial solutions to the parsing task and then look them up as
+necessary in order to efficiently arrive at a complete solution.
 
 Well-formed Substring Tables
 ----------------------------
 
-We start off by defining a simple grammar.
+Let's start off by defining a simple grammar.
 
     >>> from nltk_lite.parse import cfg
     >>> grammar = cfg.parse_grammar("""
@@ -1012,11 +1052,9 @@ as before, in order to test out the top-down strategy yourself.
 The Earley Algorithm
 --------------------
 
-The Earley algorithm [Earley1970ECF]_ is a parsing strategy that resembles the Top-Down
-Strategy, but deals more efficiently with matching against the input
-string.  Like our previous two strategies, the Earley algorithm
-proceeds from left-to-right through the input, adding new edges
-according a set of rules. Table earley-terminology_ shows the
+The Earley algorithm [Earley1970ECF]_ is a parsing strategy that
+resembles the Top-Down Strategy, but deals more efficiently with
+matching against the input string. Table earley-terminology_ shows the
 correspondence between the parsing rules introduced above and the
 rules used by the Earley algorithm.
 
@@ -1062,11 +1100,15 @@ the chart the edges [`v`:gc: -> 'saw', (1, 2)]
 and ['saw'|rarr| |dot|\ , (1, 2)]. So in effect the Scanner Rule packages up a
 sequence of three rule applications: the Bottom-Up Initialization Rule for 
 [*w* |rarr| |dot|\ , (*j*, *j*\ +1)],
-the Top-Down Expand Rule for [*P* |rarr| |dot| *w*\ :subscript:`j`, (*j*, *j*\ +1))], and 
+the Top-Down Expand Rule for [*P* |rarr| |dot| *w*\ :subscript:`j`, (*j*, *j*)], and 
 the Fundamental Rule for [*P* |rarr| *w*\ :subscript:`j` |dot|\ , (*j*,
-*j*\ +1))]. By contrast with Bottom-Up Initialization, however, the
+*j*\ +1))]. This is considerably more efficient than the Top-Down Strategy, which
+adds a new edge of the form [*P* |rarr| |dot| *w* , (*j*, *j*)] for
+`every`:em: lexical rule *P* |rarr| *w*, regardless of whether *w* can
+be found in the input.
+By contrast with Bottom-Up Initialization, however, the
 Earley algorithm proceeds strictly left-to-right through the input,
-applying all applicable rules at that point in the chart.
+applying all applicable rules at that point in the chart, and never backtracking.
 
 The |NLTK| chart parser demo, described above, allows the option of
 parsing according to the Earley algorithm.
