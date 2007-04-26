@@ -52,14 +52,12 @@ the grammar increases and the length of the input sentences grows, the
 number of parse trees grows rapidly.  In fact, it grows at an
 astronomical rate.
 
-Let's explore this issue with the help of a simple example.  (For a
-similar example, and relevant links, see
-http://en.wikipedia.org/wiki/Buffalo_buffalo_Buffalo_buffalo_buffalo_buffalo_Buffalo_buffalo.)  
+Let's explore this issue with the help of a simple example.
 The word
 `fish`:lx: is both a noun and a verb.  We can make up the sentence
 `fish fish fish`:lx:, meaning *fish like to fish for other fish*.
 (Try this with `police`:lx: if you prefer something more sensible.)
-Here is a toy grammar for the 'fish' sentences.
+Here is a toy grammar for the "fish" sentences.
 
     >>> from nltk_lite.parse import cfg, chart
     >>> grammar = cfg.parse_grammar("""
@@ -91,7 +89,7 @@ sentence has two readings.
 
 As the length of this sentence goes up (3, 5, 7, ...) we get the
 following numbers of parse trees:
-1; 2; 5; 14; 42; 132; 429; 1,430; 4,862; 16,796; 58,786; 208,012.
+1; 2; 5; 14; 42; 132; 429; 1,430; 4,862; 16,796; 58,786; 208,012; ...
 (These are the `Catalan numbers`:idx:, which we saw in an exercise
 in Section sec-algorithm-design-strategies_).
 The last of these is for a sentence of length 23, the average length
@@ -196,14 +194,6 @@ Chart Parsing
 
 `chart parsing`:topic:
 
-..
- The simple parsers discussed in Chapter chap-parse_ have major
- limitations.  The bottom-up shift-reduce parser can only find one
- parse, and it often fails to find a parse even if one exists.  As just
- pointed out, the top-down recursive-descent parser can be very
- inefficient, and if the grammar contains left-recursive productions, it can
- enter into an infinite loop.  
-
 In the introduction to this chapter, we pointed out that the simple
 parsers discussed in Chapter chap-parse_ suffered from limitations in
 both completeness and efficiency. In order to remedy these, we will
@@ -214,6 +204,8 @@ appropriate, achieving significant efficiency gains. This technique
 can be applied to syntactic parsing, allowing us to store
 partial solutions to the parsing task and then look them up as
 necessary in order to efficiently arrive at a complete solution.
+This approach to parsing is known as `chart parsing`:dt:, and is the
+focus of this section.
 
 Well-formed Substring Tables
 ----------------------------
@@ -290,7 +282,7 @@ category it belongs to.
     [V -> 'opened']
 
 |nopar| 
-For our |WFST|, we create an `n-1`:math: |times| `n-1`:math: matrix
+For our |WFST|, we create an `(n-1)`:math: |times| `(n-1)`:math: matrix
 as a list of lists in Python, and initialize it
 with the lexical categories of each token, in the ``init_wfst()``
 function in Listing wfst_.  We also define a utility function ``display()``
@@ -381,7 +373,7 @@ position `0` to position `8`; i.e., we can conclude that `s`:gc:
 |DoubleRightArrow|\ * `a`:sub:`1`\ `a`:sub:`2`\ |cdots|\ `a`:sub:`n`.
 
 Notice that we have not used any built-in parsing functions here.
-We've implemented a primitive chart parser from the ground up.
+We've implemented a complete, primitive chart parser from the ground up!
 
 Charts
 ------
@@ -454,10 +446,15 @@ In the next section we will address these issues.
 Exercises
 ---------
 
-1. |soso| Read about string edit distance and the Levenshtein Algorithm.
-   Try the implementation provided in ``nltk_lite.utilities.edit_dist``.
-   How is this using dynamic programming?  Does it use the bottom-up or
-   top-down approach?
+1. |easy| Consider the sequence of words:
+   `Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo`:lx:.
+   This is a grammatically correct sentence, as explained at
+   ``http://en.wikipedia.org/wiki/Buffalo_buffalo_Buffalo_buffalo_buffalo_buffalo_Buffalo_buffalo.``
+   Consider the tree diagram presented on this Wikipedia page, and write down a suitable
+   grammar.  Normalise case to lowercase, to simulate the problem that a listener has when hearing
+   this sentence.  Can you find other parses for this sentence?  
+   How does the number of parse trees grow as the sentence gets longer?
+   (More examples of these sentences can be found at ``http://en.wikipedia.org/wiki/List_of_homophonous_phrases``).
 
 #. |soso| Consider the algorithm in Listing wfst_.  Can you explain why
    parsing context-free grammar is proportional to `n`:sup:`3`\ ?
@@ -867,7 +864,7 @@ Rule and the Fundamental Rule.
 
 .. _budemo2:       
 .. figure:: ../images/chart_demo2.png
-   :scale: 70
+   :scale: 100
 
    Incomplete chart for `Lee likes coffee`:lx: 
 
@@ -1281,49 +1278,52 @@ while in the "double object" form, the indirect object comes first:
 
 Using the Penn Treebank sample, we can examine all instances of
 prepositional dative and double object constructions involving
-`give`:lx:, as shown below:
+`give`:lx:, as shown in Listing give_.
 
-    >>> from nltk_lite.corpora import treebank
-    >>> from string import join
-    >>> give = lambda t: t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
-    ...        and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
-    ...        and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
+.. pylisting:: give
+
+    from nltk_lite.corpora import treebank
+    from string import join
+    def give(t):
+        return t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
+               and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
+               and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
+    def sent(t):
+        return join(token for token in t.leaves() if token[0] not in '*-0')
+    def print_node(t, width):
+            output = "%s %s: %s / %s: %s" %\
+                (sent(t[0]), t[1].node, sent(t[1]), t[2].node, sent(t[2]))
+            if len(output) > width:
+                output = output[:width] + "..."
+            print output
+
     >>> for tree in treebank.parsed():
     ...     for t in tree.subtrees(give):
-    ...         print "%s [%s: %s] [%s: %s]" %\
-    ...               (join(t[0].leaves()),
-    ...                t[1].node, join(t[1].leaves()),
-    ...                t[2].node, join(t[2].leaves()))
-    gave [NP: the chefs] [NP: a standing ovation]
-    give [NP: advertisers] [NP: discounts for * maintaining or increasing ad spending]
-    give [NP: it] [PP-DTV: to the politicians]
-    gave [NP: them] [NP: similar help]
-    give [NP: them] [NP: *T*-1]
-    give [NP: only French history questions] [PP-DTV: to students in a European history class]
-    give [NP: federal judges] [NP: a raise]
-    give [NP: consumers] [NP: the straight scoop on the U.S. waste crisis]
-    gave [NP: Mitsui] [NP: access to a high-tech medical product]
-    give [NP: Mitsubishi] [NP: a window on the U.S. glass industry]
-    give [NP: much thought] [PP-DTV: to the rates 0 she was receiving *T*-2 , nor to the fees 0
-      she was paying *T*-3]
-    give [NP: your Foster Savings Institution] [NP: the gift of hope and freedom from the federal
-      regulators who *T*-206 want *-1 to close its doors -- for good]
-    give [NP: market operators] [NP: the authority * to suspend trading in futures at any time]
-    gave [NP: quick approval] [PP-DTV: to $ 3.18 billion *U* in supplemental appropriations for
-      law enforcement and anti-drug programs in fiscal 1990]
-    give [NP: the Transportation Department] [NP: up to 50 days 0 * to review any purchase of
-      15 % or more of the stock in an airline *T*-1]
-    give [NP: the president] [NP: such power]
-    give [NP: me] [NP: the heebie-jeebies]
-    give [NP: holders] [NP: the right *RNR*-1 , but not the obligation *RNR*-1 , * to buy -LRB-
-      a call -RRB- or sell -LRB- a put -RRB- a specified amount of an underlying investment by
-      a certain date at a preset price , known * as the strike price]
-    gave [NP: Mr. Thomas] [NP: only a `` qualified '' rating , rather than `` well qualified]
-    give [NP: the president] [NP: line-item veto power]
+    ...         print_node(t, 72)
+    gave NP: the chefs / NP: a standing ovation
+    give NP: advertisers / NP: discounts for maintaining or increasing ad sp...
+    give NP: it / PP-DTV: to the politicians
+    gave NP: them / NP: similar help
+    give NP: them / NP: 
+    give NP: only French history questions / PP-DTV: to students in a Europe...
+    give NP: federal judges / NP: a raise
+    give NP: consumers / NP: the straight scoop on the U.S. waste crisis
+    gave NP: Mitsui / NP: access to a high-tech medical product
+    give NP: Mitsubishi / NP: a window on the U.S. glass industry
+    give NP: much thought / PP-DTV: to the rates she was receiving , nor to ...
+    give NP: your Foster Savings Institution / NP: the gift of hope and free...
+    give NP: market operators / NP: the authority to suspend trading in futu...
+    gave NP: quick approval / PP-DTV: to $ 3.18 billion in supplemental appr...
+    give NP: the Transportation Department / NP: up to 50 days to review any...
+    give NP: the president / NP: such power
+    give NP: me / NP: the heebie-jeebies
+    give NP: holders / NP: the right , but not the obligation , to buy a cal...
+    gave NP: Mr. Thomas / NP: only a `` qualified '' rating , rather than ``...
+    give NP: the president / NP: line-item veto power
 
 We can observe a strong tendency for the shortest complement to appear
 first.  However, this does not account for a form like
-``give [NP: federal judges] [NP: a raise]``, where animacy may be
+``give NP: federal judges / NP: a raise``, where animacy may be
 playing a role.  In fact there turn out to be a large number of contributing
 factors, as surveyed by [Bresnan2006GG]_.
 
@@ -1847,6 +1847,10 @@ These trees are shown in treetransforms_.
       .. tree:: (S (NP-SBJ (NP+QP (IN at) (JJS least) (CD nine) (NNS tenths)) (PP (IN of) (NP (DT the) (NNS students)))) (VP+VBD passed))
    .. ex::
       .. tree:: (S (NP-SBJ (NP+QP (IN at) (NP+QP|\<JJS-CD-NNS\> (JJS least) (NP+QP|\<CD-NNS\> (CD nine) (NNS tenths)))) (PP (IN of) (NP (DT the) (NNS students)))) (VP+VBD passed))
+
+----------
+Conclusion
+----------
 
 ---------------
 Further Reading
