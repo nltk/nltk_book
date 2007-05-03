@@ -4,13 +4,13 @@
 
 \title{Chunk Parsing}
 
-\author{Steven Bird \and Edward Loper \and Ewan Klein}
+\author{Steven Bird \and Ewan Klein \and Edward Loper}
 \institute{
   University of Melbourne, AUSTRALIA
   \and
-  University of Pennsylvania, USA
-  \and
   University of Edinburgh, UK
+  \and
+  University of Pennsylvania, USA
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -46,7 +46,7 @@
 \end{frame}
 \subsection{Motivation}
 
-<\pgfdeclareimage[width=12cm]{chunk-coref}{../images/chunk-coref}
+\pgfdeclareimage[width=12cm]{chunk-coref}{../images/chunk-coref}
 \begin{frame}
   \frametitle{Extracting Information: Coreference Annotation}
   \centerline{\pgfuseimage{chunk-coref}}
@@ -209,8 +209,7 @@
   \item chunk a sequence of words matching a tag pattern: \texttt{parse.ChunkRule}
 
 \begin{verbatim}
-    >>> rule = parse.ChunkRule('<DT|NN>+',
-    ...          'Chunk sequences of DT and NN')
+    >>> grammar = "NP: {<DT|NN>+}  # Chunk sequences of DT and NN'"
 \end{verbatim}
 
   \end{itemize}
@@ -218,39 +217,51 @@
 
 
 \begin{frame}[fragile]
-  \frametitle{A Simple Chunk Parser}
+  \frametitle{A Simple NP Chunker}
   \scriptsize
 
 \begin{verbatim}
->>> from nltk_lite import tag
->>> sent = tag.string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
->>> rule = parse.ChunkRule('<NN|DT>+',
-...                  'Chunk sequences of NN and DT')
->>> parser = parse.RegexpChunk([rule], chunk_node='NP', top_node='S')
->>> parser.parse(sent)
-(S: (NP: ('the', 'DT')) ('little', 'JJ') (NP: ('cat', 'NN'))
-    ('sat', 'VBD') ('on', 'IN') (NP: ('the', 'DT') ('mat', 'NN')))
+    grammar = r"""
+    NP:
+      {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
+      {<NNP>+}            # chunk sequences of proper nouns
+    """
+    cp = chunk.Regexp(grammar)
+    tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
+         ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+
+    >>> cp.parse(tagged_tokens)
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
 \end{verbatim}
 \end{frame}
 
-\subsection{Developing Chunk Parsers}
+\subsection{Developing Chunkers}
 
 \begin{frame}[fragile]
-  \frametitle{Developing Chunk Parsers}
+  \frametitle{Developing Chunkers}
   \tiny
 
 \begin{verbatim}
->>> sent = tag.string2tags("the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN")
->>> rule1 = parse.ChunkRule('<DT><JJ><NN>', 'Chunk det+adj+noun')
->>> rule2 = parse.ChunkRule('<DT|NN>+', 'Chunk sequences of NN and DT')
->>> chunkparser = parse.RegexpChunk([rule1, rule2], chunk_node='NP', top_node='S')
->>> chunk_tree = chunkparser.parse(sent, trace=1)
-Input:
-                <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-Chunk det+adj+noun:
-               {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
-Chunk sequences of NN and DT:
-               {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    cp1 = chunk.Regexp(r"""
+    NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
+        {<DT|NN>+}          # Chunk sequences of NN and DT
+    """)
+    cp2 = chunk.Regexp(r"""
+    NP: {<DT|NN>+}          # Chunk sequences of NN and DT
+        {<DT><JJ><NN>}      # Chunk det+adj+noun
+    """)
+    
+    >>> print cp1.parse(tagged_tokens, trace=1)
+    # Input:
+     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+    # Chunk det+adj+noun:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
+    # Chunk sequences of NN and DT:
+    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
 \end{verbatim}
 
 \begin{itemize}
@@ -282,7 +293,7 @@ Chunk sequences of NN and DT:
 \textbf{Operation:}
 & Chink \verb|a/DT big/JJ cat/NN|
 & Chink \verb|big/JJ|
-& Chink \verb|cat/DT| \\
+& Chink \verb|cat/NN| \\
 \textbf{Output:}
 & \verb|a/DT  big/JJ  cat/NN|
 & \verb|[a/DT] big/JJ [cat/NN]|
@@ -295,52 +306,20 @@ Chunk sequences of NN and DT:
   \scriptsize
 
 \begin{verbatim}
->>> chink_rule = parse.ChinkRule('<VBD|IN>+',
-...                        'Chink sequences of VBD and IN')
->>> chunkall_rule = parse.ChunkRule('<.*>+',
-...                           'Chunk everything')
->>> chunkparser = parse.RegexpChunk([chunkall_rule, chink_rule],
-...                 chunk_node='NP', top_node='S')
->>> chunk_tree = chunkparser.parse(sent, trace=1)
-Input:
-                <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-Chunk everything:
-               {<DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN>}
-Chink sequences of VBD and IN:
-               {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
-\end{verbatim}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{More Chunking Rules: other rule types}
-  \scriptsize
-
-  \begin{itemize}
-  \item \texttt{UnChunkRule}: remove any chunk that matches a given
-    tag pattern.
-  \item \texttt{SplitRule}: split an existing chunk in two
-  \item \texttt{MergeRule}: join two contiguous chunks into one, e.g.:
-  \end{itemize}
-
-  \tiny
-\begin{verbatim}
->>> merge_rule = parse.MergeRule('<NN|DT|JJ>', '<NN|DT|JJ>',
-...                       'Merge NNs + DTs + JJs')
->>> chunk_rule = parse.ChunkRule('<.*>',
-...                     'Chunk all individual tokens')
->>> unchunk_rule = parse.UnChunkRule('<IN|VB.*>',
-...                         'Unchunk VBs and INs')
->>> rules = [chunk_rule, unchunk_rule, merge_rule]
->>> chunkparser = parse.RegexpChunk(rules, chunk_node='NP', top_node='S')
->>> chunk_tree = chunkparser.parse(sent, trace=1)
-Input:
-                <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
-Chunk all individual tokens:
-               {<DT>}{<JJ>}{<NN>}{<VBD>}{<IN>}{<DT>}{<NN>}
-Unchunk VBs and INs:
-               {<DT>}{<JJ>}{<NN>} <VBD>  <IN> {<DT>}{<NN>}
-Merge NNs + DTs + JJs:
-               {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    >>> grammar = r"""
+    ... NP:
+    ...   {<.*>+}          # Chunk everything
+    ...   }<VBD|IN>+{      # Chink sequences of VBD and IN
+    ... """
+    >>> cp = chunk.Regexp(grammar)
+    >>> print cp.parse(tagged_tokens)
+    (S:
+      (NP: ('the', 'DT') ('little', 'JJ') ('cat', 'NN'))
+      ('sat', 'VBD')
+      ('on', 'IN')
+      (NP: ('the', 'DT') ('mat', 'NN')))
+    >>> print chunk.accuracy(cp, conll2000.chunked(files='test', chunk_types=('NP',)))
+    0.581041433607
 \end{verbatim}
 \end{frame}
 
