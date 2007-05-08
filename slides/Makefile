@@ -9,7 +9,7 @@
 WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs/lite
 
 TEX = introduction.tex programming.tex tag.tex chunk.tex data.tex
-PDF = introduction.pdf programming.pdf tag.pdf chunk.pdf data.pdf
+PDF := $(TEX:.tex=.pdf)
 
 RST2HTML = ../rst.py --html
 
@@ -32,8 +32,11 @@ index.html:	index.txt
 
 .tex.pdf:
 	pdflatex $<
-	rm $@
 	pdflatex $<
+	mkdir -p handouts
+	sed 's/documentclass/documentclass[handout]/' < $< > handouts/$<
+	pdflatex -output-directory handouts handouts/$<
+	pdflatex -output-directory handouts handouts/$<
 
 rsync:
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/slides/
