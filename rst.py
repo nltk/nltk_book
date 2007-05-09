@@ -75,7 +75,7 @@ EXTERN_REFERENCE_FILES = []
 """A list of .ref files, for crossrefering to external documents (used
    when building one chapter at a time)."""
 
-BIBTEX_FILE = 'book.bib'
+BIBTEX_FILE = '../book.bib'
 """The name of the bibtex file used to generate bibliographic entries.
    """
 
@@ -544,6 +544,10 @@ class Citations(Transform):
             m = re.match(r'(?i)author\s*=\s*(.*)$', line)
             if m and key:
                 bibliography[key][0] = self.bib_authors(m.group(1))
+            else:
+                m = re.match(r'(?i)editor\s*=\s*(.*)$', line)
+                if m and key:
+                    bibliography[key][0] = self.bib_authors(m.group(1))
                 
             #   year = <year>,
             m = re.match(r'(?i)year\s*=\s*(.*)$', line)
