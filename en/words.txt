@@ -918,10 +918,10 @@ WordNet Semantic Network
 
 `Wordnet`:topic:
 
-.. note:: Before using Wordnet it must be installed on your machine.
+.. note:: Before using Wordnet it must be installed on your machine,
+          along with NLTK version 0.8
           Please see the instructions on the |NLTK| website.
-
-.. note:: Help on the ``wordnet`` interface is available using
+          Help on the ``wordnet`` interface is available using
           ``help(wordnet)``. 
 
 Consider the following sentence:
@@ -939,8 +939,7 @@ meaning of the sentence stays pretty much the same:
 
 Since everything else in the sentence has remained unchanged, we can
 conclude that the words `motorcar`:lx: and `automobile`:lx: have the
-same meaning. More technically, we say that they are
-`synonyms`:dt:. 
+same meaning. More technically, we say that they are `synonyms`:dt:. 
 
 `Wordnet`:idx: is a semantically-oriented dictionary which will
 allow us to find the set of synonyms |mdash| or `synset`:dt: |mdash|
@@ -948,43 +947,42 @@ for any word. However, in order to look up the senses of a word, we need to pick
 a part of speech for the word.  Wordnet contains four dictionaries: ``N``
 (nouns), ``V`` (verbs), ``ADJ`` (adjectives), and ``ADV``
 (adverbs). To simplify our discussion, we will focus on the ``N``
-dictionary here.
-So to look up `motorcar`:lx:, we specify that it is in the ``N``
-dictionary.
+dictionary here.  Let's look up `motorcar`:lx: in the ``N`` dictionary.
     
     >>> from nltk_lite.wordnet import *
     >>> car = N['motorcar']
     >>> car
-    motorcar(n.)
+    motorcar (noun)
 
-The variable ``car`` is now bound to a ``wordnet`` ``Word`` object.
+The variable ``car`` is now bound to a ``Word`` object.
 Words will often have more than sense, where each
 sense is represented by a synset. However,
 `motorcar`:lx: only has one sense in Wordnet, as we can discover by
 checking the length of ``car``. We can then find the synset (a set of
-lemmas), and a gloss.
+lemmas), the words it contains, and a gloss.
 
     >>> len(car)
     1
-    >>> car[0].synset
+    >>> car[0]
     {noun: car, auto, automobile, machine, motorcar}
-    >>> car[0].synset.gloss
+    >>> [word for word in car[0]]
+    ['car', 'auto', 'automobile', 'machine', 'motorcar']
+    >>> car[0].gloss
     'a motor vehicle with four wheels; usually propelled by an
     internal combustion engine; 
     "he needs a car to get to work"'
 
-The ``wordnet`` module also defines ``Sense``\ s as a combination of a
-lemma and a synset that the lemma belongs to. Let's look at a word
-which is `polysemous`:dt:\ ; that is, which has multiple senses.
-We can access all the senses of a lemma using ``getSenses()``
+The ``wordnet`` module also defines ``Synset``\ s.
+Let's look at a word which is `polysemous`:dt:\ ;
+that is, which has multiple synsets:
 
     >>> poly = N['pupil']
-    >>> for sense in poly.getSenses():
-    ...     print sense
-    'pupil' in {noun: student, pupil, educatee}
-    'pupil' in {noun: schoolchild, school-age child, pupil}
-    'pupil' in {noun: pupil}
-    >>> poly[2].synset.gloss
+    >>> for synset in poly:
+    ...     print synset
+    {noun: student, pupil, educatee}
+    {noun: schoolchild, school-age child, pupil}
+    {noun: pupil}
+    >>> poly[2].gloss
     'the contractile aperture in the center of the iris of the eye;
     resembles a large black dot'
 
@@ -1007,14 +1005,13 @@ intended to indicate that *artefact* is non-immediate hypernym of
 
    Fragment of Wordnet Concept Hierarchy
 
-Wordnet has been
-specifically designed to make it easy to navigate between
+Wordnet has been designed to make it easy to navigate between
 concepts. For example, given a concept like
 *motorcar*, we can look at the concepts which are more specific;
-these are usually called `hyponyms`. Here is one way to carry out this
+these are usually called `hyponyms`:dt:. Here is one way to carry out this
 navigation:
 
-    >>> for concept in car[0].getPointerTargets(HYPONYM):
+    >>> for concept in car[0][HYPONYM][:10]:
     ... 	print concept
     {noun: ambulance}
     {noun: beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon}
@@ -1026,87 +1023,84 @@ navigation:
     {noun: cruiser, police cruiser, patrol car, police car, prowl car, squad car}
     {noun: electric, electric automobile, electric car}
     {noun: gas guzzler}
-    {noun: hardtop}
-    {noun: hatchback}
-    {noun: horseless carriage}
-    {noun: hot rod, hot-rod}
-    {noun: jeep, landrover}
-    {noun: limousine, limo}
-    {noun: loaner}
-    {noun: minicar}
-    {noun: minivan}
-    {noun: Model T}
-    {noun: pace car}
-    {noun: racer, race car, racing car}
-    {noun: roadster, runabout, two-seater}
-    {noun: sedan, saloon}
-    {noun: sports car, sport car}
-    {noun: sport utility, sport utility vehicle, S.U.V., SUV}
-    {noun: Stanley Steamer}
-    {noun: stock car}
-    {noun: subcompact, subcompact car}
-    {noun: touring car, phaeton, tourer}
-    {noun: used-car, secondhand car}
-
 
 We can also move up the hierarchy, by looking at broader concepts than
 *motorcar*. The ``wordnet`` package offers a shortcut for finding the
 immediate `hypernym`:dt: of a concept:
 
-    >>> car[0].synset.parent_hypernyms()
-    set([{noun: motor vehicle, automotive vehicle}])
+    >>> car[0][HYPERNYM]
+    [{noun: motor vehicle, automotive vehicle}]
 
 Of course, we can also look for the hypernyms of hypernyms; from any
-synset we can trace paths back to a unique beginner.  First we define a
-recursive function to return the hypernym of a synset.  (We will study
-recursive functions systematically in Part II.)
+synset we can trace (multiple) paths back to a unique beginner.
+Synsets have a method ``tree()`` which produces a nested list
+structure.
 
-.. pylisting:: hypernym
+    >>> from pprint import pprint
+    >>> pprint(N['car'][0].tree(HYPERNYM))
+    [{noun: car, auto, automobile, machine, motorcar},
+     [{noun: motor_vehicle, automotive_vehicle},
+      [{noun: self-propelled_vehicle},
+       [{noun: wheeled_vehicle},
+        [{noun: vehicle},
+         [{noun: conveyance, transport},
+          [{noun: instrumentality, instrumentation},
+           [{noun: artifact, artefact},
+            [{noun: whole, unit},
+             [{noun: object, physical_object},
+              [{noun: physical_entity}, [{noun: entity}]]]]]]]],
+        [{noun: container},
+         [{noun: instrumentality, instrumentation},
+          [{noun: artifact, artefact},
+           [{noun: whole, unit},
+            [{noun: object, physical_object},
+             [{noun: physical_entity}, [{noun: entity}]]]]]]]]]]]
 
-    def hypernym(synset):
-	try:
-	    return synset.getPointerTargets(wordnet.HYPERNYM)[0]
-	except IndexError:
-	    return None
+A related method ``closure()`` produces a flat version of this structure,
+with any repeats eliminated.
+Both of these functions take an optional ``depth`` argument which permit
+us to limit the number of steps to take, which is important when using
+unbounded relations like ``SIMILAR``.
+Table wordnet-rel_ lists the most important lexical relations supported
+by Wordnet.  See ``dir(wordnet)`` for a full list.
 
-.. TODO: Explain exceptions, functions
+.. table:: wordnet-rel
 
-Now we can write a simple program to display these hypernym paths:
+   ===========  ================  ==============================================
+   Hypernym     more general      `animal`:lx: is a hypernym of `dog`:lx:
+   Hyponym      more specific     `dog`:lx: is a hypernym of `animal`:lx:
+   Meronym      part of           `door`:lx: is a meronym of `house`:lx:
+   Holonym      has part          `house`:lx: is a holonym of `door`:lx:
+   Synonym      similar meaning   `car`:lx: is a synonym of `automobile`:lx:
+   Antonym      opposite meaning  `like` is an antonym of `dislike`:lx:
+   Entailment   necessary action  `step` is an entailment of `walk`:lx:
+   ===========  ================  ==============================================
 
-.. pylisting:: hypernym_path
+   Major WordNet Lexical Relations
 
-    def hypernym_path(synset, depth=0):
-	if synset != None:
-	    print "  " * depth, synset
-	    hypernym_path(hypernym(synset), depth+1)
+Recall that we can iterate over the words of a synset, with ``for word in synset``.
+We can also test if a word is in a dictionary, e.g. ``of word in V``.
+Let's put these together to find "animal words" that are used as verbs.
+Since there are a lot of these, we will cut this off at depth 4.
 
-
-    >>> hypernym_path(car[0].synset)
-     {noun: car, auto, automobile, machine, motorcar}
-       {noun: motor vehicle, automotive vehicle}
-	 {noun: self-propelled vehicle}
-	   {noun: wheeled vehicle}
-	     {noun: vehicle}
-	       {noun: conveyance, transport}
-		 {noun: instrumentality, instrumentation}
-		   {noun: artifact, artefact}
-		     {noun: whole, unit}
-		       {noun: object, physical object}
-			 {noun: physical entity}
-			   {noun: entity}
-
-See ``dir(wordnet)`` for a full list of lexical relations supported
-by Wordnet.
+    >>> animals = N['animal'][0].closure(HYPONYM, depth=4)
+    >>> [word for synset in animals for word in synset if word in V]
+    ['pet', 'stunt', 'prey', 'quarry', 'game', 'mate', 'head', 'dam',
+     'sire', 'steer', 'orphan', 'spat', 'sponge', 'worm', 'grub', 'baby',
+     'pup', 'whelp', 'cub', 'kit', 'kitten', 'foal', 'lamb', 'fawn',
+     'bird', 'grouse', 'stud', 'hog', 'fish', 'cock', 'parrot', 'frog',
+     'beetle', 'bug', 'bug', 'queen', 'leech', 'snail', 'slug', 'clam',
+     'cockle', 'oyster', 'scallop', 'scollop', 'escallop', 'quail']
 
 WordNet Similarity
 ------------------
 
 It is often useful to be able to tell whether two lexical concepts are
-`semantically related`:dt:. For example, in order to tell whether the
-*financial institution* meaning of `bank`:lx: is intended, we might
-try to count the number of semantically related concepts that are
-expressed by words in the relevant context. Given a lexical resource
-like Wordnet, we can investigate whether semantic relatedness can be
+`semantically related`:dt:. For example, in order to check whether a
+particular instance of the word `bank`:lx: means
+*financial institution*, we can count the number of nearby words
+that are semantically related to this sense.  Using WordNet, we can
+investigate whether semantic relatedness can be
 expressed in terms of the graph structure of the concept
 hierarchy. More specifically, we would expect that the semantic
 relatedness of two concepts correlates with the length of the path
@@ -1128,8 +1122,9 @@ itself will return 1.
     >>> V['run'][0].path_distance_similarity(V['think'][0])
     -1
 
-For a detailed comparison of various measures, see [Budanitsky2006EWB]_. 
-
+Several other similarity measures are provided:
+Leacock-Chodorow, Wu-Palmer, Resnik, Jiang-Conrath, and Lin.
+For a detailed comparison of various measures, see [Budanitsky2006EWB]_.
 
 Exercises
 ---------
@@ -1142,18 +1137,23 @@ Exercises
    e.g., ``MEMBER_MERONYM``, ``SUBSTANCE_HOLONYM``.
 
 #. |soso| Write a program to score the similarity of two nouns as the depth
-   of their first common hypernym.  Evaluate your findings against the
-   Miller-Charles set of word pairs, listed here in order of decreasing
-   similarity:: 
-
+   of their first common hypernym.
+   
+#. |hard| Use one of the predefined similarity measures to score
+   the similarity of each of the following pairs of words.
+   Rank the pairs in order of decreasing similarity.
+   How close is your ranking to the order given here?
+   (Note that this order was established experimentally
+   by [MillerCharles1998]_.)
+   
+::
       car-automobile, gem-jewel, journey-voyage, boy-lad,
       coast-shore, asylum-madhouse, magician-wizard, midday-noon,
       furnace-stove, food-fruit, bird-cock, bird-crane, tool-implement,
       brother-monk, lad-brother, crane-implement, journey-car,
       monk-oracle, cemetery-woodland, food-rooster, coast-hill,
       forest-graveyard, shore-woodland, monk-slave, coast-forest,
-      lad-wizard, chord-smile, glass-magician, rooster-voyage,
-      noon-string.
+      lad-wizard, chord-smile, glass-magician, rooster-voyage, noon-string.
 
 -----------------------------
 Simple Statistics with Tokens
