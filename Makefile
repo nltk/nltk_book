@@ -6,7 +6,7 @@
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
 
-WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs/lite
+WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 
 RST2HTML = rst2html.py
 
