@@ -819,6 +819,9 @@ Finally, in line count-increment_, we increment the counter for this particular 
 To view the contents of the dictionary, we can iterate over its keys and print
 each entry (here just for the first 5 entries, line count-output_).
 
+Frequency Distributions
+-----------------------
+
 This style of output and our ``counts`` object
 are just different forms of the same abstract structure
 |mdash| a collection of items and their frequencies |mdash|
@@ -828,7 +831,7 @@ a ``FreqDist()`` class.
 
     >>> from nltk_lite.probability import FreqDist
     >>> fd = FreqDist(token for sent in treebank.raw() for token in sent)
-    >>> for token in sorted(fd.samples())[:5]:
+    >>> for token in sorted(fd)[:5]:
     ...     print fd[token], token
     3 !
     16 #
@@ -836,54 +839,78 @@ a ``FreqDist()`` class.
     444 %
     86 &
 
-Sorting by Frequency
---------------------
-    
+Some of the methods defined on NLTK frequency distributions are shown in Table freqdist_.
+
+.. table:: freqdist
+
+   ==========  ===================  ===========================================
+   Name        Sample               Description
+   ==========  ===================  ===========================================
+   Count       ``fd['the']``        number of times a given sample occurred
+   Frequency   ``fd.freq('the')``   frequency of a given sample
+   N           ``fd.N()``           number of samples
+   Samples     ``fd.keys()``        list of distinct samples recorded
+   Max         ``fd.max()``         sample with the greatest number of outcomes
+   ==========  ===================  ===========================================
+
+   Frequency Distribution Module
+
+
 |nopar|
 This output isn't very interesting.
 Perhaps it would be more informative to list the most frequent word tokens first.
-Listing print-freq_ shows how we can sort the words by their frequency.
-It also displays rank and cumulative frequency.
+Now a ``FreqDist`` object is just a kind of dictionary, so we can easily get
+its key-value pairs and sort them by decreasing values, as follows:
 
-.. note:: Note the arguments of the ``sorted()`` function (line sorted-args_): ``itemgetter(1)``
-   returns a function that can be called on any sequence object to return the item at position ``1``;
-   ``reverse=True`` performs the sort in reverse order.  Together, these ensure that the
-   word with the highest frequency is listed first.
-   
+    >>> from operator import itemgetter
+    >>> sorted_word_counts = sorted(fd.items(), key=itemgetter(1), reverse=True)  # [_sorted-args]
+    >>> sorted_word_counts[:20]
+    [(',', 4808), ('the', 4043), ('.', 3839), ('of', 2314), ('to', 2158),
+     ('a', 1857), ('in', 1564), ('and', 1491), ("'s", 863), ('for', 815),
+     ('that', 807), ('The', 715), ('$', 702), ('``', 701), ("''", 683),
+     ('is', 671), ('said', 628), ('on', 489), ('it', 476), ('%', 444)]
+
+Note the arguments of the ``sorted()`` function (line sorted-args_): ``itemgetter(1)``
+returns a function that can be called on any sequence object to return the item at position ``1``;
+``reverse=True`` performs the sort in reverse order.  Together, these ensure that the
+word with the highest frequency is listed first.  This reversed sort by frequency is
+such a common requirement that it is built into the ``FreqDist`` object.
+Listing print-freq_ demonstrates this, and also prints rank and cumulative frequency.
+
 .. pylisting:: print-freq
    :caption: Words and Cumulative Frequencies, in Order of Decreasing Frequency
     
-    def print_freq(counts, num=50):
-        from operator import itemgetter
-        total = sum(counts.values())
+    def print_freq(tokens, num=50):
+        from nltk_lite.probability import FreqDist
+        fd = FreqDist(tokens)
         cumulative = 0.0
-        sorted_word_counts = sorted(counts.items(), key=itemgetter(1), reverse=True)   # [_sorted-args]
-        for i in range(num):
-            word, count = sorted_word_counts[i]
-            cumulative += count * 100.0 / total
-            print "%3d %3.2d%% %s" % (i, cumulative, word)
+        rank = 0
+        for word, freq in fd.sorted()[:num]:
+            rank += 1
+            cumulative += freq * 100.0 / fd.N()
+            print "%3d %3.2d%% %s" % (rank, cumulative, word)
 
-    >>> print_freq(counts, 20)
-      0  05% ,
-      1  09% the
-      2  13% .
-      3  16% of
-      4  18% to
-      5  20% a
-      6  22% in
-      7  23% and
-      8  24% 's
-      9  25% for
-     10  26% that
-     11  27% The
-     12  27% $
-     13  28% ``
-     14  29% ''
-     15  30% is
-     16  30% said
-     17  31% on
-     18  31% it
-     19  32% %
+    >>> print_freq([token for sent in treebank.raw() for token in sent], 20)
+      1  05% ,
+      2  09% the
+      3  13% .
+      4  16% of
+      5  18% to
+      6  20% a
+      7  22% in
+      8  23% and
+      9  24% 's
+     10  25% for
+     11  26% that
+     12  27% The
+     13  27% $
+     14  28% ``
+     15  29% ''
+     16  30% is
+     17  30% said
+     18  31% on
+     19  31% it
+     20  32% %
 
 Unfortunately the output in Listing print-freq_ is surprisingly dull.
 A handful of tokens account for a third of the text.  They just represent
@@ -896,19 +923,12 @@ section we see another approach.
 Stylistics
 ----------
 
-.. TODO: improve opening
-
-We can also print the number of times that a specific word we're
-interested in appeared:
-
-    >>> print counts['might']
-    44
-
-Applying this same approach to document collections that are
-categorized by genre, we can learn something about the patterns of word
-usage in those genres.  For example, Table brown-modals_ was
-constructed by counting the number of times various modal words appear
-in different genres in the Brown Corpus:
+Stylistics is a broad term, covering varieties of language use and literary genres.
+Here we will look at a document collection that is categorized by genre,
+and try to learn something about the patterns of word usage in those genres.
+For example, Table brown-modals_ was constructed by counting
+the number of times various modal words appear
+in different sections of the corpus:
 
 .. table:: brown-modals
 
@@ -952,7 +972,7 @@ have a higher number of tokens per type.)
    Word Types and Tokens in Brown Corpus, by Genre
 
 We can carry out a variety of interesting explorations simply by
-counting words.  In fact, the field of *Corpus Linguistics* focuses
+counting words.  In fact, the field of `Corpus Linguistics`:dt: focuses
 almost exclusively on creating and interpreting such tables of word
 counts.  So far, our method for identifying word tokens has been
 a little primitive, and we have not been able to separate punctuation
@@ -983,51 +1003,12 @@ Here is the program that generated the above plot.  [NB. Requires |NLTK|-Lite 0.
     >>> words = ['Elinor', 'Marianne', 'Edward', 'Willoughby']
     >>> dispersion.plot(gutenberg.raw('austen-sense'), words)
 
-Frequency Distributions
------------------------
+Comparing Word Lengths in Different Languages
+---------------------------------------------
 
-We can do more sophisticated counting using *frequency distributions*.
-Abstractly, a frequency distribution is a record of the number of
-times each *outcome* of an *experiment* has occurred.  For instance, a
-frequency distribution could be used to record the frequency of each
-word in a document (where the "experiment" is examining a word, and
-the "outcome" is the word's type).  Frequency distributions are
-generally created by repeatedly running an experiment, and
-incrementing the count for a sample every time it is an outcome of the
-experiment.  The following program produces a frequency distribution
-that records how often each word type occurs in a text.  It increments
-a separate counter for each word, and prints the most frequently
-occurring word:
-
-    >>> from nltk_lite.probability import FreqDist
-    >>> from nltk_lite.corpora import genesis
-    >>> fd = FreqDist(genesis.raw())
-    >>> fd.max()
-    'the'
-
-|nopar|
-Once we construct a frequency distribution that records
-the outcomes of an experiment, we can use it to examine a number
-of interesting properties of the experiment.  Some of these properties
-are summarized in Table freqdist_.
-
-.. table:: freqdist
-
-   ==========  ===================  ===========================================
-   Name        Sample               Description
-   ==========  ===================  ===========================================
-   Count       ``fd['the']``        number of times a given sample occurred
-   Frequency   ``fd.freq('the')``   frequency of a given sample
-   N           ``fd.N()``           number of samples
-   Samples     ``fd.keys()``        list of distinct samples recorded
-   Max         ``fd.max()``         sample with the greatest number of outcomes
-   ==========  ===================  ===========================================
-
-   Frequency Distribution Module
-
-We can also use a ``FreqDist`` to examine the distribution of word lengths
-in a corpus.  For each word, we find its length, and increment the
-count for words of this length.
+We can also use a frequency distribution to examine the distribution
+of word lengths in a corpus.  For each word, we find its length,
+and increment the count for words of this length.
 
     >>> def print_length_dist(text):
     ...     fd = FreqDist(len(token) for token in text)
@@ -1036,7 +1017,7 @@ count for words of this length.
     ...     print
 
 |nopar|
-Now we can call ``length_dist`` on a text to print the distribution of
+Now we can call ``print_length_dist`` on a text to print the distribution of
 word lengths.  We see that the most frequent word length for the English
 sample is 3 characters, while the most frequent length for the Finnish
 sample is 5-6 characters.
@@ -1087,29 +1068,12 @@ The output is shown in Figure fig-word-len-dist_ (a color figure in the online v
 Generating Random Text with Style
 ---------------------------------
 
-A `condition`:dt: specifies the context in which an experiment is
-performed.  Often, we are interested in the effect that conditions
-have on the outcome for an experiment.  A `conditional frequency
-distribution`:dt: is a collection of frequency distributions for the same
-experiment, run under different conditions.
-
-Conditional frequency distributions are often used for prediction.
-*Prediction* is the problem of deciding a likely outcome for a given
-run of an experiment.  The decision of which outcome to predict is
-usually based on the context in which the experiment is performed.
-For example, we might try to predict a word's text (outcome), based on
-the text of the word that it follows (context).
-
-To predict the outcomes of an experiment, we first examine a
-representative *training corpus*, where the context and outcome for
-each run of the experiment are known.  When presented with a new run
-of the experiment, we simply choose the outcome that occurred most
-frequently for the experiment's context.
-
+A `conditional frequency distribution`:dt: is a collection
+of frequency distributions, each one for a different condition.
 We can use a ``ConditionalFreqDist`` to find the most frequent
-occurrence for each context.  First, we record each outcome in the
-training corpus, using the context that the experiment was run under
-as the condition.  Then, we can access the frequency distribution for
+word that follows any given word.
+First, we use a training corpus to count words in context.
+Then, we can access the frequency distribution for
 a given context with the indexing operator, and use the ``max()``
 method to find the most likely outcome.
 
@@ -1146,7 +1110,7 @@ given context. For example, taking the word `living`:lx: as our context,
 we can inspect all the words that occurred in that context.
 
     >>> word = 'living'
-    >>> cfdist[word].samples()
+    >>> cfdist[word].keys()
     ['creature,', 'substance', 'soul.', 'thing', 'thing,', 'creature']
 
 We can set up a simple loop to generate text: we set an initial
@@ -1166,8 +1130,57 @@ as demonstrated by the text generated above.  A more advanced approach
 would be to randomly choose each word, with more frequent words chosen
 more often.
 
-.. TODO: add section on Collocations
+Collocations
+------------
+
+Collocations are pairs of content words that occur together more
+often than one would expect if the words of a document were scattered randomly.
+We can find collocations by counting how many times a pair of words
+*w*\ :subscript:`1`, *w*\ :subscript:`2` occurs together, compared
+to the overall counts of these words (this program uses
+a heuristic related to the `mutual information`:dt measure,
+``http://www.collocations.de/``)
+In Listing collocations_ we try this for the items in the webtext corpus.
+
+.. pylisting:: collocations
+   :caption: A Simple Program to Find Collocations
+
+    def collocations(words):
+        from nltk_lite.probability import FreqDist
+        from string import join
+        from operator import itemgetter
+
+        wfd = FreqDist(words)
+        pfd = FreqDist(tuple(words[i:i+2]) for i in range(len(words)-1))
+        scored = [(join([w1,w2]), pfd[(w1,w2)] ** 3 / float(wfd[w1]*wfd[w2])) for w1, w2 in pfd]
+        scored.sort(key=itemgetter(1), reverse=True)
+        return map(itemgetter(0), scored)
+
+    >>> from nltk_lite.corpora import webtext
+    >>> for item in webtext.items:
+    ...     words = [word.lower() for word in webtext.raw(item) if len(word) > 2]
+    ...     print webtext.item_name[item]
+    ...     print collocations(words)[:15]
+    Overheard in New York
+    ['new york', 'girl #1:', 'girl #2:', 'teen boy', 'teen girl',
+    'guy #1:', 'you know', 'middle aged', 'guy #2:', 'flight attendant',
+    'puerto rican', 'last night', 'little boy', 'taco bell', 'statue liberty']
+    Fine Wine Diary
+    ['high toned', 'top ***', 'not rated', 'few years', 'medium weight',
+    'year two', 'cigar box', 'cote rotie', 'mixed feelings', 'demi sec',
+    'from half', 'brown sugar', 'bare ****', 'tightly wound', 'sous bois']
+    Movie script from Pirates of the Carribean: Dead Man's Chest
+    ['jack sparrow', 'will turner', 'elizabeth swann', 'davy jones', 'flying dutchman',
+    'lord cutler', 'cutler beckett', 'black pearl', 'tia dalma', 'heh heh',
+    'edinburgh trader', 'port royal', 'bamboo pole', 'east india', 'jar dirt']
+    Singles ads
+    ['non smoker', 'would like', 'dining out', 'like meet', 'age open',
+    'sense humour', 'looking for', 'social drinker', 'down earth', 'long term',
+    'quiet nights', 'easy going', 'medium build', 'nights home', 'weekends away']
+
+
 .. TODO: add section on Distributional Similarity
+
 
 Exercises
 ---------
