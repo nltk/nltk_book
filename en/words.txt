@@ -783,44 +783,61 @@ Exercises
    Develop a sentence tokenizer.  Test it on the Brown Corpus, which
    has been grouped into sentences.
 
------------------------------
-Simple Statistics with Tokens
------------------------------
+------------------------------------------------
+Counting Words: Several Interesting Applications
+------------------------------------------------
 
-So far, we've seen how to count the number of tokens or types in a
-document.  In this section we will see how to count occurrences of tokens,
-and a variety of useful tasks this permits us to perform.
+Now that we can count words (tokens or types), we can write
+programs to perform a variety of useful tasks, to study
+stylistic differences in language use, differences between
+languages, and even to generate random text.
 
-Counting with Dictionaries
---------------------------
-
-We can use a Python dictionary to count the
-number of occurrences of each word in a document.
+Before getting started, we need to see how to get Python to
+count the number of occurrences of *each* word in a document.
 He we will use text from the Wall Street Journal that
 is included in the Penn Treebank corpus sample.
 
     >>> from nltk_lite.corpora import treebank
     >>> counts = {}                              # [_count-initialization]
     >>> for sent in treebank.raw():
-    ...     for word in sent:
-    ...         if word not in counts:           # [_count-unseen]
-    ...             counts[word] = 0             # [_count-new]
-    ...         counts[word] += 1                # [_count-increment]
-
-In line count-initialization_ we initialize the dictionary.
-Then for each word in each sentence, if we haven't seen the word before (line count-unseen_),
-we initialize a new counter (line count-new_).
-Finally, in line count-increment_, we increment the counter for this particular word.
-To view the contents of the dictionary, we can iterate over its keys and print
-each entry (here just for the first 5 entries):
-    
-    >>> for token in sorted(counts)[:5]:
+    ...     for token in sent:
+    ...         if token not in counts:          # [_count-unseen]
+    ...             counts[token] = 0            # [_count-new]
+    ...         counts[token] += 1               # [_count-increment]
+    >>> for token in sorted(counts)[:5]:         # [_count-output]
     ...     print counts[token], token
     3 !
     16 #
     702 $
     444 %
     86 &
+
+In line count-initialization_ we initialize the dictionary.
+Then for each word in each sentence, if we haven't seen the word before (line count-unseen_),
+we initialize a new counter (line count-new_).
+Finally, in line count-increment_, we increment the counter for this particular word.
+To view the contents of the dictionary, we can iterate over its keys and print
+each entry (here just for the first 5 entries, line count-output_).
+
+This style of output and our ``counts`` object
+are just different forms of the same abstract structure
+|mdash| a collection of items and their frequencies |mdash|
+known as a `frequency distribution`:dt:.
+Since we will often need to count things, NLTK provides
+a ``FreqDist()`` class.
+
+    >>> from nltk_lite.probability import FreqDist
+    >>> fd = FreqDist(token for sent in treebank.raw() for token in sent)
+    >>> for token in sorted(fd.samples())[:5]:
+    ...     print fd[token], token
+    3 !
+    16 #
+    702 $
+    444 %
+    86 &
+
+Sorting by Frequency
+--------------------
     
 |nopar|
 This output isn't very interesting.
@@ -999,10 +1016,10 @@ are summarized in Table freqdist_.
    ==========  ===================  ===========================================
    Name        Sample               Description
    ==========  ===================  ===========================================
-   Count       ``fd.count('the')``  number of times a given sample occurred
+   Count       ``fd['the']``        number of times a given sample occurred
    Frequency   ``fd.freq('the')``   frequency of a given sample
    N           ``fd.N()``           number of samples
-   Samples     ``fd.samples()``     list of distinct samples recorded
+   Samples     ``fd.keys()``        list of distinct samples recorded
    Max         ``fd.max()``         sample with the greatest number of outcomes
    ==========  ===================  ===========================================
 
@@ -1041,30 +1058,31 @@ The output is shown in Figure fig-word-len-dist_ (a color figure in the online v
    this package please see ``http://matplotlib.sourceforge.net/``.
 
 .. pylisting:: word-len-dist
-   :caption: Word Length Distributions for Several Languages
+   :caption: Cumulative Word Length Distributions for Several Languages
 
     from nltk_lite.probability import FreqDist
     from nltk_lite.corpora import udhr
     import pylab
-
-    def lengths(lang):
+    
+    def cld(lang):
         text = udhr.raw(lang)
         fd = FreqDist(len(token) for token in text)
-        return [100*fd.freq(i) for i in range(36)]
+        ld = [100*fd.freq(i) for i in range(36)]
+        return [sum(ld[0:i+1]) for i in range(len(ld))]
 
-    >>> langs = ['Chickasaw-Latin1', 'English-Latin1', 'German_Deutsch-Latin1',
-    ...          'Greenlandic_Inuktikut-Latin1', 'Hungarian_Magyar-Latin1',
-    ...          'Ibibio_Efik-Latin1', 'Portuguese_Portugues-Latin1']
-    >>> dists = [pylab.plot(lengths(l), label=l[:-7], linewidth=2) for l in langs]
-    >>> pylab.title('Word Length Distributions for Several Languages')
-    >>> pylab.legend()
+    >>> langs = ['Chickasaw-Latin1', 'English-Latin1',
+    ...          'German_Deutsch-Latin1', 'Greenlandic_Inuktikut-Latin1',
+    ...          'Hungarian_Magyar-Latin1', 'Ibibio_Efik-Latin1']
+    >>> dists = [pylab.plot(cld(l), label=l[:-7], linewidth=2) for l in langs]
+    >>> pylab.title('Cumulative Word Length Distributions for Several Languages')
+    >>> pylab.legend(loc='lower right')
     >>> pylab.show()
 
 .. _fig-word-len-dist:
 .. figure:: ../images/word-len-dist.png
    :scale: 25
 
-   Word Length Distributions for Several Languages
+   Cumulative Word Length Distributions for Several Languages
 
 Generating Random Text with Style
 ---------------------------------
