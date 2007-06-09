@@ -17,17 +17,22 @@ Introduction
 
 |nopar|
 Language can be divided up into pieces of varying sizes, ranging from
-morphemes to paragraphs.  In this chapter we will focus on words, a
-very important level for much work in |NLP|.  Just what are words, and
-how should we represent them in a machine?  These may seem like
-trivial questions, but it turns out that there are some important
+morphemes to paragraphs.  In this chapter we will focus on words, the
+most fundamental level for |NLP|.  Just what are words, and
+how should we represent them in a machine?  These questions may seem
+trivial, but we'll see that there are some important
 issues involved in defining and representing words.
+Once we've tackled them, we're in a good position to do further
+processing, such as find related words and analyze the
+style of a text (this chapter), to categorize words (Chapter chap-tag_),
+to group them into phrases (Chapter chap-chunk_ and Part II),
+and to do a variety of language engineering tasks (Chapter chap-engineering_).
 
 In the following sections, we will explore the division of text into
 words; the distinction between types and tokens; sources of text data
 including files, the web, and linguistic corpora; accessing these
 sources using Python and NLTK; stemming and normalisation;
-Wordnet; and a variety of useful programming tasks involving words
+the WordNet lexical database; and a variety of useful programming tasks involving words.
 
 -----------------------
 Tokens, Types and Texts
@@ -35,7 +40,7 @@ Tokens, Types and Texts
 
 In Chapter chap-introduction_, we showed how a string could be split into a
 list of words.  Once we have derived a list, the ``len()`` function
-will count the number of words for us:
+will count the number of words it contains:
 
     >>> sentence = "This is the time -- and this is the record of the time."
     >>> words = sentence.split()
@@ -56,16 +61,16 @@ duplicates:
     >>> len(set(words))
     10
 
-|nopar| So if we ask how many words there are in ``sentence``, we get two
-different answers, depending on whether we count duplicates or not. 
-Clearly we are using different senses of 'word' here. To help
+|nopar| So if we ask how many words there are in ``sentence``, we get
+different answers depending on whether we count duplicates. 
+Clearly we are using different senses of "word" here. To help
 distinguish between them, let's introduce two terms:
 `token`:dt: and `type`:dt:.  A word token is an individual occurrence
 of a word in a concrete context; it exists in time and space.  A word
 `type`:dt: is a more abstract; it's what we're talking about when we
-say that the three occurrences of ``the`` in ``sentence`` are  'the same word'.
+say that the three occurrences of ``the`` in ``sentence`` are  "the same word."
 
-Something similar to a type/token distinction is reflected in the following
+Something similar to a type-token distinction is reflected in the following
 snippet of Python:
 
     >>> words[2]
@@ -81,50 +86,41 @@ snippet of Python:
 this case, it is testing for string-identity. This is the notion of
 identity that was assumed by our use of ``set()`` above. By contrast, the
 ``is`` operator tests whether two objects are stored in the same
-location of memory, and is therefore analogous to
-token-identity.  
-
-In effect, when we used ``split()`` above to turn a string into a list
-of words, our tokenization method was to say that any strings which
+location of memory, and is therefore analogous to token-identity.  
+When we used ``split()`` to turn a string into a list of words,
+our tokenization method was to say that any strings which
 are delimited by whitespace count as a word token. But this simple
-approach doesn't always lead to the results we want. Moreover,
-string-identity doesn't always give us a useful criterion for
+approach doesn't always give the desired results.
+Also, testing string-identity isn't a very useful criterion for
 assigning tokens to types. We therefore need to address two questions
 in more detail:
-
-*Tokenization*: 
-  Which substrings of the original text should be treated as word tokens?
- 
-*Type definition*: 
-  How do we decide whether two tokens have the same type?
+*Tokenization:* Which substrings of the original text should be treated as word tokens?
+*Type definition:* How do we decide whether two tokens have the same type?
 
 To see the problems with our first stab at defining tokens and types
-in ``sentence``, let's look more closely at what is contained in ``set(words)``:
+in ``sentence``, let's look at the actual tokens we found:
 
     >>> set(words)
     set(['and', 'this', 'record', 'This', 'of', 'is', '--', 'time.',
     'time', 'the']
 
 |nopar|
-One point to note is that ``'time'`` and ``'time.'`` come out as distinct
-tokens, and of necessity, distinct types, since the trailing period
-has been bundled up with the rest of the word into a single token. We
-might also argue that although ``'--'`` is some kind of token, it
-isn't really a `word`:em: token. Third, we would probably want to say
-that ``'This'`` and ``'this'`` are not distinct types, since
-capitalization should be ignored.
+Observe that ``'time'`` and ``'time.'`` are incorrectly
+treated as distinct types since the trailing period
+has been bundled with the rest of the word.
+Although ``'--'`` is some kind of token, it's not a `word`:em: token.
+Additionally, ``'This'`` and ``'this'`` are incorrectly distinguished
+from each other, because of a difference in capitalization that should
+be ignored.
 
-If we turn to languages other than English, segmenting words
-can be even more of a challenge. For example, in Chinese
-orthography, characters correspond to monosyllabic morphemes. Many
-morphemes are words in their own right, but words contain more than
-one morpheme. However, there is no visual representation of word
-boundaries in Chinese text. For example, consider the following
-three-character string: |ai4| |guo3| |ren2| (in pinyin plus tones:
-ai4 'love' (verb), guo3 'country', ren2 'person'). This could
-either be segmented as [|ai4| |guo3|] |ren2| |mdash|
-'country-loving person' or as |ai4| [|guo3| |ren2|] |mdash| 'love
-country-person'.
+If we turn to languages other than English, tokenizing text is even more
+challenging.  In Chinese text there is no visual representation of word
+boundaries.  Consider the following
+three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
+ai4 "love" (verb), guo3 "country", ren2 "person"). This could
+either be segmented as [|ai4|\ |guo3|]\ |ren2| |mdash|
+"country-loving person" or as |ai4|\ [|guo3|\ |ren2|] |mdash| "love
+country-person."
 
 The terms *token* and *type* can also be applied to other linguistic
 entities.  For example, a `sentence token`:dt: is an individual
@@ -134,15 +130,14 @@ uttered two sentence tokens but only used one sentence type.  When the kind
 of token or type is obvious from context, we will simply use the terms
 token and type.
 
-To summarize, although the type/token distinction is a useful
-one, we cannot just say that two word tokens have the same type if they are
-the same string of characters |mdash| we need to take into
-consideration a number of other factors in determining what counts as
-the same word. Moreover, we also need to be more careful in how we
+To summarize, we cannot just say that two word tokens have the same type if they are
+the same string of characters.  We need to
+consider a variety of factors in determining what counts as
+the same word, and we need to be careful in how we
 identify tokens in the first place. 
 
 Up till now, we have relied on getting our source texts by defining a string in
-a fragment of Python code. However, this is an impractical approach
+a fragment of Python code. However, this is impractical
 for all but the simplest of texts, and makes it hard to present
 realistic examples. So how do we get larger chunks of
 text into our programs?  In the rest of this section, we will see how
@@ -180,14 +175,14 @@ that you have saved the file in the same directory or folder in which
 you are running the Python interactive interpreter.
 
 .. Note:: If you are using |IDLE|, you can easily create this file by
-   selecting the *New Window* command in the *File* menu, typing in
+   selecting the *New Window* command in the *File* menu, typing
    the required text into this window, and then saving the file as
    ``corpus.txt`` in the first directory that |IDLE| offers in the
    pop-up dialogue box.
 
 
 |nopar| 
-The next step is to `open`:dt: a file using the built-in function ``open()``,
+The next step is to `open`:dt: a file using the built-in function ``open()``
 which takes two arguments, the name of the file, here ``corpus.txt``, and the
 mode to open the file with (``'r'`` means to open the file for reading,
 and ``'U'`` stands for "Universal", which lets us ignore the different
@@ -217,8 +212,8 @@ conventions used for marking newlines).
       >>> os.listdir('.')
 
 |nopar| 
-To read the contents of the file we can use lots of different methods.
-The following uses the read method ``read()`` on the file object
+There are several methods for reading the file.
+The following uses the method ``read()`` on the file object
 ``f``; this reads the entire contents of a file into a string.
 
 .. doctest-ignore::
@@ -226,10 +221,8 @@ The following uses the read method ``read()`` on the file object
     'Hello World!\nThis is a test file.\n'
 
 |nopar|
-You will recall that the strange ``'\n'`` character on the end of
-the string is a `newline`:dt: character; this is equivalent to
-pressing *Enter* on a keyboard and starting a new line. 
-.. There is also a ``'\t'`` character for representing tab.
+Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
+is equivalent to pressing *Enter* on a keyboard and starting a new line. 
 Note that we can open and read a file in one step:
 
     >>> text = open('corpus.txt', 'rU').read()
@@ -250,7 +243,8 @@ the input line.
 Extracting text from the Web
 ----------------------------
 
-To read in a web page, we use ``urlopen()``:
+Opening a web page is not much different to opening a file, except that
+we use ``urlopen()``:
 
     >>> from urllib import urlopen
     >>> page = urlopen("http://news.bbc.co.uk/").read()
@@ -258,8 +252,8 @@ To read in a web page, we use ``urlopen()``:
     <!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"
 
 |nopar| 
-Web pages are usually in |HTML| format.  To extract the plain text, we
-can strip out the |HTML| markup, that is remove all material enclosed in
+Web pages are usually in |HTML| format.  To extract the text, we
+need to strip out the |HTML| markup, i.e. remove all material enclosed in
 angle brackets. Let's digress briefly to consider how to carry out
 this task using regular expressions. Our first attempt might look as
 follows:
@@ -277,7 +271,7 @@ intervening. However, look at what the result is:
     '' 
 
 |nopar| 
-What has happened here? The problem is two-fold. First, as already
+What has happened here? The problem is twofold. First, as already
 noted, the wildcard ``'.'`` matches any character other than
 ``'\n'``, so in particular it will match ``'>'`` and ``'<'``. Second,
 the ``'*'`` operator is 'greedy', in the sense that it matches
@@ -286,14 +280,16 @@ therefore, ``'.*'`` will return not the shortest match, namely
 ``'title'``, but the longest match, ``'title>BBC NEWS | News Front
 Page</title'``. 
 
+.. TODO: think about teaching .*? instead
+
 In order to get the results we want, we need to think about the task
 in a slightly different way. Our assumption is that after we have
 encountered a ``'<'``, any character can occur within the tag except a
 ``'>'``; once we find the latter, we know the tag is closed. Now, we
 have already seen how to match everything but |alpha|, for some
 character |alpha|; we use a negated range expression. In this case,
-the expression we need is ``'[^<]'``: match everything except
-``'<'``. This range expression is then quantified with the ``'*'``
+the expression we need is ``'[^>]'``: match everything except
+``'>'``. This range expression is then quantified with the ``'*'``
 operator. In our revised example below, we use the improved regular
 expression, and we also normalise whitespace, replacing any sequence
 of one or more spaces, tabs or newlines (these are all matched by
@@ -340,7 +336,7 @@ Next we iterate over the text content to find the number of word tokens:
     >>> print count
     154873
 
-|NLTK| also includes the Brown Corpus, the first million-word,
+The Brown Corpus was the first million-word,
 part-of-speech tagged electronic corpus of English, created in 1961 at
 Brown University.  Each of the sections ``a`` through ``r`` represents
 a different genre.
@@ -368,13 +364,14 @@ Exercises
 ---------
 
 #. |easy| Create a small text file, and write a program to read it and print it
-   with a line number at the start of each line.
+   with a line number at the start of each line.  (Make sure you don't introduce
+   an extra blank line between each line.)
 
 #. |easy| Use the corpus module to read ``austin-persuasion.txt``.
    How many word tokens does this book have?  How many word types?
 
-#. |easy| Use the Brown corpus reader ``brown.raw()`` to access some sample
-   text in two different genres.
+#. |easy| Use the Brown corpus reader ``brown.raw()`` or the Web text corpus
+   reader ``webtext.raw()`` to access some sample text in two different genres.
 
 #. |easy| Read in the texts of the *State of the Union* addresses, using the
    ``state_union`` corpus reader.  Count occurrences of ``men``, ``women``,
@@ -417,10 +414,10 @@ Exercises
    `n`:math:,  and extract `n`:math:.
    Convert this to an integer and return it.
 
-#. |soso| Try running the various chatbots.  How
+#. |soso| Try running the various chatbots included with |NLTK|.  How
    *intelligent* are these programs?  Take a look at the program code
    and see if you can discover how it works.  You can find the code
-   online at: ``http://nltk.sourceforge.net/lite/nltk_lite/chat/``.
+   online at: ``http://nltk.sourceforge.net/nltk_lite/chat/``.
 
 ------------------------------
 Tokenization and Normalization
@@ -430,14 +427,13 @@ Tokenization, as we saw, is the task of extracting a sequence of elementary toke
 that constitute a piece of language data. In our first attempt to
 carry out this task, we started off with a string of characters, and
 used the ``split()`` method to break the string at whitespace
-characters. (Recall that 'whitespace' covers not only interword space,
-but also tabs and newlines.)
+characters. Recall that "whitespace" covers not only interword space,
+but also tabs and newlines.
 We pointed out that tokenization
 based solely on whitespace is too simplistic for most applications.
 In this section we will take a more sophisticated approach, using
-regular expression to specify which character sequences should be
-treated as words.  We will also consider important ways to normalize
-tokens.
+regular expressions to specify which character sequences should be
+treated as words.  We will also look at ways to normalize tokens.
 
 Tokenization with Regular Expressions
 -------------------------------------
@@ -464,13 +460,13 @@ character (i.e., not a match for ``\s``).  We use the disjunction
 operator ``|`` to combine these into a single complex expression
 ``\w+|[^\w\s]+``.
 
-There are a number of ways we might want to improve this regular
+There are a number of ways we could improve on this regular
 expression.  For example, it currently breaks `$22.50`:lx: into four
-tokens; but we might want it to treat this as a single token.
-Similarly, we would want to treat `U.S.A.` as a single token.  We can
-deal with these by adding further clauses to the tokenizer's regular
-expression.  For readability we break it up and insert comments, and
-use the ``re.VERBOSE`` flag, so that Python knows to strip out the
+tokens; we might want it to treat this as a single token.
+Similarly, `U.S.A.` should count as a single token.  We can
+deal with these by adding further cases to the regular
+expression.  For readability we will break it up and insert comments, and
+use the ``re.VERBOSE`` flag so that Python knows to strip out the
 embedded whitespace and comments.
 
     >>> import re
@@ -494,11 +490,15 @@ pattern is matched against the gaps.  For example, here is how
     >>> list(tokenize.regexp(text, pattern=r'\s+', gaps=True))
     ['That', 'poster', 'costs', '$22.40.']
 
-|nopar| Of course, we can also invoke the ``whitespace()`` method directly:
+Of course it is more convenient to call it directly:
 
-    >>> text = 'That poster costs $22.40.'
     >>> list(tokenize.whitespace(text))
     ['That', 'poster', 'costs', '$22.40.']
+    
+.. Note:: It is possible to do simple kinds of tokenization using ``re.findall()``,
+   but the |NLTK| tokenizers are more efficient for processing large corpora because
+   they are implemented as `iterators`:dt:, only producing tokens as they are used
+   by a calling program.
 
 Lemmatization and Normalization
 -------------------------------
@@ -520,6 +520,8 @@ homographs with the help of context; often the previous word suffices.
 We will explore this idea of context briefly, before addressing the
 main topic of this section.
 
+As a first approximation to discovering the distribution of a word, we
+can look at all the bigrams it occurs in.
 A `bigram`:dt: is simply a pair of words.
 For example, in the sentence `She sells sea shells by the sea shore`:lx:,
 the bigrams are
@@ -530,11 +532,9 @@ the bigrams are
 `by the`:lx:,
 `the sea`:lx:,
 `sea shore`:lx:.
-
-As a first approximation to discovering the distribution of a word, we
-can look at all the bigrams it occurs in.  Let's consider all bigrams
-from the Brown Corpus which have the word `often`:lx: as first
-element.  Here is a small selection, ordered by their counts::
+Let's consider all bigrams from the Brown Corpus which have the
+word `often`:lx: as first element.
+Here is a small selection, ordered by their counts::
 
     often ,		16
     often a		10
@@ -557,14 +557,14 @@ element.  Here is a small selection, ordered by their counts::
 In the topmost entry, we see that `often`:lx: is frequently followed
 by a comma.  This suggests that `often`:lx: is common at the end of
 phrases. We also see that `often`:lx: precedes verbs, presumably as an
-adverbial modifier.  We might infer from this that if we come across
-`saw`:lx: in the context `often __`:lx:, then `saw`:lx: is being used
+adverbial modifier.  We might conclude that when `saw`:lx:
+appears in the context `often saw`:lx:, then `saw`:lx: is being used
 as a verb.
 
 You will also see that this list includes different grammatical forms
 of the same verb. We can form separate groups consisting of
 `appear`:lx: |tilde| `appears`:lx: |tilde| `appeared`:lx:; `call`:lx:
-|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and and `been`:lx:
+|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and `been`:lx:
 |tilde| `were`:lx: |tilde| `are`:lx: |tilde| `is`:lx:.  It is common
 in linguistics to say that two forms such as `appear`:lx: and
 `appeared`:lx: belong to a more abstract notion of a word called a
@@ -587,9 +587,12 @@ the base form is conventionally used as the `lemma`:dt: for a word.
 Our notion of context would be more compact if we could group
 different forms of the various verbs into their lemmas; then we could
 study which verb lexemes are typically modified by a particular
-adverb. `Lemmatization`:dt: |mdash| the process of mapping grammatical forms
-into their lemmas |mdash| would yield the
+adverb. `Lemmatization`:dt: |mdash| the process of mapping words
+to their lemmas |mdash| would yield the
 following picture of the distribution of `often`:lx:.
+Here, the counts for `often appear`:lx: (3),
+`often appeared`:lx: (2) and `often appears`:lx: (1)
+are combined into a single line.
 
   ::
 
@@ -603,49 +606,39 @@ following picture of the distribution of `often`:lx:.
     often appear	6
     often call		5
 
-Lemmatization is a rather sophisticated process which requires a
-mixture of rules for regular inflections and table look-up for
-irregular morphological patterns. Within |NLTK|, a simpler approach is
-offered by the `Porter Stemmer`:dt: and the `Lancaster Stemmer`:dt:,
-which strip inflectional suffixes from words,
-collapsing the different forms of `appear`:lex: and `call`:lex:.
-Given the simple nature of the stemming algorithms, you may not be
-surprised to learn that this stemmer does not attempt to identify
-`were`:lx: as a form of the lexeme `be`:lex:.  
+Lemmatization is a rather sophisticated process which uses rules
+for the regular word patterns, and table look-up for
+the irregular patterns. Within |NLTK|, we can use off-the-shelf
+stemmers, such as the `Porter Stemmer`:dt: and the `Lancaster Stemmer`:dt:, e.g.:
 
     >>> from nltk_lite import stem
     >>> stemmer = stem.Porter()
     >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
-    >>> stems = []
-    >>> for verb in verbs:
-    ...     stemmed_verb = stemmer.stem(verb)
-    ...     if stemmed_verb not in stems:
-    ...         stems.append(stemmed_verb)
-    >>> stems
+    >>> stems = [stemmer.stem(verb) for verb in verbs]
+    >>> sorted(set(stems))
     ['appear', 'call']
     
-Lemmatization and stemming can be regarded as special cases of
-`normalization`:dt:.  They identify a canonical representative for a
-group of related word forms.  By its nature, normalization collapses
-distinctions. An example is case normalization, where all variants are
-mapped into a single format. What counts as the normalized form will
-vary according to context. Often, we convert everything into lower
-case, so that words which were capitalized by virtue of being
-sentence-initial are treated the same as those which occur elsewhere
-in the sentence. The Python string method ``lower()`` will accomplish
-this for us:
+Lemmatization and stemming are special cases of `normalization`:dt:.
+They identify a canonical representative for a set of related word forms.
+Normalization collapses distinctions.  Exactly how we normalize words depends
+on the application.  Often, we convert everything into lower
+case so that we can ignore the written distinction between sentence-initial
+words and the rest of the words in the sentence.
+The Python string method ``lower()`` will accomplish this for us:
 
-    >>> str = 'This is THE time'
+    >>> str = 'This is the time'
     >>> str.lower()
     'this is the time'
 
-We need to be careful, however; case normalization will also collapse the `New`:lx:
-of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
+.. We need to be careful, however; case normalization will also collapse the `New`:lx:
+   of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
+   [SB: this mixes the issue with named entity detection, and should probably
+   be left to the engineering chapter]
 
 A final issue for normalization is the presence of contractions, such
 as `didn't`:lx:.  If we are analyzing the meaning
 of a sentence, it would probably be more useful to normalize this
-form to two separate forms: `did`:lx: and `not`:lx:.
+form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx").
 
 .. _sec-list-comprehensions:
 
@@ -661,7 +654,7 @@ construct for doing this.  Here we lowercase each word:
     ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
 
 |nopar|
-Here we rewrite the loop for identifying verb stems, from
+Here we rewrite the loop for identifying verb stems that we saw in
 the previous section:
 
     >>> [stemmer.stem(verb) for verb in verbs]
@@ -684,7 +677,7 @@ sets, e.g. {(x,y) | x\ :superscript:`2` + y\ :superscript:`2` = 1}.
 (We will return to sets later in Section sec-sets_).
 Just as this set definition incorporates a constraint, list
 comprehensions can constrain the items they include.  In the next
-example we remove all determiners from a list of words:
+example we remove some non-content words from a list of words:
 
     >>> def is_lexical(word):
     ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
@@ -692,8 +685,8 @@ example we remove all determiners from a list of words:
     ['dog', 'gave', 'John', 'newspaper']
 
 |nopar|
-Now we can combine the two ideas, to pull out the content words
-and normalize them.
+Now we can combine the two ideas (constraints and normalization),
+to pull out the content words and normalize them.
 
     >>> [word.lower() for word in sent if is_lexical(word)]
     ['dog', 'gave', 'john', 'newspaper']
@@ -740,7 +733,8 @@ Exercises
     [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
 
 #. |soso| Use the Porter Stemmer to normalize some tokenized text, calling
-   the stemmer on each word.
+   the stemmer on each word.  Do the same thing with the Lancaster Stemmer
+   and see if you observe any differences.
 
 #. |soso| Consider the numeric expressions in the following sentence from
    the MedLine corpus: `The corresponding free cortisol fractions in these
@@ -749,7 +743,7 @@ Exercises
    words?  Or should we say that it's a single compound word?  Or should
    we say that it is actually *nine* words, since it's read "four point
    five three, plus or minus fifteen percent"?  Or should we say that
-   it's not a 'real' word at all, since it wouldn't appear in any dictionary?
+   it's not a "real" word at all, since it wouldn't appear in any dictionary?
    Discuss these different possibilities.  Can you think of application domains
    that motivate at least two of these answers?
    
@@ -757,9 +751,9 @@ Exercises
    text, for the purposes of selecting texts of appropriate difficulty
    for language learners.  For example, the Automated Readability Index (ARI)
    of a text is defined to be:
-   ``4.71 *`` |mu|\ :subscript:`w` ``+ 0.5 *`` |mu|\ :subscript:`s` ``- 21.43``,
-   where |mu|\ :subscript:`w` is the mean word length (in letters), and
-   where |mu|\ :subscript:`s` is the mean sentence length (in words).
+   ``4.71 * `` |mu|\ :subscript:`w` ``+ 0.5 * `` |mu|\ :subscript:`s` ``- 21.43``,
+   where |mu|\ :subscript:`w` is the average number of letters per word, and
+   |mu|\ :subscript:`s` is the average number of words per sentence.
    With the help of your word and sentence
    tokenizers, compute the ARI scores for a collection of texts.
 
@@ -827,7 +821,8 @@ are just different forms of the same abstract structure
 |mdash| a collection of items and their frequencies |mdash|
 known as a `frequency distribution`:dt:.
 Since we will often need to count things, NLTK provides
-a ``FreqDist()`` class.
+a ``FreqDist()`` class.  We can write the same code more
+conveniently as follows:
 
     >>> from nltk_lite.probability import FreqDist
     >>> fd = FreqDist(token for sent in treebank.raw() for token in sent)
@@ -843,15 +838,15 @@ Some of the methods defined on NLTK frequency distributions are shown in Table f
 
 .. table:: freqdist
 
-   ==========  ===================  ===========================================
+   ==========  ===================  =======================================================
    Name        Sample               Description
-   ==========  ===================  ===========================================
+   ==========  ===================  =======================================================
    Count       ``fd['the']``        number of times a given sample occurred
    Frequency   ``fd.freq('the')``   frequency of a given sample
    N           ``fd.N()``           number of samples
-   Samples     ``fd.keys()``        list of distinct samples recorded
+   Samples     ``list(fd)``         list of distinct samples recorded (also ``fd.keys()``)
    Max         ``fd.max()``         sample with the greatest number of outcomes
-   ==========  ===================  ===========================================
+   ==========  ===================  =======================================================
 
    Frequency Distribution Module
 
@@ -923,9 +918,9 @@ section we see another approach.
 Stylistics
 ----------
 
-Stylistics is a broad term, covering varieties of language use and literary genres.
+Stylistics is a broad term covering literary genres and varieties of language use.
 Here we will look at a document collection that is categorized by genre,
-and try to learn something about the patterns of word usage in those genres.
+and try to learn something about the patterns of word usage.
 For example, Table brown-modals_ was constructed by counting
 the number of times various modal words appear
 in different sections of the corpus:
@@ -953,8 +948,10 @@ possibilities.
 
 We can also measure the lexical diversity of a genre, by
 calculating the ratio of word types and word tokens, as
-shown in Table brown-types_.  (Genres with lower diversity
-have a higher number of tokens per type.)
+shown in Table brown-types_.  Genres with lower diversity
+have a higher number of tokens per type, thus we see that
+humorous prose is almost twice as lexically diverse as
+romance prose.
 
 .. table:: brown-types
 
@@ -969,20 +966,17 @@ have a higher number of tokens per type.)
    religion            39399        6373        6.2
    ==================  ===========  ==========  =====
 
-   Word Types and Tokens in Brown Corpus, by Genre
+   Lexical Diversity of Various Genres in the Brown Corpus
 
 We can carry out a variety of interesting explorations simply by
 counting words.  In fact, the field of `Corpus Linguistics`:dt: focuses
-almost exclusively on creating and interpreting such tables of word
-counts.  So far, our method for identifying word tokens has been
-a little primitive, and we have not been able to separate punctuation
-from the words.  We will take up this issue in the next section.
+heavily on creating and interpreting such tables of word counts.
 
 Lexical Dispersion
 ------------------
 
 Word tokens vary in their distribution throughout a text.  We can
-visualize word distributions, to get an overall sense of topics and topic
+visualize word distributions to get an overall sense of topics and topic
 shifts.  For example, consider the pattern of mention of the main
 characters in Jane Austen's *Sense and Sensibility*: Elinor, Marianne,
 Edward and Willoughby.  The following plot contains four rows, one for
@@ -991,7 +985,7 @@ to indicate the position of each token.
 
 .. figure:: ../images/words-dispersion.png
 
-   Lexical Dispersion
+   Lexical Dispersion Plot for the Main Characters in *Sense and Sensibility*
 
 As you can see, `Elinor`:lx: and `Marianne`:lx: appear rather uniformly throughout
 the text, while `Edward`:lx: and `Willoughby`:lx: tend to appear separately.
@@ -1006,7 +1000,7 @@ Here is the program that generated the above plot.  [NB. Requires |NLTK|-Lite 0.
 Comparing Word Lengths in Different Languages
 ---------------------------------------------
 
-We can also use a frequency distribution to examine the distribution
+We can use a frequency distribution to examine the distribution
 of word lengths in a corpus.  For each word, we find its length,
 and increment the count for words of this length.
 
@@ -1068,67 +1062,52 @@ The output is shown in Figure fig-word-len-dist_ (a color figure in the online v
 Generating Random Text with Style
 ---------------------------------
 
+We have used frequency distributions to count the number of occurrences of
+each word in a text.  Here will will generalize this idea to look at the
+distribution of words in a given context.
 A `conditional frequency distribution`:dt: is a collection
 of frequency distributions, each one for a different condition.
-We can use a ``ConditionalFreqDist`` to find the most frequent
-word that follows any given word.
-First, we use a training corpus to count words in context.
-Then, we can access the frequency distribution for
-a given context with the indexing operator, and use the ``max()``
-method to find the most likely outcome.
+Here the condition will be the preceding word.
 
-We will now use a ``ConditionalFreqDist`` to predict the most likely
-next word in a text.  To begin, we load a corpus from a text file, and
-create an empty ``ConditionalFreqDist``:
+In Listing random_, we've defined a function ``train_model()`` which
+uses ``ConditionalFreqDist()`` to count words as they appear
+relative to the context defined by the preceding word (stored in ``prev``).
+It scans the corpus, incrementing the appropriate counter, and
+updating the value of ``prev``.  The function ``generate_model()``
+contains a simple loop to generate text: we set an initial
+context, pick the most likely token in that context as our next
+word (using ``max()``), and then use that word as our new context.
+This simple approach to text generation tends to get stuck in loops;
+another method would be to randomly choose the next word from among
+the available words.
 
-    >>> from nltk_lite.corpora import genesis
-    >>> from nltk_lite.probability import ConditionalFreqDist
-    >>> cfdist = ConditionalFreqDist()
+.. pylisting:: random
+   :caption: Generating Random Text in the Style of Genesis
 
-|nopar|
-We then examine each token in the corpus, and increment the
-appropriate sample's count.  We use the variable ``prev`` to record
-the previous word.
-
-    >>> prev = None
-    >>> for word in genesis.raw():
-    ...     cfdist[prev].inc(word)
-    ...     prev = word
-
-.. Note:: Sometimes the context for an experiment is unavailable, or
-   does not exist.  For example, the first token in a text does not
-   follow any word.  In these cases, we must decide what context to
-   use.  For this example, we use ``None`` as the context for the
-   first token.  Another option would be to discard the first token.
-
-.. TODO: refer back to bigram discussion
-
-|nopar|
-Once we have constructed a conditional frequency distribution for the
-training corpus, we can use it to find the most likely word for any
-given context. For example, taking the word `living`:lx: as our context,
-we can inspect all the words that occurred in that context.
-
-    >>> word = 'living'
-    >>> cfdist[word].keys()
-    ['creature,', 'substance', 'soul.', 'thing', 'thing,', 'creature']
-
-We can set up a simple loop to generate text: we set an initial
-context, picking the most likely token in that context as our next
-word, and then using that word as our new context:
-
-    >>> word = 'living'
-    >>> for i in range(20):
+    def train_model(text):
+        from nltk_lite.probability import ConditionalFreqDist
+        cfdist = ConditionalFreqDist()
+        prev = None
+        for word in genesis.raw():
+            cfdist[prev].inc(word)
+            prev = word
+        return cfdist
+        
+    def generate_model(cfdist, word, num=20):
+        for i in range(num):
     ...     print word,
     ...     word = cfdist[word].max()
+
+    >>> from nltk_lite.corpora import genesis
+    >>> model = train_model(genesis.raw())
+    >>> list(model['living'])
+    ['creature,', 'substance', 'soul.', 'thing', 'thing,', 'creature']
+    >>> generate_model(model, 'living')
     living creature that he said, I will not be a wife of the land
     of the land of the land
 
-|nopar|
-This simple approach to text generation tends to get stuck in loops,
-as demonstrated by the text generated above.  A more advanced approach
-would be to randomly choose each word, with more frequent words chosen
-more often.
+.. TODO: simple concordancing
+
 
 Collocations
 ------------
@@ -1138,7 +1117,7 @@ often than one would expect if the words of a document were scattered randomly.
 We can find collocations by counting how many times a pair of words
 *w*\ :subscript:`1`, *w*\ :subscript:`2` occurs together, compared
 to the overall counts of these words (this program uses
-a heuristic related to the `mutual information`:dt measure,
+a heuristic related to the `mutual information`:dt: measure,
 ``http://www.collocations.de/``)
 In Listing collocations_ we try this for the items in the webtext corpus.
 
@@ -1147,20 +1126,28 @@ In Listing collocations_ we try this for the items in the webtext corpus.
 
     def collocations(words):
         from nltk_lite.probability import FreqDist
-        from string import join
         from operator import itemgetter
 
+        # Count the words and bigrams
         wfd = FreqDist(words)
         pfd = FreqDist(tuple(words[i:i+2]) for i in range(len(words)-1))
-        scored = [(join([w1,w2]), pfd[(w1,w2)] ** 3 / float(wfd[w1]*wfd[w2])) for w1, w2 in pfd]
+
+        # 
+        scored = [((w1,w2), score(w1, w2)) for w1, w2 in pfd]
         scored.sort(key=itemgetter(1), reverse=True)
         return map(itemgetter(0), scored)
+
+    def score(word1, word2, power=3):
+        freq1 = wfd[word1]
+        freq2 = wfd[word2]
+        freq12 = pfd[(word1, word2)]
+        return freq12 ** power / float(freq1 * freq2)
 
     >>> from nltk_lite.corpora import webtext
     >>> for item in webtext.items:
     ...     words = [word.lower() for word in webtext.raw(item) if len(word) > 2]
     ...     print webtext.item_name[item]
-    ...     print collocations(words)[:15]
+    ...     print [join(w1, w2) for w1, w2 in collocations(words)[:15]]
     Overheard in New York
     ['new york', 'girl #1:', 'girl #2:', 'teen boy', 'teen girl',
     'guy #1:', 'you know', 'middle aged', 'guy #2:', 'flight attendant',
@@ -1169,7 +1156,7 @@ In Listing collocations_ we try this for the items in the webtext corpus.
     ['high toned', 'top ***', 'not rated', 'few years', 'medium weight',
     'year two', 'cigar box', 'cote rotie', 'mixed feelings', 'demi sec',
     'from half', 'brown sugar', 'bare ****', 'tightly wound', 'sous bois']
-    Movie script from Pirates of the Carribean: Dead Man's Chest
+    Pirates of the Carribean: Dead Man's Chest
     ['jack sparrow', 'will turner', 'elizabeth swann', 'davy jones', 'flying dutchman',
     'lord cutler', 'cutler beckett', 'black pearl', 'tia dalma', 'heh heh',
     'edinburgh trader', 'port royal', 'bamboo pole', 'east india', 'jar dirt']
@@ -1187,16 +1174,41 @@ Exercises
 
 #. |easy| Pick a text, and explore the dispersion of particular words.  What
    does this tell you about the words, or the text?
-
-#. |easy| Use the ``Plot`` function defined in ``nltk_lite.draw.plot`` plot
-   word-initial character against word length, as discussed in this section.
-   
+  
 #. |easy| The program in Listing print-freq_ used a dictionary of word counts.
    Modify the code that creates these word counts so that it ignores non-content
    words.  You can easily get a list of words to ignore with:
    
     >>> from nltk_lite.corpora import stopwords
     >>> ignored_words = list(stopwords.raw('english'))
+
+#. |easy| Modify the ``generate_model()`` function in Listing random_ to use Python's
+   ``random.choose()`` method to randomly pick the next word from
+   the available set of words.
+
+#. |easy| **The demise of teen language:**
+   Read the BBC News article: *UK's Vicky Pollards 'left behind'* ``http://news.bbc.co.uk/1/hi/education/6173441.stm``.
+   The article gives the following statistic about teen language:
+   "the top 20 words used, including yeah, no, but and like, account for around a third of all words."
+   Use the program in Listing print-freq_ to find out how many word types account for a third
+   of all word tokens, for a variety of text sources.  What do you conclude about this statistic?
+   Read more about this on *LanguageLog*, at ``http://itre.cis.upenn.edu/~myl/languagelog/archives/003993.html``.
+
+#. |soso| Modify the text generation program in Listing random_ further, to
+   do the following tasks:
+   
+   a) Store the *n* most likely words in a list ``lwords`` then randomly
+      choose a word from the list using ``random.choice()``.
+
+   b) Select a particular genre, such as a section of the Brown Corpus,
+      or a genesis translation, one of the Gutenberg texts, or one of the Web texts.  Train
+      the model on this corpus and get it to generate random text.  You
+      may have to experiment with different start words. How intelligible
+      is the text?  Discuss the strengths and weaknesses of this method of
+      generating random text.
+
+   c) Now train your system using two distinct genres and experiment
+      with generating text in the hybrid genre.  Discuss your observations.
 
 #. |soso| Write a program to print the most frequent bigrams
    (pairs of adjacent words) of a text,
@@ -1217,9 +1229,8 @@ Exercises
    150th most common word type.
 
    a) Write a function to process a large text and plot word
-      frequency against word rank using the ``nltk_lite.draw.plot`` module. Do
-      you confirm Zipf's law? (Hint: it helps to use logarithmic axes,
-      by including ``scale='log'`` as a second argument to ``Plot()``).
+      frequency against word rank using ``pylab.plot``. Do
+      you confirm Zipf's law? (Hint: it helps to use a logarithmic scale).
       What is going on at the extreme ends of the plotted line?
 
    #) Generate random text, e.g. using ``random.choice("abcdefg ")``,
@@ -1229,27 +1240,6 @@ Exercises
       long string.  Then tokenize this string, and generate the Zipf
       plot as before, and compare the two plots.  What do you make of
       Zipf's Law in the light of this?
-
-#. |soso| **Predicting the next word**: The word prediction program we saw in
-   this chapter quickly gets stuck in a cycle.  Modify the program to
-   choose the next word randomly, from a list of the *n* most likely
-   words in the given context.  (Hint: store the *n* most likely words in
-   a list ``lwords`` then randomly choose a word from the list using
-   ``random.choice()``.)
-
-   a) Select a particular genre, such as a section of the Brown Corpus,
-      or a genesis translation, or one of the Gutenberg texts.  Train
-      your system on this corpus and get it to generate random text.  You
-      may have to experiment with different start words. How intelligible
-      is the text?  Discuss the strengths and weaknesses of this method of
-      generating random text.
-
-   #) Try the same approach with different genres, and with different
-      amounts of training data.  What do you observe?
-
-   #) Now train your system using two distinct genres and experiment
-      with generating text in the hybrid genre.  As before, discuss your
-      observations.
 
 #. |soso| **Exploring text genres:**
    Investigate the table of modal distributions and look for other patterns.
@@ -1268,15 +1258,20 @@ Exercises
 WordNet: An English Lexical Database
 ------------------------------------
 
-.. TODO: mention wordnets exist in other languages
+`WordNet`:idx: is a semantically-oriented dictionary of English,
+similar to a traditional thesaurus but with a richer structure.
+WordNet groups words into synonym sets, or `synsets`:dt:, each with
+its own definition and with links to other synsets.
+WordNet 3.0 data is distributed with NLTK, and includes 145,000
+synsets.
 
-`Wordnet`:topic:
+Although WordNet was originally developed for research
+in psycholinguistics, it is widely used in NLP and Information Retrieval.
+WordNets are being developed for many other languages, as documented
+at ``http://www.globalwordnet.org/``.
 
-.. note:: Before using Wordnet it must be installed on your machine,
-          along with NLTK version 0.7.5 or later.
-          Please see the instructions on the |NLTK| website.
-          Help on the ``wordnet`` interface is available using
-          ``help(wordnet)``. 
+Senses and Synonyms
+-------------------
 
 Consider the following sentence:
 
@@ -1293,12 +1288,10 @@ meaning of the sentence stays pretty much the same:
 
 Since everything else in the sentence has remained unchanged, we can
 conclude that the words `motorcar`:lx: and `automobile`:lx: have the
-same meaning. More technically, we say that they are `synonyms`:dt:. 
+same meaning, i.e. they are `synonyms`:dt:. 
 
-`Wordnet`:idx: is a semantically-oriented dictionary which will
-allow us to find the set of synonyms |mdash| or `synset`:dt: |mdash|
-for any word. However, in order to look up the senses of a word, we need to pick
-a part of speech for the word.  Wordnet contains four dictionaries: ``N``
+In order to look up the senses of a word, we need to pick
+a part of speech for the word.  WordNet contains four dictionaries: ``N``
 (nouns), ``V`` (verbs), ``ADJ`` (adjectives), and ``ADV``
 (adverbs). To simplify our discussion, we will focus on the ``N``
 dictionary here.  Let's look up `motorcar`:lx: in the ``N`` dictionary.
@@ -1311,8 +1304,8 @@ dictionary here.  Let's look up `motorcar`:lx: in the ``N`` dictionary.
 The variable ``car`` is now bound to a ``Word`` object.
 Words will often have more than sense, where each
 sense is represented by a synset. However,
-`motorcar`:lx: only has one sense in Wordnet, as we can discover by
-checking the length of ``car``. We can then find the synset (a set of
+`motorcar`:lx: only has one sense in WordNet, as we can discover
+using ``len()``.  We can then find the synset (a set of
 lemmas), the words it contains, and a gloss.
 
     >>> len(car)
@@ -1340,16 +1333,13 @@ that is, which has multiple synsets:
     'the contractile aperture in the center of the iris of the eye;
     resembles a large black dot'
 
-The Wordnet Hierarchy
+The WordNet Hierarchy
 ---------------------
 
-We can think of synsets as being concrete manifestations of the
-concepts that are `lexicalized`:dt: by words in a particular
-language. In principle, we can postulate concepts that have no lexical
-realization in English. Wordnet builds on a tradition which claims that
-concepts are linked together in a hierarchy. Some concepts are very
-general, such as *Entity*, *State*, *Event* |mdash| these are called
-`unique beginners`:dt: in Wordnet. Others, such as *gas guzzler* and
+WordNet synsets correspond to abstract concepts, which may or may not
+have corresponding words in English.  These concepts are linked together in a hierarchy.
+Some are very general, such as *Entity*, *State*, *Event* |mdash| these are called
+`unique beginners`:dt:.  Others, such as *gas guzzler* and
 *hatchback*, are much more specific. A small portion of a concept
 hierarchy is illustrated in Figure wn-hierarchy_. The edges between nodes
 indicate the hypernym/hyponym relation; the dotted line at the top is
@@ -1360,12 +1350,12 @@ intended to indicate that *artefact* is non-immediate hypernym of
 .. figure:: ../images/wordnet-hierarchy.png
    :scale: 15
 
-   Fragment of Wordnet Concept Hierarchy
+   Fragment of WordNet Concept Hierarchy
 
-Wordnet has been designed to make it easy to navigate between
-concepts. For example, given a concept like
-*motorcar*, we can look at the concepts which are more specific;
-these are usually called `hyponyms`:dt:. Here is one way to carry out this
+WordNet makes it easy to navigate between concepts.
+For example, given a concept like *motorcar*,
+we can look at the concepts which are more specific;
+the (immediate) `hyponyms`:dt:. Here is one way to carry out this
 navigation:
 
     >>> for concept in car[0][HYPONYM][:10]:
@@ -1381,17 +1371,17 @@ navigation:
     {noun: electric, electric_automobile, electric_car}
     {noun: gas_guzzler}
 
+|nopar|
 We can also move up the hierarchy, by looking at broader concepts than
-*motorcar*. The ``wordnet`` package offers a shortcut for finding the
-immediate `hypernym`:dt: of a concept:
+*motorcar*, e.g. the immediate `hypernym`:dt: of a concept:
 
     >>> car[0][HYPERNYM]
     [{noun: motor_vehicle, automotive_vehicle}]
 
-Of course, we can also look for the hypernyms of hypernyms; from any
+We can also look for the hypernyms of hypernyms.  In fact, from any
 synset we can trace (multiple) paths back to a unique beginner.
-Synsets have a method ``tree()`` which produces a nested list
-structure.
+Synsets have a method for doing this, called ``tree()``,
+which produces a nested list structure.
 
     >>> from pprint import pprint
     >>> pprint(N['car'][0].tree(HYPERNYM))
@@ -1414,12 +1404,12 @@ structure.
              [{noun: physical_entity}, [{noun: entity}]]]]]]]]]]]
 
 A related method ``closure()`` produces a flat version of this structure,
-with any repeats eliminated.
-Both of these functions take an optional ``depth`` argument which permit
-us to limit the number of steps to take, which is important when using
-unbounded relations like ``SIMILAR``.
+with repeats eliminated.
+Both of these functions take an optional ``depth`` argument which permits
+us to limit the number of steps to take.
+(This is important when using unbounded relations like ``SIMILAR``.)
 Table wordnet-rel_ lists the most important lexical relations supported
-by Wordnet.  See ``dir(wordnet)`` for a full list.
+by WordNet; see ``dir(wordnet)`` for a full list.
 
 .. table:: wordnet-rel
 
@@ -1437,8 +1427,9 @@ by Wordnet.  See ``dir(wordnet)`` for a full list.
 
 Recall that we can iterate over the words of a synset, with ``for word in synset``.
 We can also test if a word is in a dictionary, e.g. ``of word in V``.
-Let's put these together to find "animal words" that are used as verbs.
+As our last task, let's put these together to find "animal words" that are used as verbs.
 Since there are a lot of these, we will cut this off at depth 4.
+Can you think of the animal and verb sense of each word?
 
     >>> animals = N['animal'][0].closure(HYPONYM, depth=4)
     >>> [word for synset in animals for word in synset if word in V]
@@ -1452,6 +1443,8 @@ Since there are a lot of these, we will cut this off at depth 4.
 
 WordNet Similarity
 ------------------
+
+.. TODO: discuss WSD, mention Semcor, give pine cone example
 
 It is often useful to be able to tell whether two lexical concepts are
 `semantically related`:dt:. For example, in order to check whether a
@@ -1487,10 +1480,11 @@ For a detailed comparison of various measures, see [Budanitsky2006EWB]_.
 Exercises
 ---------
 
-1. |easy| Familiarize yourself with the Wordnet interface, by reading the
-   documentation available via ``help(wordnet)``.
+1. |easy| Familiarize yourself with the WordNet interface, by reading the
+   documentation available via ``help(wordnet)``.  Try out the text-based
+   browser, ``browse()``.
 
-#. |easy| Investigate the holonym / meronym pointers for some nouns.  Note that there
+#. |easy| Investigate the holonym / meronym relations for some nouns.  Note that there
    are three kinds (member, part, substance), so access is more specific,
    e.g., ``MEMBER_MERONYM``, ``SUBSTANCE_HOLONYM``.
 
@@ -1520,14 +1514,25 @@ Conclusion
 
 In this chapter we saw that we can do a variety of interesting
 language processing tasks that focus solely on words.  Tokenization
-turns out to be far more difficult than expected.  Other kinds of
-tokenization, such as sentence tokenization, are left for the
-exercises.  No single solution works well across-the-board, and we
+turns out to be far more difficult than expected.
+No single solution works well across-the-board, and we
 must decide what counts as a token depending on the application
 domain.  We also looked at normalization (including lemmatization) and
 saw how it collapses distinctions between tokens.  In the next chapter
 we will look at word classes and automatic tagging.
-  
+
+---------------
+Summary (notes)
+---------------
+
+* text from files, web, corpora
+* token-type distinction
+* tokenization, what it is, why it is non-trivial
+* tokenization using regular expressions
+* lemmatization
+* frequency distributions
+* WordNet
+
 ---------------
 Further Reading
 ---------------
@@ -1536,5 +1541,9 @@ Further Reading
    John Hopkins Center for Language and Speech Processing, 1999
    Summer Workshop on Normalization of Non-Standard Words: Final Report
    http://www.clsp.jhu.edu/ws99/projects/normal/report.pdf
+
+.. wordnet book
+
+.. linguistics textbook on words
 
 .. include:: footer.txt
