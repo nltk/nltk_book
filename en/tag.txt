@@ -9,6 +9,7 @@
 
 .. TODO: exercise on cascaded tagging
 .. TODO: simplified tagset (N, V, J, A) -- WordNet
+.. TODO: better approach to tagging unknown words using special UNK token
 
 ------------
 Introduction
@@ -116,8 +117,8 @@ We can access the components of a tuple using indexing:
 We can create one of these special tuples from the standard string
 representation of a tagged token, using the function ``tag2tuple()``:
 
-    >>> from nltk.tag import tag2tuple
-    >>> tag2tuple('fly/nn')
+    >>> import nltk
+    >>> nltk.tag.tag2tuple('fly/nn')
     ('fly', 'nn')
 
 We can construct tagged tokens directly from a string.  The first
@@ -131,7 +132,6 @@ The second method, on line tag2tuple2_, uses a list comprehension to do
 the same work in a way that is not only more compact, but also more readable.
 (List comprehensions were introduced in section sec-list-comprehensions_).
 
-    >>> from nltk import tokenize
     >>> sent = '''
     ... The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
     ... other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
@@ -141,12 +141,12 @@ the same work in a way that is not only more compact, but also more readable.
     ... interest/nn of/in both/abx governments/nns ''/'' ./.
     ... '''
     >>> tagged_words = []                                   # [_tag2tuple1]
-    >>> for t in tokenize.whitespace(sent):
-    ...     tagged_words.append(tag2tuple(t))
+    >>> for t in nltk.tokenize.whitespace(sent):
+    ...     tagged_words.append(nltk.tag.tag2tuple(t))
     >>> tagged_words
     [('The', 'at'), ('grand', 'jj'), ('jury', 'nn'), ('commented', 'vbd'),
     ('on', 'in'), ('a', 'at'), ('number', 'nn'), ... ('.', '.')]
-    >>> [tag2tuple(t) for t in tokenize.whitespace(sent)]   # [_tag2tuple2]
+    >>> [nltk.tag.tag2tuple(t) for t in nltk.tokenize.whitespace(sent)]   # [_tag2tuple2]
     [('The', 'at'), ('grand', 'jj'), ('jury', 'nn'), ('commented', 'vbd'),
     ('on', 'in'), ('a', 'at'), ('number', 'nn'), ... ('.', '.')]
 
@@ -155,8 +155,7 @@ The first step is to load the Brown Corpus reader, ``brown``.  We then
 use one of its functions, ``brown.tagged()`` to produce a sequence of
 sentences, where each sentence is a list of tagged words.
 
-    >>> from nltk.corpora import brown, extract
-    >>> extract(6, brown.tagged('a'))
+    >>> nltk.extract(6, nltk.corpora.brown.tagged('a'))
     [('The', 'at'), ('grand', 'jj'), ('jury', 'nn'), ('commented', 'vbd'),
     ('on', 'in'), ('a', 'at'), ('number', 'nn'), ('of', 'in'), ('other', 'ap'),
     ('topics', 'nns'), (',', ','), ... ('.', '.')]
@@ -259,9 +258,8 @@ we will focus on the nouns and verbs.
 What are the 10 most common verbs?  We can write a program to find all
 words tagged with `vb`:gc:, `vbz`:gc:, `vbg`:gc:, `vbd`:gc: or `vbn`:gc:.
 
-    >>> from nltk.probability import FreqDist
-    >>> fd = FreqDist()
-    >>> for sent in brown.tagged():
+    >>> fd = nltk.FreqDist()
+    >>> for sent in nltk.corpora.brown.tagged():
     ...     for word, tag in sent:
     ...         if tag[:2] == 'vb':
     ...             fd.inc(word+"/"+tag)
@@ -281,9 +279,8 @@ nouns typically end in `s`:lx:), ``p`` for proper nouns.
 .. pylisting:: findtags
    :caption: Program to Find the Most Frequent Noun Tags
 
-    from nltk.probability import ConditionalFreqDist
     def findtags(tag_prefix, tagged_text):
-        cfd = ConditionalFreqDist()
+        cfd = nltk.ConditionalFreqDist()
         for sent in tagged_text:
             for word, tag in sent:
                 if tag.startswith(tag_prefix):
@@ -293,7 +290,7 @@ nouns typically end in `s`:lx:), ``p`` for proper nouns.
             tagdict[tag] = cfd[tag].sorted()[:5]
         return tagdict
     
-    >>> tagdict = findtags('nn', brown.tagged('a'))
+    >>> tagdict = findtags('nn', nltk.corpora.brown.tagged('a'))
     >>> for tag in sorted(tagdict):
     ...     print tag, tagdict[tag]
     nn ['year', 'time', 'state', 'week', 'home']
@@ -327,8 +324,8 @@ tag each word with the most likely word.  (This kind of tagger is
 known as a `majority class classifier`:dt:).  What then, is the most
 frequent tag?  We can find out using a simple program:
 
-    >>> fd = FreqDist()
-    >>> for sent in brown.tagged('a'):
+    >>> fd = nltk.FreqDist()
+    >>> for sent in nltk.corpora.brown.tagged('a'):
     ...     for word, tag in sent:
     ...         fd.inc(tag)
     >>> fd.max()
@@ -337,9 +334,8 @@ frequent tag?  We can find out using a simple program:
 Now we can create a tagger, called ``default_tagger``, which
 tags everything as ``nn``.
 
-    >>> from nltk import tag
-    >>> tokens = tokenize.whitespace('John saw 3 polar bears .')
-    >>> default_tagger = tag.Default('nn')
+    >>> tokens = nltk.tokenize.whitespace('John saw 3 polar bears .')
+    >>> default_tagger = nltk.tag.Default('nn')
     >>> list(default_tagger.tag(tokens))
     [('John', 'nn'), ('saw', 'nn'), ('3', 'nn'), ('polar', 'nn'),
     ('bears', 'nn'), ('.', 'nn')]
@@ -353,7 +349,7 @@ This is a simple algorithm, and it performs poorly when used on its
 own. On a typical corpus, it will tag only about an eighth of the tokens
 correctly:
 
-    >>> tag.accuracy(default_tagger, brown.tagged('a'))
+    >>> nltk.tag.accuracy(default_tagger, nltk.corpora.brown.tagged('a'))
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
@@ -401,7 +397,6 @@ Exercises
    
    b) Once the supplied tagger has created newly tagged text, how would ``tag.accuracy()``
       go about comparing it with the original tagged text and computing the accuracy score?
-      
 
 -----------------------------
 Looking for Patterns in Words
@@ -524,8 +519,8 @@ Note that these are processed in order, and the first one that matches is applie
 Now we can set up a tagger and use it to tag some text.
 
 
-    >>> regexp_tagger = tag.Regexp(patterns)
-    >>> list(regexp_tagger.tag(brown.raw('a')))[3]
+    >>> regexp_tagger = nltk.tag.Regexp(patterns)
+    >>> list(regexp_tagger.tag(nltk.corpora.brown.raw('a')))[3]
     [('``', 'nn'), ('Only', 'nn'), ('a', 'nn'), ('relative', 'nn'),
     ('handful', 'nn'), ('of', 'nn'), ('such', 'nn'), ('reports', 'nns'), 
     ('was', 'nns'), ('received', 'vbd'), ("''", 'nn'), (',', 'nn'),
@@ -535,7 +530,7 @@ Now we can set up a tagger and use it to tag some text.
 
 How well does this do?
 
-    >>> tag.accuracy(regexp_tagger, brown.tagged('a'))
+    >>> nltk.tag.accuracy(regexp_tagger, nltk.corpora.brown.tagged('a'))
     0.20326391789486245
 
 The regular expression is a catch-all, which tags everything as a noun.
@@ -636,13 +631,13 @@ this function for the 100 most frequent words:
 
     def wordcounts(sents, n):
         "find the n most frequent words"
-        fd = FreqDist()
+        fd = nltk.FreqDist()
         for sent in sents:
             for word in sent:
                 fd.inc(word)    # count the word
         return fd.sorted()[:n]
 
-    >>> frequent_words = wordcounts(brown.raw('a'), 100)
+    >>> frequent_words = wordcounts(nltk.corpora.brown.raw('a'), 100)
     >>> frequent_words
     ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The',
     'that', '``', 'is', 'was', "''", 'on', 'at', 'with', 'be', 'by',
@@ -654,7 +649,7 @@ this function for the 100 most frequent words:
 Next, let's inspect the tags that these words have.  First we will do
 this in the most obvious (but highly inefficient) way:
 
-    >>> [(w,t) for sent in brown.tagged('a')
+    >>> [(w,t) for sent in nltk.corpora.brown.tagged('a')
     ...        for (w,t) in sent
     ...        if w in frequent_words]
     [('The', 'at'), ('said', 'vbd'), ('an', 'at'), ('of', 'in'),
@@ -671,10 +666,9 @@ for each word, a count of the frequency of different tags that occur with the wo
 .. pylisting:: wordtags
    :caption: Program to Find the Most Likely Tags for the Specified Words
 
-    from nltk.probability import ConditionalFreqDist
     def wordtags(tagged_sents, words):
         "Find the most likely tag for these words in the tagged sentences"
-        cfd = ConditionalFreqDist()
+        cfd = nltk.ConditionalFreqDist()
         for sent in tagged_sents:
             for (w,t) in sent:
                 if w in words:
@@ -687,7 +681,7 @@ we can look up its most likely tag.  For example, to find the
 tag for the word `The`:lx: we can access the corresponding
 frequency distribution, and ask for its most frequent event:
 
-    >>> table = wordtags(brown.tagged('a'), frequent_words)
+    >>> table = wordtags(nltk.corpora.brown.tagged('a'), frequent_words)
     >>> table['The']
     'at'
 
@@ -695,15 +689,15 @@ frequency distribution, and ask for its most frequent event:
 Now we can create and evaluate a simple tagger that assigns tags to words
 based on this table:
 
-    >>> baseline_tagger = tag.Lookup(table)
-    >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> baseline_tagger = nltk.tag.Lookup(table)
+    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpora.brown.tagged('a'))
     0.45578495136941344
 
 This is surprisingly good; just knowing the tags for the 100 most frequent
 words enables us to tag nearly half the words correctly!  Let's see
 how it does on some untagged input text:
 
-    >>> list(baseline_tagger.tag(brown.raw('a')))[3]
+    >>> list(baseline_tagger.tag(nltk.corpora.brown.raw('a')))[3]
     [('``', '``'), ('Only', None), ('a', 'at'), ('relative', None),
     ('handful', None), ('of', 'in'), ('such', None), ('reports', None), 
     ('was', 'bedz'), ('received', None), ("''", "''"), (',', ','),
@@ -728,8 +722,8 @@ We do this by specifying the default tagger as an argument to the
 lookup tagger.  The lookup tagger will call the default tagger just
 in case it can't assign a tag itself.
 
-    >>> baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
-    >>> tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> baseline_tagger = nltk.tag.Lookup(table, backoff=nltk.tag.Default('nn'))
+    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpora.brown.tagged('a'))
     0.58177695566561249
 
 Choosing a good baseline
@@ -745,10 +739,10 @@ pairs for words other than nouns.
    :caption: Lookup Tagger Performace with Varying Model Size
 
     def performance(size):
-        frequent_words = wordcounts(brown.raw('a'), size)
-        table = wordtags(brown.tagged('a'), frequent_words)
-        baseline_tagger = tag.Lookup(table, backoff=tag.Default('nn'))
-        return tag.accuracy(baseline_tagger, brown.tagged('a'))
+        frequent_words = wordcounts(nltk.corpora.brown.raw('a'), size)
+        table = wordtags(nltk.corpora.brown.tagged('a'), frequent_words)
+        baseline_tagger = nltk.tag.Lookup(table, backoff=nltk.tag.Default('nn'))
+        return nltk.tag.accuracy(baseline_tagger, nltk.corpora.brown.tagged('a'))
         
     >>> from pylab import *
     >>> sizes = 2**arange(15)
@@ -912,10 +906,9 @@ on a tagged corpus. It uses this corpus to determine which tags
 are most common for each word.  Unigram taggers are trained using
 the ``train()`` method, which takes a tagged corpus:
 
-    >>> from nltk.corpora import brown
     >>> from itertools import islice
-    >>> train_sents = list(islice(brown.tagged(), 500))  # sents 0..499
-    >>> unigram_tagger = tag.Unigram()
+    >>> train_sents = list(islice(nltk.corpora.brown.tagged(), 500))  # sents 0..499
+    >>> unigram_tagger = nltk.tag.Unigram()
     >>> unigram_tagger.train(train_sents)
 
 |nopar|
@@ -923,7 +916,7 @@ Once a unigram tagger has been trained, the ``tag()`` method can be
 used to tag new text:
 
     >>> text = "John saw the book on the table"
-    >>> tokens = list(tokenize.whitespace(text))
+    >>> tokens = list(nltk.tokenize.whitespace(text))
     >>> list(unigram_tagger.tag(tokens))
     [('John', 'np'), ('saw', 'vbd'), ('the', 'at'), ('book', None),
     ('on', 'in'), ('the', 'at'), ('table', None)]
@@ -942,7 +935,7 @@ sense.)  For example, the following tagger will consider suffixes of
 length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
-    >>> affix_tagger = tag.Affix(-2, 3)
+    >>> affix_tagger = nltk.tag.Affix(-2, 3)
     >>> affix_tagger.train(train_sents)
     >>> list(affix_tagger.tag(tokens))
     [('John', 'np'), ('saw', 'nn'), ('the', 'at'), ('book', 'np'),
@@ -1015,7 +1008,7 @@ the preferred tag.
    train_tokens = []
    for item in brown.items()[:10]:
        train_tokens.append(brown.read(item))
-   mytagger = tag.ngram(2)
+   mytagger = nltk.tag.ngram(2)
    for tok in train_tokens: mytagger.train(tok)
    words = '''ask Congress to increase grants to states'''.split()
    tags = '''at nn-tl vbd md vb np to nn nns in jj'''.split()
@@ -1078,15 +1071,15 @@ The ``tag.Ngram`` class uses a tagged training corpus to determine which
 part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger:
 
-    >>> bigram_tagger = tag.Bigram()
-    >>> bigram_tagger.train(brown.tagged(['a','b']))
+    >>> bigram_tagger = nltk.tag.Bigram()
+    >>> bigram_tagger.train(nltk.corpora.brown.tagged(['a','b']))
 
 |nopar|
 Once a bigram tagger has been trained, it can be used to tag untagged
 corpora:
 
     >>> text = "John saw the book on the table"
-    >>> tokens = list(tokenize.whitespace(text))
+    >>> tokens = list(nltk.tokenize.whitespace(text))
     >>> list(bigram_tagger.tag(tokens))
     [('John', None), ('saw', None), ('the', 'at'), ('book', 'nn'),
     ('on', 'in'), ('the', 'at'), ('table', None)]
@@ -1127,11 +1120,11 @@ a ``regexp_tagger``, as follows:
 Each NLTK tagger other than ``tag.Default`` permits a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
-    >>> t0 = tag.Default('nn')
-    >>> t1 = tag.Unigram(backoff=t0)
-    >>> t2 = tag.Bigram(backoff=t1)
-    >>> t1.train(brown.tagged('a'))    # section a: press-reportage
-    >>> t2.train(brown.tagged('a'))
+    >>> t0 = nltk.tag.Default('nn')
+    >>> t1 = nltk.tag.Unigram(backoff=t0)
+    >>> t2 = nltk.tag.Bigram(backoff=t1)
+    >>> t1.train(nltk.corpora.brown.tagged('a'))    # section a: press-reportage
+    >>> t2.train(nltk.corpora.brown.tagged('a'))
 
 .. Note:: We specify the backoff tagger when the tagger is
    initialized, so that training can take advantage of the backing off.
@@ -1146,9 +1139,9 @@ The backoff-tagger may itself have a backoff tagger:
 As before we test the taggers against unseen data.  Here we will use
 a different segment of the corpus.
 
-    >>> accuracy0 = tag.accuracy(t0, brown.tagged('b')) # section b: press-editorial
-    >>> accuracy1 = tag.accuracy(t1, brown.tagged('b'))
-    >>> accuracy2 = tag.accuracy(t2, brown.tagged('b'))
+    >>> accuracy0 = nltk.tag.accuracy(t0, nltk.corpora.brown.tagged('b')) # section b: press-editorial
+    >>> accuracy1 = nltk.tag.accuracy(t1, nltk.corpora.brown.tagged('b'))
+    >>> accuracy2 = nltk.tag.accuracy(t2, nltk.corpora.brown.tagged('b'))
 
     >>> print 'Default Accuracy = %4.1f%%' % (100 * accuracy0)
     Default Accuracy = 12.5%
@@ -1166,10 +1159,8 @@ Unfortunately perfect tagging is impossible.  Consider the case of a
 trigram tagger.  How many cases of part-of-speech ambiguity does it
 encounter?  We can determine the answer to this question empirically:
 
-    >>> from nltk.corpora import brown
-    >>> from nltk.probability import ConditionalFreqDist
-    >>> cfdist = ConditionalFreqDist()
-    >>> for sent in brown.tagged('a'):
+    >>> cfdist = nltk.ConditionalFreqDist()
+    >>> for sent in nltk.corpora.brown.tagged('a'):
     ...     p = [(None, None)] # empty token/tag pair
     ...     trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
     ...     for (pair1,pair2,pair3) in trigrams:
@@ -1197,15 +1188,13 @@ the data.  A convenient way to look at tagging errors is the
 `confusion matrix`:dt:.  It charts expected tags (the gold standard)
 against actual tags generated by a tagger:
 
-    >>> from nltk.evaluate import ConfusionMatrix
-    >>> from nltk.tag import untag
     >>> def tag_list(tagged_sents):
     ...     return [tag for (word, tag) in sent for sent in tagged_sents]
     >>> def apply_tagger(tagger, corpus):
-    ...     return [tagger.tag(untag(sent)) for sent in corpus]
-    >>> gold = tag_list(brown.tagged('b'))
-    >>> test = tag_list(apply_tagger(t2, brown.tagged('b')))
-    >>> print ConfusionMatrix(gold, test)
+    ...     return [tagger.tag(nltk.tag.untag(sent)) for sent in corpus]
+    >>> gold = tag_list(nltk.corpora.brown.tagged('b'))
+    >>> test = tag_list(apply_tagger(t2, nltk.corpora.brown.tagged('b')))
+    >>> print nltk.ConfusionMatrix(gold, test)
 
 Based on such analysis we may decide to modify the tagset.  Perhaps
 a distinction between tags that is difficult to make can be dropped,
@@ -1245,7 +1234,7 @@ Now let's check that it can be used for tagging.
 
     >>> text = """The board's action shows what free enterprise
     ...     is up against in our complex maze of regulatory laws ."""
-    >>> tokens = list(tokenize.whitespace(text))
+    >>> tokens = list(nltk.tokenize.whitespace(text))
     >>> list(tagger.tag(tokens))
     [('The', 'at'), ("board's", 'nn$'), ('action', 'nn'), ('shows', 'nns'),
     ('what', 'wdt'), ('free', 'jj'), ('enterprise', 'nn'), ('is', 'bez'),
