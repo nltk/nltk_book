@@ -2,7 +2,7 @@
 #
 # Natural Language Toolkit: tree->image rendering script
 #
-# Copyright (C) 2001-2006 University of Pennsylvania
+# Copyright (C) 2001-2007 University of Pennsylvania
 # Author: Edward Loper <edloper@gradient.cis.upenn.edu>
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
@@ -38,8 +38,8 @@ Requires Imagemagick C{convert}.
 """
 
 import re, sys, os
-from nltk_lite.draw import *
-from nltk_lite.draw.tree import *
+from nltk.draw import *
+from nltk.draw.tree import *
 import tkFont
 import tempfile
 import pickle
@@ -183,7 +183,7 @@ def tree_to_ps(s, outfile):
     return bbox[2:]
 
 # # hmm.. a bit of a hack..  e.g., no backslashing allowed:
-# from nltk_lite.parse.tree import bracket_parse, Tree
+# from nltk.parse.tree import bracket_parse, Tree
 # def tree_to_qtree(s):
 #     return '\Tree %s' % _tree_to_qtree(bracket_parse(s))
 # def _tree_to_qtree(tree):

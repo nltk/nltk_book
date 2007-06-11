@@ -235,7 +235,7 @@ pos['colorless'] = 'adj'
 pos['furiously'] = 'adv'
 pos['ideas'] = 'n'
 
-from nltk_lite.utilities import SortedDict
+from nltk.utilities import SortedDict
 pos = SortedDict(pos)
 
 pos['ideas']
@@ -292,7 +292,7 @@ sorted(set(sentence))
 
 ### 2.6.4 Scaling it up
 
-from nltk_lite.corpora import gutenberg
+from nltk.corpora import gutenberg
 count = {}                                        # initialize a dictionary
 for word in gutenberg.raw('shakespeare-macbeth'): # tokenize Macbeth
     word = word.lower()                           # normalize to lowercase
@@ -322,7 +322,7 @@ for n in range(len(text)):
 		print n, n+1
 
 import re
-from nltk_lite.utilities import re_show
+from nltk.utilities import re_show
 re_show('very very', str)
 re_show('o+', str)
 re_show('oo+', str)

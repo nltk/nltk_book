@@ -1,6 +1,6 @@
-# NLTK-LITE: Tutorial Makefile
+# NLTK: Tutorial Makefile
 #
-# Copyright (C) 2001-2006 University of Pennsylvania
+# Copyright (C) 2001-2007 University of Pennsylvania
 # Author: Steven Bird <sb@csse.unimelb.edu.au>
 #         Edward Loper <edloper@gradient.cis.upenn.edu>
 # URL: <http://nltk.sf.net>
@@ -12,7 +12,7 @@ RST2HTML = rst2html.py
 
 STYLESHEET_PATH = .
 
-EPYDOC_OPTS = --name=nltk-lite --navlink="nltk-lite $(NLTK_VERSION)"\
+EPYDOC_OPTS = --name=nltk --navlink="nltk $(NLTK_VERSION)"\
               --url=$(NLTK_URL) --inheritance=listed
 RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
@@ -47,7 +47,7 @@ slides:
 	$(MAKE) -C slides
 
 api:	.api.done
-	epydoc $(EPYDOC_OPTS) -o api ../nltk_lite
+	epydoc $(EPYDOC_OPTS) -o api ../nltk
 	touch .api.done
 
 rsync:
