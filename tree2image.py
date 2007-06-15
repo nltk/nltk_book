@@ -47,7 +47,7 @@ import pickle
 CONVERT = 'convert'
 
 # hackery..
-sys.path.append('/Users/edloper/nltk/')
+# sys.path.append('/Users/edloper/nltk/')
 if '/sw/bin' not in os.environ['PATH']:
     os.environ['PATH'] += ':/sw/bin'
 
