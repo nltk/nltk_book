@@ -1,6 +1,12 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.txt
 
+.. standard global imports
+
+    >>> import nltk
+    >>> from nltk import corpora, wordnet
+    >>> from pprint import pprint
+
 .. _chap-semantics:
 
 ===========================
@@ -221,13 +227,12 @@ occurences of `x`:mathit: in `M`:mathit: by `N`:mathit:. This axiom of the
 lambda calculus is known as `|beta|-conversion`:dt:. |beta|-conversion is
 the primary form of reduction in the |lambda|-calculus.
 
-The module ``nltk.semantics.logic`` can parse expressions of the
+The module ``nltk.semantics`` can parse expressions of the
 |lambda|-calculus. The |lambda| symbol is represented as ``'\'``. In
 order to avoid having to escape this with a second ``'\'``, we use raw
 strings in parsable expressions.
 
-    >>> from nltk.semantics import logic
-    >>> lp = logic.Parser()
+    >>> lp = nltk.semantics.LogicParser()
     >>> lp.parse(r'(walk x)')
     ApplicationExpression('walk', 'x')
     >>> lp.parse(r'\x.(walk x)')
@@ -287,7 +292,7 @@ stands for  `it is raining`:lx:, `q`:math: for `Kim will take an
 umbrella`:lx: and `q`:math: for `Lee will get wet`:lx:.
 
 The Boolean connectives of propositional logic are supported by
-``nltk.semantics.logic``, and are parsed as objects of the class
+``nltk.semantics``, and are parsed as objects of the class
 ``ApplicationExpression`` (i.e., function expressions). However, infix
 notation is also allowed as an input format. The connectives
 themselves belong to the ``Operator`` class of expressions.
@@ -557,8 +562,6 @@ are conjoined by Boolean operators. For
 example, the following can be thought of as the property of being an
 `x`:math: who walks and talks:
 
-    >>> from nltk.semantics import logic
-    >>> lp = logic.Parser()
     >>> lp.parse(r'\x.((walk x) and (talk x))')
     LambdaExpression('x', '(and (walk x) (talk x))')
      
@@ -750,12 +753,10 @@ test for equality of ``VariableBinderExpression``\s in the ``logic``
 module (i.e., using ``==``), we are in fact testing for
 |alpha|-equivalence:
 
-     >>> from nltk.semantics import *
-     >>> lp = Parser()
      >>> e1 = lp.parse('some x.(P x)')
      >>> print e1
      some x.(P x)
-     >>> e2 = e1.alpha_convert(Variable('z'))
+     >>> e2 = e1.alpha_convert(nltk.semantics.Variable('z'))
      >>> print e2
      some z.(P z)
      >>> e1 == e2
@@ -784,7 +785,7 @@ Types and the Untyped Lambda Calculus
 -------------------------------------
 
 For convenience, let's give a name to language for semantic
-representations that we are using in ``nltk.semantics.logic``:
+representations that we are using in ``nltk.semantics``:
 |FSRL| (for Functional Semantic Representation Language).  So far, we
 have glossed over the fact that the |FSRL| is based on an
 implementation of the `untyped`:em: lambda calculus. That is, although
@@ -823,17 +824,17 @@ the class ``IndVariableExpression``.
 English-like expressions such as `dog`:math:,
 `walk`:math: and `john`:math: will be non-logical constants
 (non-logical in contrast to logical constants such as `not`:math: and
-`and`:math:). In order to force ``logic.Parser()`` to recognize
+`and`:math:). In order to force ``LogicParser()`` to recognize
 non-logical constants, we can initialize the parser with a list of
 identifiers.
 
-    >>> lp = Parser(constants=['dog', 'walk', 'see'])
+    >>> lp = nltk.semantics.LogicParser(constants=['dog', 'walk', 'see'])
     >>> lp.parse('walk')
     ConstantExpression('walk')
 
 To sum up, while the untyped |lambda|-calculus only recognizes one kind of
 basic expression other than |lambda|, namely the class of variables
-(the class ``VariableExpression`` in ``logic``), |FSRL|
+(the class ``VariableExpression``), |FSRL|
 adds three further classes of basic expression:
 ``IndVariableExpression``, ``ConstantExpression`` and ``Operator``
 (Boolean connectives plus the equality relation ``=``).
@@ -938,8 +939,7 @@ Within the ``semantics`` package, curryed characteristic functions are
 implemented as a subclass of dictionaries, using the ``CharFun``
 constructor.
 
-     >>> from nltk.semantics import *
-     >>> cf = CharFun({'d1': CharFun({'d2': True}), 'd2': CharFun({'d1': True})})
+     >>> cf = nltk.semantics.CharFun({'d1': CharFun({'d2': True}), 'd2': CharFun({'d1': True})})
 
 |nopar| Values of a ``CharFun`` are accessed by indexing in the usual way:
 
@@ -1189,7 +1189,7 @@ analysis of the processing steps.
     '(girl adam)' evaluates to False under M, g
     False
     >>> m.evaluate('(walk adam)', g, trace=2)
-       ... checking whether 'walk' is an individual variable
+    ... checking whether 'walk' is an individual variable
     Expression 'walk' can't be evaluated by i and g[b1/x].
     'Undefined'
 
@@ -1240,14 +1240,13 @@ in the following manner:
 We can use these definitions to generate `truth
 tables`:dt: for the Boolean connectives:
 
-   >>> from nltk.semantics import Model
    >>> ops = ['and', 'or', 'implies', 'iff']
    >>> pairs = [(p, q) for p in [True,False] for q in [True,False]]
    >>> for o in ops:
    ...    print "%8s %8s |  p %s q" % ('p', 'q', o)
    ...    print "-" * 30
    ...    for (p, q) in pairs:
-   ...        value = Model.OPS[o][p][q]
+   ...        value = nltk.semantics.Model.OPS[o][p][q]
    ...        print "%8s %8s | %8s" % (p, q, value)
    ...    print
    ...
@@ -1736,8 +1735,7 @@ interpretation of a list of input sentences. It builds a dictionary
 ambiguous; in the following example, we just look at the first member
 of the list.
 
-   >>> from nltk.semantics import *
-   >>> grammar = GrammarFile.read_file('sem1.cfg')
+   >>> grammar = nltk.parse.GrammarFile('sem1.cfg')
    >>> result  = text_interpret(['a dog barks'], grammar, beta_reduce=0)
    >>> (syntree, semrep) = result['a dog barks'][0]
    >>> print syntree
@@ -1896,11 +1894,10 @@ parses for the sentence `every boy chases a girl in Noosa`:lx:, and
 evaluate each of the corresponding semantic representations in the
 model ``model0.py`` which we have imported.
 
-   >>> from nltk.semantics import *
    >>> from model0.py import *
-   >>> grammar = GrammarFile.read_file('sem2.cfg')
+   >>> grammar = nltk.parse.GrammarFile('sem2.cfg')
    >>> sent = 'every boy chases a girl in Noosa'
-   >>> result = text_evaluate([sent], grammar, m, g)
+   >>> result = nltk.semantics.text_evaluate([sent], grammar, m, g)
    >>> for (syntree, semrep, value) in result[sent]:
    ... 	print "'%s' is %s in Model m\n" % (semrep.infixify(), value)
    ... 
@@ -1971,15 +1968,14 @@ lexical item such as the following for each individual constant:
 The ``chat80`` module can be found in the ``corpora`` package. The
 attribute ``chat80.items`` gives us a list of Chat-80 relations:
 
-   >>> from nltk.corpora import chat80
-   >>> chat80.items
+   >>> corpora.chat80.items
    ['borders', 'contains', 'city', 'country', 'circle_of_lat', 
    'circle_of_long', 'continent', 'region', 'ocean', 'sea']
 
 The ``concepts()`` method shows the list of ``Concept``\ s that can be
 extracted from a ``chat80`` relation, and we can then inspect their extensions.
 
-   >>> concepts = chat80.concepts('city')
+   >>> concepts = corpora.chat80.concepts('city')
    >>> concepts
    [Concept('city'), Concept('country_of'), Concept('population_of')]
    >>> rel = concepts[1].extension
@@ -1992,15 +1988,14 @@ extracted from a ``chat80`` relation, and we can then inspect their extensions.
 ``make_valuation()`` method; setting ``read=True`` creates and returns
 a new ``Valuation`` object which contains the results.
 
-   >>> val = chat80.make_valuation(concepts, read=True)
+   >>> val = corpora.chat80.make_valuation(concepts, read=True)
    >>> val['city']['calcutta']
    True
    >>> val['country_of']['india']
    {'hyderabad': True, 'delhi': True, 'bombay': True, 
    'madras': True, 'calcutta': True}
-   >>> from nltk.semantics import *
-   >>> g = Assignment(dom)
-   >>> m = Model(dom, val)
+   >>> g = nltk.semantics.Assignment(dom)
+   >>> m = nltk.semantics.Model(dom, val)
    >>> m.evaluate(r'\x . (population_of x jakarta)', g)
    {'533': True}
 

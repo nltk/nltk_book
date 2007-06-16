@@ -1,6 +1,12 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.txt
 
+.. standard global imports
+
+    >>> import nltk
+    >>> from nltk import corpora, wordnet
+    >>> from pprint import pprint
+
 .. _chap-featgram:
 
 ========================
@@ -25,7 +31,7 @@ address this challenge by decomposing categories using features
 
 We will start off by looking at the phenomenon of syntactic agreement;
 we will show how agreement constraints can be expressed elegantly using
-features, and illustrate how their use in a simple grammar. Feature
+features, and illustrate their use in a simple grammar. Feature
 structures are a general data structure for representing information
 of any kind; we will briefly look at them from a more formal point of
 view, and explain how to create feature structures in Python. In the
@@ -304,16 +310,24 @@ far in this chapter, plus a couple of new ones.
 .. pylisting:: feat0cfg
    :caption: Example Feature-Based Grammar
 
-    >>> from nltk.parse import filebroker
-    >>> filebroker.pprint('feat0.cfg')
+    >>> nltk.parse.filebroker.pprint('feat0.cfg')
     % start S
+    # ############################
+    # Grammar Rules
+    # ############################
+    # S expansion rules
     S -> NP[NUM=?n] VP[NUM=?n]
+    # NP expansion rules
     NP[NUM=?n] -> N[NUM=?n] 
     NP[NUM=?n] -> PropN[NUM=?n] 
     NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]
     NP[NUM=pl] -> N[NUM=pl] 
+    # VP expansion rules
     VP[TENSE=?t, NUM=?n] -> IV[TENSE=?t, NUM=?n]
     VP[TENSE=?t, NUM=?n] -> TV[TENSE=?t, NUM=?n] NP
+    # ############################
+    # Lexical Rules
+    # ############################
     Det[NUM=sg] -> 'this' | 'every'
     Det[NUM=pl] -> 'these' | 'all'
     Det -> 'the' | 'some'
@@ -348,13 +362,8 @@ start symbol for the grammar.
 In general, when we are trying to develop even a very small grammar,
 it is convenient to put the productions in a file where they can be edited,
 tested and revised. Assuming we have saved feat0cfg_ as a file named
-``'feat0.cfg'``, the function ``GrammarFile.read_file()`` allows us to
-read the grammar, ready for use in parsing.
-
-.. doctest-ignore::
-    >>> from nltk.parse import GrammarFile
-    >>> from pprint import pprint
-    >>> g = GrammarFile.read_file('feat0.cfg')
+``'feat0.cfg'``, the class ``GrammarFile()`` allows us to
+load the grammar, ready for use in parsing.
 
 .. TODO: why two print statements here, print vs pprint?
 .. TODO: first mention of earley in this chapter
@@ -368,35 +377,39 @@ invoke the Earley chart parser.
 .. pylisting:: featurecharttrace
    :caption: Trace of Feature-Based Chart Parser
 
-    >>> from nltk import tokenize
     >>> sent = 'Kim likes children'
-    >>> tokens = list(tokenize.whitespace(sent))
+    >>> tokens = list(nltk.tokenize.whitespace(sent))
     >>> tokens 
     ['Kim', 'likes', 'children']
-    >>> cp = g.earley_parser(trace=10)
+    >>> g = nltk.parse.GrammarFile('feat0.cfg')
+    >>> cp = g.earley_parser(trace=2)
     >>> trees = cp.get_parse_list(tokens)
               |.K.l.c.|
-    Predictor |> . . .| S -> * NP[NUM=?n] VP[NUM=?n] 
-    Predictor |> . . .| NP[NUM=?n] -> * N[NUM=?n] 
-    Predictor |> . . .| NP[NUM=?n] -> * PropN[NUM=?n] 
-    Predictor |> . . .| NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] 
-    Predictor |> . . .| NP[NUM=pl] -> * N[NUM=pl] 
-    Scanner   |[-] . .| [0:1] 'Kim' 
-    Completer |[-] . .| NP[NUM=sg] -> PropN[NUM=sg] * 
-    Completer |[-> . .| S -> NP[NUM=sg] * VP[NUM=sg] 
-    Predictor |. > . .| VP[NUM=?n, TENSE=?t] -> * IV[NUM=?n, TENSE=?t] 
-    Predictor |. > . .| VP[NUM=?n, TENSE=?t] -> * TV[NUM=?n, TENSE=?t] NP 
-    Scanner   |. [-] .| [1:2] 'likes' 
-    Completer |. [-> .| VP[NUM=sg, TENSE=pres] -> TV[NUM=sg, TENSE=pres] * NP 
-    Predictor |. . > .| NP[NUM=?n] -> * N[NUM=?n] 
-    Predictor |. . > .| NP[NUM=?n] -> * PropN[NUM=?n] 
-    Predictor |. . > .| NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] 
-    Predictor |. . > .| NP[NUM=pl] -> * N[NUM=pl] 
-    Scanner   |. . [-]| [2:3] 'children' 
-    Completer |. . [-]| NP[NUM=pl] -> N[NUM=pl] * 
-    Completer |. [---]| VP[NUM=sg, TENSE=pres] -> TV[NUM=sg, TENSE=pres] NP * 
-    Completer |[=====]| S -> NP[NUM=sg] VP[NUM=sg] * 
-    Completer |[=====]| [INIT] -> S * 
+    Processing queue 0
+    Predictor |> . . .| S -> * NP[NUM=?n] VP[NUM=?n] {}
+    Predictor |> . . .| NP[NUM=?n] -> * N[NUM=?n] {}
+    Predictor |> . . .| NP[NUM=?n] -> * PropN[NUM=?n] {}
+    Predictor |> . . .| NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
+    Predictor |> . . .| NP[NUM='pl'] -> * N[NUM='pl'] {}
+    Processing queue 1
+    Scanner   |[-] . .| PropN[NUM='sg'] -> Kim * {}
+    Completer |[-] . .| NP[NUM='sg'] -> PropN[NUM='sg'] * {'n': 'sg'}
+    Completer |[-> . .| S -> NP[NUM='sg'] * VP[NUM='sg'] {'n': 'sg'}
+    Predictor |. > . .| VP[NUM=?n, TENSE=?t] -> * IV[NUM=?n, TENSE=?t] {}
+    Predictor |. > . .| VP[NUM=?n, TENSE=?t] -> * TV[NUM=?n, TENSE=?t] NP {}
+    Processing queue 2
+    Scanner   |. [-] .| TV[NUM='sg', TENSE='pres'] -> likes * {}
+    Completer |. [-> .| VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] * NP {'t': 'pres', 'n': 'sg'}
+    Predictor |. . > .| NP[NUM=?n] -> * N[NUM=?n] {}
+    Predictor |. . > .| NP[NUM=?n] -> * PropN[NUM=?n] {}
+    Predictor |. . > .| NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
+    Predictor |. . > .| NP[NUM='pl'] -> * N[NUM='pl'] {}
+    Processing queue 3
+    Scanner   |. . [-]| N[NUM='pl'] -> children * {}
+    Completer |. . [-]| NP[NUM='pl'] -> N[NUM='pl'] * {'n': 'pl'}
+    Completer |. [---]| VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP * {'t': 'pres', 'n': 'sg'}
+    Completer |[=====]| S -> NP[NUM='sg'] VP[NUM='sg'] * {'n': 'sg'}
+    Completer |[=====]| [INIT] -> S * {}
 
 .. TODO: discussion of underspecified productions, compilation etc presumes specialised CL knowledge.
    Do we need to make this point?  Its just an implementation detail.
@@ -609,52 +622,48 @@ Feature Structures in Python
 ----------------------------
 
 Feature structures are declared with the
-``FeatureStructure()`` constructor. Atomic feature values can be strings or
+``FeatStruct()`` constructor. Atomic feature values can be strings or
 integers.
 
-    >>> from nltk.featurestructure import *
-    >>> fs1 = FeatureStructure(TENSE='past', NUM='sg') 
+    >>> fs1 = nltk.FeatStruct(TENSE='past', NUM='sg') 
     >>> print fs1
     [ NUM   = 'sg'   ]
     [ TENSE = 'past' ]
 
-|nopar| We can think of a feature structure as being like a Python dictionary,
-and access its values by indexing in the usual way.
+|nopar| A feature structure is actually just a kind of dictionary,
+and so we access its values by indexing in the usual way.
+We can use our familiar syntax to *assign* values to features:
 
-    >>> fs1 = FeatureStructure(PER=3, NUM='pl', GND='fem')
+    >>> fs1 = nltk.FeatStruct(PER=3, NUM='pl', GND='fem')
     >>> print fs1['GND']
     fem
-
-|nopar| However, we cannot use this syntax to *assign* values to features:
-
     >>> fs1['CASE'] = 'acc'
-    Traceback (most recent call last):
-    ...
-    KeyError: 'CASE'
 
 |nopar| We can also define feature structures which have complex values, as
 discussed earlier.
 
-    >>> fs2 = FeatureStructure(POS='N', AGR=fs1)
+    >>> fs2 = nltk.FeatStruct(POS='N', AGR=fs1)
     >>> print fs2
-    [       [ GND = 'fem' ] ]
-    [ AGR = [ NUM  = 'pl'  ] ]
+    [       [ CASE = 'acc' ] ]
+    [ AGR = [ GND  = 'fem' ] ]
+    [       [ NUM  = 'pl'  ] ]
     [       [ PER  = 3     ] ]
     [                        ]
     [ POS = 'N'              ]
     >>> print fs2['AGR']
-    [ GND = 'fem' ]
+    [ CASE = 'acc' ]
+    [ GND  = 'fem' ]
     [ NUM  = 'pl'  ]
     [ PER  = 3     ]
     >>> print fs2['AGR']['PER']
     3
 
 An alternative method of specifying feature structures is to
-use the ``parse`` method of ``FeatureStructure``. This gives us the
+use ``FeatStruct.parse()``. This gives us the
 facility to use square bracket notation for embedding one feature
 structure within another.
 
-    >>> FeatureStructure.parse("[POS='N', AGR=[PER=3, NUM='pl', GND='fem']]")
+    >>> nltk.FeatStruct.parse("[POS='N', AGR=[PER=3, NUM='pl', GND='fem']]")
     [AGR=[GND='fem', NUM='pl', PER=3], POS='N']
 
 
@@ -665,7 +674,7 @@ Feature structures are not inherently tied to linguistic objects; they are
 general purpose structures for representing knowledge. For example, we
 could encode information about a person in a feature structure:
 
-    >>> person01 = FeatureStructure(name='Lee', telno='01 27 86 42 96', age=33)
+    >>> person01 = nltk.FeatStruct(name='Lee', telno='01 27 86 42 96', age=33)
 
 .. _person01:
 .. ex::
@@ -733,7 +742,7 @@ is prefixed with an integer in parentheses, such as ``(1)``, and any
 subsequent reference to that structure uses the notation
 ``->(1)``, as shown below.
 
-    >>> fs=FeatureStructure.parse("""[NAME='Lee', ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'], 
+    >>> fs = nltk.FeatStruct.parse("""[NAME='Lee', ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'], 
     ...                               SPOUSE=[NAME='Kim', ADDRESS->(1)]]""")
     >>> print fs
     [ ADDRESS = (1) [ NUMBER = 74           ] ]
@@ -764,7 +773,7 @@ reentrant01_.
 `coindex`:dt:. The choice of integer is not significant.
 There can be any number of tags within a single feature structure.
 
-    >>> fs1 = FeatureStructure.parse("[A='a', B=(1)[C='c'], D->(1), E->(1)]")
+    >>> fs1 = nltk.FeatStruct.parse("[A='a', B=(1)[C='c'], D->(1), E->(1)]")
 
 .. _reentrant02:
 .. ex::
@@ -782,7 +791,7 @@ There can be any number of tags within a single feature structure.
 ..
     |nopar| We can also share empty structures:
 
-	>>> fs2 = FeatureStructure.parse("[A=(1)[], B=(2)[], C->(1), D->(2)]")
+	>>> fs2 = nltk.FeatStruct.parse("[A=(1)[], B=(2)[], C->(1), D->(2)]")
 
     .. _reentrant03:
     .. ex::
@@ -869,11 +878,10 @@ yield dag043_.
 	   :scale: 40
 
 |nopar| Merging information from two feature structures is called
-`unification`:dt: and is supported by the ``unify()`` method
-defined in the ``FeatureStructure`` class.
+`unification`:dt: and is supported by the ``unify()`` method.
 
-    >>> fs1 = FeatureStructure(NUMBER=74, STREET='rue Pascal')
-    >>> fs2 = FeatureStructure(CITY='Paris')
+    >>> fs1 = nltk.FeatStruct(NUMBER=74, STREET='rue Pascal')
+    >>> fs2 = nltk.FeatStruct(CITY='Paris')
     >>> print fs1.unify(fs2)
     [ CITY   = 'Paris'      ]
     [ NUMBER = 74           ]
@@ -919,8 +927,8 @@ but the value of |pi| in `FS`:math:\ :subscript:`0` is a distinct
 atom from the value of |pi| in `FS`:math:\ :subscript:`1`.
 This is implemented by setting the result of unification to be ``None``.
 
-    >>> fs0 = FeatureStructure(A='a')
-    >>> fs1 = FeatureStructure(A='b')
+    >>> fs0 = nltk.FeatStruct(A='a')
+    >>> fs1 = nltk.FeatStruct(A='b')
     >>> fs2 = fs0.unify(fs1)
     >>> print fs2
     None
@@ -928,7 +936,7 @@ This is implemented by setting the result of unification to be ``None``.
 Now, if we look at how unification interacts with structure-sharing,
 things become really interesting. First, let's define dag04_ in Python:
 
-    >>> fs0=FeatureStructure.parse("""[NAME=Lee, 
+    >>> fs0 = nltk.FeatStruct.parse("""[NAME=Lee, 
     ...                                ADDRESS=[NUMBER=74, 
     ...                                         STREET='rue Pascal'], 
     ...                                SPOUSE= [NAME=Kim,
@@ -953,7 +961,7 @@ things become really interesting. First, let's define dag04_ in Python:
 for `city`:feat:? (Notice that ``fs1`` includes the whole path from the root of
 the feature structure down to `city`:feat:.)
 
-    >>> fs1=FeatureStructure.parse("[SPOUSE = [ADDRESS = [CITY = Paris]]]")
+    >>> fs1 = nltk.FeatStruct.parse("[SPOUSE = [ADDRESS = [CITY = Paris]]]")
 
 unification02_ shows the result of unifying ``fs0`` with ``fs1``:
 
@@ -975,7 +983,7 @@ unification02_ shows the result of unifying ``fs0`` with ``fs1``:
 |nopar| By contrast, the result is very different if ``fs1`` is unified with
 the structure-sharing version ``fs2`` (also shown as dag03_):
 
-    >>> fs2=FeatureStructure.parse("""[NAME=Lee, ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'],
+    >>> fs2 = nltk.FeatStruct.parse("""[NAME=Lee, ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'],
     ...                                SPOUSE=[NAME=Kim, ADDRESS->(1)]]""")
 
 .. _unification03:
@@ -1000,8 +1008,8 @@ of `any path that is equivalent to`:em: |pi|.
 As we have already seen, structure sharing can also be stated
 using variables such as ``?x``. 
 
-    >>> fs1=FeatureStructure.parse("[ADDRESS1=[NUMBER=74, STREET='rue Pascal']]")
-    >>> fs2=FeatureStructure.parse("[ADDRESS1=?x, ADDRESS2=?x]")
+    >>> fs1 = nltk.FeatStruct.parse("[ADDRESS1=[NUMBER=74, STREET='rue Pascal']]")
+    >>> fs2 = nltk.FeatStruct.parse("[ADDRESS1=?x, ADDRESS2=?x]")
     >>> print fs2
     [ ADDRESS1 = ?x ]
     [ ADDRESS2 = ?x ]
@@ -1023,15 +1031,15 @@ Exercises
    
    .. pylisting:: featstructures
 
-     fs1 = FeatureStructure.parse("[A = (1)b, B= [C ->(1)]]")
-     fs2 = FeatureStructure.parse("[B = [D = d]]")
-     fs3 = FeatureStructure.parse("[B = [C = d]]")
-     fs4 = FeatureStructure.parse("[A = (1)[B = b], C->(1)]")
-     fs5 = FeatureStructure.parse("[A = [D = (1)e], C = [E -> (1)] ]")
-     fs6 = FeatureStructure.parse("[A = [D = (1)e], C = [B -> (1)] ]")
-     fs7 = FeatureStructure.parse("[A = [D = (1)e, F = (2)[]], C = [B -> (1), E -> (2)] ]")
-     fs8 = FeatureStructure.parse("[A = [B = b], C = [E = [G = e]]]")
-     fs9 = FeatureStructure.parse("[A = (1)[B = b], C -> (1)]")
+     fs1 = nltk.FeatStruct.parse("[A = (1)b, B= [C ->(1)]]")
+     fs2 = nltk.FeatStruct.parse("[B = [D = d]]")
+     fs3 = nltk.FeatStruct.parse("[B = [C = d]]")
+     fs4 = nltk.FeatStruct.parse("[A = (1)[B = b], C->(1)]")
+     fs5 = nltk.FeatStruct.parse("[A = [D = (1)e], C = [E -> (1)] ]")
+     fs6 = nltk.FeatStruct.parse("[A = [D = (1)e], C = [B -> (1)] ]")
+     fs7 = nltk.FeatStruct.parse("[A = [D = (1)e, F = (2)[]], C = [B -> (1), E -> (2)] ]")
+     fs8 = nltk.FeatStruct.parse("[A = [B = b], C = [E = [G = e]]]")
+     fs9 = nltk.FeatStruct.parse("[A = (1)[B = b], C -> (1)]")
 
    Work out on paper what the result is of the following
    unifications. (Hint: you might find it useful to draw the graph structures.)
@@ -1043,7 +1051,7 @@ Exercises
    * ``fs7`` and ``fs8``
    * ``fs7`` and ``fs9``
 
-   Check your answers on the computer.
+   Check your answers using Python.
 
 
 #. |soso| List two feature structures which subsume [A=?x, B=?x].
