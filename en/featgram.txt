@@ -20,6 +20,118 @@
 .. TODO: answer reader's implicit question: "why should I read this chapter?"
 .. TODO: opening paragraph is probably too complex; overall chapter presumes reader is a computational linguist?
 
+Imagine you are building a spoken dialogue
+system to answer queries about train schedules in Europe. train0_
+illustrates one of the input
+sentences that the system should handle.
+
+.. _train0:
+.. ex::
+      Which stations does the 9.00 express from Amsterdam to Paris stop at?
+
+The information that the customer is seeking is not exotic |mdash| the
+system back-end just needs to look up the list of stations on the
+route, and reel them off. But you have to be careful in giving the
+correct semantic interpretation to
+train0_. You don't want to end up with the
+system trying to answer train1_ instead: 
+
+.. _train1:
+.. ex::
+      Which station does the 9.00 express from Amsterdam terminate at?
+
+Part of your solution might use domain knowledge to figure out that if
+a speaker knows that the train is a train to Paris, then she probably
+isn't asking about the terminating station in train0_. But the
+solution will also involve recognizing the syntactic structure of the
+speaker's query.  In particular, your analyser must recognise that
+there is a syntactic connection between the question phrase `which
+stations`:lx:, and the phrase `stop at`:lx: at the end train0_. The
+required interpretation is made clearer in the "quiz question version
+shown in train2_, where the question phrase fills the "gap" that is
+implicit in train0_:
+
+.. _train2:
+.. ex::
+      The 9.00 express from Amsterdam to Paris stops at which stations?
+
+The `long-distance dependency`:dt: between an initial question phrase
+and the gap that it semantically connects to cannot be recognised by
+techniques we have presented in earlier chapters. For example, we
+can't use *n*-gram based language models; in practical terms, it is
+unfeasible to observe the *n*-grams for a big enough value of
+*n*. Similarly, chunking grammars only attempt to capture local
+patterns, and therefore just don't "see" long-distance dependencies.
+In this chapter, we will show how syntactic features can be used to
+provide a simple yet effective technique for keeping track of
+long-distance dependencies in sentences.
+
+Features are helpful too for dealing with purely local dependencies.
+Consider the German questions germanagr_.
+
+.. _germanagr:
+.. ex::
+   .. _germanagra:
+   .. ex::
+       .. gloss::
+	  Welche  |  Studenten       | sehen  | Franz?
+	  which   |  student.PL      | see.PL  | Franz
+	  'which students see Franz?'               
+
+   .. _germanagrb:
+   .. ex::
+       .. gloss::
+	  Welche  |  Studenten       | sieht   | Franz?
+	  which   |  student.PL      | see.SG  | Franz
+	  'which students does Franz see?' 
+
+The only way of telling which noun phrase is the subject of
+`sehen`:lx: ('see') and which is the object is by looking at the
+agreement inflection on the verb |mdash| word order is no help to us
+here. Since verbs in German agree in number with their subjects, the
+plural form `sehen`:lx: requires `Welche Studenten`:lx: as subject,
+while the singular form `sieht`:lx: requires `Franz`:lx: as
+subject. The fact that subjects and verbs must agree in number can be
+expressed within the |CFG|\ s that we presented in Chapter
+chap-parse_. But capturing the fact that the interpretations of
+germanagra_ and germanagrb_ differ is more challenging. In this
+chapter, we will only examine the syntactic aspect of local
+dependencies such as number agreement. In Chapter chap-semantics_, we
+will demonstrate how feature-based grammars can be extended so that
+they build a representation of meaning in parallel with a
+representation of syntactic structure.
+
+------------
+Why Features
+------------
+
+We have already used the term "feature" a few times, without saying
+what it means. What's special about feature-based grammars? The core
+ideas are probably already familiar to you. To make things concrete,
+let's look at the simple phrase `these dogs`. It's composed of two
+words. We'll be a bit abstract for the moment, and call these words
+`a` and `b`. We'll be modest, and assume that we do not know
+`everything`:em: about them, but we can at least give a partial
+description. For example, we know that the orthography of `a` is
+`these`:lx:, its phonological form is `??`,  its part-of-speech is
+`Det`:gc:, and its number is plural. We can use dot notation to record
+these observations: 
+
+.. _feat0:
+.. ex::
+    `a.spelling` = `these`:lx:
+    `a.phonology` = `??`
+    `a.pos` = `Det`:gc:
+    `a.number` = plural
+
+Thus feat0_ is a `partial description` of a word; it lists some
+attributes, or features, of the word, and declares their values. There
+are other attributes which we might be interested in which we have
+omitted to mention; for example, what head the word is dependent on
+(using the notion of dependency discussed in Chapter chap-parse_), and
+what the lemma of the word is. But that's what you would expect from a partial
+description! 
+
 The framework of context-free grammars that we presented in Chapter
 chap-parse_ describes syntactic constituents with the help of a
 limited set of category labels. These atomic labels are adequate for
@@ -39,9 +151,7 @@ final part of the chapter, we demonstrate that the additional
 expressiveness of features opens out a wide spectrum of possibilities
 for describing sophisticated aspects of linguistic structure.
 
---------------------------------
-Decomposing Lingustic Categories
---------------------------------
+
 
 .. TODO: it would be good to have some opening text here
 .. TODO: explain section title and add motivation
@@ -310,7 +420,8 @@ far in this chapter, plus a couple of new ones.
 .. pylisting:: feat0cfg
    :caption: Example Feature-Based Grammar
 
-    >>> nltk.parse.filebroker.pprint('feat0.cfg')
+    >>> from nltk import filebroker
+    >>> filebroker.pprint('feat0.cfg')
     % start S
     # ############################
     # Grammar Rules
@@ -1509,17 +1620,39 @@ do this by treating slash as a feature, and the category to its right
 as a value. In other words, our "official" notation for `s/np`:gc:
 will be `s`:gc:\ [`slash`:feat:\ =\ `NP`:fval:\ ]. Once we have taken this
 step, it is straightforward to write a small grammar for
-analyzing unbounded dependency constructions. feat1cfg_ illustrates
+analyzing unbounded dependency constructions. slashcfg_ illustrates
 the main principles of slash categories, and also includes productions for
 inverted clauses. To simplify presentation, we have omitted any
 specification of tense on the verbs.
 
-.. _feat1cfg:
-.. ex::
-.. include:: ../../examples/parse/feat1.cfg
-   :literal:
 
-feat1cfg_ contains one gap-introduction production, namely
+.. pylisting:: slashcfg
+   :caption: Grammar for Simple Long-distance Dependencies
+
+    >>> filebroker.pprint('feat1.cfg')
+    % start S
+    # ############################
+    # Grammar Rules
+    # ############################
+    S[-INV] -> NP  S/NP
+    S[-INV]/?x -> NP VP/?x
+    S[+INV]/?x -> V[+AUX] NP VP/?x
+    S-BAR/?x -> Comp S[-INV]/?x
+    NP/NP ->
+    VP/?x -> V[SUBCAT=1, -AUX] NP/?x
+    VP/?x -> V[SUBCAT=2, -AUX] S-BAR/?x
+    VP/?x -> V[SUBCAT=3, +AUX] VP/?x
+    # ############################
+    # Lexical Rules
+    # ############################
+    V[SUBCAT=1, -AUX] -> 'see' | 'like'
+    V[SUBCAT=2, -AUX] -> 'say' | 'claim'
+    V[SUBCAT=3, +AUX] -> 'do' | 'can'
+    NP[-WH] -> 'you' | 'children' | 'girls'
+    NP[+WH] -> 'who'
+    Comp -> 'that'
+
+The grammar in Listing slashcfg_ contains one gap-introduction production, namely
 
 .. ex::
    .. parsed-literal::
@@ -1546,7 +1679,7 @@ be discharged as the empty string.
 
       `np/np`:gc: |rarr|
 
-Using feat1cfg_, we can parse the string `who do you claim that you
+Using slashcfg_, we can parse the string `who do you claim that you
 like`:lx:  into the tree shown in gapparse_.
 
 .. _gapparse:
@@ -1602,13 +1735,65 @@ exceptions like `helfen`:lx: which govern the dative case.
          the.NOM.FEM.SG              | cat.3.FEM.SG             | help.3.SG             | the.ACC.MASC.SG              | dog.3.MASC.SG
 
 
-The grammar german1cfg_ illustrates the interaction of agreement
+The grammar germancfg_ illustrates the interaction of agreement
 (comprising person, number and gender) with case. 
 
-.. _german1cfg:
-.. ex::
-.. include:: ../../examples/parse/german0.cfg
-   :literal:
+.. pylisting:: germancfg
+   :caption: Example Feature-Based Grammar
+
+    >>> filebroker.pprint('german.cfg')
+    % start S
+    # Grammar Rules
+    S -> NP[CASE=nom, AGR=?a] VP[AGR=?a]
+    NP[CASE=?c, AGR=?a] -> PRO[CASE=?c, AGR=?a]
+    NP[CASE=?c, AGR=?a] -> Det[CASE=?c, AGR=?a] N[CASE=?c, AGR=?a]
+    VP[AGR=?a] -> IV[AGR=?a]
+    VP[AGR=?a] -> TV[OBJCASE=?c, AGR=?a] NP[CASE=?c]
+    # Lexical Rules
+    # Singular determiners
+    # masc
+    Det[CASE=nom, AGR=[GND=masc,PER=3,NUM=sg]] -> 'der' 
+    Det[CASE=dat, AGR=[GND=masc,PER=3,NUM=sg]] -> 'dem'
+    Det[CASE=acc, AGR=[GND=masc,PER=3,NUM=sg]] -> 'den'
+    # fem
+    Det[CASE=nom, CASE=nom, AGR=[GND=fem,PER=3,NUM=sg]] -> 'die' 
+    Det[CASE=dat, AGR=[GND=fem,PER=3,NUM=sg]] -> 'der'
+    Det[CASE=acc, AGR=[GND=fem,PER=3,NUM=sg]] -> 'die' 
+    # Plural determiners
+    Det[CASE=nom, AGR=[PER=3,NUM=pl]] -> 'die' 
+    Det[CASE=dat, AGR=[PER=3,NUM=pl]] -> 'den' 
+    Det[CASE=acc, AGR=[PER=3,NUM=pl]] -> 'die' 
+    # Nouns
+    N[AGR=[GND=masc,PER=3,NUM=sg]] -> 'hund'
+    N[AGR=[PER=3,NUM=pl]] -> 'hunde'
+    N[CASE=nom, AGR=[PER=3,NUM=pl]] -> 'hunde'
+    N[CASE=dat, AGR=[PER=3,NUM=pl]] -> 'hunden'
+    N[CASE=acc, AGR=[PER=3,NUM=pl]] -> 'hunde'
+    N[AGR=[GND=fem,PER=3,NUM=sg]] -> 'katze'
+    N[AGR=[GND=fem,PER=3,NUM=pl]] -> 'katzen'
+    # Pronouns
+    PRO[CASE=nom, AGR=[PER=1,NUM=sg]] -> 'ich'
+    PRO[CASE=acc, AGR=[PER=1,NUM=sg]] -> 'mich'
+    PRO[CASE=dat, AGR=[PER=1,NUM=sg]] -> 'mir'
+    PRO[CASE=nom, AGR=[PER=2,NUM=sg]] -> 'du'
+    PRO[CASE=nom, AGR=[PER=3,NUM=sg]] -> 'er' | 'sie' | 'es'
+    PRO[CASE=nom, AGR=[PER=1,NUM=pl]] -> 'wir'
+    PRO[CASE=nom, AGR=[PER=1,NUM=pl]] -> 'uns'
+    PRO[CASE=nom, AGR=[PER=2,NUM=pl]] -> 'ihr'
+    PRO[CASE=nom, AGR=[PER=3,NUM=pl]] -> 'sie'
+    # Verbs
+    IV[AGR=[NUM=sg,PER=1]] -> 'komme'
+    IV[AGR=[NUM=sg,PER=2]] -> 'kommst'
+    IV[AGR=[NUM=sg,PER=3]] -> 'kommt'
+    IV[AGR=[NUM=pl, PER=1]] -> 'kommen'
+    IV[AGR=[NUM=pl, PER=2]] -> 'kommt'
+    IV[AGR=[NUM=pl, PER=3]] -> 'kommen'
+    TV[OBJCASE=acc, AGR=[NUM=sg,PER=1]] -> 'sehe' | 'mag'
+    TV[OBJCASE=acc, AGR=[NUM=sg,PER=2]] -> 'siehst' | 'magst'
+    TV[OBJCASE=acc, AGR=[NUM=sg,PER=3]] -> 'sieht' | 'mag'
+    TV[OBJCASE=dat, AGR=[NUM=sg,PER=1]] -> 'folge' | 'helfe'
+    TV[OBJCASE=dat, AGR=[NUM=sg,PER=2]] -> 'folgst' | 'hilfst'
+    TV[OBJCASE=dat, AGR=[NUM=sg,PER=3]] -> 'folgt' | 'hilft'
 
 |nopar| As you will see, the feature `objcase`:feat: is used to
  specify the case which the verb governs on its object.
@@ -1619,10 +1804,10 @@ Exercises
 #. |easy| Modify the grammar illustrated in  subcatgpsg_ to
    incorporate a `bar`:feat: feature for dealing with phrasal projections.
 
-#. |easy| Modify the German grammar in german1cfg_ to incorporate the
+#. |easy| Modify the German grammar in germancfg_ to incorporate the
    treatment of subcategorization presented in sec-subcat_. 
 
-#. |soso| Extend the German grammar in german1cfg_ so that it can
+#. |soso| Extend the German grammar in germancfg_ so that it can
    handle so-called verb-second structures like the following:
 
    .. ex:: Heute sieht der hund die katze.
