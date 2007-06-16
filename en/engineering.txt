@@ -3,9 +3,7 @@
 
 .. standard global imports
 
-    >>> import nltk, re, string
-    >>> from nltk import corpora, wordnet, tokenize, stem, tag, chunk, parse, sem
-    >>> from pprint import pprint
+    >>> from nltk.book import *
 
 .. _chap-engineering:
 
@@ -27,6 +25,9 @@ create large vs small models (e.g. n-gram tagging vs Brill tagging).
    - refer back to introduction
 .. TODO: architectures: pipeline/cascade vs blackboard
 
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``from nltk.book import *``
+   
 ---------------------
 Problems with Tagging
 ---------------------
@@ -151,10 +152,8 @@ a larger sample of data.  NLTK provides a function called
 ``tag.accuracy`` to automate the task.  In the simplest case, we
 can test the tagger using the same data it was trained on:
 
-    >>> from nltk import tag
-    >>> from nltk.corpora import brown
     >>> from itertools import islice
-    >>> train_sents = list(islice(brown.tagged(), 500))  # sents 0..499
+    >>> train_sents = list(islice(corpora.brown.tagged(), 500))  # sents 0..499
     >>> unigram_tagger = tag.Unigram()
     >>> unigram_tagger.train(train_sents)
     >>> acc = tag.accuracy(unigram_tagger, train_sents)
@@ -168,8 +167,8 @@ to reward systems that make good generalizations, so we should test
 against *unseen data*, and replace ``train_sents`` above with
 ``unseen_sents``.  We can then define the two sets of data as follows:
 
-    >>> train_sents  = list(brown.tagged('a'))[:500]
-    >>> unseen_sents = list(brown.tagged('a'))[500:600] # sents 500-599
+    >>> train_sents  = list(corpora.brown.tagged('a'))[:500]
+    >>> unseen_sents = list(corpora.brown.tagged('a'))[500:600] # sents 500-599
 
 Now we train the tagger using ``train_sents`` and evaluate it using
 ``unseen_sents``, as follows:
@@ -210,7 +209,7 @@ In the case of tagging, a  possible baseline score can be found by
 tagging every word with ``NN``, the most likely tag.
 
     >>> baseline_tagger = tag.Default('nn')
-    >>> acc = tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> acc = tag.accuracy(baseline_tagger, corpora.brown.tagged('a'))
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
     Accuracy = 13.1%
 
@@ -224,10 +223,9 @@ only permit ourselves to store tags for the most frequent words.
 The first step is to identify the most frequent words in the corpus,
 and for each of these words, identify the most likely tag:
 
-    >>> from nltk.probability import *
-    >>> wordcounts = FreqDist()
-    >>> wordtags = ConditionalFreqDist()
-    >>> for sent in brown.tagged('a'):
+    >>> wordcounts = nltk.FreqDist()
+    >>> wordtags = nltk.ConditionalFreqDist()
+    >>> for sent in corpora.brown.tagged('a'):
     ...     for (w,t) in sent:
     ...         wordcounts.inc(w)    # count the word
     ...         wordtags[w].inc(t)   # count the word's tag
@@ -239,7 +237,7 @@ a new baseline tagger which uses this lookup table:
 
     >>> table = dict((word, wordtags[word].max()) for word in frequent_words)
     >>> baseline_tagger = tag.Lookup(table, tag.Default('nn'))
-    >>> acc = tag.accuracy(baseline_tagger, brown.tagged('a'))
+    >>> acc = tag.accuracy(baseline_tagger, corpora.brown.tagged('a'))
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
     Accuracy = 72.5%
 
@@ -449,17 +447,14 @@ rules learned by the Brill tagger.
 Exercises
 ---------
 
-1. |easy| Try the Brill tagger demonstration, as follows::
-
-    from nltk.tag import brill
-    brill.demo()
+1. |easy| Try the Brill tagger demonstration: ``tag.brill.demo()``.
 
 #. |soso| Consult the documentation for the demo function, using ``help(brill.demo)``.
    Experiment with the tagger by setting different values for the parameters.
    Is there any trade-off between training time (corpus size) and performance?
 
 #. |hard| Inspect the diagnostic files created by the tagger ``rules.out`` and
-   ``errors.out``.  Obtain the demonstration code (``nltk/tag/brill.py``)
+   ``errors.out``.  Obtain the demonstration code (``http://nltk.org/nltk/tag/brill.py``)
    and create your own version of the Brill tagger.
 
    a) Delete some of the rule templates, based on what you learned
@@ -467,9 +462,6 @@ Exercises
 
    b) Add some new rule templates which employ contexts that might help
       to correct the errors you saw in ``errors.out``.
-
-(We are grateful to Christopher Maloof for developing NLTK's Brill
-tagger, and Trevor Cohn for developing NLTK's HMM tagger.)
 
 --------------
 The HMM Tagger
@@ -526,7 +518,6 @@ of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
 During evaluation of a chunk parser, it is useful to flatten a chunk
 structure into a tree consisting only of a root node and leaves:
 
-    >>> from nltk import chunk
     >>> correct = chunk.tagstr2tree(
     ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
     >>> correct.flatten()
@@ -536,12 +527,13 @@ structure into a tree consisting only of a root node and leaves:
 We run a chunker over this flattened data, and compare the
 resulting chunked sentences with the originals, as follows:
 
-    >>> from nltk.chunk import *
-    >>> chunkscore = ChunkScore()
-    >>> rule = ChunkRule('<PRP|DT|POS|JJ|CD|N.*>+',
-    ...              "Chunk items that often occur in NPs")
-    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
-    >>> guess = chunkparser.parse(correct.flatten())
+    
+    >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
+    >>> cp = chunk.Regexp(grammar)
+    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
+    ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    >>> chunkscore = chunk.ChunkScore()
+    >>> guess = cp.parse(correct.flatten())
     >>> chunkscore.score(correct, guess)
     >>> print chunkscore
     ChunkParse score:
@@ -558,13 +550,11 @@ following program listing shows a typical use of the ``ChunkScore``
 class.  In this example, ``chunkparser`` is being tested on each
 sentence from the Wall Street Journal tagged files.
 
-    >>> from itertools import islice
-    >>> from nltk.corpora import treebank
-    >>> rule = ChunkRule('<DT|JJ|NN>+', "Chunk sequences of DT, JJ, and NN")
-    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = ChunkScore()
-    >>> for chunk_struct in islice(treebank.chunked(), 10):
-    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
+    >>> grammar = r"NP: {<DT|JJ|NN>+}"
+    >>> cp = chunk.Regexp(grammar)
+    >>> chunkscore = chunk.ChunkScore()
+    >>> for chunk_struct in islice(corpora.treebank.chunked(), 10):
+    ...     test_sent = cp.parse(chunk_struct.flatten())
     ...     chunkscore.score(chunk_struct, test_sent)
     >>> print chunkscore
     ChunkParse score:
@@ -619,52 +609,8 @@ Here are the incorrect chunks:
    ``max_fn_examples`` (maximum false negative examples) keyword
    arguments to the ``ChunkScore`` constructor:
 
-    >>> chunkscore = ChunkScore(max_fp_examples=1000,
-    ...                         max_fn_examples=1000)
-
-As we saw with tagging, we need to interpret the performance scores
-for a chunker relative to a baseline.  Perhaps the most naive chunking
-method is to classify every tag in the training data as to whether it
-occurs inside or outside a chunk more often.  We can do this easily
-using a chunked corpus and a conditional frequency distribution as
-shown below:
-
-    >>> from nltk.probability import ConditionalFreqDist
-    >>> from nltk.parse import Tree
-    >>> import re
-    >>> cfdist = ConditionalFreqDist()
-    >>> chunk_data = list(treebank.chunked())
-    >>> split = len(chunk_data)*9/10
-    >>> train, test = chunk_data[:split], chunk_data[split:]
-    >>> for chunk_struct in train:
-    ...     for constituent in chunk_struct:
-    ...         if isinstance(constituent, Tree):
-    ...             for (word, tag) in constituent.leaves():
-    ...                 cfdist[tag].inc(True)
-    ...         else:
-    ...             (word, tag) = constituent
-    ...             cfdist[tag].inc(False)
-  
-    >>> chunk_tags = [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
-    >>> chunk_tags = [re.sub(r'(\W)', r'\\\1', tag) for tag in chunk_tags]
-    >>> tag_pattern = '<' + '|'.join(chunk_tags) + '>+'
-    >>> print 'Chunking:', tag_pattern
-    Chunking: <PRP\$|VBG\|NN|POS|WDT|JJ|WP|DT|\#|\$|NN|FW|PRP|NNS|NNP|LS|PDT|RBS|CD|EX|WP\$|NNPS|JJS|JJR>+
-
-Now, in the evaluation phase we chunk any sequence of those tags:
-
-    >>> rule = ChunkRule(tag_pattern, 'Chunk any sequence involving commonly chunked tags')
-    >>> chunkparser = RegexpChunk([rule], chunk_node='NP')
-    >>> chunkscore = ChunkScore()
-    >>> for chunk_struct in test:
-    ...     test_sent = chunkparser.parse(chunk_struct.flatten())
-    ...     chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision:  90.7%
-        Recall:     94.0%
-        F-Measure:  92.3%
-
+    >>> chunkscore = chunk.ChunkScore(max_fp_examples=1000,
+    ...                               max_fn_examples=1000)
 
 Exercises
 ---------

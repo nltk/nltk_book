@@ -3,9 +3,7 @@
 
 .. standard global imports
 
-    >>> import nltk, re, string
-    >>> from nltk import corpora, wordnet, tokenize, stem, tag, chunk, parse, sem
-    >>> from pprint import pprint
+    >>> from nltk.book import *
 
 .. _chap-parse:
 
@@ -14,6 +12,7 @@
 =======================
 
 .. TODO: explain that cfg grammars must not mix lexical and phrasal RHS
+.. TODO: explain why RHS can't have a sequence of terminals
 
 ------------
 Introduction
@@ -152,6 +151,9 @@ questions about "what happened" or "who did what to whom"  Also as
 before, we will develop simple programs to process annotated corpora
 and perform useful tasks.
 
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``from nltk.book import *``
+
 -------------------------
 What's the Use of Syntax?
 -------------------------
@@ -216,7 +218,7 @@ labeled with the words.
 In NLTK, you can easily produce trees like this yourself with the
 following commands:
  
-    >>> tree = nltk.parse.bracket_parse('(NP (Adj old) (NP (N men) (Conj and) (N women)))')
+    >>> tree = nltk.bracket_parse('(NP (Adj old) (NP (N men) (Conj and) (N women)))')
     >>> tree.draw()                 # doctest: +SKIP
 
 We can construct other examples of syntactic ambiguity
@@ -267,18 +269,18 @@ We can generate these trees in Python as follows:
 
     >>> s1 = '(S (NP the policeman) (VP (V saw) (NP (NP the burglar) (PP with a gun))))'
     >>> s2 = '(S (NP the policeman) (VP (V saw) (NP the burglar) (PP with a telescope)))'
-    >>> tree1 = bracket_parse(s1)
-    >>> tree2 = bracket_parse(s2)
+    >>> tree1 = nltk.bracket_parse(s1)
+    >>> tree2 = nltk.bracket_parse(s2)
    
 We can discard the structure to get the list of `leaves`:dt:, and
-we can confirm that both trees have the same leaves.
+we can confirm that both trees have the same leaves (except for the last word).
 We can also see that the trees have different `heights`:dt: (given by the
 number of nodes in the longest branch of the tree, starting at `s`:gc:
 and descending to the words):
 
     >>> tree1.leaves()
     ['the', 'policeman', 'saw', 'the', 'burglar', 'with', 'a', 'gun']
-    >>> tree1.leaves() == tree2.leaves()
+    >>> tree1.leaves()[:-1] == tree2.leaves()[:-1]
     True
     >>> tree1.height() == tree2.height()
     False
@@ -553,8 +555,8 @@ Here are some of the methods available for tree objects:
     'VP'
     >>> tree4.leaves()
     ['John', 'saw', 'the', 'man']
-    >>> tree4[1,1,0]
-    'saw'
+    >>> tree4[1,1,1]
+    'man'
 
 The printed representation for complex trees can be difficult to read.
 In these cases, the ``draw`` method can be very useful. 
@@ -563,8 +565,7 @@ of the tree.  The tree display window allows you to zoom in and out;
 to collapse and expand subtrees; and to print the graphical
 representation to a postscript file (for inclusion in a document).
 
-.. doctest-ignore::
-    >>> tree3.draw()
+    >>> tree3.draw()                           # doctest: +SKIP
 
 .. image:: ../images/parse_draw.png
    :scale: 70
@@ -573,7 +574,7 @@ representation to a postscript file (for inclusion in a document).
 Treebanks (notes)
 -----------------
 
-The ``nltk.corpora`` module defines the ``treebank`` corpus reader,
+The ``corpora`` module defines the ``treebank`` corpus reader,
 which contains a 10% sample of the Penn Treebank corpus.
 
     >>> print nltk.extract(0, corpora.treebank.parsed())
@@ -635,8 +636,8 @@ consisting of 10,000 parsed sentences drawn from the
 *Academia Sinica Balanced Corpus of Modern Chinese*.
 Here is a code fragment to read and display one of the trees in this corpus.
 
-.. doctest-ignore::
-    >>> nltk.extract(3450, corpora.sinica_treebank.parsed()).draw()
+    >>> nltk.extract(3450, corpora.sinica_treebank.parsed()).draw()      # doctest: +SKIP
+    
 
 .. _sinica-tree:
 .. ex::
@@ -677,9 +678,8 @@ Exercises
       `old men and women`:lx:
 
    #) Encode any of the trees presented in this chapter as a labeled
-      bracketing and use the ``nltk.parse`` module's
-      ``bracket_parse()`` method to check that it is well-formed. Now
-      use the ``draw()`` to display the tree.
+      bracketing and use ``nltk.bracket_parse()`` to check that it is well-formed.
+      Now use ``draw()`` to display the tree.
 
    #) As in (a) above, draw a tree for `The woman saw a man last Thursday`:lx:.
 
@@ -699,7 +699,7 @@ Exercises
    ``draw_trees()`` method.  Define some trees and try it out:
 
     >>> from nltk.draw.tree import draw_trees
-    >>> draw_trees(tree1, tree2, tree3)
+    >>> draw_trees(tree1, tree2, tree3)                    # doctest: +SKIP
 
 #. |soso| Using tree positions, list the subjects of the first 100
    sentences in the Penn treebank; to make the results easier to view,
@@ -1118,7 +1118,7 @@ use the ``deptree()`` method of a ``DepGraph()`` object to build an |NLTK|
 tree like that illustrated earlier in depgraph1_.
 
     >>> tree = dg.deptree()
-    >>> tree.draw()
+    >>> tree.draw()                                 # doctest: +SKIP
 
 Formalizing Context Free Grammars
 ---------------------------------
@@ -1209,7 +1209,7 @@ sentence.  You will learn more about parsing in the next section.
 .. pylisting:: cfg
    :caption: Context Free Grammars in NLTK
 
-    grammar = parse.parse_cfg("""
+    grammar = nltk.parse_cfg("""
       S -> NP VP
       VP -> V NP | V NP PP
       V -> "saw" | "ate"
@@ -1243,8 +1243,7 @@ Exercises
 #. |soso| Extend the grammar in grammar2_ with productions which expand prepositions as
    intransitive, transitive and requiring a `pp`:gc:
    complement. Based on these productions, use the method of the
-   preceding exercise to draw
-   a tree for the sentence `Lee ran away home`:lx:\.
+   preceding exercise to draw a tree for the sentence `Lee ran away home`:lx:\.
 
 #. |soso| Pick some common verbs and complete the following tasks:
 
@@ -1461,7 +1460,7 @@ parser reports the steps that it takes as it parses a text:
 
     >>> sr_parse = parse.ShiftReduce(grammar, trace=2)
     >>> sent = list(tokenize.whitespace('Mary saw a dog'))
-    >>> sr_parse.parse(sent)
+    >>> print sr_parse.parse(sent)
     Parsing 'Mary saw a dog'
         [ * Mary saw a dog]
       S [ 'Mary' * saw a dog]
