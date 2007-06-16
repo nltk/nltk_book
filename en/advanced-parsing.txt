@@ -1,6 +1,12 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.txt
 
+.. standard global imports
+
+    >>> import nltk, re, string
+    >>> from nltk import corpora, wordnet, tokenize, stem, tag, chunk, parse, sem
+    >>> from pprint import pprint
+
 .. _chap-advanced-parsing:
 
 ===================
@@ -59,8 +65,7 @@ The word
 (Try this with `police`:lx: if you prefer something more sensible.)
 Here is a toy grammar for the "fish" sentences.
 
-    >>> from nltk.parse import cfg, chart
-    >>> grammar = cfg.parse_cfg("""
+    >>> grammar = nltk.parse_cfg("""
     ... S -> NP V NP
     ... NP -> NP Sbar
     ... Sbar -> NP V 
@@ -75,7 +80,7 @@ chart parser, which is presented later on in this chapter.  This
 sentence has two readings.
 
     >>> tokens = ["fish"] * 5
-    >>> cp = chart.ChartParse(grammar, chart.TD_STRATEGY)
+    >>> cp = nltk.parse.ChartParse(grammar, nltk.parse.TD_STRATEGY)
     >>> for tree in cp.get_parse_list(tokens):
     ...     print tree
     (S (NP (NP fish) (Sbar (NP fish) (V fish))) (V fish) (NP fish))
@@ -206,8 +211,7 @@ Well-formed Substring Tables
 
 Let's start off by defining a simple grammar.
 
-    >>> from nltk.parse import cfg
-    >>> grammar = cfg.parse_cfg("""
+    >>> grammar = nltk.parse_cfg("""
     ... S -> NP VP
     ... PP -> P NP
     ... NP -> Det N | NP PP
@@ -310,7 +314,6 @@ As expected, there is a `v`:gc: in cell (2, 3).
                         wfst[start][end] = index[(nt1,nt2)]
         return wfst
     def display(wfst, tokens):
-        import string
         print '\nWFST ' + string.join([("%-4d" % i) for i in range(1, len(wfst))])
         for i in range(len(wfst)-1):
             print "%d   " % i,
@@ -1134,16 +1137,13 @@ we wish to use the same tokenized sentence several times.
 
 .. pylisting:: chart-demo
 
-    from nltk.parse import cfg, ChartParse, BU_STRATEGY
-    from nltk import tokenize
-
-    grammar = cfg.parse_cfg('''
+    grammar = nltk.parse_cfg('''
       NP  -> NNS | JJ NNS | NP CC NP
       NNS -> "men" | "women" | "children" | NNS CC NNS
       JJ  -> "old" | "young"
       CC  -> "and" | "or"
       ''')
-    parser = ChartParse(grammar, BU_STRATEGY)
+    parser = nltk.parse.ChartParse(grammar, nltk.parse.BU_STRATEGY)
 
     >>> sent = list(tokenize.whitespace('old men and women'))
     >>> for tree in parser.get_parse_list(sent):
@@ -1162,7 +1162,7 @@ incomplete edge.
 .. pylisting:: butrace
    :caption: Trace of Bottom-Up Parser
    
-    >>> parser = ChartParse(grammar, BU_STRATEGY, trace=2)
+    >>> parser = nltk.parse.ChartParse(grammar, nltk.parse.BU_STRATEGY, trace=2)
     >>> trees = parser.get_parse_list(sent)
     |.   old   .   men   .   and   .  women  .|
     Bottom Up Init Rule:
@@ -1278,14 +1278,12 @@ prepositional dative and double object constructions involving
 
 .. pylisting:: give
 
-    from nltk.corpora import treebank
-    from string import join
     def give(t):
         return t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
                and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
                and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
     def sent(t):
-        return join(token for token in t.leaves() if token[0] not in '*-0')
+        return string.join(token for token in t.leaves() if token[0] not in '*-0')
     def print_node(t, width):
             output = "%s %s: %s / %s: %s" %\
                 (sent(t[0]), t[1].node, sent(t[1]), t[2].node, sent(t[2]))
@@ -1293,7 +1291,7 @@ prepositional dative and double object constructions involving
                 output = output[:width] + "..."
             print output
 
-    >>> for tree in treebank.parsed():
+    >>> for tree in corpora.treebank.parsed():
     ...     for t in tree.subtrees(give):
     ...         print_node(t, 72)
     gave NP: the chefs / NP: a standing ovation
@@ -1342,8 +1340,7 @@ where weights appear in brackets, as shown in Listing pcfg1_.
 .. pylisting:: pcfg1
    :caption: Defining a Probabilistic Context Free Grammar (PCFG)
 
-    from nltk import cfg
-    grammar = cfg.parse_pcfg("""
+    grammar = nltk.parse_pcfg("""
         S  -> NP VP              [1.0]
         VP -> 'saw' NP           [0.4]
         VP -> 'ate'              [0.3]
@@ -1371,8 +1368,7 @@ there is only one production, with a probability of 1.0; for ``VP``,
 0.4+0.3+0.3=1.0; and for ``NP``, 0.8+0.2=1.0.
 The parse tree returned by ``get_parse()`` includes probabilities:
 
-    >>> from nltk.parse import ViterbiParse
-    >>> viterbi_parser = ViterbiParse(grammar)
+    >>> viterbi_parser = nltk.parse.ViterbiParse(grammar)
     >>> print viterbi_parser.get_parse(['Jack', 'saw', 'the', 'telescope'])
     (S (NP Jack) (VP saw (NP the telescope))) (p=0.064)
 
@@ -1496,15 +1492,13 @@ parse, that ``get_parse_list`` will never return more than one parse.
 
 .. pylisting:: viterbi-parse
 
-    from nltk.parse import ViterbiParse
-    from nltk import tokenize, cfg
-    grammar = cfg.parse_pcfg('''
+    grammar = nltk.parse_pcfg('''
       NP  -> NNS [0.5] | JJ NNS [0.3] | NP CC NP [0.2]
       NNS -> "men" [0.1] | "women" [0.2] | "children" [0.3] | NNS CC NNS [0.4]
       JJ  -> "old" [0.4] | "young" [0.6]
       CC  -> "and" [0.9] | "or" [0.1]
       ''')
-    viterbi_parser = ViterbiParse(grammar)
+    viterbi_parser = parse.ViterbiParse(grammar)
 
     >>> sent = list(tokenize.whitespace('old men and women'))
     >>> print viterbi_parser.parse(sent)
@@ -1674,10 +1668,9 @@ In NLTK we can construct these parsers using
 
 .. pylisting:: bottom-up-chart-parsers
 
-    from nltk.parse import pchart
-    inside_parser = pchart.InsideParse(grammar)
-    longest_parser = pchart.LongestParse(grammar)
-    beam_parser = pchart.InsideParse(grammar, beam_size=20)
+    inside_parser = nltk.parse.InsideParse(grammar)
+    longest_parser = nltk.parse.LongestParse(grammar)
+    beam_parser = nltk.parse.InsideParse(grammar, beam_size=20)
 
     >>> print inside_parser.parse(sent)
     (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
@@ -1764,13 +1757,12 @@ follows::
 Here is a simple program that induces a grammar from the first
 three parse trees in the Penn Treebank corpus:
 
-    >>> from nltk.corpora import treebank
     >>> from itertools import islice
     >>> productions = []
-    >>> S = cfg.Nonterminal('S')
-    >>> for tree in islice(treebank.parsed(),3):
+    >>> S = nltk.Nonterminal('S')
+    >>> for tree in islice(corpora.treebank.parsed(),3):
     ...      productions += tree.productions()
-    >>> grammar = cfg.induce_pcfg(S, productions)
+    >>> grammar = nltk.induce_pcfg(S, productions)
     >>> for production in grammar.productions()[:10]:
     ...      print production
     PP -> IN NP [1.0]
@@ -1790,32 +1782,27 @@ Normal Forms
 ------------
 
 Grammar induction usually involves normalizing the grammar
-in various ways.  The ``nltk.parse.treetransforms`` module
-supports binarization (Chomsky Normal Form), parent annotation,
-Markov order-N smoothing, and unary collapsing.  This information
-can be accessed by importing ``treetransforms`` from
-``nltk.parse``, then calling ``help(treetransforms)``.
+in various ways.  NLTK trees
+support binarization (Chomsky Normal Form), parent annotation,
+Markov order-N smoothing, and unary collapsing:
 
-
-    >>> from nltk.parse import bracket_parse
-    >>> from nltk.parse import treetransforms
     >>> treebank_string = """(S (NP-SBJ (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths)) )
     ...     (PP (IN of) (NP (DT the) (NNS students) ))) (VP (VBD passed)))"""
-    >>> t = bracket_parse(treebank_string)
+    >>> t = nltk.bracket_parse(treebank_string)
     >>> print t
     (S
       (NP-SBJ
         (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths)))
         (PP (IN of) (NP (DT the) (NNS students))))
       (VP (VBD passed)))
-    >>> treetransforms.collapseUnary(t, collapsePOS=True)
+    >>> t.collapseUnary(collapsePOS=True)
     >>> print t
     (S
       (NP-SBJ
         (NP+QP (IN at) (JJS least) (CD nine) (NNS tenths))
         (PP (IN of) (NP (DT the) (NNS students))))
       (VP+VBD passed))
-    >>> treetransforms.chomskyNormalForm(t)
+    >>> t.chomskyNormalForm()
     >>> print t
     (S
       (NP-SBJ
