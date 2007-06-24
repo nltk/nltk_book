@@ -434,8 +434,7 @@ We can also have `nested loops`:dt: with shared variables.
 The next example iterates over all sentences in a
 section of the Brown Corpus, and for each sentence, iterates over each word.
 
-    >>> [word for sent in corpora.brown.raw('a')
-    ...     for word in sent
+    >>> [word for word in corpus.brown.tokenized('a', group_by_sent=False)
     ...     if len(word) == 17]
     ['September-October', 'Sheraton-Biltmore', 'anti-organization',
      'anti-organization', 'Washington-Oregon', 'York-Pennsylvania',
@@ -470,7 +469,7 @@ Notice that we don't bother storing the list comprehension in a temporary
 variable, but use it directly as an argument to the ``average()`` function.
 
     >>> from numpy import average
-    >>> average([len(word) for sent in corpora.brown.raw('a') for word in sent])
+    >>> average([len(word) for word in corpus.brown.tokenized('a', group_by_sent=False)])
     4.40154543827
 
 Now that we have reviewed the sequence types, we have one more fundamental data type
@@ -536,8 +535,8 @@ representation.
             groups[key].add(word)               # [_mystery-update]
         return sorted(string.join(sorted(v)) for v in groups.values() if len(v) > 1)
 
-    >>> text = corpora.words.raw()
-    >>> print mystery(text)
+    >>> words = corpus.words.read()
+    >>> print mystery(words)                         # doctest: +SKIP
 
 Listing mystery_ illustrates two important idioms, which we already
 touched on in Chapter chap-programming_.  First, dictionary keys
@@ -555,17 +554,14 @@ and build up a dictionary in the usual way, as exemplified in Listing compound-k
 .. pylisting:: compound-keys
    :caption: Illustration of compound keys
 
-    attachment = {}
+    attachment = nltk.defaultdict(lambda:[0,0])
     V, N = 0, 1
-    for entry in corpora.ppattach.dictionary('training'):
-        key = verb, prep
-        if key not in attachment:
-            attachment[key] = [0,0]
-        if entry['attachment'] == 'V':
+    for entry in corpus.ppattach.read('training', format='object'):
+        key = entry.verb, entry.prep
+        if entry.attachment == 'V':
             attachment[key][V] += 1
         else:
             attachment[key][N] += 1
-
 
 Exercises
 ---------
@@ -754,17 +750,16 @@ from the tabulation of results.
 
     def count_words_by_tag(t, genres):
         cfdist = nltk.ConditionalFreqDist()
-        for genre in genres:                       # each genre
-            for sent in corpora.brown.tagged(genre):    # each sentence
-                for (word,tag) in sent:            # each tagged token
-                    if tag == t:                   # found a word tagged t
-                         cfdist[genre].inc(word.lower())
+        for genre in genres:
+            for (word,tag) in corpus.brown.tagged(genre, group_by_sent=False):
+                if tag == t:
+                     cfdist[genre].inc(word.lower())
         return cfdist
 
     def tabulate(cfdist, words):
         print '%-18s' % 'Genre', string.join([('%6s' % w) for w in words])
         for genre in cfdist.conditions():                   # for each genre
-            print '%-18s' % corpora.brown.item_name[genre], # print row heading
+            print '%-18s' % corpus.brown.documents[genre],  # print row heading
             for w in words:                                 # for each word
                 print '%6d' % cfdist[genre][w],             # print table cell
             print                                           # end the row
@@ -775,9 +770,9 @@ from the tabulation of results.
     >>> tabulate(cfdist, modals)
     Genre                 can  could    may  might   must   will
     press: reportage       94     86     66     36     50    387
+    government            115     37    152     13     99    237
     skill and hobbies     273     59    130     22     83    259
     religion               84     59     79     12     54     64
-    miscellaneous: gov    115     37    152     13     99    237
     fiction: adventure     48    154      6     58     27     48
 
 There are some interesting patterns in the table produced by
@@ -803,7 +798,7 @@ to get vertical alignment of a variable-width window.
 
     def concordance(word, context):
         "Generate a concordance for the word with the specified context window"
-        for sent in corpora.brown.raw('a'):
+        for sent in corpus.brown.tokenized('a'):
             try:
                 pos = sent.index(word)
                 left = string.join(sent[:pos])
@@ -843,9 +838,8 @@ code opens a file ``output.txt`` for writing, and saves the program
 output to the file.
 
     >>> file = open('output.txt', 'w')
-    >>> words = set(corpora.genesis.raw())
-    >>> words.sort()
-    >>> for word in words:
+    >>> words = set(corpus.genesis.tokenized('english-kjv'))
+    >>> for word in sorted(words):
     ...     file.write(word + "\n")
 
 When we write non-text data to a file we must convert it to a string first.
@@ -855,9 +849,9 @@ object into a string.  Let's write the total number of words to our
 file, before closing it.
 
     >>> len(words)
-    4408
+    2789
     >>> `len(words)`
-    '4408'
+    '2789'
     >>> file.write(`len(words)` + "\n")
     >>> file.close()
 
@@ -892,7 +886,7 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
             bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
             bar_groups.append(bars)
         pylab.xticks(ind+width, words)
-        pylab.legend([b[0] for b in bar_groups], [corpora.brown.item_name[c][:18] for c in categories], loc='upper left')
+        pylab.legend([b[0] for b in bar_groups], [corpus.brown.documents[c] for c in categories], loc='upper left')
         pylab.ylabel('Frequency')
         pylab.title('Frequency of Six Modal Verbs by Genre')
         pylab.show()
@@ -1106,8 +1100,8 @@ two separate functions.
     ...     avg_wordlen = sum(len(word) for word in words)/len(words)
     ...     chars_used = ''.join(sorted(set(''.join(words))))
     ...     return avg_wordlen, chars_used
-    >>> proc_words(words)
-    (5, 'Icdefhnoprstu')
+    >>> proc_words(['Not', 'a', 'good', 'way', 'to', 'write', 'functions'])
+    (3, 'Nacdefginorstuwy')
     
 .. EK: wouldn't it be better to use an example which isn't then open to criticism?
 
@@ -1201,6 +1195,7 @@ and associate a name with it.
 When we use functions, the main program can be written at a higher level
 of abstraction, making its structure transparent, e.g.
 
+.. doctest-ignore::
     >>> data = load_corpus()
     >>> results = analyze(data)
     >>> present(results)
@@ -1218,7 +1213,7 @@ passed in as a parameter, and it also prints a list of the
 .. pylisting:: freq-words1
 
     def freq_words(url, freqdist, n):
-        for word in corpora.web.raw(url):
+        for word in corpus.web.tokenized(url):
             freqdist.inc(word.lower())
         print freqdist.sorted()[:n]
 
@@ -1241,12 +1236,20 @@ and simplify its interface by providing a single ``url`` parameter.
 
     def freq_words(url):
         freqdist = nltk.FreqDist()
-        for word in corpora.web.raw(url):
+        for word in corpus.web.tokenized(url):
             freqdist.inc(word.lower())
         return freqdist
 
     >>> fd = freq_words(constitution)
     >>> print fd.sorted()[:20]
+    ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', 'in', 'states', 'or',
+    ';', 'united', 'a', 'state', 'by', 'for', 'any', 'president', 'which']
+    
+Note that we have now simplified the work of ``freq_words``
+to the point that we can do its work with a single line of code:
+
+    >>> fd = nltk.FreqDist(word.lower() for word in corpus.web.tokenized(constitution))
+    >>> fd.sorted()[:20]
     ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', 'in', 'states', 'or',
     ';', 'united', 'a', 'state', 'by', 'for', 'any', 'president', 'which']
 
@@ -1334,8 +1337,8 @@ Another helpful function, which like ``filter()`` applies a function
 to a sequence, is ``map()``.  Here is a simple
 way to find the average length of a sentence in a section of the Brown Corpus:
 
-    >>> average(map(len, corpora.brown.raw('a')))
-    21.7461072664
+    >>> average(map(len, corpus.brown.tokenized('a')))
+    21.7508111616
 
 |nopar|
 Instead of ``len()``, we could have passed in any other function we liked:
@@ -1429,13 +1432,13 @@ transform and conquer (why?).
 
     def duplicates(words):
         prev = None
-        dup = []
+        dup = [None]
         for word in sorted(words):
             if word == prev and word != dup[-1]:
                 dup.append(word)
             else:
                 prev = word
-        return dup
+        return dup[1:]
     
     >>> duplicates(['cat', 'dog', 'cat', 'pig', 'dog', 'cat', 'ant', 'cat'])
     ['cat', 'dog']        

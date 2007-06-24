@@ -126,9 +126,9 @@ challenging.  In Chinese text there is no visual representation of word
 boundaries.  Consider the following
 three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
 ai4 "love" (verb), guo3 "country", ren2 "person"). This could
-either be segmented as [|ai4|\ |guo3|]\ |ren2| |mdash|
-"country-loving person" or as |ai4|\ [|guo3|\ |ren2|] |mdash| "love
-country-person."
+either be segmented as [|ai4|\ |guo3|]\ |ren2|\ ,
+"country-loving person" or as |ai4|\ [|guo3|\ |ren2|]\ ,
+"love country-person."
 
 The terms *token* and *type* can also be applied to other linguistic
 entities.  For example, a `sentence token`:dt: is an individual
@@ -163,8 +163,7 @@ Extracting text from files
     >>> def fake_open(filename, mode=None):
     ...     return StringIO('Hello World!\nThis is a test file.\n')
     >>> def fake_urlopen(url):
-    ...     return StringIO(' BBC NEWS | News Front Page News Sport '
-    ...                     'Weather World Service')
+    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
     >>> open = fake_open
     >>> import urllib
     >>> urllib.urlopen = fake_urlopen
@@ -278,31 +277,19 @@ intervening. However, look at what the result is:
     '' 
 
 |nopar| 
-What has happened here? The problem is twofold. First, as already
-noted, the wildcard ``'.'`` matches any character other than
-``'\n'``, so in particular it will match ``'>'`` and ``'<'``. Second,
-the ``'*'`` operator is 'greedy', in the sense that it matches
-as many characters as it can. In the example we just looked at,
-therefore, ``'.*'`` will return not the shortest match, namely
+What has happened here? The problem is twofold. First,
+the wildcard ``'.'`` matches any character other than ``'\n'``,
+so it will match ``'>'`` and ``'<'``.
+Second, the ``'*'`` operator is "greedy", in the sense that it matches
+as many characters as it can. In the above example,
+``'.*'`` will return not the shortest match, namely
 ``'title'``, but the longest match, ``'title>BBC NEWS | News Front
-Page</title'``. 
-
-.. TODO: think about teaching .*? instead
-
-In order to get the results we want, we need to think about the task
-in a slightly different way. Our assumption is that after we have
-encountered a ``'<'``, any character can occur within the tag except a
-``'>'``; once we find the latter, we know the tag is closed. Now, we
-have already seen how to match everything but |alpha|, for some
-character |alpha|; we use a negated range expression. In this case,
-the expression we need is ``'[^>]'``: match everything except
-``'>'``. This range expression is then quantified with the ``'*'``
-operator. In our revised example below, we use the improved regular
-expression, and we also normalise whitespace, replacing any sequence
+Page</title'``.   To get the *shortest* match we have to use the ``'*?'`` operator.
+We will also normalise whitespace, replacing any sequence
 of one or more spaces, tabs or newlines (these are all matched by
-``'\s+'``) with a single space character.
+``'\s+'``) with a single space character:
 
-    >>> page = re.sub('<[^>]*>', '', page)
+    >>> page = re.sub('<.*?>', '', page)
     >>> page = re.sub('\s+', ' ', page)
     >>> print page[:60]
      BBC NEWS | News Front Page News Sport Weather World Service
@@ -357,7 +344,7 @@ corpus using the ``read()`` function.  Here we will specify
 section ``a``, and indicate that only words (and not part-of-speech tags)
 should be produced.
 
-    >>> a = corpus.brown.read('a', tagged=False)
+    >>> a = corpus.brown.tokenized('a')
     >>> a[0]
     ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', 'Friday', 'an',
     'investigation', 'of', "Atlanta's", 'recent', 'primary', 'election',
@@ -744,7 +731,7 @@ List comprehensions can build nested structures too.  For example,
 the following code builds a list of tuples, where each tuple consists
 of a word and its stem.
 
-    >>> sent = corpus.brown.read('a')[0]
+    >>> sent = corpus.brown.tokenized('a')[0]
     >>> [(x, stemmer.stem(x).lower()) for x in sent]
     [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
     ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
@@ -839,7 +826,7 @@ Before getting started, we need to see how to get Python to
 count the number of occurrences of *each* word in a document.
 
     >>> counts = nltk.defaultdict(int)           # [_count-initialization]
-    >>> sec_a = corpus.brown.read('a', tagged=False, grouped_by_sent=False)
+    >>> sec_a = corpus.brown.tokenized('a', group_by_sent=False)
     >>> for token in sec_a:
     ...     counts[token] += 1                   # [_count-increment]
     >>> for token in sorted(counts)[:5]:         # [_count-output]
@@ -900,9 +887,9 @@ its key-value pairs and sort them by decreasing values, as follows:
 
     >>> from operator import itemgetter
     >>> sorted_word_counts = sorted(fd.items(), key=itemgetter(1), reverse=True)  # [_sorted-args]
-    >>> sorted_word_counts[:20]
-    [',', 'the', '.', 'of', 'to', 'a', 'in', 'and', "'s", 'for',
-     'that', 'The', '$', '``', "''", 'is', 'said', 'on', 'it', '%']
+    >>> [token for (token, freq) in sorted_word_counts[:20]]
+    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that',
+    '``', 'is', 'was', "''", 'on', 'at', 'with', 'be', 'by']
 
 Note the arguments of the ``sorted()`` function (line sorted-args_): ``itemgetter(1)``
 returns a function that can be called on any sequence object to return the item at position ``1``;
@@ -923,7 +910,7 @@ Listing print-freq_ demonstrates this, and also prints rank and cumulative frequ
             cumulative += fd[word] * 100.0 / fd.N()
             print "%3d %3.2d%% %s" % (rank, cumulative, word)
 
-    >>> print_freq(corpus.brown.read('a', tagged=False, grouped_by_sent=False), 20)
+    >>> print_freq(corpus.brown.tokenized('a', group_by_sent=False), 20)
       1  05% the
       2  10% ,
       3  14% .
@@ -1041,7 +1028,7 @@ of word lengths in a corpus.  For each word, we find its length,
 and increment the count for words of this length.
 
     >>> def print_length_dist(text):
-    ...     fd = nltk.FreqDist(len(token) for token in text)
+    ...     fd = nltk.FreqDist(len(token) for token in text if re.match(r'\w+$', token))
     ...     for i in range(1,15):
     ...         print "%2d" % int(100*fd.freq(i)),
     ...     print
@@ -1052,11 +1039,11 @@ word lengths.  We see that the most frequent word length for the English
 sample is 3 characters, while the most frequent length for the Finnish
 sample is 5-6 characters.
 
-    >>> print_length_dist(corpus.genesis.read('english-kjv'))
-     2 14 28 21 13  7  5  2  2  0  0  0  0  0
-    >>> print_length_dist(corpus.genesis.read('finnish'))
-     0  9  6 10 16 16 12  9  6  3  2  2  1  0
-
+    >>> print_length_dist(corpus.genesis.tokenized('english-kjv'))
+     2 15 30 23 12  6  4  2  1  0  0  0  0  0
+    >>> print_length_dist(corpus.genesis.tokenized('finnish'))
+     0 12  6 10 17 17 11  9  5  3  2  1  0  0
+    
 This is an intriguing area for exploration, and so in Listing word-len-dist_
 we look at it on a larger scale using the Universal Declaration of Human Rights corpus,
 which has text samples from over 300 languages.
@@ -1129,7 +1116,7 @@ the available words.
 
     >>> model = train_model(corpus.genesis.read())
     >>> list(model['living'])
-    ['creature,', 'substance', 'soul.', 'thing', 'thing,', 'creature']
+    ['substance', ',', '.', 'thing', 'soul', 'creature']
     >>> generate_model(model, 'living')
     living creature that he said, I will not be a wife of the land
     of the land of the land
@@ -1171,26 +1158,25 @@ In Listing collocations_ we try this for the items in the webtext corpus.
         return freq12 ** power / float(freq1 * freq2)
 
     >>> for item in corpus.webtext.items:
-    ...     words = [word.lower() for word in corpus.webtext.raw(item) if len(word) > 2]
+    ...     words = [word.lower() for word in corpus.webtext.tokenized(item) if len(word) > 2]
     ...     print corpus.webtext.documents[item]
     ...     print [w1+' '+w2 for w1, w2 in collocations(words)[:15]]
     Overheard in New York
-    ['new york', 'girl #1:', 'girl #2:', 'teen boy', 'teen girl',
-    'guy #1:', 'you know', 'middle aged', 'guy #2:', 'flight attendant',
-    'puerto rican', 'last night', 'little boy', 'taco bell', 'statue liberty']
-    Fine Wine Diary
-    ['high toned', 'top ***', 'not rated', 'few years', 'medium weight',
-    'year two', 'cigar box', 'cote rotie', 'mixed feelings', 'demi sec',
-    'from half', 'brown sugar', 'bare ****', 'tightly wound', 'sous bois']
+    ['new york', 'girl #1:', 'girl #2:', 'teen boy', 'teen girl', 'guy #1:', 'you know',
+    'middle aged', 'guy #2:', 'flight attendant', 'puerto rican', 'last night',
+    'little boy', 'taco bell', 'statue liberty']
     Pirates of the Carribean: Dead Man's Chest
     ['jack sparrow', 'will turner', 'elizabeth swann', 'davy jones', 'flying dutchman',
     'lord cutler', 'cutler beckett', 'black pearl', 'tia dalma', 'heh heh',
     'edinburgh trader', 'port royal', 'bamboo pole', 'east india', 'jar dirt']
     Singles ads
-    ['non smoker', 'would like', 'dining out', 'like meet', 'age open',
-    'sense humour', 'looking for', 'social drinker', 'down earth', 'long term',
-    'quiet nights', 'easy going', 'medium build', 'nights home', 'weekends away']
-
+    ['non smoker', 'would like', 'dining out', 'like meet', 'age open', 'sense humour',
+    'looking for', 'social drinker', 'down earth', 'long term', 'quiet nights',
+    'easy going', 'medium build', 'nights home', 'weekends away']
+    Fine Wine Diary
+    ['high toned', 'top ***', 'not rated', 'few years', 'medium weight', 'year two',
+    'cigar box', 'cote rotie', 'mixed feelings', 'demi sec', 'from half', 'brown sugar',
+    'bare ****', 'tightly wound', 'sous bois']
 
 .. TODO: add section on Distributional Similarity
 
