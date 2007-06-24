@@ -13,7 +13,7 @@ PDF := $(TEX:.tex=.pdf)
 
 RST2HTML = ../rst.py --html
 
-RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
+RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude
 
 .SUFFIXES: .txt .html .tex .pdf
 
