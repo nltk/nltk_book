@@ -19,21 +19,64 @@
 Introduction
 ------------
 
-In Chapter chap-words_ we dealt with words in their own right. We saw
-that some distinctions can be collapsed using normalization, but we
-did not make any further generalizations.  We
-looked at the distribution of `often`:lx:, identifying the words that
-follow it; we noticed that `often`:lx: frequently modifies verbs.  We
-also assumed that you knew that words such as `was`:lx:, `called`:lx:
-and `appears`:lx: are all verbs, and that you knew that `often`:lx: is
-an adverb. In fact, we take it for granted that most people have a
-rough idea about how to group words into different categories.
+In Chapter chap-words_ we dealt with words in their own right.
+We looked at the distribution of `often`:lx:, identifying the words that
+follow it; we noticed that `often`:lx: frequently modifies verbs.
+In fact, it is a member of a whole class of verb-modifying words, the *adverbs*.
+Before we delve into this terminology, let's write a program that takes
+a word and finds other words that appear in the same context (Listing dist_sim_).
+For example, given the word `woman`:lx:, the program will find all
+contexts where `woman`:lx: appears in the corpus, such as `the woman saw`:lx:,
+then searches for other words that appear in those contexts.
 
-There is a long tradition of classifying words into categories called
-`parts of speech`:dt:. These are sometimes also called word classes or
-`lexical categories`:dt:.  Apart from verb and adverb, other familiar
-examples are `noun`:dt:, `preposition`:dt:, and `adjective`:dt:. One
-of the notable features of the Brown corpus is that all the words have
+When we run ``dist_sim()`` on a few words, we find other words having
+similar distribution:
+searching for `woman`:lx: finds `man`:lx: and several other *nouns*;
+searching for `bought`:lx: finds *verbs*;
+searching for `over`:lx: finds *prepositions*;
+searching for `the`:lx: finds *determiners*.
+These labels |mdash| which may be familiar from grammar lessons |mdash| are
+not just terms invented by grammarians, but labels for groups of words that
+arise directly from the text.  These groups of words are so important that
+they have several names, all in common use:
+`word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
+We'll use these names interchangeably.
+
+.. doctest-ignore::
+.. pylisting:: dist_sim
+   :caption: Program for Distributional Similarity
+
+    def build_wc_map():
+        cw_map = nltk.defaultdict(list)
+        for item in corpus.brown.items:
+            for sent in corpus.brown.tokenized(item):
+                sent = [w.lower() for w in sent]
+                for i in range(1,len(sent)-1):
+                    cw_map[(sent[i-1],sent[i+1])].append(sent[i])
+        return nltk.invert_dict(cw_map)
+
+    def dist_sim(wc_map, word, num=12):
+        if word in wc_map:
+            contexts = set(wc_map[word])
+            fd = nltk.FreqDist(w for w in wc_map for c in wc_map[w] if c in contexts)
+            return fd.sorted()[:num]
+        return []
+    
+    >>> wc_map = build_wc_map()
+    >>> dist_sim(wc_map, 'woman')
+    ['man', 'number', 'woman', 'world', 'time', 'end', 'house', 'state',
+     'matter', 'kind', 'result', 'day']
+    >>> dist_sim(wc_map, 'bought')
+    ['able', 'made', 'been', 'used', 'found', 'was', 'had', 'bought', ',',
+     'done', 'expected', 'given']
+    >>> dist_sim(wc_map, 'over')
+    ['in', 'over', 'of', 'and', 'to', ',', 'on', 'with', 'is', 'for', 'was', 'at']
+    >>> dist_sim(wc_map, 'the')
+    ['the', 'a', 'his', 'this', 'and', 'their', 'an', 'her', 'that', 'its',
+     'our', 'any']
+
+
+One of the notable features of the Brown corpus is that all the words have
 been `tagged`:dt: for their part-of-speech. Now, instead of just
 looking at the words that immediately follow `often`:lx:, we can
 look at the `part-of-speech tags`:dt: (or `POS tags`:dt:).  Table often_
@@ -63,13 +106,13 @@ labeling them accordingly is known as `part-of-speech tagging`:dt:,
 used for a particular task is known as a `tag set`:dt:.  Our emphasis
 in this chapter is on exploiting tags, and tagging text automatically.
 
-Automatic tagging can bring a number of benefits.  We have already
+Automatic tagging has several applications.  We have already
 seen an example of how to exploit tags in corpus analysis |mdash| we
 get a clear understanding of the distribution of `often`:lx: by
 looking at the tags of adjacent words.  Automatic tagging
-also helps predict the
-behavior of previously unseen words.  For example, if we encounter
-the word `blogging`:lx: we can probably infer that it is a verb, with
+also helps predict the behavior of previously unseen words.
+For example, if we encounter the word
+`blogging`:lx: we can probably infer that it is a verb, with
 the root `blog`:lx:, and likely to occur after forms of the auxiliary
 ``to be`` (e.g. `he was blogging`:lx:).  Parts of speech are also used
 in speech synthesis and recognition.  For example, ``wind/nn``, as in
@@ -82,10 +125,11 @@ Without knowing the part of speech we cannot be sure of pronouncing
 the word correctly.
 
 In the next section we will see how to access and explore the Brown
-Corpus.  Following this we will take a more in depth look at the
+Corpus.  Following this we will take a closer look at the
 linguistics of word classes.  The rest of the chapter will deal with
-automatic tagging: simple taggers, evaluation, n-gram taggers, and the
-Brill tagger.
+automatic tagging: simple taggers, evaluation, and n-gram taggers.
+(Later, in Chapter chap-engineering_, we will see other taggers
+including the Brill tagger and HMM taggers.)
 
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``from nltk.book import *``
@@ -238,6 +282,8 @@ involving the referents of one or more noun phrases.
 
    Syntactic Patterns involving some Verbs
  
+`\pagebreak`:raw-latex:
+
 Verbs can be classified according to the number of arguments (usually
 noun phrases) that they require.  The word `fall`:lx: is
 `intransitive`:dt:, requiring exactly one argument (the entity which
@@ -315,7 +361,7 @@ nouns typically end in `s`:lx:), ``p`` for proper nouns.
 
 Some tags contain a plus sign; these are compound tags, and are
 assigned to words that contain two parts normally treated separately.
-Some tags contain a minus sign; this indicates disjunction [MORE].
+Some tags contain a minus sign; this indicates disjunction.
 
 
 The Default Tagger
@@ -426,7 +472,7 @@ The `past participle`:dt: of a verb often ends in `-ed`:lx:, and
 expresses the idea of a completed action (e.g. `fell, ate`:lx:).
 These are tagged ``vbd``.
 
-[MORE: Modal verbs, e.g. `would`:lx: ...]
+.. TODO: Modal verbs, e.g. `would`:lx: ...
 
 Common tag sets often capture some `morpho-syntactic`:dt: information;
 that is, information about the kind of morphological markings which
@@ -1055,66 +1101,6 @@ a different segment of the corpus.
     >>> print 'Bigram Accuracy = %4.1f%%' % (100 * accuracy2)
     Bigram Accuracy = 81.9%
 
-
-Investigating tagger performance
---------------------------------
-
-What is the upper limit to tagger performance?
-Unfortunately perfect tagging is impossible.  Consider the case of a
-trigram tagger.  How many cases of part-of-speech ambiguity does it
-encounter?  We can determine the answer to this question empirically:
-
-    >>> cfdist = nltk.ConditionalFreqDist()
-    >>> for sent in corpus.brown.tagged('a'):
-    ...     p = [(None, None)] # empty token/tag pair
-    ...     trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
-    ...     for (pair1,pair2,pair3) in trigrams:
-    ...         context = (pair1[1], pair2[1], pair3[0]) # last 2 tags, this word
-    ...         cfdist[context].inc(pair3[1])            # current tag
-    >>> total = ambiguous = 0
-    >>> for cond in cfdist.conditions():
-    ...     if cfdist[cond].B() > 1:
-    ...         ambiguous += cfdist[cond].N()
-    ...     total += cfdist[cond].N()
-    >>> print float(ambiguous) / total
-    0.0560200364299
-
-Thus, one out of twenty trigrams is ambiguous.  Given the
-current word and the previous two tags, there is more than one tag
-that could be legitimately assigned to the current word according to
-the training data.  Assuming we always pick the most likely tag in
-such ambiguous contexts, we can derive an empirical upper bound on
-the performance of a trigram tagger.
-
-Another way to investigate the performance of a tagger is to study
-its mistakes.  Some tags may be harder than others to assign, and
-it might be possible to treat them specially by pre- or post-processing
-the data.  A convenient way to look at tagging errors is the
-`confusion matrix`:dt:.  It charts expected tags (the gold standard)
-against actual tags generated by a tagger:
-
-    >>> def tag_list(tagged_sents):
-    ...     return [tag for sent in tagged_sents for (word, tag) in sent]
-    >>> def apply_tagger(tagger, corpus):
-    ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
-    >>> gold = tag_list(corpus.brown.tagged('b'))
-    >>> test = tag_list(apply_tagger(t2, corpus.brown.tagged('b')))
-    >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
-
-Based on such analysis we may decide to modify the tagset.  Perhaps
-a distinction between tags that is difficult to make can be dropped,
-since it is not important in the context of some larger processing task.
-We could collapse distinctions with the aid of a dictionary that maps
-the existing tagset to a simpler tagset:
-
-.. doctest-ignore::
-    >>> mapping = {'pps': 'nn', 'ppss': 'nn'}
-    >>> data = [(word, mapping.get(tag, tag))
-    ...         for (word, tag) in sent for sent in tagged_sents]
-
-|nopar|
-We can do this for both the training and test data.
-
 Storing Taggers
 ---------------
 
@@ -1147,12 +1133,92 @@ Now let's check that it can be used for tagging.
     ('up', 'rp'), ('against', 'in'), ('in', 'in'), ('our', 'pp$'), ('complex', 'jj'),
     ('maze', 'nn'), ('of', 'in'), ('regulatory', 'nn'), ('laws', 'nns'), ('.', '.')]
 
-Smoothing
----------
+Investigating tagger performance
+--------------------------------
 
-[Brief discussion of NLTK's smoothing classes, for another approach to
-handling unknown words: Lidstone, Laplace, Expected Likelihood,
-Heldout, Witten-Bell, Good-Turing.]
+What is the upper limit to tagger performance?
+Unfortunately perfect tagging is impossible.  Consider the case of a
+trigram tagger.  How many cases of part-of-speech ambiguity does it
+encounter?  We can determine the answer to this question empirically
+(Listing upper-limit_).
+
+.. pylisting:: upper-limit
+   :caption: Upper Limit to Trigram Tagger Performance
+
+    def upper_limit(sents):
+        cfdist = nltk.ConditionalFreqDist()
+        for sent in sents:
+            p = [(None, None)] # empty token/tag pair
+            trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
+            for (pair1,pair2,pair3) in trigrams:
+                context = (pair1[1], pair2[1], pair3[0]) # last 2 tags, this word
+                cfdist[context].inc(pair3[1])            # current tag
+        total = ambiguous = 0
+        for cond in cfdist.conditions():
+            if cfdist[cond].B() > 1:
+                ambiguous += cfdist[cond].N()
+            total += cfdist[cond].N()
+        return float(ambiguous) / total
+
+    >>> upper_limit(corpus.brown.tagged('a'))
+    0.0560200364299
+
+Thus, one out of twenty trigrams is ambiguous.  Given the
+current word and the previous two tags, there is more than one tag
+that could be legitimately assigned to the current word according to
+the training data.  Assuming we always pick the most likely tag in
+such ambiguous contexts, we can derive an empirical upper bound on
+the performance of a trigram tagger.
+
+Another way to investigate the performance of a tagger is to study
+its mistakes.  Some tags may be harder than others to assign, and
+it might be possible to treat them specially by pre- or post-processing
+the data.  A convenient way to look at tagging errors is the
+`confusion matrix`:dt:.  It charts expected tags (the gold standard)
+against actual tags generated by a tagger:
+
+    >>> def tag_list(tagged_sents):
+    ...     return [tag for sent in tagged_sents for (word, tag) in sent]
+    >>> def apply_tagger(tagger, corpus):
+    ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
+    >>> gold = tag_list(corpus.brown.tagged('b'))
+    >>> test = tag_list(apply_tagger(t2, corpus.brown.tagged('b')))
+    >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
+
+Based on such analysis we may decide to modify the tagset.  Perhaps
+a distinction between tags that is difficult to make can be dropped,
+since it is not important in the context of some larger processing task.
+In general, observe that the tagging process simultaneously collapses distinctions
+(i.e., lexical identity is usually lost when all personal pronouns are
+tagged `prp`:gc:), while introducing distinctions and removing
+ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
+facilitates classification and prediction.
+When we introduce finer distinctions in a tag set, we get better information
+about linguistic context, but we have to do more work to classify the
+current token (there are more tags to choose from).  Conversely, with
+fewer distinctions, we have less work to do for classifying the
+current token, but less information about the context to draw on.
+
+We could collapse distinctions with the aid of a dictionary that maps
+the existing tagset to a simpler tagset:
+
+.. doctest-ignore::
+    >>> mapping = {'pps': 'nn', 'ppss': 'nn'}
+    >>> data = [(word, mapping.get(tag, tag))
+    ...         for (word, tag) in sent for sent in tagged_sents]
+
+We have seen that ambiguity in the training data leads to an upper limit
+in tagger performance.  Sometimes more context will resolve the
+ambiguity.  In other cases however, as noted by [Abney1996PST]_, the
+ambiguity can only resolved with reference to syntax, or to world
+knowledge.  Despite these imperfections, part-of-speech tagging has
+played a central role in the rise of statistical approaches to natural
+language processing.  In the early 1990s, the surprising accuracy of
+statistical taggers was a striking demonstration that it was possible
+to solve one small part of the language understanding problem, namely
+part-of-speech disambiguation, without reference to deeper sources of
+linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
+on chunk parsing, we shall see that it can.
 
 Exercises
 ---------
@@ -1173,6 +1239,29 @@ Exercises
    for these taggers, assuming a vocabulary size of
    10\ `5`:superscript: and a tagset size of 10\ `2`:superscript:.
    
+#. |soso| Consider the program in Listing upper-limit_, which
+   determines the upper bound for accuracy of a trigram tagger.
+   Consult the Abney reading (section sec-tag-further-reading_) and review his discussion of the
+   impossibility of exact tagging.  Explain why correct tagging of
+   these examples requires access to other kinds of information than
+   just words and tags.  How might you estimate the scale of this
+   problem?
+
+#. |soso| Experiment with using a simplified tagset (e.g. map all noun
+   tags to ``n``, and so on for the other tags, by discarding all but
+   the first letter of each tag.)  Such a tagger has fewer distinctions
+   to make, but much less information on which to base its work.
+   Discuss your findings.
+
+#. |soso| Obtain some tagged data for another language, and train and
+   evaluate a variety of taggers on it.  If the language is
+   morphologically complex, or if there are any orthographic clues
+   (e.g. capitalization) to word classes, consider developing a
+   regular expression tagger for it (ordered after the unigram
+   tagger, and before the default tagger).  How does the accuracy of
+   your tagger(s) compare with the same taggers run on English data?
+   Discuss any issues you encounter in applying these methods to the language.
+
 #. |hard|
    Create a default tagger and various unigram and n-gram taggers,
    incorporating backoff, and train them on part of the Brown corpus.
@@ -1202,36 +1291,38 @@ Exercises
 
    c) Evaluate the contribution of this new unigram tagger.
 
-----------
-Conclusion
-----------
+-------
+Summary
+-------
 
-This chapter has introduced the language processing task known as
-tagging, with an emphasis on part-of-speech tagging.  English word
-classes and their corresponding tags were introduced.  We showed how
-tagged tokens and tagged corpora can be represented, then discussed a
-variety of taggers: default tagger, regular expression tagger, unigram
-tagger and n-gram taggers.  We also described
-some objective evaluation methods.  In the process, the reader has
-been introduced to an important paradigm in language processing,
-namely *language modeling*.  This paradigm
-former is extremely general, and we will encounter it again later.
+* Words can be grouped into classes, such as nouns, verbs, adjectives, and adverbs.
+  These classes are known as lexical categories or parts of speech.
+  Parts of speech are assigned short labels, or tags, such as ``nn``, ``vb``,
 
-Observe that the tagging process simultaneously collapses distinctions
-(i.e., lexical identity is usually lost when all personal pronouns are
-tagged `prp`:gc:), while introducing distinctions and removing
-ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
-facilitates classification and prediction.  When we
-introduce finer distinctions in a tag set, we get better information
-about linguistic context, but we have to do more work to classify the
-current token (there are more tags to choose from).  Conversely, with
-fewer distinctions, we have less work to do for classifying the
-current token, but less information about the context to draw on.
+* The process of automatically assigning parts of speech to words in text
+  is called part-of-speech tagging, POS tagging, or just tagging.
+
+* Some linguistic corpora, such as the Brown Corpus, have been POS tagged.
+
+* A variety of tagging methods are possible, e.g.
+  default tagger, regular expression tagger, unigram tagger and n-gram taggers.
+  These can be combined using a technique known as backoff.
+
+* Taggers can be trained and evaluated using tagged corpora.
+
+* Part-of-speech tagging is an important, early example of a sequence
+  classification task in NLP.
+
+.. _sec-tag-further-reading:
+
+---------------
+Further Reading
+---------------
 
 There are several other important approaches to tagging involving
 *Transformation-Based Learning*, *Markov Modeling*, and *Finite State
-Methods*.  We will discuss these in a later chapter.  In Chapter chap-chunk_
-we will see a generalization of tagging called *chunking* in which a
+Methods*.  We will discuss some of these in Chapter chap-engineering_.
+In Chapter chap-chunk_ we will see a generalization of tagging called *chunking* in which a
 contiguous sequence of words is assigned a single tag.
 
 Part-of-speech tagging is just one kind of tagging, one that
@@ -1268,85 +1359,9 @@ part-of-speech tags.  Third, training a tagger involves *sequence learning
 from annotated corpora*.  Finally, tagging uses *simple, general, methods*
 such as conditional frequency distributions and transformation-based learning.
 
-We have seen that ambiguity in the training data leads to an upper limit
-in tagger performance.  Sometimes more context will resolve the
-ambiguity.  In other cases however, as noted by Abney (1996), the
-ambiguity can only resolved with reference to syntax, or to world
-knowledge.  Despite these imperfections, part-of-speech tagging has
-played a central role in the rise of statistical approaches to natural
-language processing.  In the early 1990s, the surprising accuracy of
-statistical taggers was a striking demonstration that it was possible
-to solve one small part of the language understanding problem, namely
-part-of-speech disambiguation, without reference to deeper sources of
-linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
-on chunk parsing, we shall see that it can.
-
-
----------------
-Further Reading
----------------
-
-Tagging: Jurafsky and Martin, Chapter 8
-
-Brill tagging: Manning and Schutze 361ff; Jurafsky and Martin 307ff
-
-HMM tagging: Manning and Schutze 345ff
-
-Abney, Steven (1996). Tagging and Partial Parsing.
-In: Ken Church, Steve Young, and Gerrit Bloothooft (eds.),
-*Corpus-Based Methods in Language and Speech.*
-Kluwer Academic Publishers, Dordrecht.
-``http://www.vinartus.net/spa/95a.pdf``
-
-Wikipedia:
-``http://en.wikipedia.org/wiki/Part-of-speech_tagging``
 
 List of available taggers:
 ``http://www-nlp.stanford.edu/links/statnlp.html``
-
------------------
-Further Exercises
------------------
-
-#. **Impossibility of exact tagging:**
-   Write a program to determine the upper bound for accuracy of an
-   n-gram tagger.  Hint: how often is the context seen during training
-   inadequate for uniquely determining the tag to assign to a word?
-
-#. **Impossibility of exact tagging:**
-   Consult the Abney reading and review his discussion of the
-   impossibility of exact tagging.  Explain why correct tagging of
-   these examples requires access to other kinds of information than
-   just words and tags.  How might you estimate the scale of this
-   problem?
-
-#. **Application to other languages**:
-   Obtain some tagged data for another language, and train and
-   evaluate a variety of taggers on it.  If the language is
-   morphologically complex, or if there are any orthographic clues
-   (e.g. capitalization) to word classes, consider developing a
-   regular expression tagger for it (ordered after the unigram
-   tagger, and before the default tagger).  How does the accuracy of
-   your tagger(s) compare with the same taggers run on English data?
-   Discuss any issues you encounter in applying these methods to the
-   language.
-        
-#. **Comparing n-gram taggers and Brill taggers** (advanced):
-   Investigate the relative performance of n-gram taggers with backoff
-   and Brill taggers as the size of the training data is increased.
-   Consider the training time, running time, memory usage, and accuracy,
-   for a range of different parameterizations of each technique.
-        
-#. **HMM taggers**:
-   Explore the Hidden Markov Model tagger ``tag.hmm``.
-
-#. (Advanced) **Estimation:**
-   Use some of the estimation techniques in ``nltk.probability``,
-   such as *Lidstone* or *Laplace* estimation, to develop a statistical
-   tagger that does a better job than ngram backoff taggers in cases where
-   contexts encountered during testing were not seen during training.
-   Read up on the TnT tagger, since this provides useful technical
-   background: ``http://www.aclweb.org/anthology/A00-1031``
 
 -----------------------
 Appendix: Brown Tag Set
