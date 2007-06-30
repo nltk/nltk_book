@@ -101,6 +101,9 @@ Figure strings-to-ints_
         return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
 
 
+* when keeping track of vocabulary items, for the purpose of checking membership,
+  use sets rather than lists, because sets index their elements.
+
 .. _OO:
 
 -------------------------------------
@@ -176,7 +179,6 @@ defined called ``pp()``.
 
 .. doctest-ignore::
     ...     def __repr__(self):
-    ...         import string
     ...         childstr = string.join([repr(c) for c in self])
     ...         return '(%s: %s)' % (self.node, childstr)
     ...     def __str__(self):
@@ -247,13 +249,12 @@ ways, with implications for efficiency.  Another factor influencing
 program development is *programming style*.  Consider the following
 program to compute the average length of words in the Brown Corpus:
 
-    >>> from nltk.corpora import brown
+    >>> tokens = corpus.brown.tokenized('a', group_by_sents=False)
     >>> count = 0
     >>> total = 0
-    >>> for sent in brown.raw('a'):
-    ...     for token in sent:
-    ...         count += 1
-    ...         total += len(token)
+    >>> for token in tokens:
+    ...     count += 1
+    ...     total += len(token)
     >>> print float(total) / count
     4.2765382469
 
@@ -267,7 +268,6 @@ We say that this program is written in a *procedural* style, dictating
 the machine operations step by step.  Now consider the following
 program which computes the same thing:
 
-    >>> tokens = [token for sent in brown.raw('a') for token in sent]
     >>> total = sum(map(len, tokens))
     >>> print float(total)/len(tokens)
     4.2765382469
@@ -288,16 +288,13 @@ involves low-level steps and a variable having meaningless
 intermediate values:
 
     >>> word_list = []
-    >>> for sent in brown.raw('a'):
-    ...     for token in sent:
-    ...         if token not in word_list:
-    ...             word_list.append(token)
+    >>> for token in tokens:
+    ...     if token not in word_list:
+    ...         word_list.append(token)
     >>> word_list.sort()
 
-The declarative version (given second) makes use of higher-level
-built-in functions:
+The declarative version makes use of higher-level built-in functions:
 
-    >>> tokens = [word for sent in brown.raw('a') for word in sent]
     >>> word_list = list(set(tokens))
     >>> word_list.sort()
 
@@ -324,10 +321,10 @@ depending on whether its first argument is less than, equal to, or
 greater than its second argument.  We tell the list sort function to
 use ``reverse_cmp`` instead of ``cmp`` (the default).
 
-    >>> from nltk.corpora import words
     >>> def reverse_cmp(x,y):
     ...     return cmp(reverse(x), reverse(y))
-    >>> word_list = [word for word in words.raw('en') if len(word) == 3]
+    >>> words = words.read('en')
+    >>> word_list = [word for word in words if len(word) == 3]
     >>> word_list.sort(reverse_cmp)
     >>> print word_list[-12:]
     ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
@@ -341,7 +338,7 @@ with its reverse.  We have now re-reversed the words, and can print
 them out.
 
     >>> word_list = []
-    >>> for word in words.raw('en'):
+    >>> for word in words:
     ...     if len(word) == 3:
     ...         word_list.append(reverse(word))
     >>> word_list.sort()
@@ -533,17 +530,16 @@ Problem Transformation (aka Transform-and-Conquer)
 Find words which, when reversed, make legal words.
 Extremely wasteful solution:
 
-    >>> from nltk.corpora import words
-    >>> for word1 in words.raw():
-    ...     for word2 in words.raw():
+    >>> words = corpus.words.read('en')
+    >>> for word1 in words:
+    ...     for word2 in words:
     ...         if word1 == word2[::-1]:
     ...             print word1
     
 More efficient:
 
-    >>> from nltk.corpora import words
-    >>> wordlist = set(words.raw())
-    >>> rev_wordlist = set(w[::-1] for w in wordlist)
+    >>> wordlist = set(words)
+    >>> rev_wordlist = set(word[::-1] for word in words)
     >>> sorted(wordlist.intersection(rev_wordlist))
     ['ah', 'are', 'bag', 'ban', 'bard', 'bat', 'bats', 'bib', 'bob', 'boob', 'brag',
     'bud', 'buns', 'bus', 'but', 'civic', 'dad', 'dam', 'decal', 'deed', 'deeps', 'deer',
