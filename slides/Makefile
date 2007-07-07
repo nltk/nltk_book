@@ -25,7 +25,7 @@ clean:	clean_up
 	rm -f $(PDF) index.html
 
 clean_up:
-	rm -f *.log *.aux *.snm *.vrb index*.html
+	rm -f *.log *.aux *.snm *.vrb *.out *.nav *.toc index*.html
 
 index.html:	index.txt
 	$(RST2HTML) index.txt > index.html
