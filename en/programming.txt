@@ -1430,6 +1430,15 @@ can use ``defaultdict``:
     {'a': 1, ' ': 4, 'c': 1, 'e': 6, 'd': 1, 'g': 1, 'f': 1, 'i': 2,
      'l': 4, 'o': 3, 'n': 1, 'p': 1, 's': 5, 'r': 3, 'u': 2, 'y': 1}
 
+.. note:: Calling ``defaultdict(int)`` creates a special kind of dictionary.
+   When that dictionary is accessed with a non-existent key
+   |mdash| i.e. the first time a particular letter is encountered |mdash|
+   then ``int()`` is called to produce the initial value for this key (i.e. ``0``).
+   You can test this by running the above code, then typing ``count['X']``
+   and seeing that it returns a zero value (and not a ``KeyError`` as in the
+   case of normal Python dictionaries).
+   The function defaultdict is very handy and will be used in many places later on.
+
 There are other useful ways to display the result, such as sorting
 alphabetically by the letter:
 
@@ -1512,7 +1521,7 @@ following code reads *Macbeth* and counts the frequency of each word:
 
 This example demonstrates some of the convenience of NLTK in accessing
 corpora.  We will see much more of this later.  For now, all you need
-to know is that ``gutenberg.raw()`` returns a list of words, in this
+to know is that ``corpus.gutenberg.tokenized()`` returns a list of words, in this
 case from Shakespeare's play *Macbeth*, which we are iterating over using a
 ``for`` loop.  We convert each word to lowercase using the string
 method ``word.lower()``, and use a dictionary to maintain a set of
@@ -1558,9 +1567,9 @@ Regular Expressions
 For a moment, imagine that you are editing a large text, and you have
 strong dislike of repeated occurrences of the word `very`:lx:.
 How could you find all such cases in the text? To be concrete, let's
-suppose that the variable ``str``  is bound to the text shown below:
+suppose that we assign the following text to the variable ``s``:
 
-    >>> str = """Google Analytics is very very very nice (now)
+    >>> s = """Google Analytics is very very very nice (now)
     ... By Jason Hoffman 18 August 06
     ... Google Analytics, the result of Google's acquisition of the San
     ... Diego-based Urchin Software Corporation, really really opened it's
@@ -1577,7 +1586,7 @@ and look for adjacent items which are both equal to the string
 ``'very'``. We use the ``range(n)`` function in this example to create
 a list of consecutive integers from 0 up to, but not including, ``n``:
 
-    >>> text = str.split(' ')
+    >>> text = s.split()
     >>> for n in range(len(text)):
     ...    if text[n] == 'very' and text[n+1] == 'very':
     ... 		print n, n+1
@@ -1595,17 +1604,17 @@ against substrings. ``re_show()`` takes two arguments, a pattern that
 it is looking for, and a string in which the pattern might occur.
 
     >>> from nltk import re_show
-    >>> re_show('very very', str)
+    >>> re_show('very very', s)
     Google Analytics is {very very} very nice (now)
     ...
     >>>
 
-|nopar| (We have only displayed  first part of ``str`` that
+|nopar| (We have only displayed  first part of ``s`` that
 is returned, since the rest is irrelevant for the moment.)
 As you can see, ``re_show`` places curly braces around the first
 occurrence it has found of the string ``'very very'``. So an important
 part of what ``re_show`` is doing is searching for any substring of
-``str`` which `matches`:dt: the pattern in its first argument. 
+``s`` which `matches`:dt: the pattern in its first argument. 
 
 Now we might want to modify the example so that ``re_show`` highlights
 cases where there are two `or more`:em: adjacent sequences of
@@ -1616,7 +1625,7 @@ at the case where `s`:ph: is a single character, namely the letter
 ``'o'``:
 
 .. doctest-ignore::
-    >>> re_show('o+', str)
+    >>> re_show('o+', s)
     G{oo}gle Analytics is very very very nice (n{o}w)
     ...
     >>>
@@ -1629,7 +1638,7 @@ the regular expression  ``'oo+'``, which matches any string consisting of
 ``'o'`` followed by one or more occurrences of ``o``.
 
 .. doctest-ignore::
-    >>> re_show('oo+', str)
+    >>> re_show('oo+', s)
     G{oo}gle Analytics is very very very nice (now)
     ...
     >>>
@@ -1645,7 +1654,7 @@ whitespace between the two words; instead, it will match strings like
 ``'veryvery'``. However, the following `does`:em: work: 
 
 .. doctest-ignore::
-    >>> re_show('(very\s)+', str)
+    >>> re_show('(very\s)+', s)
     Google Analytics is {very very very }nice (now)
     >>>
 
@@ -1662,11 +1671,11 @@ matches a whitespace character. We could have used ``' '`` in our
 pattern, but ``'\s'`` is better practice in general. One reason is
 that the sense of "whitespace" we are using is more general than you
 might have imagined; it includes not just inter-word spaces, but also
-tabs and newlines. If you try to inspect the variable ``str``, you
+tabs and newlines. If you try to inspect the variable ``s``, you
 might initially get a shock:
 
 .. doctest-ignore::
-    >>> str
+    >>> s
     "Google Analytics is very very very nice (now)\nBy Jason Hoffman 
     18 August 06\n\nGoogle
     ...
@@ -1676,23 +1685,23 @@ might initially get a shock:
 to a newline in a string. The following example shows how newline is
 matched by ``'\s'``.
 
-    >>> str2 = "I'm very very\nvery happy"
-    >>> re_show('very\s', str2)
+    >>> s2 = "I'm very very\nvery happy"
+    >>> re_show('very\s', s2)
     I'm {very }{very
     }{very }happy
     >>>
 
 
-Python's ``re.findall(``\ `patt`:ph:, `str`:ph:\ ``)`` is a useful
-function which returns a list of all the substrings in `str`:ph: that
+Python's ``re.findall(``\ `patt`:ph:, `s`:ph:\ ``)`` is a useful
+function which returns a list of all the substrings in `s`:ph: that
 are matched by `patt`:ph:. Before illustrating, let's introduce 
 two further special characters, ``'\d'`` and ``'\w'``: the first
 will match any digit, and the second will match any alphanumeric character.
 
     >>> import re
-    >>> re.findall('\d\d', str)
+    >>> re.findall('\d\d', s)
     ['18', '06', '10']
-    >>> re.findall('\s\w\w\w\s', str)
+    >>> re.findall('\s\w\w\w\s', s)
     [' the ', ' the ', ' the ', ' and ', ' you ']
     >>> 
 
@@ -1706,7 +1715,7 @@ another special character, namely ``'\b'``. This is sometimes called a
 "zero-width" character; it matches against the empty string, but only
 at the begining and ends of words:
 
-    >>> re.findall(r'\b\w\w\w\b', str)
+    >>> re.findall(r'\b\w\w\w\b', s)
     ['now', 'the', 'the', 'San', 'the', 'ago', 'and', 'you']
 
 .. Note:: This example uses a Python `raw string`:dt:\:
@@ -1728,7 +1737,7 @@ Returning to the case of repeated words, we might want to look for
 cases involving ``'very'`` or ``'really'``, and for this we use the
 disjunction operator ``|``.
 
-    >>> re_show('((very|really)\s)+', str)
+    >>> re_show('((very|really)\s)+', s)
     Google Analytics is {very very very }nice (now)
     By Jason Hoffman 18 August 06
     Google Analytics, the result of Google's acquisition of the San
@@ -1782,7 +1791,7 @@ slightly differently if we create `groups`:dt: in the regular
 expression using parentheses; it only returns strings which occur
 within the groups:
 
-    >>> re.findall('\s(\w\w\w)\s', str)
+    >>> re.findall('\s(\w\w\w)\s', s)
     ['the', 'the', 'the', 'and', 'you']
     >>>
 
@@ -1806,9 +1815,9 @@ tabulate.
 Our next example also makes use of groups. One further special
 character is the so-called wildcard element, ``'.'``; this has the
 distinction of matching any single character (except ``'\n'``). Given
-the string ``str3``, our task is to pick out login names and email domains:
+the string ``s3``, our task is to pick out login names and email domains:
 
-    >>> str3 = """
+    >>> s3 = """
     ... <hart@vmd.cso.uiuc.edu>
     ... Final editing was done by Martin Ward <Martin.Ward@uk.ac.durham>
     ... Michael S. Hart <hart@pobox.com>
@@ -1818,7 +1827,7 @@ The task is made much easier by the fact that all the email addresses
 in the example are delimited by angle brackets, and we can exploit
 this feature in our regular expression:
  
-    >>> re.findall(r'<(.+)@(.+)>', str3)
+    >>> re.findall(r'<(.+)@(.+)>', s3)
     [('hart', 'vmd.cso.uiuc.edu'), ('Martin.Ward', 'uk.ac.durham'), 
     ('hart', 'pobox.com'), ('ccx074', 'coventry.ac.uk')]
     >>>
@@ -1833,7 +1842,7 @@ we specify a match against a period? The answer is that we have to
 place a ``'\'`` immediately before the ``'.'`` in order to escape its
 special interpretation.
 
-    >>> re.findall(r'(\w+\.)', str3)
+    >>> re.findall(r'(\w+\.)', s3)
     ['vmd.', 'cso.', 'uiuc.', 'Martin.', 'uk.', 'ac.', 'S.', 
     'pobox.', 'coventry.', 'ac.']
     >>>
@@ -1845,7 +1854,7 @@ expression with a disjunction would do the trick:
 ``'(G|g)oogle'``. But look what happens when we try this with
 ``re.findall()``:
 
-    >>> re.findall('(G|g)oogle', str)
+    >>> re.findall('(G|g)oogle', s)
     ['G', 'G', 'G', 'g']
     >>> 
 
@@ -1856,7 +1865,7 @@ the parentheses to indicate the scope of the operator ``'|'``, but
 tell ``re.findall()``  "don't try to do anything special with these
 parentheses", we need an extra piece of notation:
 
-    >>> re.findall('(?:G|g)oogle', str)
+    >>> re.findall('(?:G|g)oogle', s)
     ['Google', 'Google', 'Google', 'google']
     >>> 
 
@@ -1905,7 +1914,7 @@ Exercises
    extract pairs of values of the form `login name`:ph:, `email
    domain`:ph: from the following string:
 
-     >>> str = """
+     >>> s = """
      ... austen-emma.txt:hart@vmd.cso.uiuc.edu  (internet)  hart@uiucvmd (bitnet)
      ... austen-emma.txt:Internet (72600.2026@compuserve.com); TEL: (212-254-5093)
      ... austen-persuasion.txt:Editing by Martin Ward (Martin.Ward@uk.ac.durham)
