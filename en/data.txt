@@ -13,13 +13,44 @@
 
 .. TODO: Shoebox checking by chunking
 .. TODO: random syllables according to a canon "%s%s" % (random.choice('ptkbdg'), random.choice('aeiou'))
-
-    * annotation
-    * apply chunking to Toolbox data 
+.. TODO: linguistic annotation
+.. TODO: paradigms
 
 ------------
 Introduction 
 ------------
+
+Language resources of all kinds are proliferating on the Web.  These include data such as
+lexicons and annotated text, and software tools for creating and manipulating the data.
+As we have seen in previous chapters, language resources are now essential in most areas of NLP.
+This has been made possible by three significant developments over the past decade.
+First, inexpensive mass storage technology permits large resources to be stored in 
+digital form, while the Extensible Markup Language (XML) and Unicode provide flexible ways 
+to represent structured data and give it good prospects for long-term survival.
+Second, digital publication has been a practical and efficient means of sharing language 
+resources. Finally, search engines, mailing lists, and online resource catalogues
+make it possible for people to discover the existence of the resources they may be seeking.
+
+Although language resources are central to NLP, we still face many difficulties in using them.
+First, the resource we are looking for may not exist, and so we have to think about
+*creating* a new language resource.
+Second, a resource may exist but its creator didn't document its existence anywhere,
+leaving us to recreate the resource; however, to save further wasted effort we
+should learn about *publishing* metadata the documents the existence of a resource,
+and even to publish the resource itself, in a form that is easy for others to re-use.
+Third, the resource may exist and may be obtained, but is in an incompatible format,
+and so we need to set about *converting* the data into a different format.
+Finally, the resource may be in the right format, but the available software is unable
+to perform the required analysis task, and so we need to develop our own program
+for *analyzing* the data.  This chapter covers each of these issues in turn, using
+many examples drawn from practical experience managing linguistic data.
+Before embarking on this sequence of issues, we start by examining the structure of
+the most important linguistic data types.
+
+---------------------
+Linguistic Data Types
+---------------------
+
 
 .. _datatypes:
 .. figure:: ../images/datatypes.png
@@ -70,13 +101,23 @@ data management.
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``from nltk.book import *``
    
------------------
-Creating a Corpus
------------------
+-------------
+Creating Data
+-------------
 
---------------------------------------------------
-Programming Methods for Linguistic Data Management
---------------------------------------------------
+* crawling
+* 3rd party tool
+
+Conventional office software is widely used in computer-based language
+documentation work, given its familiarity and ready availability.
+This includes word processors and spreadsheets.
+
+Spiders
+-------
+
+* what they do: basic idea is simple
+* python code to find all the anchors, extract the href, and make an absolute URL for fetching
+* many issues: starting points, staying within a single site, only getting HTML
 
 CSV
 ---
@@ -89,24 +130,11 @@ XML and ElementTree
 * example: find nodes matching some criterion and add an attribute
 * Shakespeare XML corpus example
 
------------------------------------------------------------------
-Methods in Language Documentation and Description
------------------------------------------------------------------
 
-Language documentation projects are increasing in their reliance on
-new digital technologies and software tools.  Bird and Simons (2003)
-identified and categorized a wide variety of these tools.  We briefly
-review these here, and mention various ways that our own programs can
-interface with them.
+Creating Language Resources Using Word Processors
+-------------------------------------------------
 
-General purpose tools
----------------------
-
-Conventional office software is widely used in computer-based language
-documentation work, given its familiarity and ready availability.
-This includes word processors and spreadsheets.
-
-**Word Processors.** These are often used in creating dictionaries and
+Word processing software is often used in creating dictionaries and
 interlinear texts.  However, it is rather time-consuming to maintain
 the consistency of the content and format.  Consider a dictionary in
 which each entry has a part-of-speech field, drawn from a set of 20
@@ -192,6 +220,10 @@ in detail later)::
     \ps intrans
     \gl cease to sleep
 
+
+Creating Language Resources using Spreadsheets and Databases
+------------------------------------------------------------
+
 **Spreadsheets.** These are often used for wordlists or paradigms.  A
 comparative wordlist may be stored in a spreadsheet, with a row for
 each cognate set, and a column for each language.  Examples are
@@ -235,15 +267,14 @@ Now we can express this query in the following program:
     ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
     'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
------------------------
-Processing Toolbox Data
------------------------
+Creating Language Resources using Toolbox
+-----------------------------------------
 
 Over the last two decades, several dozen tools have been developed
 that provide specialized support for linguistic data management.
-(Please see Bird and Simons 2003 for a detailed list of such tools.)
-Perhaps the single most popular tool for managing linguistic field
-data is *Shoebox*, recently renamed *Toolbox*.
+(Please see [Bird2003Portability]_ for a detailed list of such tools.)
+Perhaps the single most popular tool used by linguists for managing data
+is *Toolbox* (previously known as *Shoebox*).
 Toolbox uses a simple file format which we can easily
 read and write, permitting us to apply computational methods to
 linguistic field data.  In this section we discuss a variety of
@@ -289,9 +320,6 @@ at the start of a line.  The characters of the field names must be
 alphabetic.  The field name is separated from the field's contents by
 whitespace.  The contents can be arbitrary text, and can continue over
 several lines (but cannot contain a line-initial backslash).
-
-Accessing Toolbox Data
-----------------------
 
 We can use the ``toolbox.parse_corpus()`` method to access a Toolbox
 file and load it into an ``elementtree`` object.
@@ -407,6 +435,227 @@ fields (e.g. fields containing personal comments.)
     \ge lift off
     \ge take off
 
+
+Generating Reports
+------------------
+
+Finally, we take a look at simple methods to generate summary reports,
+giving us an overall picture of the quality and organisation of the data.
+
+First, suppose that we wanted to compute the average number of fields for
+each entry.  This is just the total length of the entries (the number
+of fields they contain), divided by the number of entries in the
+lexicon:
+
+    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
+    13
+
+Next, let's consider some methods for discovering patterns in the lexical
+entries.  Which fields are the most frequent?
+
+    >>> fd = nltk.FreqDist(field.tag for entry in lexicon for field in entry)
+    >>> fd.sorted()[:10]
+    ['xp', 'ex', 'xe', 'ge', 'tkp', 'lx', 'dt', 'ps', 'pt', 'rt']
+
+Which sequences of fields are the most frequent?
+
+    >>> fd = nltk.FreqDist(':'.join(field.tag for field in entry) for entry in lexicon)
+    >>> top_ten = fd.sorted()[:10]
+    >>> print '\n'.join(top_ten)
+    lx:ps:pt:ge:tkp:dt:ex:xp:xe
+    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe
+    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe
+    lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe
+    lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe:ex:xp:xe
+    lx:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe
+    lx:rt:ps:pt:ge:ge:tkp:dt:ex:xp:xe:ex:xp:xe
+    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe:ex:xp:xe
+    lx:ps:pt:ge:tkp:nt:sf:dt:ex:xp:xe
+    lx:ps:pt:ge:ge:tkp:dt:ex:xp:xe
+    
+Which pairs of consecutive fields are the most frequent?
+
+    >>> fd = nltk.FreqDist()
+    >>> for entry in lexicon:
+    ...     previous = "0"
+    ...     for field in entry:
+    ...         current = field.tag
+    ...         fd.inc("%s->%s" % (previous, current))
+    ...         previous = current
+    >>> fd.sorted()[:10]
+    ['ex->xp', 'xp->xe', '0->lx', 'ps->pt', 'ge->tkp', 'pt->ge', 'dt->ex', 'xe->ex', 'lx->ps', 'rt->ps']
+
+Once we have analyzed the sequences of fields, we might want to write
+down a grammar for lexical entries, and look for entries which do not
+conform to the grammar.  In general, toolbox entries have nested
+structure.  Thus they correspond to a tree over the fields.  We can
+check for well-formedness by parsing the field names.  We first set up
+a putative grammar for the entries:
+
+    >>> grammar = nltk.parse_cfg('''
+    ...   S -> Head PS Glosses Comment Date Examples
+    ...   Head -> Lexeme Root
+    ...   Lexeme -> "lx"
+    ...   Root -> "rt"
+    ...   Root ->
+    ...   PS -> "ps"
+    ...   Glosses -> Gloss Glosses
+    ...   Glosses ->
+    ...   Gloss -> "ge" | "gp"
+    ...   Date -> "dt"
+    ...   Examples -> Example Ex_Pidgin Ex_English Examples
+    ...   Examples ->
+    ...   Example -> "ex"
+    ...   Ex_Pidgin -> "xp"
+    ...   Ex_English -> "xe"
+    ...   Comment -> "cmt"
+    ...   Comment ->
+    ...   ''')
+    >>> rd_parser = parse.RecursiveDescent(grammar)
+
+Now we try to parse each entry.  Those that are accepted by the
+grammar prefixed with a ``'+'``, and those that are rejected
+are prefixed with a ``'-'``.
+
+    >>> for entry in lexicon[10:20]:
+    ...     marker_list = [field.tag for field in entry]
+    ...     if rd_parser.get_parse_list(marker_list):
+    ...         print "+", ':'.join(marker_list)
+    ...     else:
+    ...         print "-", ':'.join(marker_list)
+    - lx:ps:ge:gp:sf:nt:dt:ex:xp:xe:ex:xp:xe
+    - lx:rt:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
+    - lx:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
+    - lx:ps:ge:gp:nt:sf:dt
+    - lx:ps:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe
+    + lx:ps:ge:ge:ge:gp:cmt:dt:ex:xp:xe
+    + lx:rt:ps:ge:gp:cmt:dt:ex:xp:xe:ex:xp:xe
+    + lx:rt:ps:ge:ge:gp:dt
+    - lx:rt:ps:ge:ge:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe:ex:xp:xe
+    + lx:rt:ps:ge:gp:dt:ex:xp:xe
+
+.. pylisting:: chunk_toolbox
+   :caption: Chunking a Toolbox Lexicon
+
+    from nltk_contrib import toolbox
+    from nltk.corpus import find_corpus_file
+    import os.path, sys
+
+    grammar = r"""
+          lexfunc: {<lf>(<lv><ln|le>*)*}
+          example: {<rf|xv><xn|xe>*}
+          sense:   {<sn><ps><pn|gv|dv|gn|gp|dn|rn|ge|de|re>*<example>*<lexfunc>*}
+          record:   {<lx><hm><sense>+<dt>}
+        """
+
+    >>> from nltk.etree.ElementTree import ElementTree
+    >>> db = toolbox.ToolboxData()
+    >>> db.open(find_corpus_file('toolbox', 'iu_mien_samp.db'))
+    >>> lexicon = db.chunk_parse(grammar, encoding='utf8')
+    >>> toolbox.data.indent(lexicon)
+    >>> tree = ElementTree(lexicon)
+    >>> tree.write(sys.stdout, encoding='utf8')
+
+Creating Metadata for Language Resources
+----------------------------------------
+
+OLAC metadata extends the *Dublin Core* metadata set with descriptors
+that are important for language resources.
+
+The container for an OLAC metadata record is the element ``<olac>``.
+Here is a valid OLAC metadata record from the Pacific And Regional
+Archive for Digital Sources in Endangered Cultures (PARADISEC)::
+
+  <olac:olac xsi:schemaLocation="http://purl.org/dc/elements/1.1/ http://www.language-archives.org/OLAC/1.0/dc.xsd
+    http://purl.org/dc/terms/ http://www.language-archives.org/OLAC/1.0/dcterms.xsd
+    http://www.language-archives.org/OLAC/1.0/ http://www.language-archives.org/OLAC/1.0/olac.xsd">
+    <dc:title>Tiraq Field Tape 019</dc:title>
+    <dc:identifier>AB1-019</dc:identifier>
+    <dcterms:hasPart>AB1-019-A.mp3</dcterms:hasPart>
+    <dcterms:hasPart>AB1-019-A.wav</dcterms:hasPart>
+    <dcterms:hasPart>AB1-019-B.mp3</dcterms:hasPart>
+    <dcterms:hasPart>AB1-019-B.wav</dcterms:hasPart>
+    <dc:contributor xsi:type="olac:role" olac:code="recorder">Brotchie, Amanda</dc:contributor>
+    <dc:subject xsi:type="olac:language" olac:code="x-sil-MME"/>
+    <dc:language xsi:type="olac:language" olac:code="x-sil-BCY"/>
+    <dc:language xsi:type="olac:language" olac:code="x-sil-MME"/>
+    <dc:format>Digitised: yes;</dc:format>
+    <dc:type>primary_text</dc:type>
+    <dcterms:accessRights>standard, as per PDSC Access form</dcterms:accessRights>
+    <dc:description>SIDE A<p>1. Elicitation Session - Discussion and
+      translation of Lise's and Marie-Claire's Songs and Stories from
+      Tape 18 (Tamedal)<p><p>SIDE B<p>1. Elicitation Session: Discussion
+      of and translation of Lise's and Marie-Clare's songs and stories
+      from Tape 018 (Tamedal)<p>2. Kastom Story 1 - Bislama
+      (Alec). Language as given: Tiraq</dc:description>
+  </olac:olac>
+    
+Linguistic Annotation
+---------------------
+
+[Bird2001Annotation]_
+
+multiple overlapping trees over shared data
+
+
+Exercises
+---------
+
+#. |easy| Write a program to filter out just the date field (``dt``) without
+   having to list the fields we wanted to retain.
+
+#. |easy| Print an index of a lexicon.  For each lexical entry, construct a
+   tuple of the form ``(gloss, lexeme)``, then sort and print them all.
+
+#. |easy| What is the frequency of each consonant and vowel contained in
+   lexeme fields?
+
+#. |easy| How many entries were last modified in 2004?
+
+#. |soso| Write a program that scans an HTML dictionary file to find entries
+   having an illegal part-of-speech field, and reports the *headword* for
+   each entry.
+
+#. |soso| Write a program to find any parts of speech (``ps`` field) that
+   occurred less than ten times.  Perhaps these are typing mistakes?
+
+#. |soso| We saw a method for discovering cases of whole-word reduplication.
+   Write a function to find words that may contain partial
+   reduplication.  Use the ``re.search()`` method, and the following
+   regular expression: ``(..+)\1``
+
+#. |soso| We saw a method for adding a ``cv`` field.  There is an interesting
+   issue with keeping this up-to-date when someone modifies the content
+   of the ``lx`` field on which it is based.  Write a version of this
+   program to add a ``cv`` field, replacing any existing ``cv`` field.
+
+#. |soso| Write a program to add a new field ``syl`` which gives a count of
+   the number of syllables in the word.
+
+#. |soso| Write a function which displays the complete entry for a lexeme.
+   When the lexeme is incorrectly spelled it should display the entry
+   for the most similarly spelled lexeme.
+ 
+#. |hard| Obtain a comparative wordlist in CSV format, and write a program
+   that prints those cognates having an edit-distance of at least three
+   from each other.
+
+#. |hard| Build an index of those lexemes which appear in example sentences.
+   Suppose the lexeme for a given entry is *w*.
+   Then add a single cross-reference field ``xrf`` to this entry, referencing
+   the headwords of other entries having example sentences containing
+   $w$.  Do this for all entries and save the result as a toolbox-format file.
+  
+
+
+-----------------------
+Converting Data Formats
+-----------------------
+
+* write our own parser and formatted print
+* use existing libraries, e.g. csv
+
+
 Formatting Entries
 ------------------
 
@@ -430,11 +679,6 @@ needing to be concerned with their relative ordering in the original file.
     kakara (N) 'arm band'
     Kakarapaia (N) 'village name'
     kakarau (N) 'frog'
-
-.. note:: Producing CSV output
-
-    We could have produced comma-separated value (CSV) format with a
-    slightly different print statement: ``print '"%s";"%s";"%s"\n' % (lx, ps, ge)``
 
 We can use the same idea to generate HTML tables instead of plain text.
 This would be useful for publishing a Toolbox lexicon on the web.
@@ -483,8 +727,13 @@ XML output
       <xe>Taeavi planted banana in order to cook it.</xe>
     </record>
 
-Exploration
------------
+-----------------------
+Analyzing Language Data
+-----------------------
+
+I.e. linguistic exploration
+
+Export to statistics package via CSV
 
 In this section we consider a variety of analysis tasks.
 
@@ -762,460 +1011,15 @@ needs a single following argument; we can reject something without
 needing to say where it originated from.
 
 
-Example Applications: Improving Access to Lexical Resources
------------------------------------------------------------
-
-A lexicon constructed as part of field-based research is a potential
-*language resource* for speakers of a language.  Even when the
-language in question has a standard writing system, many speakers
-will not be literate in the language.  They may be able to attempt
-an approximate spelling for a word, or they may prefer to access the
-dictionary via an index which uses the language of wider
-communication.  In this section we deal with the first of these.
-The second is left to the reader as an exercise.  We will also
-generate a wordfinder puzzle which can be used to test knowledge
-of lexical items.
-
-Fuzzy Spelling (notes)
-~~~~~~~~~~~~~~~~~~~~~~
-
-Confusible sets of segments: if two segments are confusible, map them
-to the same integer.
-
-    >>> group = {
-    ...     ' ':0,                     # blank (for short words)
-    ...     'p':1,  'b':1,  'v':1,     # labials
-    ...     't':2,  'd':2,  's':2,     # alveolars
-    ...     'l':3,  'r':3,             # sonorant consonants
-    ...     'i':4,  'e':4,             # high front vowels
-    ...     'u':5,  'o':5,             # high back vowels
-    ...     'a':6                      # low vowels
-    ... }
-
-Soundex: idea of a signature.  Words with the same signature
-considered confusible.  Consider first letter of a word to be so
-cognitively salient that people will not get it wrong.
-
-    >>> def soundex(word):
-    ...     if len(word) == 0: return word  # sanity check
-    ...     word += '    '                  # ensure word long enough
-    ...     c0 = word[0].upper()
-    ...     c1 = group[word[1]]
-    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
-    ...     c2 = group[cons[0]]
-    ...     c3 = group[cons[1]]
-    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
-    >>> print soundex('kalosavi')
-    K632
-    >>> print soundex('ti')
-    T400
-  
-Now we can build a soundex index of the lexicon:
-
-    >>> soundex_idx = {}
-    >>> for lex in lexemes:
-    ...     code = soundex(lex)
-    ...     if code not in soundex_idx:
-    ...         soundex_idx[code] = set()
-    ...     soundex_idx[code].add(lex)
-
-We should sort these candidates by proximity with the target word.
-
-    >>> def fuzzy_spell(target):
-    ...     scored_candidates = []
-    ...     code = soundex(target)
-    ...     for word in soundex_idx[code]:
-    ...         dist = nltk.edit_dist(word, target)
-    ...         scored_candidates.append((dist, word))
-    ...     scored_candidates.sort()
-    ...     return [w for (d,w) in scored_candidates[:10]]
-
-Finally, we can look up a word to get approximate matches:
-
-    >>> fuzzy_spell('kokopouto')
-    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
-    >>> fuzzy_spell('kogou')
-    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
-
-Wordfinder Puzzle
-~~~~~~~~~~~~~~~~~
-
-Here we will generate a grid of letters, containing words found in the
-dictionary.  First we remove any duplicates and disregard the order in
-which the lexemes appeared in the dictionary.  We do this by converting
-it to a set, then back to a list.  Then we select the first 200 words,
-and then only keep those words having a reasonable length.
-
-    >>> words = list(set(lexemes))
-    >>> words = words[:200]
-    >>> words = [w for w in words if 3 <= len(w) <= 12]
-
-Now we generate the wordfinder grid, and print it out.
-
-    >>> from nltk.misc.wordfinder import wordfinder
-    >>> grid, used = wordfinder(words)
-    >>> for i in range(len(grid)):
-    ...     for j in range(len(grid[i])):
-    ...         print grid[i][j],
-    ...     print
-    O G H K U U V U V K U O R O V A K U N C
-    K Z O T O I S E K S N A I E R E P A K C
-    I A R A A K I O Y O V R S K A W J K U Y
-    L R N H N K R G V U K G I A U D J K V N
-    I I Y E A U N O K O O U K T R K Z A E L
-    A V U K O X V K E R V T I A A E R K R K
-    A U I U G O K U T X U I K N V V L I E O
-    R R K O K N U A J Z T K A K O O S U T R
-    I A U A U A S P V F O R O O K I C A O U
-    V K R R T U I V A O A U K V V S L P E K
-    A I O A I A K R S V K U S A A I X I K O
-    P S V I K R O E O A R E R S E T R O J X
-    O I I S U A G K R O R E R I T A I Y O A
-    R R R A T O O K O I K I W A K E A A R O
-    O E A K I K V O P I K H V O K K G I K T
-    K K L A K A A R M U G E P A U A V Q A I
-    O O O U K N X O G K G A R E A A P O O R
-    K V V P U J E T Z P K B E I E T K U R A
-    N E O A V A E O R U K B V K S Q A V U E
-    C E K K U K I K I R A E K O J I Q K K K
-
-Finally we generate the words which need to be found.
-
-    >>> for i in range(len(used)):
-    ...     print "%-12s" % used[i],
-    ...     if float(i+1)%5 == 0: print
-    KOKOROPAVIRA KOROROVIVIRA KAEREASIVIRA KOTOKOTOARA  KOPUASIVIRA 
-    KATAITOAREI  KAITUTUVIRA  KERIKERISI   KOKARAPATO   KOKOVURITO  
-    KAUKAUVIRA   KOKOPUVIRA   KAEKAESOTO   KAVOVOVIRA   KOVAKOVARA  
-    KAAREKOPIE   KAEPIEVIRA   KAPUUPIEPA   KOKORUUTO    KIKIRAEKO   
-    KATAAVIRA    KOVOKOVOA    KARIVAITO    KARUVIRA     KAPOKARI    
-    KUROVIRA     KITUKITU     KAKUPUTE     KAEREASI     KUKURIKO    
-    KUPEROO      KAKAPUA      KIKISI       KAVORA       KIKIPI      
-    KAPUA        KAARE        KOETO        KATAI        KUVA        
-    KUSI         KOVO         KOAI       
-
-Generating Reports
-------------------
-
-Finally, we take a look at simple methods to generate summary reports,
-giving us an overall picture of the quality and organisation of the data.
-
-First, suppose that we wanted to compute the average number of fields for
-each entry.  This is just the total length of the entries (the number
-of fields they contain), divided by the number of entries in the
-lexicon:
-
-    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
-    13
-
-Next, let's consider some methods for discovering patterns in the lexical
-entries.  Which fields are the most frequent?
-
-    >>> fd = nltk.FreqDist(field.tag for entry in lexicon for field in entry)
-    >>> fd.sorted()[:10]
-    ['xp', 'ex', 'xe', 'ge', 'tkp', 'lx', 'dt', 'ps', 'pt', 'rt']
-
-Which sequences of fields are the most frequent?
-
-    >>> fd = nltk.FreqDist(':'.join(field.tag for field in entry) for entry in lexicon)
-    >>> top_ten = fd.sorted()[:10]
-    >>> print '\n'.join(top_ten)
-    lx:ps:pt:ge:tkp:dt:ex:xp:xe
-    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe
-    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe
-    lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe
-    lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe:ex:xp:xe
-    lx:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe
-    lx:rt:ps:pt:ge:ge:tkp:dt:ex:xp:xe:ex:xp:xe
-    lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe:ex:xp:xe
-    lx:ps:pt:ge:tkp:nt:sf:dt:ex:xp:xe
-    lx:ps:pt:ge:ge:tkp:dt:ex:xp:xe
-    
-Which pairs of consecutive fields are the most frequent?
-
-    >>> fd = nltk.FreqDist()
-    >>> for entry in lexicon:
-    ...     previous = "0"
-    ...     for field in entry:
-    ...         current = field.tag
-    ...         fd.inc("%s->%s" % (previous, current))
-    ...         previous = current
-    >>> fd.sorted()[:10]
-    ['ex->xp', 'xp->xe', '0->lx', 'ps->pt', 'ge->tkp', 'pt->ge', 'dt->ex', 'xe->ex', 'lx->ps', 'rt->ps']
-
-Once we have analyzed the sequences of fields, we might want to write
-down a grammar for lexical entries, and look for entries which do not
-conform to the grammar.  In general, toolbox entries have nested
-structure.  Thus they correspond to a tree over the fields.  We can
-check for well-formedness by parsing the field names.  We first set up
-a putative grammar for the entries:
-
-    >>> grammar = nltk.parse_cfg('''
-    ...   S -> Head PS Glosses Comment Date Examples
-    ...   Head -> Lexeme Root
-    ...   Lexeme -> "lx"
-    ...   Root -> "rt"
-    ...   Root ->
-    ...   PS -> "ps"
-    ...   Glosses -> Gloss Glosses
-    ...   Glosses ->
-    ...   Gloss -> "ge" | "gp"
-    ...   Date -> "dt"
-    ...   Examples -> Example Ex_Pidgin Ex_English Examples
-    ...   Examples ->
-    ...   Example -> "ex"
-    ...   Ex_Pidgin -> "xp"
-    ...   Ex_English -> "xe"
-    ...   Comment -> "cmt"
-    ...   Comment ->
-    ...   ''')
-    >>> rd_parser = parse.RecursiveDescent(grammar)
-
-Now we try to parse each entry.  Those that are accepted by the
-grammar prefixed with a ``'+'``, and those that are rejected
-are prefixed with a ``'-'``.
-
-    >>> for entry in lexicon[10:20]:
-    ...     marker_list = [field.tag for field in entry]
-    ...     if rd_parser.get_parse_list(marker_list):
-    ...         print "+", ':'.join(marker_list)
-    ...     else:
-    ...         print "-", ':'.join(marker_list)
-    - lx:ps:ge:gp:sf:nt:dt:ex:xp:xe:ex:xp:xe
-    - lx:rt:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
-    - lx:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
-    - lx:ps:ge:gp:nt:sf:dt
-    - lx:ps:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe
-    + lx:ps:ge:ge:ge:gp:cmt:dt:ex:xp:xe
-    + lx:rt:ps:ge:gp:cmt:dt:ex:xp:xe:ex:xp:xe
-    + lx:rt:ps:ge:ge:gp:dt
-    - lx:rt:ps:ge:ge:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe:ex:xp:xe
-    + lx:rt:ps:ge:gp:dt:ex:xp:xe
-
-Looking at Timestamps
-~~~~~~~~~~~~~~~~~~~~~
-
-    >>> fd = nltk.FreqDist()
-    >>> for entry in lexicon:
-    ...     date = entry.findtext('dt')
-    ...     if date:
-    ...         (day, month, year) = string.split(date, '/')
-    ...         fd.inc((month, year))
-    >>> for time in fd.sorted():
-    ...     print time[0], time[1], ':', fd[time]
-    Oct 2005 : 220
-    Nov 2005 : 133
-    Feb 2005 : 107
-    Jun 2005 : 97
-    Dec 2004 : 74
-    Aug 2005 : 33
-    Jan 2005 : 32
-    Sep 2005 : 27
-    Dec 2005 : 21
-    Feb 2007 : 16
-    Nov 2006 : 15
-    Sep 2006 : 13
-    Feb 2004 : 12
-    Apr 2006 : 11
-    Jul 2005 : 11
-    May 2005 : 10
-    Sep 2004 : 9
-    Mar 2005 : 8
-    Jan 2007 : 7
-    Dec 2006 : 6
-    Jul 2004 : 6
-    Jan 2006 : 4
-    Mar 2006 : 4
-    Oct 2006 : 3
-    Jul 2006 : 3
-    Apr 2007 : 2
-    Feb 2006 : 2
-    May 2004 : 1
-    Oct 2004 : 1
-    Nov 2004 : 1
-
-To put these in time order, we need to set up a special comparison function.
-Otherwise, if we just sort the months, we'll get them in alphabetical order.
-
-    >>> month_index = {
-    ...     "Jan" : 1, "Feb" : 2,  "Mar" : 3,  "Apr" : 4,
-    ...     "May" : 5, "Jun" : 6,  "Jul" : 7,  "Aug" : 8,
-    ...     "Sep" : 9, "Oct" : 10, "Nov" : 11, "Dec" : 12
-    ... }
-    >>> def time_cmp(a, b):
-    ...     a2 = a[1], month_index[a[0]]
-    ...     b2 = b[1], month_index[b[0]]
-    ...     return cmp(a2, b2)
-
-The comparison function says that we compare two times of the
-form ``('Mar', '2004')`` by reversing the order of the month and
-year, and converting the month into a number to get ``('2004', '3')``,
-then using Python's built-in ``cmp`` function to compare them.
-
-Now we can get the times found in the Toolbox entries, sort them
-according to our ``time_cmp`` comparison function, and then print them
-in order.  This time we print bars to indicate frequency:
-
-    >>> times = fd.samples()
-    >>> times.sort(cmp=time_cmp)
-    >>> for time in times:
-    ...     print time[0], time[1], ':', '#' * (1 + fd[time]/10)
-    Feb 2004 : ##
-    May 2004 : #
-    Jul 2004 : #
-    Sep 2004 : #
-    Oct 2004 : #
-    Nov 2004 : #
-    Dec 2004 : ########
-    Jan 2005 : ####
-    Feb 2005 : ###########
-    Mar 2005 : #
-    May 2005 : ##
-    Jun 2005 : ##########
-    Jul 2005 : ##
-    Aug 2005 : ####
-    Sep 2005 : ###
-    Oct 2005 : #######################
-    Nov 2005 : ##############
-    Dec 2005 : ###
-    Jan 2006 : #
-    Feb 2006 : #
-    Mar 2006 : #
-    Apr 2006 : ##
-    Jul 2006 : #
-    Sep 2006 : ##
-    Oct 2006 : #
-    Nov 2006 : ##
-    Dec 2006 : #
-    Jan 2007 : #
-    Feb 2007 : ##
-    Apr 2007 : #
-
-Exercises
----------
-
-#. |easy| Write a program to filter out just the date field (``dt``) without
-   having to list the fields we wanted to retain.
-
-#. |easy| Print an index of a lexicon.  For each lexical entry, construct a
-   tuple of the form ``(gloss, lexeme)``, then sort and print them all.
-
-#. |easy| What is the frequency of each consonant and vowel contained in
-   lexeme fields?
-
-#. |easy| How many entries were last modified in 2004?
-
-#. |soso| Write a program that scans an HTML dictionary file to find entries
-   having an illegal part-of-speech field, and reports the *headword* for
-   each entry.
-
-#. |soso| Write a program to find any parts of speech (``ps`` field) that
-   occurred less than ten times.  Perhaps these are typing mistakes?
-
-#. |soso| We saw a method for discovering cases of whole-word reduplication.
-   Write a function to find words that may contain partial
-   reduplication.  Use the ``re.search()`` method, and the following
-   regular expression: ``(..+)\1``
-
-#. |soso| We saw a method for adding a ``cv`` field.  There is an interesting
-   issue with keeping this up-to-date when someone modifies the content
-   of the ``lx`` field on which it is based.  Write a version of this
-   program to add a ``cv`` field, replacing any existing ``cv`` field.
-
-#. |soso| Write a program to add a new field ``syl`` which gives a count of
-   the number of syllables in the word.
-
-#. |soso| Write a function which displays the complete entry for a lexeme.
-   When the lexeme is incorrectly spelled it should display the entry
-   for the most similarly spelled lexeme.
- 
-#. |hard| Obtain a comparative wordlist in CSV format, and write a program
-   that prints those cognates having an edit-distance of at least three
-   from each other.
-
-#. |hard| Build an index of those lexemes which appear in example sentences.
-   Suppose the lexeme for a given entry is *w*.
-   Then add a single cross-reference field ``xrf`` to this entry, referencing
-   the headwords of other entries having example sentences containing
-   $w$.  Do this for all entries and save the result as a toolbox-format file.
-  
------------------
-Language Archives
------------------
-
-Language technology and the linguistic sciences are confronted with a
-vast array of language resources, richly structured, large and
-diverse. Multiple communities depend on language resources, including
-linguists, engineers, teachers and actual speakers.  Thanks to recent
-advances in digital technologies, we now have unprecedented
-opportunities to bridge these communities to the language resources
-they need. First, inexpensive mass storage technology permits large
-resources to be stored in digital form, while the Extensible Markup
-Language (XML) and Unicode provide flexible ways to represent
-structured data and ensure its long-term survival. Second, digital
-publication on the web is the most practical and efficient means of
-sharing language resources. Finally, a standard resource description
-model and interchange method provided by the Open Language Archives
-Community (OLAC) makes it possible to construct a *union catalog* over
-multiple repositories and archives (see ``http://www.language-archives.org/``).
-
-Managing Metadata for Language Resources
-----------------------------------------
-
-OLAC metadata extends the *Dublin Core* metadata set with descriptors
-that are important for language resources.
-
-The container for an OLAC metadata record is the element ``<olac>``.
-Here is a valid OLAC metadata record from the Pacific And Regional
-Archive for Digital Sources in Endangered Cultures (PARADISEC)::
-
-  <olac:olac xsi:schemaLocation="http://purl.org/dc/elements/1.1/ http://www.language-archives.org/OLAC/1.0/dc.xsd
-    http://purl.org/dc/terms/ http://www.language-archives.org/OLAC/1.0/dcterms.xsd
-    http://www.language-archives.org/OLAC/1.0/ http://www.language-archives.org/OLAC/1.0/olac.xsd">
-    <dc:title>Tiraq Field Tape 019</dc:title>
-    <dc:identifier>AB1-019</dc:identifier>
-    <dcterms:hasPart>AB1-019-A.mp3</dcterms:hasPart>
-    <dcterms:hasPart>AB1-019-A.wav</dcterms:hasPart>
-    <dcterms:hasPart>AB1-019-B.mp3</dcterms:hasPart>
-    <dcterms:hasPart>AB1-019-B.wav</dcterms:hasPart>
-    <dc:contributor xsi:type="olac:role" olac:code="recorder">Brotchie, Amanda</dc:contributor>
-    <dc:subject xsi:type="olac:language" olac:code="x-sil-MME"/>
-    <dc:language xsi:type="olac:language" olac:code="x-sil-BCY"/>
-    <dc:language xsi:type="olac:language" olac:code="x-sil-MME"/>
-    <dc:format>Digitised: yes;</dc:format>
-    <dc:type>primary_text</dc:type>
-    <dcterms:accessRights>standard, as per PDSC Access form</dcterms:accessRights>
-    <dc:description>SIDE A<p>1. Elicitation Session - Discussion and
-      translation of Lise's and Marie-Claire's Songs and Stories from
-      Tape 18 (Tamedal)<p><p>SIDE B<p>1. Elicitation Session: Discussion
-      of and translation of Lise's and Marie-Clare's songs and stories
-      from Tape 018 (Tamedal)<p>2. Kastom Story 1 - Bislama
-      (Alec). Language as given: Tiraq</dc:description>
-  </olac:olac>
-    
-
-.. note:: The remainder of this section will discuss how to manipulate OLAC metadata.
-
-
----------------------
-Linguistic Annotation
----------------------
-
-.. note:: to be written
-
-.. multiple overlapping trees over shared data
 
 ---------------
 Further Reading
 ---------------
 
+[Robinson2007Toolbox]_
+
 Bird, Steven (1999).  Multidimensional exploration of online linguistic field data
     *Proceedings of the 29th Meeting of the North-East Linguistic
     Society*, pp 33-50.
-
-Bird, Steven and Gary Simons (2003).  Seven Dimensions of Portability
-    for Language Documentation and Description, *Language* 79: 557-582.
-
-.. To add: paradigms
 
 .. include:: footer.txt

@@ -14,7 +14,7 @@
 
 .. TODO: csv reading; elementtree?; xml
 .. TODO: transformation based learning?
-.. TODO: indexing and space-time trade-offs (more efficient concordancing)
+.. TODO: indexing and space-time trade-offs (more efficient concordancing, fuzzy spelling)
 .. TODO: persistent storage (shelve)
 .. TODO: indexing and searching a corpus, cf VITTA talk, or Ingrid's lexicon spreadsheet inversion
 .. TODO: SIPs exercise
@@ -382,6 +382,136 @@ Exercises
    program to convert this list of tokens into a list of token
    lengths: ``[3, 3, 4, 4, 3, 9]``
 
+-----------
+Brute Force
+-----------
+
+Wordfinder Puzzle
+
+Here we will generate a grid of letters, containing words found in the
+dictionary.  First we remove any duplicates and disregard the order in
+which the lexemes appeared in the dictionary.  We do this by converting
+it to a set, then back to a list.  Then we select the first 200 words,
+and then only keep those words having a reasonable length.
+
+    >>> words = list(set(lexemes))
+    >>> words = words[:200]
+    >>> words = [w for w in words if 3 <= len(w) <= 12]
+
+Now we generate the wordfinder grid, and print it out.
+
+    >>> from nltk.misc.wordfinder import wordfinder
+    >>> grid, used = wordfinder(words)
+    >>> for i in range(len(grid)):
+    ...     for j in range(len(grid[i])):
+    ...         print grid[i][j],
+    ...     print
+    O G H K U U V U V K U O R O V A K U N C
+    K Z O T O I S E K S N A I E R E P A K C
+    I A R A A K I O Y O V R S K A W J K U Y
+    L R N H N K R G V U K G I A U D J K V N
+    I I Y E A U N O K O O U K T R K Z A E L
+    A V U K O X V K E R V T I A A E R K R K
+    A U I U G O K U T X U I K N V V L I E O
+    R R K O K N U A J Z T K A K O O S U T R
+    I A U A U A S P V F O R O O K I C A O U
+    V K R R T U I V A O A U K V V S L P E K
+    A I O A I A K R S V K U S A A I X I K O
+    P S V I K R O E O A R E R S E T R O J X
+    O I I S U A G K R O R E R I T A I Y O A
+    R R R A T O O K O I K I W A K E A A R O
+    O E A K I K V O P I K H V O K K G I K T
+    K K L A K A A R M U G E P A U A V Q A I
+    O O O U K N X O G K G A R E A A P O O R
+    K V V P U J E T Z P K B E I E T K U R A
+    N E O A V A E O R U K B V K S Q A V U E
+    C E K K U K I K I R A E K O J I Q K K K
+
+Finally we generate the words which need to be found.
+
+    >>> for i in range(len(used)):
+    ...     print "%-12s" % used[i],
+    ...     if float(i+1)%5 == 0: print
+    KOKOROPAVIRA KOROROVIVIRA KAEREASIVIRA KOTOKOTOARA  KOPUASIVIRA 
+    KATAITOAREI  KAITUTUVIRA  KERIKERISI   KOKARAPATO   KOKOVURITO  
+    KAUKAUVIRA   KOKOPUVIRA   KAEKAESOTO   KAVOVOVIRA   KOVAKOVARA  
+    KAAREKOPIE   KAEPIEVIRA   KAPUUPIEPA   KOKORUUTO    KIKIRAEKO   
+    KATAAVIRA    KOVOKOVOA    KARIVAITO    KARUVIRA     KAPOKARI    
+    KUROVIRA     KITUKITU     KAKUPUTE     KAEREASI     KUKURIKO    
+    KUPEROO      KAKAPUA      KIKISI       KAVORA       KIKIPI      
+    KAPUA        KAARE        KOETO        KATAI        KUVA        
+    KUSI         KOVO         KOAI       
+
+
+--------------------
+Space-Time Tradeoffs
+--------------------
+
+Indexing
+
+
+Fuzzy Spelling
+--------------
+
+
+
+Confusible sets of segments: if two segments are confusible, map them
+to the same integer.
+
+    >>> group = {
+    ...     ' ':0,                     # blank (for short words)
+    ...     'p':1,  'b':1,  'v':1,     # labials
+    ...     't':2,  'd':2,  's':2,     # alveolars
+    ...     'l':3,  'r':3,             # sonorant consonants
+    ...     'i':4,  'e':4,             # high front vowels
+    ...     'u':5,  'o':5,             # high back vowels
+    ...     'a':6                      # low vowels
+    ... }
+
+Soundex: idea of a signature.  Words with the same signature
+considered confusible.  Consider first letter of a word to be so
+cognitively salient that people will not get it wrong.
+
+    >>> def soundex(word):
+    ...     if len(word) == 0: return word  # sanity check
+    ...     word += '    '                  # ensure word long enough
+    ...     c0 = word[0].upper()
+    ...     c1 = group[word[1]]
+    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
+    ...     c2 = group[cons[0]]
+    ...     c3 = group[cons[1]]
+    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
+    >>> print soundex('kalosavi')
+    K632
+    >>> print soundex('ti')
+    T400
+  
+Now we can build a soundex index of the lexicon:
+
+    >>> soundex_idx = nltk.defaultdict(set)
+    >>> for lex in lexemes:
+    ...     code = soundex(lex)
+    ...     soundex_idx[code].add(lex)
+
+We should sort these candidates by proximity with the target word.
+
+    >>> def fuzzy_spell(target):
+    ...     scored_candidates = []
+    ...     code = soundex(target)
+    ...     for word in soundex_idx[code]:
+    ...         dist = nltk.edit_dist(word, target)
+    ...         scored_candidates.append((dist, word))
+    ...     scored_candidates.sort()
+    ...     return [w for (d,w) in scored_candidates[:10]]
+
+Finally, we can look up a word to get approximate matches:
+
+    >>> fuzzy_spell('kokopouto')
+    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
+    >>> fuzzy_spell('kogou')
+    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
+
+
 
 ---
 XML
@@ -523,6 +653,33 @@ execute it a million times.
 MORE: consider what happens as the lists get longer...
 
 .. finding maximum value of list: sort() vs max()
+
+
+Another example: sorting dates of the form "1 Jan 1970"
+
+
+    >>> month_index = {
+    ...     "Jan" : 1, "Feb" : 2,  "Mar" : 3,  "Apr" : 4,
+    ...     "May" : 5, "Jun" : 6,  "Jul" : 7,  "Aug" : 8,
+    ...     "Sep" : 9, "Oct" : 10, "Nov" : 11, "Dec" : 12
+    ... }
+    >>> def date_cmp(date_string1, date_string2):
+    ...     (d1,m1,y1) = date_string1.split()
+    ...     (d2,m2,y2) = date_string2.split()
+    ...     conv1 = y1, month_index[m1], d1
+    ...     conv2 = y2, month_index[m2], d2
+    ...     return cmp(a2, b2)
+    >>> sort(date_list, date_cmp)
+
+The comparison function says that we compare two times of the
+form ``('Mar', '2004')`` by reversing the order of the month and
+year, and converting the month into a number to get ``('2004', '3')``,
+then using Python's built-in ``cmp`` function to compare them.
+
+Now do this using decorate-sort-undecorate, for large data size
+
+Time comparison
+
 
 Problem Transformation (aka Transform-and-Conquer)
 --------------------------------------------------
