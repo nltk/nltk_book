@@ -15,96 +15,64 @@
 Introduction
 ------------
 
-Chunking is an efficient and robust method for identifying short
-phrases in text, or "chunks".  Chunks are `non-overlapping spans of
-text`:em:, usually consisting of a head word (such as a noun) and the
-adjacent modifiers and function words (such as adjectives and
-determiners).  For example, here is some Wall Street Journal
-text with noun phrase chunks marked using brackets (this data is
-distributed with NLTK)::
+In processing natural language, we are looking for structure and meaning.
+Two of the most common methods are
+`segmentation`:dt: and `labeling`:dt:.  Recall that in tokenization, we
+`segment`:em: a sequence of characters into tokens, while in tagging we
+`label`:em: each of these tokens.  Moreover, these two operations of
+segmentation and labeling go hand in hand.  We break up a stream of
+characters into linguistically meaningful segments (e.g., words) so
+that we can classify those segments with their part-of-speech
+categories.  The result of such classification is represented by
+adding a label (e.g., part-of-speech tag) to the segment in question.
 
+We will see that many tasks can be construed as a combination of
+segmentation and labeling. However, this involves generalizing our
+notion of segmentation to encompass `sequences`:em: of tokens. Suppose
+that we are trying to recognize the names of people, locations and
+organizations in a piece of text (a task that is usually called `Named
+Entity Recognition`:dt:). Many of these names will involve more than
+one token: `Cecil H. Green`:lx:, `Escondido Village`:lx:, `Stanford
+University`:lx:; indeed, some names may have sub-parts which are also
+names: `Cecil H. Green Library`:lx:, `Escondido Village Conference
+Service Center`:lx:. In Named Entity Recognition, therefore, we need
+to be able to identify the beginning and end of multi-token
+sequences.  
+
+Identifying the boundaries of specific types of word sequences is also
+required when we want to recognize pieces of syntactic
+structure. Suppose for example that as a preliminary to Named Entity
+Recognition, we have decided that it would be useful to just pick out
+noun phrases from a piece of text. To carry this out in a complete
+way, we would probably want to use a proper syntactic parser. But
+parsing can be quite challenging and computationally expensive |mdash|
+is there an easier alternative? The answer is Yes: we can look for
+sequences of part-of-speech tags in a tagged text, using one or more
+patterns that capture the typical ingredients of a noun phrase. 
+
+For example, here is some Wall Street Journal text with noun phrases
+marked using brackets:
+
+.. _wsj-nx:
+.. ex::
   [ The/DT market/NN ] for/IN [ system-management/NN software/NN ]
   for/IN [ Digital/NNP ] [ 's/POS hardware/NN ] is/VBZ fragmented/JJ
   enough/RB that/IN [ a/DT giant/NN ] such/JJ as/IN [ Computer/NNP
   Associates/NNPS ] should/MD do/VB well/RB there/RB ./.
 
-There are two motivations for chunking: to locate information, and
-to ignore information.  In the former case, we may want to extract
-all noun phrases so they can be indexed.  A text retrieval system
-could use such an index to support efficient retrieval for queries
-involving terminological expressions.
+From the point of view of theoretical linguistics, we seem to have
+been rather unorthodox in our use of the term "noun phrase"; although
+all the bracketed strings are noun phrases, not every noun phrase has
+been captured. We will discuss this issue in more detail shortly. For
+the moment, let's say that we are identifying noun "chunks" rather
+than full noun phrases.
 
-The reverse side of the coin is to *ignore* information.  Suppose that
-we want to study syntactic patterns, finding particular verbs in a
-corpus and displaying their arguments.  For instance, here are some
-uses of the verb `gave`:lx: in the Wall Street Journal (in the Penn
-Treebank corpus sample).  After `np`:gc:\ -chunking, the internal
-details of each noun phrase have been suppessed, allowing us to see
-some higher-level patterns::
 
-  gave NP
-  gave up NP in NP
-  gave NP up
-  gave NP NP
-  gave NP to NP
-    
-|nopar|
-In this way we can acquire information about the complementation
-patterns of a verb like `gave`:lx:, for use in the development of a
-grammar (see Chapter chap-parse_).
-
-Chunking in |NLTK| begins with tagged tokens.
-
-.. doctest-ignore::
-    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-    ...      ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
- 
-Next, we write regular expressions over tag sequences.  The
-following example identifies noun phrases that consist of an
-optional determiner, followed by any number of adjectives, then a
-noun.
-
-    >>> cp = chunk.Regexp("NP: {<DT>?<JJ>*<NN>}")
-
-|nopar| We create a chunker ``cp`` which can then be used
-repeatedly to parse tagged input.  The result of chunking is 
-a tree.
-
-.. doctest-ignore::
-    >>> cp.parse(tagged_tokens).draw()
-
-.. tree:: (S (NP (DT the) (JJ little) (NN cat)) (VBD sat) (IN on) (NP (DT the) (NN mat)))
-
-In this chapter we explore chunking in depth, beginning with the
-definition and representation of chunks.  We will see regular
-expression and n-gram approaches to chunking, and will develop
-and evaluate chunkers using the CoNLL-2000 chunking corpus.
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
-
---------------------------------
-Defining and Representing Chunks
---------------------------------
-
-An Analogy
-----------
-
-Two of the most common operations in language processing are
-`segmentation`:dt: and `labeling`:dt:.  Recall that in tokenization, we
-`segment`:em: a sequence of characters into tokens, while in tagging we
-`label`:em: each of these tokens.  Moreover, these two operations of
-segmentation and labeling go hand in hand.  We break up a stream of
-characters into linguistically meaningful segments (e.g. words) so
-that we can classify those segments with their part-of-speech
-categories.  The result of such classification is represented by
-adding a label to the segment in question.
-
-In this chapter, we carry out segmentation and labeling at the phrase level,
+In chunking, we carry out segmentation and labeling of multi-token sequences,
 as illustrated in Figure chunk-segmentation_.  The smaller boxes show
-word-level segmentation and labeling, while the laarge boxes show a
-higher-level segmentation and labeling.  These larger pieces are
-called `chunks`:dt:, and the process of identifying them is called
+word-level segmentation and labeling, while the large boxes show 
+higher-level segmentation and labeling.  It is these larger pieces
+that we will call `chunks`:dt:, and the process of identifying them is called
 `chunking`:dt:.
 
 .. _chunk-segmentation:
@@ -117,6 +85,48 @@ Like tokenization, chunking can skip over material in the input.  Tokenization
 omits white space and punctuation characters.  Chunking uses only a subset of
 the tokens and leaves others out.
 
+In this chapter, we will begin by examining chunking, and then turn to
+look at Named Entity Recognition and related tasks.
+
+.. 
+    Chunking is an efficient and robust method for identifying short
+    phrases in text, or "chunks".  Chunks are `non-overlapping spans of
+    text`:em:, usually consisting of a head word (such as a noun) and the
+    adjacent modifiers and function words (such as adjectives and
+    determiners).  
+
+    There are other motivations for chunking: to locate information, and
+    to ignore information.  In the former case, we may want to extract
+    all noun phrases so they can be indexed.  A text retrieval system
+    could use such an index to support efficient retrieval for queries
+    involving terminological expressions.
+
+    The reverse side of the coin is to *ignore* information.  Suppose that
+    we want to study syntactic patterns, finding particular verbs in a
+    corpus and displaying their arguments.  For instance, here are some
+    uses of the verb `gave`:lx: in the Wall Street Journal (in the Penn
+    Treebank corpus sample).  After `np`:gc:\ -chunking, the internal
+    details of each noun phrase have been suppessed, allowing us to see
+    some higher-level patterns::
+
+      gave NP
+      gave up NP in NP
+      gave NP up
+      gave NP NP
+      gave NP to NP
+
+    |nopar|
+    In this way we can acquire information about the complementation
+    patterns of a verb like `gave`:lx:, for use in the development of a
+    grammar (see Chapter chap-parse_).
+
+
+
+--------------------------------
+Defining and Representing Chunks
+--------------------------------
+
+
 Chunking vs Parsing
 -------------------
 
@@ -124,11 +134,11 @@ Chunking is akin to parsing in the sense that it can be used to build
 hierarchical structure over text.  There are several important
 differences, however.  First, as noted above, chunking is not
 exhaustive, and typically omits items in the surface string.  Second,
-where parsing constructs nested structures which are arbitrarily deep, chunking creates
-structures of fixed depth (typically depth 2).  These
-chunks often correspond to the lowest level of grouping identified in the
-full parse tree, as illustrated in the parsing and chunking examples
-in parsing-chunking_ below:
+where parsing constructs nested structures which are arbitrarily deep,
+chunking creates structures of fixed depth (typically depth 2).  These
+chunks often correspond to the lowest level of grouping identified in
+the full parse tree, as illustrated in the parsing and chunking
+examples in parsing-chunking_ below:
 
 .. _parsing-chunking:
 .. ex::
@@ -218,6 +228,36 @@ section we will see how to write a special type of regular expression
 over part-of-speech tags, and then how to combine these into a chunk
 grammar.  Then we will set up a chunker to chunk some tagged text
 according to the grammar.
+
+Chunking in |NLTK| begins with tagged tokens.
+
+.. doctest-ignore::
+    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
+    ...      ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+ 
+Next, we write regular expressions over tag sequences.  The
+following example identifies noun phrases that consist of an
+optional determiner, followed by any number of adjectives, then a
+noun.
+
+    >>> cp = chunk.Regexp("NP: {<DT>?<JJ>*<NN>}")
+
+|nopar| We create a chunker ``cp`` which can then be used
+repeatedly to parse tagged input.  The result of chunking is 
+a tree.
+
+.. doctest-ignore::
+    >>> cp.parse(tagged_tokens).draw()
+
+.. tree:: (S (NP (DT the) (JJ little) (NN cat)) (VBD sat) (IN on) (NP (DT the) (NN mat)))
+
+In this chapter we explore chunking in depth, beginning with the
+definition and representation of chunks.  We will see regular
+expression and n-gram approaches to chunking, and will develop
+and evaluate chunkers using the CoNLL-2000 chunking corpus.
+
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``from nltk.book import *``
 
 Tag Patterns
 ------------
@@ -576,8 +616,7 @@ chunk than it is to define what we *do* want to include.  In these
 cases, it may be easier to build a chunker using a method called
 `chinking`:dt:.
 
-The word `chink`:dt: initially meant a sequence of stopwords,
-according to a 1975 paper by Ross and Tukey [Abney1996PST]_.
+
 Following Abney, we define a *chink* is a sequence
 of tokens that is not included in a chunk.
 In the following example, ``sat/VBD on/IN`` is a chink::
@@ -957,6 +996,150 @@ This cascading process enables us to create deep structures.  However,
 creating and debugging a cascade is quite difficult, and there comes
 a point where it is more effective to do full parsing (see Chapter chap-parse_).
 
+
+----------------------
+Information Extraction
+----------------------
+
+`Information Extraction`:dt: is the task of converting `unstructured
+data`:dt: (e.g., unrestricted text) or `semi-structured data`:dt:
+(e.g., web pages marked up with |HTML|) into `structured data`:dt:
+(e.g., tables in a relational database). For example, let's suppose we
+are given a text containing the fragment ie1_, and let's also suppose we
+are trying to find pairs of entities *X* and *Y* that stand in the
+relation 'organization *X* is located in location *Y*'.
+
+.. _ie1:
+.. ex:: ... said William Gale, an economist at the Brookings Institution,
+        the research group in Washington. 
+
+|nopar| As a result of processing this text, we should be able to add
+the pair |langle|\ *Brookings Institution*, *Washington*\ |rangle| to
+this relation. As we will see shortly, Information Extraction proceeds
+on the assumption that we are only looking for specific sorts of
+information, and these have been decided in advance. This limitation
+has been a necessary concession to allow the robust processing of
+unrestricted text.
+
+Potential applications of Information Extraction are
+many, and include business intelligence, resume harvesting, media
+analysis, sentiment detection patent search, and email scanning. A
+particularly important area of current research involves the attempt
+to extract structured data out of electronically-available scientific
+literature, most notably in the domain of biology and medicine. 
+
+Information Extraction is usually broken down into at least two major
+steps: `Named Entity Recognition`:dt: and `Relation
+Extraction`:dt:. Named Entities (|NE| \s) are usually taken to be noun phrases
+that denote specific types of individuals such as organizations,
+persons, dates, and so on. Thus, we
+might use the following |XML| annotations to mark-up the |NE|\ s in ie1_:
+
+.. _ie2:
+.. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
+        the <ne type='ORGANIZATION'>Brookings Institution</ne>,
+        the research group in <ne type='LOCATION'>Washington<ne>. 
+
+How do we go about identifying |NE|\ s? Our first thought might be
+that we could look up candidate expressions in an appropriate list of
+names. For example, in the case of locations, we might  try using a
+resource such as the `Alexandria Gazetteer
+<http://www.alexandria.ucsb.edu/gazetteer/>`_. Depending on the nature
+of our input data, this be adequate |mdash| such a gazetteer is likely
+to have good coverage of international cities and many locations in
+the U.S.A., but will probably be missing the names of obscure villages
+in remote regions. However, a list of names for people or organization
+will probably have poor coverage. New organizations, and new names for
+them, are coming into existence every day, so if we are trying to deal
+with contemporary newswire or blog entries, say, it is unlikely that
+we will be able to recognize many of the |NE|\ s by using gazetteer
+lookup. 
+
+A second consideration is that many |NE| terms are ambiguous. Thus
+`May`:lx: and `North`:lx: are likely to be parts of |NE|\ s for DATE
+and LOCATION, respectively, but could both be part of a PERSON |NE|;
+conversely `Christian Dior`:lx: looks like a PERSON |NE| but is more
+likely to be of type ORGANIZATION. A terms like `Yankee`:lx: will be
+ordinary modifier in some contexts, but will be marked as an |NE| of
+type ORGANIZATION in the phrase `Yankee infielders`:lx:. To summarize,
+we cannot reliably detect |NE|\ s by looking them up in a gazetteer,
+and it is also hard to develop rules that will correctly recognize
+ambiguous |NE|\ s on the basis of their context of
+occurrence. Although lookup may contribute to a solution, most
+contemporary approaches to Named Entity Recognition treat it as a
+statistical classification task that requires training data for good
+performance. This task is facilitated by adopting an appropriate data
+representation, such as the IOB tags which we saw being deployed in
+the |CoNLL| chunk data (Chapter chap-chunk_). For example, here are a
+representative few lines from the CONLL 2002 (``conll2002``) Dutch
+training data::
+
+    Eddy N B-PER
+    Bonte N I-PER
+    is V O
+    woordvoerder N O
+    van Prep O
+    diezelfde Pron O
+    Hogeschool N B-ORG
+    . Punc O
+
+|nopar| As noted before, in this representation, there is one token
+per line, each with its part-of-speech tag and its |NE| tag.  When
+|NE|\ s have been identified in a text, we then want to extract
+relations that hold between them. As indicated earlier, we will
+typically be looking for relations between specified types of
+|NE|. One way of approaching this task is to initially look for all
+triples of the form *X*, |alpha|, *Y*, where *X* and *Y* are |NE| \s
+of the required types, and |alpha| is the string of words that
+intervenes between *X* and *Y*. We can then use regular expressions to
+pull out just those instances of |alpha| that express the relation
+that we are looking for. The following example searches for strings
+that contain the word `in`:lx:. The special character expression
+``(?!\b.+ing\b)`` is a negative lookahead condition which allows us to
+disregard strings such as `success in supervising the transition
+of`:lx:, where `in`:lx: is followed by a gerundive verb.
+
+    >>> from nltk.contrib.ieer_rels import *
+    >>> from itertools import islice
+    >>> IN = re.compile(r'.*\bin\b(?!\b.+ing\b)')
+    >>> ieer_trees = (d['text'] for d in ieer.dictionary())
+    >>> for r in islice(ieer_trees, relextract('ORG', 'LOC', pattern = IN), 29, 39): 
+    ...     print show_tuple(r)
+    [ORG: Cooper-Hewitt Museum] in [LOC: New York]
+    [ORG: Canadian Museum of Civilization] in [LOC: Hull]
+    [ORG: Kramerbooks and Afterwords] , an independent store in [LOC: Washington]
+    [ORG: Waterford Foundation] in historic [LOC: Waterford]
+    [ORG: U.S. District Court] in [LOC: Manhattan]
+    [ORG: House Transportation Committee] , secured the most money in the [LOC: New York]
+    [ORG: Angels] in [LOC: Anaheim]
+    [ORG: Bayona] , which is in the heart of the [LOC: French Quarter]
+    [ORG: CBS Studio Center] in [LOC: Studio City]
+    [ORG: Smithsonian Institution] in [LOC: Washington]
+
+|nopar| As you will see, although searching for `in`:lx: does a reasonably
+good job, there is some inaccuracy in the output which is hard to
+avoid |mdash| there is unlikely to be simple string-based method of excluding
+fillers such as `secured the most money in the`:lx:.
+
+As shown above, the ``conll2002`` corpus contains not just |NE|
+annotation but also part-of-speech tags. In principle, this allows us
+to devise patterns which are sensitive to these tags.
+
+    >>> vnv = """
+    >>> (
+    >>> is/V|
+    >>> was/V|
+    >>> werd/V|
+    >>> wordt/V
+    >>> )
+    >>> .*
+    >>> van/Prep
+    >>> """
+    >>> VAN = re.compile(vnv, re.VERBOSE)
+    >>> for r in relextract('PER', 'ORG', corpus='conll2002-ned', pattern = VAN): 
+    ...     print show_tuple(r)
+
+
 ----------
 Conclusion
 ----------
@@ -1021,7 +1204,10 @@ Further Reading
 
 The popularity of chunking is due in great part to pioneering work by
 Abney e.g., [Abney1996PST]_. Abney's Cass chunker is available at
-`http://www.vinartus.net/spa/97a.pdf`_
+`<http://www.vinartus.net/spa/97a.pdf>`_
+
+The word `chink`:dt: initially meant a sequence of stopwords,
+according to a 1975 paper by Ross and Tukey [Abney1996PST]_.
 
 The IOB format (or sometimes  `BIO Format`:dt:) was developed for
 `np`:gc: chunking by [Ramshaw1995TCU]_, and was used for the shared `np`:gc:
