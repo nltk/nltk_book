@@ -7,9 +7,9 @@
 
 .. _chap-chunk:
 
-===========
-5. Chunking
-===========
+================================
+5. Robust Syntax (and Semantics)
+================================
 
 ------------
 Introduction
@@ -85,8 +85,12 @@ Like tokenization, chunking can skip over material in the input.  Tokenization
 omits white space and punctuation characters.  Chunking uses only a subset of
 the tokens and leaves others out.
 
-In this chapter, we will begin by examining chunking, and then turn to
-look at Named Entity Recognition and related tasks.
+In this chapter, we will explore chunking in some depth, beginning
+with the definition and representation of chunks.  We will see regular
+expression and n-gram approaches to chunking, and will develop and
+evaluate chunkers using the CoNLL-2000 chunking corpus.  Towards the
+end of the chapter, we will look more briefly at Named Entity
+Recognition and related tasks.
 
 .. 
     Chunking is an efficient and robust method for identifying short
@@ -137,21 +141,25 @@ exhaustive, and typically omits items in the surface string.  Second,
 where parsing constructs nested structures which are arbitrarily deep,
 chunking creates structures of fixed depth (typically depth 2).  These
 chunks often correspond to the lowest level of grouping identified in
-the full parse tree, as illustrated in the parsing and chunking
-examples in parsing-chunking_ below:
+the full parse tree. This is illustrated in parsing-chunking_ below,
+which shows trees corresponding to the initial chunk structure of
+wsj-nx_ and a more deeply parsede counterpart:
 
 .. _parsing-chunking:
 .. ex::
   .. ex::
-    .. tree:: (NP <NP G.K. Chesterton> ,
-                  (NP <NP author> (PP (P of)
-                      (NP <NP The Man> (SBAR (WH-PRO who) (VP (V was) <NP Thursday> ) )
-		      ) ) ) )
+     .. tree:: (S (NP (DT The) (NN market))  (IN for) 
+                  (NP (NN system-management) (NN software))
+                      (IN for) (NP (NNP Digital)) (NP (POS 's)  (NN hardware))
+	                \.\.\.) 
   .. ex::
-    .. tree:: (S <NP G.K. Chesterton> ,
-                 <NP author> of
-                 <NP The Man> who was
-                 <NP Thursday> )
+     .. tree:: (S (NP (DT The) (Nom (Nom (NN market)) (PP (IN for) 
+                  (NP (Nom (Nom (NN system-management) (NN software))
+                      (PP (IN for) 
+                        (NP (NP (NNP Digital)) (NP (POS 's)  (NN
+			hardware) ) ) ) ) ) ) ) )
+	                \.\.\.)
+
 
 A significant motivation for chunking is its robustness and efficiency
 relative to parsing.  Parsing uses recursive phrase structure grammars
@@ -187,10 +195,11 @@ IOB tags have become the standard way to represent chunk structures in
 files, and we will also be using this format.  Here is an example of
 the file representation of the information in Figure chunk-tagrep_::
 
-  He PRP B-NP
+  We PRP B-NP
   saw VBD O
   the DT B-NP
-  big JJ I-NP
+  little JJ I-NP
+  yellow JJ I-NP
   dog NN I-NP
 
 .. Give example with a verb group?
@@ -207,11 +216,12 @@ chunk-treerep_:
     
 .. _chunk-treerep:
 .. figure:: ../images/chunk-treerep.png
+   :scale: 30
 
    Tree Representation of Chunk Structures
 
 |nopar|
-NLTK uses trees for its internal representation of chunks, and
+|NLTK| uses trees for its internal representation of chunks, and
 provides methods for reading and writing such trees to the IOB
 format.  By now you should understand what chunks are, and how they
 are represented.  In the next section you will see how to build a
@@ -222,7 +232,7 @@ Chunking
 --------
 
 A `chunker`:dt: finds contiguous, non-overlapping spans of related
-tokens and groups them together into *chunks*.  Chunkers often operate
+tokens and groups them together into chunks.  Chunkers often operate
 on tagged texts, and use the tags to make chunking decisions.  In this
 section we will see how to write a special type of regular expression
 over part-of-speech tags, and then how to combine these into a chunk
@@ -232,8 +242,8 @@ according to the grammar.
 Chunking in |NLTK| begins with tagged tokens.
 
 .. doctest-ignore::
-    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-    ...      ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
+    ... ("dog", "NN"), ("snarled", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
  
 Next, we write regular expressions over tag sequences.  The
 following example identifies noun phrases that consist of an
@@ -249,12 +259,10 @@ a tree.
 .. doctest-ignore::
     >>> cp.parse(tagged_tokens).draw()
 
-.. tree:: (S (NP (DT the) (JJ little) (NN cat)) (VBD sat) (IN on) (NP (DT the) (NN mat)))
+.. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
+            (VBD snarled) (IN at) (NP (DT the) (NN cat)))
 
-In this chapter we explore chunking in depth, beginning with the
-definition and representation of chunks.  We will see regular
-expression and n-gram approaches to chunking, and will develop
-and evaluate chunkers using the CoNLL-2000 chunking corpus.
+
 
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``from nltk.book import *``
@@ -306,29 +314,33 @@ Chunking with Regular Expressions
 The chunker begins with a flat structure in which no tokens are
 chunked.  Patterns are applied in turn, successively updating the
 chunk structure.  Once all of the patterns have been applied, the
-resulting chunk structure is returned.  Listing chunker1_
-shows a simple chunk grammar consisting of two patterns.  The first pattern
-matches an optional determiner, zero or more adjectives, then
-a noun.  We also define some tagged tokens to be chunked, and run
-the chunker on this input.
+resulting chunk structure is returned.  Listing chunker1_ shows a
+simple chunk grammar consisting of two patterns.  The first pattern
+matches an optional determiner or possesssive pronoun (recall that
+``|`` indicates disjunction), zero or more adjectives, then a
+noun. The second rule matches one or more proper nouns.  We also
+define some tagged tokens to be chunked, and run the chunker on this
+input.
 
 .. pylisting:: chunker1
    :caption: Simple Noun Phrase Chunker
    
     grammar = r"""
-      NP: {<DT>?<JJ>*<NN>}    # chunk determiners, adjectives and nouns
-          {<NNP>+}            # chunk sequences of proper nouns
+      NP: {<DT|PP\$>?<JJ>*<NN>}    # chunk determiners/possessive pronouns, adjectives and nouns
+          {<NNP>+}                 # chunk sequences of proper nouns
       """
     cp = chunk.Regexp(grammar)
-    tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-         ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    tagged_tokens = [("her", "DT"), ("little", "JJ"), ("yellow", "JJ"), ("dog", "NN"),
+         ("snarled", "VBD"), ("at", "IN"), ("Easy", "NNP")]
 
     >>> print cp.parse(tagged_tokens)
     (S
-      (NP the/DT little/JJ cat/NN)
-      sat/VBD
-      on/IN
-      (NP the/DT mat/NN))
+      ('her', 'PP\\$')
+      (NP little/JJ yellow/JJ dog/NN)
+      ('snarled', 'VBD')
+      ('at', 'IN')
+      (NP Easy/NNP))
+ 
 
 If a tag pattern matches at overlapping locations, the first
 match takes precedence.  For example, if we apply a rule that matches
@@ -360,7 +372,7 @@ In Listing chunker2_, two chunk patterns are applied to the input
 sentence.  The first rule finds all sequences of three tokens whose
 tags are ``DT``, ``JJ``, and ``NN``, and the second rule finds any
 sequence of tokens whose tags are either ``DT`` or ``NN``.  We
-set up two chunkers one for each rule ordering, and test them on
+set up two chunkers, one for each rule ordering, and test them on
 the same input.
 
 .. pylisting:: chunker2
@@ -406,8 +418,47 @@ Observe that when we chunk material that is already partially chunked,
 the chunker will only create chunks that do not partially overlap
 existing chunks.  In the case of ``cp2``, the second rule
 did not find any chunks, since all chunks that matched
-its tag pattern overlapped with existing chunks.  Therefore it is
-necessary to be careful to put chunk rules in the right order.
+its tag pattern overlapped with existing chunks.  As you can see,
+you need to be careful to put chunk rules in the right order. 
+
+You may have noted that we have added explanatory comments, preceded
+by ``#``, to each of our tag rules. Although it is not strictly
+necessary to do this, it's a helpful reminder of what a rule is meant
+to do, and it is used as a header line for the output of a rule
+application when tracing is on.
+
+    >>> grammar = (r"""
+    ...    NX: {<AT|AP>?<JJ.*>?<NN.*>}      # Chunk article/numeral+adj+noun
+    ...          {<NP>+}                    # Chunk one or more proper nouns                   
+    ...          """)
+    >>> cp = chunk.Regexp(grammar)
+    >>> sent = corpus.brown.tagged('a')[112]
+    >>> print cp.parse(sent)
+    (S
+      ('His', 'PP$')
+      (NX contention/NN)
+      ('was', 'BEDZ')
+      ('denied', 'VBN')
+      ('by', 'IN')
+      (NX several/AP bankers/NNS)
+      (',', ',')
+      ('including', 'IN')
+      (NX Scott/NP Hudson/NP)
+      ('of', 'IN')
+      (NX Sherman/NP)
+      (',', ',')
+      (NX Gaynor/NP B./NP Jones/NP)
+      ('of', 'IN')
+      (NX Houston/NP)
+      (',', ',')
+      (NX J./NP B./NP Brady/NP)
+      ('of', 'IN')
+      (NX Harlingen/NP)
+      ('and', 'CC')
+      (NX Howard/NP Cox/NP)
+      ('of', 'IN')
+      (NX Austin/NP)
+      ('.', '.'))
 
 Exercises
 ---------
@@ -426,7 +477,7 @@ Exercises
    Try to do this by generalizing the tag pattern that handled singular
    noun phrases.
 
-#. |soso| Write tag pattern to cover noun phrases that contain gerunds,
+#. |soso| Write a tag pattern to cover noun phrases that contain gerunds,
    e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
    Add these patterns to the grammar, one per line.  Test your work using
    some tagged sentences of your own devising.
@@ -436,20 +487,17 @@ Exercises
    "all/DT your/PRP$ managers/NNS and/CC supervisors/NNS",
    "company/NN courts/NNS and/CC adjudicators/NNS".
 
-#. |soso| Sometimes a word is incorrectly tagged, e.g. the head noun in
-   "12/CD or/CC so/RB cases/VBZ".  Instead of requiring manual correction of
-   tagger output, good chunkers are able to work with the erroneous
-   output of taggers.  Look for other examples of correctly chunked
-   noun phrases with incorrect tags.
+
 
 ----------
 Scaling Up
 ----------
 
+
 Now that you have a taste of what chunking can do, you are ready to
 look at a chunked corpus, and use it in developing and testing more complex
 chunkers.  We will begin by looking at the mechanics of converting IOB format
-into an NLTK tree, then at how this is done on a larger scale using the corpus
+into an |NLTK| tree, then at how this is done on a larger scale using the corpus
 directly.  We will see how to use the corpus to score the accuracy of a chunker,
 then look some more flexible ways to manipulate chunks.  Throughout our focus
 will be on scaling up the coverage of a chunker.
@@ -459,7 +507,7 @@ Reading IOB Format and the CoNLL 2000 Corpus
 
 Using the ``corpora`` module we can load Wall Street Journal
 text that has been tagged, then chunked using the IOB notation.  The
-chunk categories provided in this corpus are NP, VP and PP.  As we
+chunk categories provided in this corpus are `np`:gc:, `vp`:gc: and `pp`:gc:.  As we
 have seen, each sentence is represented using multiple lines, as shown
 below::
     
@@ -472,7 +520,7 @@ below::
 |nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
 representation from one of these multi-line strings.  Moreover, it
 permits us to choose any subset of the three chunk types to use.  The
-example below produces only ``NP`` chunks:
+example below produces only `np`` chunks:
     
 .. doctest-ignore::
     >>> text = '''
@@ -515,28 +563,36 @@ Journal text, with part-of-speech tags and chunk tags in the IOB
 format.  We can access this data using an NLTK corpus reader called
 ``conll2000``.  Here is an example:
 
-    >>> print corpus.conll2000.chunked('train')[2000]
+    >>> print corpus.conll2000.chunked('train')[99]
     (S
-      (NP Health-care/JJ companies/NNS)
-      (VP should/MD get/VB)
-      healthier/JJR
-      (PP in/IN)
-      (NP the/DT third/JJ quarter/NN)
-      ./.)
+      (PP Over/IN)
+      (NP a/DT cup/NN)
+      (PP of/IN)
+      (NP coffee/NN)
+      (',', ',')
+      (NP Mr./NNP Stone/NNP)
+      (VP told/VBD)
+      (NP his/PRP$ story/NN)
+      ('.', '.'))
+
 
 |nopar|
 This just showed three chunk types, for NP, VP and PP.
 We can also select which chunk types to read:
 
-    >>> print corpus.conll2000.chunked('train', chunk_types=('NP',))[2000]
+    >>> print corpus.conll2000.chunked('train',
+        chunk_types=('NP',))[99]
     (S
-      (NP Health-care/JJ companies/NNS)
-      should/MD
-      get/VB
-      healthier/JJR
-      in/IN
-      (NP the/DT third/JJ quarter/NN)
-      ./.)
+      ('Over', 'IN')
+      (NP a/DT cup/NN)
+      ('of', 'IN')
+      (NP coffee/NN)
+      (',', ',')
+      (NP Mr./NNP Stone/NNP)
+      ('told', 'VBD')
+      (NP his/PRP$ story/NN)
+      ('.', '.'))
+
 
 Simple Evaluation and Baselines
 -------------------------------
@@ -759,6 +815,12 @@ Exercises
    Develop a chunker for one of the chunk types in the CoNLL corpus using a
    regular-expression based chunk grammar ``RegexpChunk``.  Use any
    combination of rules for chunking, chinking, merging or splitting.
+
+#. |soso| Sometimes a word is incorrectly tagged, e.g. the head noun in
+   "12/CD or/CC so/RB cases/VBZ".  Instead of requiring manual correction of
+   tagger output, good chunkers are able to work with the erroneous
+   output of taggers.  Look for other examples of correctly chunked
+   noun phrases with incorrect tags.
 
 #. |hard|
    We saw in the tagging chapter that it is possible to establish
