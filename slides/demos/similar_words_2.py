@@ -1,3 +1,8 @@
+######################################################################
+##
+##  What words tend to co-occur?
+##
+
 from nltk.probability import ConditionalFreqDist
 from nltk.corpus import brown
 

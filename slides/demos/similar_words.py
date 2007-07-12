@@ -1,3 +1,8 @@
+######################################################################
+##
+##  What words occur in similar contexts?
+##
+
 from nltk.book import *
 from collections import defaultdict
 

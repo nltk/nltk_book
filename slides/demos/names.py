@@ -1,3 +1,8 @@
+######################################################################
+##
+##  Guess an unseen name's gender!
+##
+
 from nltk.classify.naivebayes import NaiveBayesClassifier
 from nltk.classify.util import names_demo
 
