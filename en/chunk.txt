@@ -139,33 +139,27 @@ Chunking vs Parsing
 Chunking is akin to parsing in the sense that it can be used to build
 hierarchical structure over text.  There are several important
 differences, however.  First, as noted above, chunking is not
-exhaustive, and typically omits items in the surface string.  Second,
+exhaustive, and typically ignores some items in the surface string. In
+fact, chunking is sometimes called `partial parsing`:dt:. Second,
 where parsing constructs nested structures which are arbitrarily deep,
 chunking creates structures of fixed depth (typically depth 2).  These
 chunks often correspond to the lowest level of grouping identified in
 the full parse tree. This is illustrated in parsing-chunking_ below,
-which shows trees corresponding to the initial chunk structure of
-wsj-nx_ and a more deeply parsede counterpart:
+which shows an `np`:gc: chunk structure and a completely parsed
+counterpart:
 
 .. _parsing-chunking:
 .. ex::
   .. ex::
-     .. tree:: (S (NP (DT The) (NN market))  (IN for) 
-                  (NP (NN system-management) (NN software))
-                      (IN for) (NP (NNP Digital)) (NP (POS 's)  (NN hardware))
-	                \.\.\.) 
-  .. ex::
-     .. tree:: (S (NP (DT The) (Nom (Nom (NN market)) (PP (IN for) 
-                  (NP (Nom (Nom (NN system-management) (NN software))
-                      (PP (IN for) 
-                        (NP (NP (NNP Digital)) (NP (POS 's)  (NN
-			hardware) ) ) ) ) ) ) ) )
-	                \.\.\.)
+     .. tree:: (S (NP (CD one) (JJ congressional) (NN aide)) (WP who) (VBD attended)
+                     (NP (DT the) (JJ two-hour) (NN meeting)) (VBD said) \.\.\. )
 
+  .. ex::
+     .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
+                     (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
 
 A significant motivation for chunking is its robustness and efficiency
-relative to parsing.  Parsing uses recursive phrase structure grammars
-and arbitrary-depth trees.  Parsing has problems with robustness,
+relative to parsing.  As we will see in Chapter chap-parse_, parsing has problems with robustness,
 given the difficulty in gaining broad coverage while minimizing
 ambiguity.  Parsing is also relatively inefficient: the time taken to
 parse a sentence grows with the cube of the length of the sentence,
@@ -226,7 +220,7 @@ chunk-treerep_:
 |NLTK| uses trees for its internal representation of chunks, and
 provides methods for reading and writing such trees to the IOB
 format.  By now you should understand what chunks are, and how they
-are represented.  In the next section you will see how to build a
+are represented.  In the next section, you will see how to build a
 simple chunker.
 
 --------
@@ -245,7 +239,7 @@ Chunking in |NLTK| begins with tagged tokens.
 
 .. doctest-ignore::
     >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
-    ... ("dog", "NN"), ("snarled", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
+    ... ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
  
 Next, we write regular expressions over tag sequences.  The
 following example identifies noun phrases that consist of an
@@ -262,7 +256,7 @@ a tree.
     >>> cp.parse(tagged_tokens).draw()
 
 .. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
-            (VBD snarled) (IN at) (NP (DT the) (NN cat)))
+            (VBD barked) (IN at) (NP (DT the) (NN cat)))
 
 
 
@@ -291,7 +285,7 @@ Journal::
   earlier/JJR stages/NNS
   Panamanian/JJ dictator/NN Manuel/NNP Noriega/NNP
 
-.. todo: how are they to view this CoNLL data?
+.. TODO: how are they to view this CoNLL data?
 
 We can match these using a slight refinement of the first tag pattern
 above: ``<DT>?<JJ.*>*<NN.*>+``.  This can be used to chunk any sequence
@@ -328,21 +322,23 @@ input.
    :caption: Simple Noun Phrase Chunker
    
     grammar = r"""
-      NP: {<DT|PP\$>?<JJ>*<NN>}    # chunk determiners/possessive pronouns, adjectives and nouns
-          {<NNP>+}                 # chunk sequences of proper nouns
-      """
+      NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and nouns
+          {<NNP>+}                # chunk sequences of proper nouns
+    """
     cp = chunk.Regexp(grammar)
-    tagged_tokens = [("her", "DT"), ("little", "JJ"), ("yellow", "JJ"), ("dog", "NN"),
-         ("snarled", "VBD"), ("at", "IN"), ("Easy", "NNP")]
-
+    tagged_tokens = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"), ("her", "PP$"), ("long", "JJ"),
+                 ("golden", "JJ"), ("hair", "NN")]
     >>> print cp.parse(tagged_tokens)
     (S
-      ('her', 'PP\\$')
-      (NP little/JJ yellow/JJ dog/NN)
-      ('snarled', 'VBD')
-      ('at', 'IN')
-      (NP Easy/NNP))
- 
+      (NP Rapunzel/NNP)
+      ('let', 'VBD')
+      ('down', 'RP')
+      (NP her/PP$ long/JJ golden/JJ hair/NN))
+
+.. note:: The ``$`` symbol is a special character in regular
+          expressions, and therefore needs to be escaped with the
+          backslash ``\`` in order to match the tag ``PP$``.
+
 
 If a tag pattern matches at overlapping locations, the first
 match takes precedence.  For example, if we apply a rule that matches
@@ -379,7 +375,9 @@ the same input.
 
 .. pylisting:: chunker2
    :Caption: Two Noun Phrase Chunkers Having Identical Rules in Different Orders
-      
+
+    tagged_tokens = [("The", "DT"), ("enchantress", "NN"),
+                ("clutched", "VBD"), ("the", "DT"), ("beautiful", "JJ"), ("hair", "N")]
     cp1 = chunk.Regexp(r"""
       NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
           {<DT|NN>+}          # Chunk sequences of NN and DT
@@ -391,30 +389,27 @@ the same input.
     
     >>> print cp1.parse(tagged_tokens, trace=1)
     # Input:
-     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+     <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
     # Chunk det+adj+noun:
-    {<DT>  <JJ>  <NN>} <VBD>  <IN>  <DT>  <NN> 
+     <DT>  <NN>  <VBD> {<DT>  <JJ>  <NN>}
     # Chunk sequences of NN and DT:
-    {<DT>  <JJ>  <NN>} <VBD>  <IN> {<DT>  <NN>}
+    {<DT>  <NN>} <VBD> {<DT>  <JJ>  <NN>}
     (S
-      (NP the/DT little/JJ cat/NN)
-      sat/VBD
-      on/IN
-      (NP the/DT mat/NN))
-    >>> print cp2.parse(tagged_tokens, trace=1)
+      (NP The/DT enchantress/NN)
+      ('clutched', 'VBD')
+      (NP the/DT beautiful/JJ hair/NN))
     # Input:
-     <DT>  <JJ>  <NN>  <VBD>  <IN>  <DT>  <NN> 
+     <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
     # Chunk sequences of NN and DT:
-    {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
+    {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
     # Chunk det+adj+noun:
-    {<DT>} <JJ> {<NN>} <VBD>  <IN> {<DT>  <NN>}
+    {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
     (S
+      (NP The/DT enchantress/NN)
+      ('clutched', 'VBD')
       (NP the/DT)
-      little/JJ
-      (NP cat/NN)
-      sat/VBD
-      on/IN
-      (NP the/DT mat/NN))
+      ('beautiful', 'JJ')
+      (NP hair/NN))
 
 Observe that when we chunk material that is already partially chunked,
 the chunker will only create chunks that do not partially overlap
@@ -429,18 +424,18 @@ necessary to do this, it's a helpful reminder of what a rule is meant
 to do, and it is used as a header line for the output of a rule
 application when tracing is on.
 
-
 You might want to test out some of your rules on a corpus. One option
 is to use the Brown corpus. However, you need to  remember that the
 Brown tagset is different from the Penn Treebank tagset that we
 have been using for our examples so far in this chapter; see Table
-brown-tags_ in chap-tag_ for a refresher. Because the Brown tagset
+brown-tags_ in Chapter chap-tag_ for a refresher. Because the Brown tagset
 uses ``NP`` for proper nouns, in this example we have followed Abney
 in labeling noun chunks as ``NX``.
 
     >>> grammar = (r"""
-    ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}      # Chunk article/numeral+adj+noun
-    ...        {<NP>+}                      # Chunk one or more proper nouns                   ...        ...  """)
+    ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}  # Chunk article/numeral/possessive+adj+noun
+    ...        {<NP>+}                       # Chunk one or more proper nouns                   
+    ...  """)
     >>> cp = chunk.Regexp(grammar)
     >>> sent = corpus.brown.tagged('a')[112]
     >>> print cp.parse(sent)
@@ -533,7 +528,7 @@ below::
 |nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
 representation from one of these multi-line strings.  Moreover, it
 permits us to choose any subset of the three chunk types to use.  The
-example below produces only `np`` chunks:
+example below produces only `np`:gc: chunks:
     
 .. doctest-ignore::
     >>> text = '''
@@ -619,16 +614,17 @@ We start off by establishing a baseline for the trivial chunk parser
 
 This indicates that more than a third of the words are tagged with
 ``O`` (i.e., not in an `np`:gc: chunk).  Now let's try a naive regular
-expression chunker that looks for tags (.e.g., ``CD``, ``DT``, ``JJ``,
-etc) beginning with letters that are typical of noun phrase tags:
+expression chunker that looks for tags (e.g., ``CD``, ``DT``, ``JJ``,
+etc.) beginning with letters that are typical of noun phrase tags:
 
     >>> grammar = r"NP: {<[CDJNP].*>+}"
     >>> cp = chunk.Regexp(grammar)
     >>> print chunk.accuracy(cp, corpus.conll2000.chunked('train', chunk_types=('NP',)))
     0.874479872666
 
-We can extend this approach, and create a function ``chunked_tags()``
-that takes some chunked data, and sets up a conditional frequency
+As you can see, this approach achieves pretty good results. In
+order to develop a more data-driven approach, let's define a function ``chunked_tags()`` that
+takes some chunked data, and sets up a conditional frequency
 distribution.  For each tag, it counts up the number of times the tag
 occurs inside an `np`:gc: chunk (the ``True`` case, where ``chtag`` is
 ``B-NP`` or ``I-NP``), or outside a chunk (the ``False`` case, where
@@ -640,8 +636,8 @@ inside chunks more often than outside chunks.
 
     def chunked_tags(train):
         """Generate a list of tags that tend to appear inside chunks"""
-        cfdist = nltk.ConditionalFreqDist()
-        for t in train:
+    	cfdist = nltk.ConditionalFreqDist()
+ 	for t in train:
             for word, tag, chtag in chunk.tree2conlltags(t):
                 if chtag == "O":
                     cfdist[tag].inc(False)
@@ -655,7 +651,7 @@ inside chunks more often than outside chunks.
 The next step is to convert this list of tags into a tag pattern.  To
 do this we need to "escape" all non-word characters, by preceding them
 with a backslash.  Then we need to join them into a disjunction.  This
-process would convert a tag list ``['NN', 'NN$']`` into the tag pattern
+process would convert a tag list ``['NN', 'NN\$']`` into the tag pattern
 ``<NN|NN\$>``.  The following function does this work, and returns a
 regular expression chunker:
 
@@ -665,7 +661,7 @@ regular expression chunker:
     def baseline_chunker(train):
         chunk_tags = [re.sub(r'(\W)', r'\\\1', tag)
                       for tag in chunked_tags(train)]
-        grammar = 'NP: {<' + '|'.join(chunk_tags) + '>+}'
+        grammar = 'NP: {<%s>}' % '|'.join(chunk_tags)
         return chunk.Regexp(grammar)
 
 |nopar|
@@ -697,11 +693,11 @@ cases, it may be easier to build a chunker using a method called
 `chinking`:dt:.
 
 
-Following Abney, we define a `chink`:dt: as a sequence
+Following [Abney1996PST]_, we define a `chink`:dt: as a sequence
 of tokens that is not included in a chunk.
-In the following example, ``sat/VBD on/IN`` is a chink::
+In the following example, ``barked/VBD at/IN`` is a chink::
 
-  [ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]
+  [ the/DT little/JJ yellow/JJ dog/NN ] barked/VBD at/IN [ the/DT cat/NN ]
 
 Chinking is the process of removing a sequence of tokens from a
 chunk.  If the sequence of tokens spans an entire chunk, then the
@@ -716,15 +712,15 @@ remains.  These three possibilities are illustrated in Table chinking_.
    +-------------+---------------------+-------------------+------------------+
    |             | Entire chunk        | Middle of a chunk | End of a chunk   |
    +-------------+---------------------+-------------------+------------------+
-   | *Input*     | [a/DT  big/JJ       | [a/DT  big/JJ     | [a/DT  big/JJ    | 
-   |             | cat/NN]             | cat/NN]           | cat/NN]          |
+   | *Input*     | [a/DT little/JJ     | [a/DT little/JJ   | [a/DT little/JJ  | 
+   |             | dog/NN]             | dog/NN]           | dog/NN]          |
    +-------------+---------------------+-------------------+------------------+
    | *Operation* | Chink "DT JJ NN"    | Chink "JJ"        | Chink "NN"       |
    +-------------+---------------------+-------------------+------------------+
    | *Pattern*   | "}DT JJ NN{"        | "}JJ{"            | "}NN{"           |
    +-------------+---------------------+-------------------+------------------+
-   | *Output*    | a/DT  big/JJ        | [a/DT] big/JJ     | [a/DT  big/JJ]   |
-   |             | cat/NN              | [cat/NN]          | cat/NN           |
+   | *Output*    | a/DT little/JJ      | [a/DT] little/JJ  | [a/DT little/JJ] |
+   |             | dog/NN              | [dog/NN]          | dog/NN           |
    +-------------+---------------------+-------------------+------------------+
 
    Three chinking rules applied to the same chunk
@@ -732,18 +728,23 @@ remains.  These three possibilities are illustrated in Table chinking_.
 In the following grammar, we put the entire sentence into a single
 chunk, then excise the chink:
 
-    >>> grammar = r"""
-    ... NP:
-    ...   {<.*>+}          # Chunk everything
-    ...   }<VBD|IN>+{      # Chink sequences of VBD and IN
-    ... """
-    >>> cp = chunk.Regexp(grammar)
+.. pylisting:: chinker
+   :caption: Simple Chinker
+
+    grammar = r"""
+    NP:
+	 {<.*>+}          # Chunk everything
+	 }<VBD|IN>+{      # Chink sequences of VBD and IN
+    """
+    tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
+           ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
+    cp = chunk.Regexp(grammar)
     >>> print cp.parse(tagged_tokens)
     (S
-      (NP the/DT little/JJ cat/NN)
-      sat/VBD
-      on/IN
-      (NP the/DT mat/NN))
+      (NP the/DT little/JJ yellow/JJ dog/NN)
+      ('barked', 'VBD')
+      ('at', 'IN')
+      (NP the/DT cat/NN))
     >>> print chunk.accuracy(cp, corpus.conll2000.chunked('test', chunk_types=('NP',)))
     0.581041433607
 
@@ -789,14 +790,13 @@ Now we can set up a multi-stage chunk grammar, as shown in
 Listing multistage-chunker_.  It has a stage for each of the chunk types.
 
 .. pylisting:: multistage-chunker
-   :caption:
+   :caption: A Multistage Chunker
 
     cp = chunk.Regexp(r"""
-      NP: {<DT>?<JJ>*<NN.*>+} # noun phrase chunks
-      VP: {<TO>?<VB.*>}       # verb phrase chunks
-      PP: {<IN>}              # prepositional phrase chunks
+      NP: {<DT>?<JJ>*<NN.*>+}	# noun phrase chunks
+      VP: {<TO>?<VB.*>}       	# verb phrase chunks
+      PP: {<IN>}              	# prepositional phrase chunks
       """)
-
     >>> example = corpus.conll2000.chunked('train')[99]
     >>> print cp.parse(example.flatten(), trace=1)
     # Input:
@@ -918,22 +918,24 @@ N-Gram Chunking
 Our approach to chunking has been to try to detect structure based on
 the part-of-speech tags.  We have seen that the IOB format represents
 this extra structure using another kind of tag.  The question arises
-as to whether we could use the same n-gram tagging methods we saw in
-the last chapter, applied to a different vocabulary. In this case,
+as to whether we could use the same *n*-gram tagging methods we saw in
+Chapter chap-tag_, applied to a different vocabulary. In this case,
 rather than trying to determine the correct part-of-speech tag, given
 a word, we are trying to determine the correct chunk tag, given a
 part-of-speech tag.
 
-The first step is to get the ``word, tag, chunk`` triples from the
-CoNLL 2000 corpus and map these to ``tag, chunk`` pairs:
+The first step is to get the ``word,tag,chunk`` triples from the
+CoNLL 2000 corpus and map these to ``tag,chunk`` pairs:
 
     >>> chunk_data = [[(t,c) for w,t,c in chunk.tree2conlltags(chtree)]
     ...              for chtree in corpus.conll2000.chunked('train')]
 
+We will now train two *n*-gram taggers over this data.
+
 A Unigram Chunker
 -----------------
 
-Now we can train and score a `unigram chunker`:dt: on this data, just as if
+To start off, we train and score a `unigram chunker`:dt: on the above data, just as if
 it was a tagger:
 
     >>> unigram_chunker = tag.Unigram()
@@ -960,10 +962,10 @@ tags.  Here is what it comes up with:
 Notice that it tags all instances of ``NN`` with ``I-NP``, because
 nouns usually do not appear at the beginning of noun phrases in
 the training data.  Thus, the first noun ``Confidence/NN`` is
-tagged incorrectly.  However, ``pound/NN`` and ``dive`` are
+tagged incorrectly.  However, ``pound/NN`` and ``dive/NN`` are
 correctly tagged as ``I-NP``; they are not in the initial position
-that should be tagged ``B-NP``.  It incorrectly tags
-``widely/RB`` as outside ``O``, and it incorrectly tags the
+that should be tagged ``B-NP``.  The chunker incorrectly tags
+``widely/RB`` as ``O``, and it incorrectly tags the
 infinitival ``to/TO`` as ``B-PP``, as if it was a preposition starting a
 prepositional phrase.
 
@@ -1022,10 +1024,7 @@ So far, our chunk structures have been relatively flat.  Trees consist
 of tagged tokens, optionally grouped under a chunk node such as
 ``NP``.  However, it is possible to build chunk structures of
 arbitrary depth, simply by creating a multi-stage chunk grammar.
-
-So far, our chunk grammars have consisted of a single stage: a chunk
-type followed by one or more patterns.  However, chunk grammars can
-have two or more such stages.  These stages are processed in the order
+These stages are processed in the order
 that they appear.  The patterns in later stages can refer to a mixture
 of part-of-speech tags and chunk types.  Listing cascaded-chunker_ has
 patterns for noun phrases, prepositional phrases, verb phrases, and
@@ -1095,16 +1094,17 @@ a point where it is more effective to do full parsing (see Chapter chap-parse_).
 
 
 ----------------------
-Information Extraction
+Shallow Interpretation
 ----------------------
 
-`Information Extraction`:dt: is the task of converting `unstructured
-data`:dt: (e.g., unrestricted text) or `semi-structured data`:dt:
-(e.g., web pages marked up with |HTML|) into `structured data`:dt:
-(e.g., tables in a relational database). For example, let's suppose we
-are given a text containing the fragment ie1_, and let's also suppose we
-are trying to find pairs of entities *X* and *Y* that stand in the
-relation 'organization *X* is located in location *Y*'.
+The main form of shallow semantic interpretation that we will consider
+is `Information Extraction`:dt:. This refers to the task of converting
+`unstructured data`:dt: (e.g., unrestricted text) or `semi-structured
+data`:dt: (e.g., web pages marked up with |HTML|) into `structured
+data`:dt: (e.g., tables in a relational database). For example, let's
+suppose we are given a text containing the fragment ie1_, and let's
+also suppose we are trying to find pairs of entities *X* and *Y* that
+stand in the relation 'organization *X* is located in location *Y*'.
 
 .. _ie1:
 .. ex:: ... said William Gale, an economist at the Brookings Institution,
@@ -1120,24 +1120,24 @@ unrestricted text.
 
 Potential applications of Information Extraction are
 many, and include business intelligence, resume harvesting, media
-analysis, sentiment detection patent search, and email scanning. A
+analysis, sentiment detection, patent search, and email scanning. A
 particularly important area of current research involves the attempt
 to extract structured data out of electronically-available scientific
 literature, most notably in the domain of biology and medicine. 
 
 Information Extraction is usually broken down into at least two major
 steps: `Named Entity Recognition`:dt: and `Relation
-Extraction`:dt:. Named Entities (|NE| \s) are usually taken to be noun phrases
+Extraction`:dt:. Named Entities (|NE|\s) are usually taken to be noun phrases
 that denote specific types of individuals such as organizations,
 persons, dates, and so on. Thus, we
-might use the following |XML| annotations to mark-up the |NE|\ s in ie1_:
+might use the following |XML| annotations to mark-up the |NE|\s in ie1_:
 
 .. _ie2:
 .. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
         the <ne type='ORGANIZATION'>Brookings Institution</ne>,
         the research group in <ne type='LOCATION'>Washington<ne>. 
 
-How do we go about identifying |NE|\ s? Our first thought might be
+How do we go about identifying |NE|\s? Our first thought might be
 that we could look up candidate expressions in an appropriate list of
 names. For example, in the case of locations, we might  try using a
 resource such as the `Alexandria Gazetteer
@@ -1149,7 +1149,7 @@ in remote regions. However, a list of names for people or organization
 will probably have poor coverage. New organizations, and new names for
 them, are coming into existence every day, so if we are trying to deal
 with contemporary newswire or blog entries, say, it is unlikely that
-we will be able to recognize many of the |NE|\ s by using gazetteer
+we will be able to recognize many of the |NE|\s by using gazetteer
 lookup. 
 
 A second consideration is that many |NE| terms are ambiguous. Thus
