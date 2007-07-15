@@ -101,7 +101,7 @@ widely. Linguistic databases of this type are the basis of the
 past 15 years has become the norm in government-funded research programs
 in speech- and language-related technology.
 
-Finally, there are efforts to gather a ``reference corpus'' for a
+Finally, there are efforts to gather a "reference corpus" for a
 particular language. A large and well-documented recent example is the
 `British National Corpus`:dt: (BNC) [BNC1999]_. The goal in
 such cases is to produce a set of linguistic materials that cover the
@@ -126,16 +126,16 @@ are many extinct languages for which such material is all the data we
 will ever have, and many more endangered languages for which such
 documentation is urgently needed. Sociolinguists typically base their
 work on analysis of a set of recorded interviews, which may over time
-grow to create another sort of ``reference corpus.'' In some labs, the
+grow to create another sort of "reference corpus." In some labs, the
 residue of decades of work may comprise literally thousands of hours
 of recordings, many of which have been transcribed and annotated to
 one extent or another.  The `CHILDES`:dt: corpus, comprising
 transcriptions of parent-child interactions in many languages,
 contributed by many individual researchers, has come to constitute a
-widely-used ``reference corpus'' for language acquisition
+widely-used "reference corpus" for language acquisition
 research [MacWhinney1995CHILDES]_. Speech technologists aim to produce training and testing
 material of broad applicability, and in effect wind up creating
-another sort of ``reference corpus.'' To date, linguistic technology
+another sort of "reference corpus."  To date, linguistic technology
 R\&D has been the primary source of published linguistic databases of
 all sorts (see e.g. ``http://www.ldc.upenn.edu/``).
 
@@ -349,12 +349,12 @@ Once a corpus has been created and disseminated, it typically gains a life of it
 as others adapt it to their needs.  This may involve reformatting a text file (e.g. converting
 to XML), renaming files, retokenizing the text, selecting a subset of the data to enrich,
 and so forth.  Multiple research groups may do this work independently, as exemplified
-in Figure timit-structure_.  At a later date, when someone wants to combine sources
+in Figure evolution_.  At a later date, when someone wants to combine sources
 of information from different version, the task may be extremely onerous.
 
-.. _timit-structure:
+.. _evolution:
 .. figure:: ../images/evolution.png
-   :scale: 30
+   :scale: 36
 
    Evolution of a Corpus
 
@@ -457,35 +457,29 @@ legal_pos``:
 This simple program represents the tip of the iceberg.  We can develop
 sophisticated tools to check the consistency of word processor files,
 and report errors so that the maintainer of the dictionary can correct
-the original file *using the original word processor*.  We can write
-other programs to convert the data into a different format.  For
-example, the following program extracts the words and their
+the original file *using the original word processor*.
+
+We can write other programs to convert the data into a different format.
+For example, Listing html2csv_ extracts the words and their
 pronunciations and generates output in "comma-separated value" (CSV) format:
 
-Use CSV library for this:
+.. pylisting:: html2csv
+   :caption: Converting HTML Created by Microsoft Word into Comma-Separated Values
 
+    def lexical_data(html_file):
+        SEP = '_ENTRY'
+        html = open(html_file).read()
+        html = re.sub(r'<p', SEP + '<p', html)
+        text = nltk.clean_html(html)
+        text = ' '.join(text.split())
+        for entry in text.split(SEP):
+            if entry.count(' ') > 2:
+                yield entry.split(' ', 3)
 
-import csv
-writer = csv.writer(open("some.csv", "wb"))
-writer.writerows(someiterable)
+    >>> import csv
+    >>> writer = csv.writer(open("dict1.csv", "wb"))
+    >>> writer.writerows(lexical_data("dict.htm"))
 
-
-    >>> document = open("dict.htm").read()
-    >>> document = re.sub("[\r\n]", "", document)
-    >>> PRON_START, PRON_END = r"\[", r"\]"
-    >>> TAGS = r"<.?*>+"
-    >>> word_pattern = re.compile(r">(\w+)")
-    >>> pron_pattern = re.compile(PRON_START + TAGS + r"([\w:]+)" + TAGS + PRON_END)
-    >>> for entry in document.split("<p"):
-    ...     word_match = word_pattern.search(entry)
-    ...     pron_match = pron_pattern.search(entry)
-    ...     if word_match and pron_match:
-    ...         lex = word_match.group(1)
-    ...         pos = pron_match.group(1)
-    ...         print '"%s","%s"' % (lex, pos)
-    "sleep","sli:p"
-    "walk","wo:k"
-    "wake","weik"
 
 Creating Language Resources using Spreadsheets and Databases
 ------------------------------------------------------------
@@ -654,6 +648,7 @@ the last line of output, which shows the new CV field.
                 cv_field = SubElement(entry, 'cv')
                 cv_field.text = cv(field.text)
 
+    >>> lexicon = toolbox.parse_corpus('rotokas.dic')
     >>> add_cv_field(lexicon[53])
     >>> print toolbox.to_sfm_string(lexicon[53])
     \lx kaeviro
@@ -706,44 +701,36 @@ Which sequences of fields are the most frequent?
     lx:ps:pt:ge:tkp:nt:sf:dt:ex:xp:xe
     lx:ps:pt:ge:ge:tkp:dt:ex:xp:xe
     
-Once we have analyzed the sequences of fields, we might want to write
-down a grammar for lexical entries, and look for entries which do not
-conform to the grammar.  In general, toolbox entries have nested
-structure.  Thus they correspond to a tree over the fields.  We can
-check for well-formedness by parsing the field names.  We first set up
-a putative grammar for the entries:
+.. pylisting:: toolbox-validation
+   :caption: Validating Toolbox Entries Using a Context Free Grammar
 
-    >>> grammar = nltk.parse_cfg('''
-    ...   S -> Head PS Glosses Comment Date Examples
-    ...   Head -> Lexeme Root
-    ...   Lexeme -> "lx"
-    ...   Root -> "rt"
-    ...   Root ->
-    ...   PS -> "ps"
-    ...   Glosses -> Gloss Glosses
-    ...   Glosses ->
-    ...   Gloss -> "ge" | "gp"
-    ...   Date -> "dt"
-    ...   Examples -> Example Ex_Pidgin Ex_English Examples
-    ...   Examples ->
-    ...   Example -> "ex"
-    ...   Ex_Pidgin -> "xp"
-    ...   Ex_English -> "xe"
-    ...   Comment -> "cmt"
-    ...   Comment ->
-    ...   ''')
-    >>> rd_parser = parse.RecursiveDescent(grammar)
+    grammar = nltk.parse_cfg('''
+      S -> Head PS Glosses Comment Date Examples
+      Head -> Lexeme Root
+      Lexeme -> "lx"
+      Root -> "rt" |
+      PS -> "ps"
+      Glosses -> Gloss Glosses |
+      Gloss -> "ge" | "gp"
+      Date -> "dt"
+      Examples -> Example Ex_Pidgin Ex_English Examples |
+      Example -> "ex"
+      Ex_Pidgin -> "xp"
+      Ex_English -> "xe"
+      Comment -> "cmt" |
+      ''')
 
-Now we try to parse each entry.  Those that are accepted by the
-grammar prefixed with a ``'+'``, and those that are rejected
-are prefixed with a ``'-'``.
+    def validate_lexicon(grammar, lexicon):
+        rd_parser = parse.RecursiveDescent(grammar)
+        for entry in lexicon[10:20]:
+            marker_list = [field.tag for field in entry]
+            if rd_parser.get_parse_list(marker_list):
+                print "+", ':'.join(marker_list)
+            else:
+                print "-", ':'.join(marker_list)
 
-    >>> for entry in lexicon[10:20]:
-    ...     marker_list = [field.tag for field in entry]
-    ...     if rd_parser.get_parse_list(marker_list):
-    ...         print "+", ':'.join(marker_list)
-    ...     else:
-    ...         print "-", ':'.join(marker_list)
+    >>> lexicon = toolbox.parse_corpus('rotokas.dic')[10:20]
+    >>> validate_lexicon(grammar, lexicon)
     - lx:ps:ge:gp:sf:nt:dt:ex:xp:xe:ex:xp:xe
     - lx:rt:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
     - lx:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
@@ -755,7 +742,17 @@ are prefixed with a ``'-'``.
     - lx:rt:ps:ge:ge:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe:ex:xp:xe
     + lx:rt:ps:ge:gp:dt:ex:xp:xe
 
-.. pylisting:: chunk_toolbox
+Once we have analyzed the sequences of fields, we could try to write
+down a grammar for lexical entries, and look for entries which do not
+conform to the grammar.  In general, toolbox entries have nested
+structure.  Thus they correspond to a tree over the fields.  We can
+check for well-formedness by parsing the field names.
+In Listing chunk-toolbox_ we set up
+a putative grammar for the entries, then parse each entry.
+Those that are accepted by the grammar prefixed with
+a ``'+'``, and those that are rejected are prefixed with a ``'-'``.
+
+.. pylisting:: chunk-toolbox
    :caption: Chunking a Toolbox Lexicon
 
     from nltk_contrib import toolbox
@@ -780,7 +777,7 @@ are prefixed with a ``'-'``.
 Creating Metadata for Language Resources
 ----------------------------------------
 
-OLAC metadata extends the *Dublin Core* metadata set with descriptors
+OLAC metadata extends the `Dublin Core`:dt: metadata set with descriptors
 that are important for language resources.
 
 The container for an OLAC metadata record is the element ``<olac>``.
@@ -1256,6 +1253,12 @@ something *from* someone.  In contrast, the verb :lx:`reject` only
 needs a single following argument; we can reject something without
 needing to say where it originated from.
 
+-------
+Summary
+-------
+
+
+
 
 
 ---------------
@@ -1264,8 +1267,6 @@ Further Reading
 
 [Robinson2007Toolbox]_
 
-Bird, Steven (1999).  Multidimensional exploration of online linguistic field data
-    *Proceedings of the 29th Meeting of the North-East Linguistic
-    Society*, pp 33-50.
+[Bird1999NELS]_
 
 .. include:: footer.txt
