@@ -12,7 +12,6 @@
 10. Applied Programming in Python
 =================================
 
-.. TODO: csv reading; elementtree?; xml
 .. TODO: transformation based learning?
 .. TODO: indexing and space-time trade-offs (more efficient concordancing, fuzzy spelling)
 .. TODO: persistent storage (shelve)
@@ -26,207 +25,6 @@ program design, and applied Python programming. It also contains
 review of the basic mathematical notions of set, relation, and
 function, and illustrates them in terms of Python data structures.
 It contains many working program fragments which you should try yourself.
-
---------------------------------------
-Some Good Python Programming Practices
---------------------------------------
-
-.. TODO: don't repeat yourself http://c2.com/cgi/wiki?DontRepeatYourself
-.. TODO: duck typing
-.. TODO: shared values between multiple dictionaries
-
-Modularity
-----------
-
-Variable scope
-
-* local and global variables
-* scope rules
-* global variables introduce dependency on context and limits the reusability of a function
-* importance of avoiding side-effects
-* functions hide implementation details
-
-naming variables
-
-http://www.python.org/dev/peps/pep-0008/
-
-Modules
-
-
-Debugging
----------
-
-    >>> import pdb
-    >>> import mymodule
-    >>> pdb.run('mymodule.test()')
-
-
-Commands:
-
-list [first [,last]]: list sourcecode for the current file
-
-next: continue execution until the next line in the current function is reached
-
-cont: continue execution until a breakpoint is reached (or the end of the program)
-
-break: list the breakpoints
-
-break n: insert a breakpoint at this line number in the current file
-
-break file.py:n: insert a breakpoint at this line in the specified file
-
-break function: insert a breakpoint at the first executable line of the function
-
-Profiling
----------
-
-Scaling Up
-----------
-
-scalability tricks (e.g. replace each word with an integer).
-Figure strings-to-ints_
-
-.. pylisting:: strings-to-ints
-   :caption: Preprocess tagged corpus data, converting all words and tags to integers
-
-    def preprocess(tagged_corpus):
-        words = set()
-        tags = set()
-        for sent in tagged_corpus:
-            for word, tag in sent:
-                words.add(word)
-                tags.add(tag)
-        wm = dict((w,i) for (i,w) in enumerate(words))
-        tm = dict((t,i) for (i,t) in enumerate(tags))
-        return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
-
-
-* when keeping track of vocabulary items, for the purpose of checking membership,
-  use sets rather than lists, because sets index their elements.
-
-.. _OO:
-
--------------------------------------
-Object-Oriented Programming in Python
--------------------------------------
-
-Object-Oriented Programming is a programming paradigm in which
-complex structures and processes are decomposed into modules,
-each encapsulating a single data type and the legal operations on
-that type.
-
-.. _sec-variable-scope:
-
-Data Classes: Trees in NLTK
----------------------------
-
-An important data type in language processing is the syntactic tree.
-Here we will review the parts of the NLTK code which defines the ``Tree``
-class.  
-
-The first line of a class definition is the ``class`` keyword followed
-by the class name, in this case ``Tree``.  This class is derived from
-Python's built-in ``list`` class, permitting us to use standard list
-operations to access the children of a tree node.
-
-    >>> class Tree(list):
-
-Next we define the initializer, also known as the `constructor`:lx:.
-It has a special name, starting and ending with double underscores;
-Python knows to call this function when you ask for a new tree object
-by writing ``t = Tree(node, children)``.  The constructor's first argument
-is special, and is standardly called ``self``, giving us a way to
-refer to the current object from within the definition.  This
-particular constructor calls the list initializer (similar to calling ``self =
-list(children)``), then defines the ``node`` property of a tree.
-
-.. doctest-ignore::
-    ...     def __init__(self, node, children):
-    ...         list.__init__(self, children)
-    ...         self.node = node
-
-Next we define another special function that Python knows to call when
-we index a Tree.  The first case is the simplest, when the index is an
-integer, e.g. ``t[2]``, we just ask for the list item in the obvious
-way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
-
-.. doctest-ignore::
-    ...     def __getitem__(self, index):
-    ...         if isinstance(index, int):
-    ...             return list.__getitem__(self, index)
-    ...         else:
-    ...             if len(index) == 0:
-    ...                 return self
-    ...             elif len(index) == 1:
-    ...                 return self[int(index[0])]
-    ...             else:
-    ...                 return self[int(index[0])][index[1:]]
-    ...     
-
-.. SB: what is the len(index) == 0 case for???
-
-This method was for accessing a child node.  Similar methods are
-provided for setting and deleting a child (using ``__setitem__``)
-and ``__delitem__``).
-
-Two other special member functions are ``__repr__()`` and ``__str__()``.
-The ``__repr__()`` function produces a string representation of the
-object, one which can be executed to re-create the object, and is
-accessed from the interpreter simply by typing the name of the object
-and pressing 'enter'.  The ``__str__()`` function produces a human-readable
-version of the object; here we call a pretty-printing function we have
-defined called ``pp()``.
-
-.. doctest-ignore::
-    ...     def __repr__(self):
-    ...         childstr = string.join([repr(c) for c in self])
-    ...         return '(%s: %s)' % (self.node, childstr)
-    ...     def __str__(self):
-    ...         return self.pp()
-
-
-Next we define some member functions that do other standard operations
-on trees.  First, for accessing the leaves:
-
-.. doctest-ignore::
-    ...     def leaves(self):
-    ...         leaves = []
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 leaves.extend(child.leaves())
-    ...             else:
-    ...                 leaves.append(child)
-    ...         return leaves
-
-
-Next, for computing the height:
-
-.. doctest-ignore::
-    ...     def height(self):
-    ...         max_child_height = 0
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 max_child_height = max(max_child_height, child.height())
-    ...             else:
-    ...                 max_child_height = max(max_child_height, 1)
-    ...         return 1 + max_child_height
-
-And finally, for enumerating all the subtrees (optionally filtered):
-
-.. doctest-ignore::
-    ...     def subtrees(self, filter=None):
-    ...         if not filter or filter(self):
-    ...             yield self
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 for subtree in child.subtrees(filter):
-    ...                     yield subtree
-
-
-Processing Classes: N-gram Taggers in NLTK
-------------------------------------------
-
-This section will discuss the ``tag.ngram`` module.
 
 
 -------------------
@@ -357,6 +155,203 @@ built-in functions like ``map`` and ``filter``.
 
 
 
+.. TODO: don't repeat yourself http://c2.com/cgi/wiki?DontRepeatYourself
+.. TODO: duck typing
+.. TODO: shared values between multiple dictionaries
+
+Modularity
+----------
+
+Variable scope
+
+* local and global variables
+* scope rules
+* global variables introduce dependency on context and limits the reusability of a function
+* importance of avoiding side-effects
+* functions hide implementation details
+
+naming variables
+
+http://www.python.org/dev/peps/pep-0008/
+
+Modules
+
+
+Debugging
+---------
+
+    >>> import pdb
+    >>> import mymodule
+    >>> pdb.run('mymodule.test()')
+
+
+Commands:
+
+list [first [,last]]: list sourcecode for the current file
+
+next: continue execution until the next line in the current function is reached
+
+cont: continue execution until a breakpoint is reached (or the end of the program)
+
+break: list the breakpoints
+
+break n: insert a breakpoint at this line number in the current file
+
+break file.py:n: insert a breakpoint at this line in the specified file
+
+break function: insert a breakpoint at the first executable line of the function
+
+Profiling
+---------
+
+Scaling Up
+----------
+
+scalability tricks (e.g. replace each word with an integer).
+Figure strings-to-ints_
+
+.. pylisting:: strings-to-ints
+   :caption: Preprocess tagged corpus data, converting all words and tags to integers
+
+    def preprocess(tagged_corpus):
+        words = set()
+        tags = set()
+        for sent in tagged_corpus:
+            for word, tag in sent:
+                words.add(word)
+                tags.add(tag)
+        wm = dict((w,i) for (i,w) in enumerate(words))
+        tm = dict((t,i) for (i,t) in enumerate(tags))
+        return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
+
+
+* when keeping track of vocabulary items, for the purpose of checking membership,
+  use sets rather than lists, because sets index their elements.
+
+
+Named Arguments
+---------------
+
+One of the difficulties in re-using functions is remembering the order of arguments.
+Consider the following function, which finds the ``n`` most frequent words that are
+at least ``min_len`` characters long:
+
+    >>> from nltk.probability import FreqDist
+    >>> from nltk import tokenize
+    >>> def freq_words(file, min, num):
+    ...     text = open(file).read()
+    ...     freqdist = FreqDist(word for word in tokenize.wordpunct(text) if len(word) >= min)
+    ...     return freqdist.sorted()[:num]
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
+    'very', 'using']
+
+This function has three arguments.  It follows the convention of listing the most
+basic and substantial argument first (the file).  However, it might be hard to remember
+the order of the second and third arguments on subsequent use.  We can make this function
+more readable by using `keyword arguments`:dt:.  These appear in the function's argument
+list with an equals sign and a default value:
+
+    >>> def freq_words(file, min=1, num=10):
+    ...     text = open(file).read()
+    ...     freqdist = FreqDist(word for word in tokenize.wordpunct(text) if len(word) >= min)
+    ...     return freqdist.sorted()[:num]
+
+|nopar|
+Now there are several equivalent ways to call this function:
+
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', min=4, num=10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', num=10, min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+|nopar|
+When we use an integrated development environment such as IDLE,
+simply typing the name of a function at the command prompt will
+list the arguments.  Using named arguments helps someone to re-use the code...
+
+A side-effect of having named arguments is that they permit optionality.  Thus we
+can leave out any arguments for which we are happy with the default value.
+
+    >>> freq_words('programming.txt', min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', 4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+Another common use of optional arguments is to permit a flag, e.g.:
+
+    >>> def freq_words(file, min=1, num=10, trace=False):
+    ...     freqdist = FreqDist()
+    ...     if trace: print "Opening", file
+    ...     text = open(file).read()
+    ...     if trace: print "Read in %d characters" % len(file)
+    ...     for word in tokenize.wordpunct(text):
+    ...         if len(word) >= min:
+    ...             freqdist.inc(word)
+    ...             if trace and freqdist.N() % 100 == 0: print "."
+    ...     if trace: print
+    ...     return freqdist.sorted()[:num]
+
+Accumulative Functions
+----------------------
+
+These functions start by initializing some storage, and iterate over
+input to build it up, before returning some final object (a large structure
+or aggregated result).  The standard way to do this is to initialize an
+empty list, accumulate the material, then return the list, as shown
+in function ``find_nouns1()`` in Listing find-nouns1_.
+
+.. pylisting:: find-nouns1
+   :caption: Accumulating Output into a List
+
+    def find_nouns1(tagged_text):
+        nouns = []
+        for word, tag in tagged_text:
+            if tag[:2] == 'NN':
+                nouns.append(word)
+        return nouns
+
+    >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+    ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+    >>> find_nouns1(tagged_text)
+    ['cat', 'mat']
+
+A superior way to perform this operation is define the function to
+be a `generator`:dt:, as shown in Listing find-nouns2_.
+The first time this function is called, it gets as far as the ``yield``
+statement and stops.  The calling program gets the first word and does
+any necessary processing.  Once the calling program is ready for another
+word, execution of the function is continued from where it stopped, until
+the next time it encounters a ``yield`` statement.  This approach is
+typically more efficient, as the function only generates the data as it is
+required by the calling program, and does not need to allocate additional
+memory to store the output.
+
+.. pylisting:: find-nouns2
+   :caption: Defining a Generator Function
+   
+    def find_nouns2(tagged_text):
+        for word, tag in tagged_text:
+            if tag[:2] == 'NN':
+                yield word
+
+    >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+    ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+    >>> find_nouns2(tagged_text)
+    <generator object at 0x14b2f30>
+    >>> for noun in find_nouns2(tagged_text):
+    ...     print noun,
+    cat mat
+    >>> list(find_nouns2(tagged_text))
+    ['cat', 'mat']
+
+If we call the function directly we see that it returns a "generator object", which is
+not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
+or convert it into a list, using ``list(find_nouns(tagged_text))``.
+
+
 Case Study: T9
 --------------
 
@@ -382,140 +377,58 @@ Exercises
    program to convert this list of tokens into a list of token
    lengths: ``[3, 3, 4, 4, 3, 9]``
 
------------
-Brute Force
------------
 
-Wordfinder Puzzle
-
-Here we will generate a grid of letters, containing words found in the
-dictionary.  First we remove any duplicates and disregard the order in
-which the lexemes appeared in the dictionary.  We do this by converting
-it to a set, then back to a list.  Then we select the first 200 words,
-and then only keep those words having a reasonable length.
-
-    >>> words = list(set(lexemes))
-    >>> words = words[:200]
-    >>> words = [w for w in words if 3 <= len(w) <= 12]
-
-Now we generate the wordfinder grid, and print it out.
-
-    >>> from nltk.misc.wordfinder import wordfinder
-    >>> grid, used = wordfinder(words)
-    >>> for i in range(len(grid)):
-    ...     for j in range(len(grid[i])):
-    ...         print grid[i][j],
-    ...     print
-    O G H K U U V U V K U O R O V A K U N C
-    K Z O T O I S E K S N A I E R E P A K C
-    I A R A A K I O Y O V R S K A W J K U Y
-    L R N H N K R G V U K G I A U D J K V N
-    I I Y E A U N O K O O U K T R K Z A E L
-    A V U K O X V K E R V T I A A E R K R K
-    A U I U G O K U T X U I K N V V L I E O
-    R R K O K N U A J Z T K A K O O S U T R
-    I A U A U A S P V F O R O O K I C A O U
-    V K R R T U I V A O A U K V V S L P E K
-    A I O A I A K R S V K U S A A I X I K O
-    P S V I K R O E O A R E R S E T R O J X
-    O I I S U A G K R O R E R I T A I Y O A
-    R R R A T O O K O I K I W A K E A A R O
-    O E A K I K V O P I K H V O K K G I K T
-    K K L A K A A R M U G E P A U A V Q A I
-    O O O U K N X O G K G A R E A A P O O R
-    K V V P U J E T Z P K B E I E T K U R A
-    N E O A V A E O R U K B V K S Q A V U E
-    C E K K U K I K I R A E K O J I Q K K K
-
-Finally we generate the words which need to be found.
-
-    >>> for i in range(len(used)):
-    ...     print "%-12s" % used[i],
-    ...     if float(i+1)%5 == 0: print
-    KOKOROPAVIRA KOROROVIVIRA KAEREASIVIRA KOTOKOTOARA  KOPUASIVIRA 
-    KATAITOAREI  KAITUTUVIRA  KERIKERISI   KOKARAPATO   KOKOVURITO  
-    KAUKAUVIRA   KOKOPUVIRA   KAEKAESOTO   KAVOVOVIRA   KOVAKOVARA  
-    KAAREKOPIE   KAEPIEVIRA   KAPUUPIEPA   KOKORUUTO    KIKIRAEKO   
-    KATAAVIRA    KOVOKOVOA    KARIVAITO    KARUVIRA     KAPOKARI    
-    KUROVIRA     KITUKITU     KAKUPUTE     KAEREASI     KUKURIKO    
-    KUPEROO      KAKAPUA      KIKISI       KAVORA       KIKIPI      
-    KAPUA        KAARE        KOETO        KATAI        KUVA        
-    KUSI         KOVO         KOAI       
+-------------------------------
+Connecting to the Outside World
+-------------------------------
 
 
---------------------
-Space-Time Tradeoffs
---------------------
+Python's Standard Library
+-------------------------
 
-Indexing
-
-
-Fuzzy Spelling
---------------
+* accessing file system, network, maths, graphics
 
 
-
-Confusible sets of segments: if two segments are confusible, map them
-to the same integer.
-
-    >>> group = {
-    ...     ' ':0,                     # blank (for short words)
-    ...     'p':1,  'b':1,  'v':1,     # labials
-    ...     't':2,  'd':2,  's':2,     # alveolars
-    ...     'l':3,  'r':3,             # sonorant consonants
-    ...     'i':4,  'e':4,             # high front vowels
-    ...     'u':5,  'o':5,             # high back vowels
-    ...     'a':6                      # low vowels
-    ... }
-
-Soundex: idea of a signature.  Words with the same signature
-considered confusible.  Consider first letter of a word to be so
-cognitively salient that people will not get it wrong.
-
-    >>> def soundex(word):
-    ...     if len(word) == 0: return word  # sanity check
-    ...     word += '    '                  # ensure word long enough
-    ...     c0 = word[0].upper()
-    ...     c1 = group[word[1]]
-    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
-    ...     c2 = group[cons[0]]
-    ...     c3 = group[cons[1]]
-    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
-    >>> print soundex('kalosavi')
-    K632
-    >>> print soundex('ti')
-    T400
-  
-Now we can build a soundex index of the lexicon:
-
-    >>> soundex_idx = nltk.defaultdict(set)
-    >>> for lex in lexemes:
-    ...     code = soundex(lex)
-    ...     soundex_idx[code].add(lex)
-
-We should sort these candidates by proximity with the target word.
-
-    >>> def fuzzy_spell(target):
-    ...     scored_candidates = []
-    ...     code = soundex(target)
-    ...     for word in soundex_idx[code]:
-    ...         dist = nltk.edit_dist(word, target)
-    ...         scored_candidates.append((dist, word))
-    ...     scored_candidates.sort()
-    ...     return [w for (d,w) in scored_candidates[:10]]
-
-Finally, we can look up a word to get approximate matches:
-
-    >>> fuzzy_spell('kokopouto')
-    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
-    >>> fuzzy_spell('kogou')
-    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
-
-
-
+CSV
 ---
-XML
----
+
+    >>> import csv
+    >>> file = open("dict.csv", "rb")
+    >>> for row in csv.reader(file):
+    ...     print row
+    ['sleep', 'sli:p', 'v.i', 'a condition of body and mind ...']
+    ['walk', 'wo:k', 'v.intr', 'progress by lifting and setting down each foot ...']
+    ['wake', 'weik', 'intrans', 'cease to sleep']
+
+
+Database Connectivity
+---------------------
+
+
+
+HTML
+----
+
+
+
+Web Applications
+----------------
+
+``mod_python``
+
+Jango
+
+
+XML and ElementTree
+-------------------
+
+* inspecting and processing XML
+* example: find nodes matching some criterion and add an attribute
+* Shakespeare XML corpus example
+
+
+Exercises
+---------
 
 #. |soso| Write a recursive function to produce an XML representation for a
    tree, with non-terminals represented as XML elements, and leaves represented
@@ -528,38 +441,136 @@ XML
 |         <NNP>Vinken</NNP>
 |       </NP>
 |       <COMMA>,</COMMA>
-|       <ADJP>
-|         <NP>
-|           <CD>61</CD>
-|           <NNS>years</NNS>
-|         </NP>
-|         <JJ>old</JJ>
-|       <COMMA>,</COMMA>
-|     </NP>
-|     <VP>
-|       <MD>will</MD>
-|       <VP>
-|         <VB>join</VB>
-|         <NP>
-|           <DT>the</DT>
-|           <NN>board</NN>
-|         </NP>
-|         <PP type="CLR">
-|           <IN>as</IN>
-|           <NP>
-|             <DT>a</DT>
-|             <JJ>nonexecutive</JJ>
-|             <NN>director</NN>
-|           </NP>
-|         </PP>
-|         <NP type="TMP">
-|           <NNP>Nov.</NNP>
-|           <CD>29</CD>
-|         </NP>
-|       </VP>
-|     </VP>
-|     <PERIOD>.</PERIOD>
-|   </S>
+
+
+
+
+.. _OO:
+
+-------------------------------------
+Object-Oriented Programming in Python
+-------------------------------------
+
+Object-Oriented Programming is a programming paradigm in which
+complex structures and processes are decomposed into `classes`:dt:,
+each encapsulating a single data type and the legal operations on
+that type.  In this section we show you how to create simple data
+classes and processing classes by example.  For a systematic
+introduction to Object-Oriented design, please see the Further
+Reading section at the end of this chapter.
+
+.. _sec-variable-scope:
+
+Data Classes: Trees in NLTK
+---------------------------
+
+An important data type in language processing is the syntactic tree.
+Here we will review the parts of the NLTK code which defines the ``Tree``
+class.  
+
+The first line of a class definition is the ``class`` keyword followed
+by the class name, in this case ``Tree``.  This class is derived from
+Python's built-in ``list`` class, permitting us to use standard list
+operations to access the children of a tree node.
+
+    >>> class Tree(list):
+
+Next we define the `initializer`:dt: ``__init__()``;
+Python knows to call this function when you ask for a new tree object
+aby writing ``t = Tree(node, children)``.  The constructor's first argument
+is special, and is standardly called ``self``, giving us a way to
+refer to the current object from within its definition.  This
+particular constructor calls the list initializer (similar to calling ``self =
+list(children)``), then defines the ``node`` property of a tree.
+
+.. doctest-ignore::
+    ...     def __init__(self, node, children):
+    ...         list.__init__(self, children)
+    ...         self.node = node
+
+Next we define another special function that Python knows to call when
+we index a Tree.  The first case is the simplest, when the index is an
+integer, e.g. ``t[2]``, we just ask for the list item in the obvious
+way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
+
+.. doctest-ignore::
+    ...     def __getitem__(self, index):
+    ...         if isinstance(index, int):
+    ...             return list.__getitem__(self, index)
+    ...         else:
+    ...             if len(index) == 0:
+    ...                 return self
+    ...             elif len(index) == 1:
+    ...                 return self[int(index[0])]
+    ...             else:
+    ...                 return self[int(index[0])][index[1:]]
+    ...     
+
+.. SB: what is the len(index) == 0 case for???
+
+This method was for accessing a child node.  Similar methods are
+provided for setting and deleting a child (using ``__setitem__``)
+and ``__delitem__``).
+
+Two other special member functions are ``__repr__()`` and ``__str__()``.
+The ``__repr__()`` function produces a string representation of the
+object, one which can be executed to re-create the object, and is
+accessed from the interpreter simply by typing the name of the object
+and pressing 'enter'.  The ``__str__()`` function produces a human-readable
+version of the object; here we call a pretty-printing function we have
+defined called ``pp()``.
+
+.. doctest-ignore::
+    ...     def __repr__(self):
+    ...         childstr = string.join([repr(c) for c in self])
+    ...         return '(%s: %s)' % (self.node, childstr)
+    ...     def __str__(self):
+    ...         return self.pp()
+
+
+Next we define some member functions that do other standard operations
+on trees.  First, for accessing the leaves:
+
+.. doctest-ignore::
+    ...     def leaves(self):
+    ...         leaves = []
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 leaves.extend(child.leaves())
+    ...             else:
+    ...                 leaves.append(child)
+    ...         return leaves
+
+
+Next, for computing the height:
+
+.. doctest-ignore::
+    ...     def height(self):
+    ...         max_child_height = 0
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 max_child_height = max(max_child_height, child.height())
+    ...             else:
+    ...                 max_child_height = max(max_child_height, 1)
+    ...         return 1 + max_child_height
+
+And finally, for enumerating all the subtrees (optionally filtered):
+
+.. doctest-ignore::
+    ...     def subtrees(self, filter=None):
+    ...         if not filter or filter(self):
+    ...             yield self
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 for subtree in child.subtrees(filter):
+    ...                     yield subtree
+
+
+Processing Classes: N-gram Taggers in NLTK
+------------------------------------------
+
+This section will discuss the ``tag.ngram`` module.
+
 
 
 
@@ -577,13 +588,18 @@ to multiply 16 by 12 we might use any of the following methods:
 #. Repeatedly halve the first number and double the second,
    16*12 = 8*24 = 4*48 = 2*96 = 192
 #. Do 10*12 to get 120, then add 6*12
+#. Rewrite 16*12 as (x+2)(x-2), remember that 14*14=196, and add (+2)(-2) = -4
 
 Each of these methods is a different algorithm, and requires different
 amounts of computation time and different amounts of intermediate
 information to store.  A similar situation holds for many other
-superficially simple tasks, such as sorting a list of words.  Now, as
-we saw above, Python provides a built-in function ``sort()`` that
-performs this task efficiently.  However, NLTK-Lite also provides
+superficially simple tasks, such as sorting a list of words.
+
+Sorting Algorithms
+------------------
+
+Now, as we saw above, Python provides a built-in function ``sort()`` that
+performs this task efficiently.  However, NLTK also provides
 several algorithms for sorting lists, to illustrate the variety of
 possible methods.  To illustrate the difference in efficiency, we
 will create a list of 1000 numbers, randomize the list, then sort it,
@@ -611,7 +627,7 @@ We can try the same task using various sorting algorithms.  Evidently
   2378
 
 Readers are encouraged to look at ``nltk.misc.sort`` to see how
-these different methods work.  The collection of NLTK-Lite modules
+these different methods work.  The collection of NLTK modules
 exemplify a variety of algorithm design techniques, including
 brute-force, divide-and-conquer, dynamic programming, and greedy search.
 Readers who would like a systematic introduction to algorithm design
@@ -681,11 +697,71 @@ Now do this using decorate-sort-undecorate, for large data size
 Time comparison
 
 
+Brute Force
+-----------
+
+Wordfinder Puzzle
+
+Here we will generate a grid of letters, containing words found in the
+dictionary.  First we remove any duplicates and disregard the order in
+which the lexemes appeared in the dictionary.  We do this by converting
+it to a set, then back to a list.  Then we select the first 200 words,
+and then only keep those words having a reasonable length.
+
+    >>> words = list(set(lexemes))
+    >>> words = words[:200]
+    >>> words = [w for w in words if 3 <= len(w) <= 12]
+
+Now we generate the wordfinder grid, and print it out.
+
+    >>> from nltk.misc.wordfinder import wordfinder
+    >>> grid, used = wordfinder(words)
+    >>> for i in range(len(grid)):
+    ...     for j in range(len(grid[i])):
+    ...         print grid[i][j],
+    ...     print
+    O G H K U U V U V K U O R O V A K U N C
+    K Z O T O I S E K S N A I E R E P A K C
+    I A R A A K I O Y O V R S K A W J K U Y
+    L R N H N K R G V U K G I A U D J K V N
+    I I Y E A U N O K O O U K T R K Z A E L
+    A V U K O X V K E R V T I A A E R K R K
+    A U I U G O K U T X U I K N V V L I E O
+    R R K O K N U A J Z T K A K O O S U T R
+    I A U A U A S P V F O R O O K I C A O U
+    V K R R T U I V A O A U K V V S L P E K
+    A I O A I A K R S V K U S A A I X I K O
+    P S V I K R O E O A R E R S E T R O J X
+    O I I S U A G K R O R E R I T A I Y O A
+    R R R A T O O K O I K I W A K E A A R O
+    O E A K I K V O P I K H V O K K G I K T
+    K K L A K A A R M U G E P A U A V Q A I
+    O O O U K N X O G K G A R E A A P O O R
+    K V V P U J E T Z P K B E I E T K U R A
+    N E O A V A E O R U K B V K S Q A V U E
+    C E K K U K I K I R A E K O J I Q K K K
+
+Finally we generate the words which need to be found.
+
+    >>> for i in range(len(used)):
+    ...     print "%-12s" % used[i],
+    ...     if float(i+1)%5 == 0: print
+    KOKOROPAVIRA KOROROVIVIRA KAEREASIVIRA KOTOKOTOARA  KOPUASIVIRA 
+    KATAITOAREI  KAITUTUVIRA  KERIKERISI   KOKARAPATO   KOKOVURITO  
+    KAUKAUVIRA   KOKOPUVIRA   KAEKAESOTO   KAVOVOVIRA   KOVAKOVARA  
+    KAAREKOPIE   KAEPIEVIRA   KAPUUPIEPA   KOKORUUTO    KIKIRAEKO   
+    KATAAVIRA    KOVOKOVOA    KARIVAITO    KARUVIRA     KAPOKARI    
+    KUROVIRA     KITUKITU     KAKUPUTE     KAEREASI     KUKURIKO    
+    KUPEROO      KAKAPUA      KIKISI       KAVORA       KIKIPI      
+    KAPUA        KAARE        KOETO        KATAI        KUVA        
+    KUSI         KOVO         KOAI       
+
+
 Problem Transformation (aka Transform-and-Conquer)
 --------------------------------------------------
 
 Find words which, when reversed, make legal words.
-Extremely wasteful solution:
+Extremely wasteful brute force solution:
 
     >>> words = corpus.words.read('en')
     >>> for word1 in words:
@@ -737,6 +813,74 @@ does the trick:
     ['sequoia', 'yiieeaouuu!']
     >>> [w for w in words if sorted(c for c in w if c in vowels) == list(vowels)]
     ['sequoia']
+
+
+Space-Time Tradeoffs
+--------------------
+
+Indexing
+
+
+Fuzzy Spelling
+
+Confusible sets of segments: if two segments are confusible, map them
+to the same integer.
+
+    >>> group = {
+    ...     ' ':0,                     # blank (for short words)
+    ...     'p':1,  'b':1,  'v':1,     # labials
+    ...     't':2,  'd':2,  's':2,     # alveolars
+    ...     'l':3,  'r':3,             # sonorant consonants
+    ...     'i':4,  'e':4,             # high front vowels
+    ...     'u':5,  'o':5,             # high back vowels
+    ...     'a':6                      # low vowels
+    ... }
+
+Soundex: idea of a signature.  Words with the same signature
+considered confusible.  Consider first letter of a word to be so
+cognitively salient that people will not get it wrong.
+
+    >>> def soundex(word):
+    ...     if len(word) == 0: return word  # sanity check
+    ...     word += '    '                  # ensure word long enough
+    ...     c0 = word[0].upper()
+    ...     c1 = group[word[1]]
+    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
+    ...     c2 = group[cons[0]]
+    ...     c3 = group[cons[1]]
+    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
+    >>> print soundex('kalosavi')
+    K632
+    >>> print soundex('ti')
+    T400
+  
+Now we can build a soundex index of the lexicon:
+
+    >>> soundex_idx = nltk.defaultdict(set)
+    >>> for lex in lexemes:
+    ...     code = soundex(lex)
+    ...     soundex_idx[code].add(lex)
+
+We should sort these candidates by proximity with the target word.
+
+    >>> def fuzzy_spell(target):
+    ...     scored_candidates = []
+    ...     code = soundex(target)
+    ...     for word in soundex_idx[code]:
+    ...         dist = nltk.edit_dist(word, target)
+    ...         scored_candidates.append((dist, word))
+    ...     scored_candidates.sort()
+    ...     return [w for (d,w) in scored_candidates[:10]]
+
+Finally, we can look up a word to get approximate matches:
+
+    >>> fuzzy_spell('kokopouto')
+    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
+    >>> fuzzy_spell('kogou')
+    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
+
+
+
 
 Exercises
 ---------
@@ -894,6 +1038,8 @@ Exhaustive Search
 For a computer that can do 100,000 evaluations per second, this
 would take over 10,000 years!
 
+Backtracking search -- saw this in the recursive descent parser.
+
 Hill-Climbing Search
 --------------------
 
@@ -966,129 +1112,6 @@ Non-Deterministic Search
 ----------
 Miscellany
 ----------
-
-Named Arguments
----------------
-
-One of the difficulties in re-using functions is remembering the order of arguments.
-Consider the following function, which finds the ``n`` most frequent words that are
-at least ``min_len`` characters long:
-
-    >>> from nltk.probability import FreqDist
-    >>> from nltk import tokenize
-    >>> def freq_words(file, min, num):
-    ...     text = open(file).read()
-    ...     freqdist = FreqDist(word for word in tokenize.wordpunct(text) if len(word) >= min)
-    ...     return freqdist.sorted()[:num]
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
-    'very', 'using']
-
-This function has three arguments.  It follows the convention of listing the most
-basic and substantial argument first (the file).  However, it might be hard to remember
-the order of the second and third arguments on subsequent use.  We can make this function
-more readable by using `keyword arguments`:dt:.  These appear in the function's argument
-list with an equals sign and a default value:
-
-    >>> def freq_words(file, min=1, num=10):
-    ...     text = open(file).read()
-    ...     freqdist = FreqDist(word for word in tokenize.wordpunct(text) if len(word) >= min)
-    ...     return freqdist.sorted()[:num]
-
-|nopar|
-Now there are several equivalent ways to call this function:
-
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', min=4, num=10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', num=10, min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-|nopar|
-When we use an integrated development environment such as IDLE,
-simply typing the name of a function at the command prompt will
-list the arguments.  Using named arguments helps someone to re-use the code...
-
-A side-effect of having named arguments is that they permit optionality.  Thus we
-can leave out any arguments for which we are happy with the default value.
-
-    >>> freq_words('programming.txt', min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', 4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-Another common use of optional arguments is to permit a flag, e.g.:
-
-    >>> def freq_words(file, min=1, num=10, trace=False):
-    ...     freqdist = FreqDist()
-    ...     if trace: print "Opening", file
-    ...     text = open(file).read()
-    ...     if trace: print "Read in %d characters" % len(file)
-    ...     for word in tokenize.wordpunct(text):
-    ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...             if trace and freqdist.N() % 100 == 0: print "."
-    ...     if trace: print
-    ...     return freqdist.sorted()[:num]
-
-Accumulative Functions
-----------------------
-
-These functions start by initializing some storage, and iterate over
-input to build it up, before returning some final object (a large structure
-or aggregated result).  The standard way to do this is to initialize an
-empty list, accumulate the material, then return the list:
-
-    >>> def find_nouns(tagged_text):
-    ...     nouns = []
-    ...     for word, tag in tagged_text:
-    ...         if tag[:2] == 'NN':
-    ...             nouns.append(word)
-    ...     return nouns
-
-|nopar|
-We can apply this function to some tagged text to extract the nouns:
-
-    >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-    ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-    >>> find_nouns(tagged_text)
-    ['cat', 'mat']
-
-However, a superior way to do this is to define a `generator`:dt:
-
-    >>> def find_nouns(tagged_text):
-    ...     for word, tag in tagged_text:
-    ...         if tag[:2] == 'NN':
-    ...             yield word
-
-|nopar|
-The first time this function is called, it gets as far as the ``yield``
-statement and stops.  The calling program gets the first word and does
-any necessary processing.  Once the calling program is ready for another
-word, execution of the function is continued from where it stopped, until
-the next time it encounters a ``yield`` statement.
-
-Let's see what happens when we call the function:
-
-    >>> find_nouns(tagged_text)
-    <generator object at 0x14b2f30>
-
-|nopar|
-We cannot call it directly.  Instead, we can convert it to a list.
-
-    >>> list(find_nouns(tagged_text))
-    ['cat', 'mat']
-
-|nopar|
-We can also iterate over it in the usual way:
-
-    >>> for noun in find_nouns(tagged_text):
-    ...     print noun,
-    cat mat
-
-
-[Efficiency]
 
 .. _sec-sets:
 
@@ -1554,6 +1577,8 @@ Exercises
 ---------------
 Further Reading
 ---------------
+
+Object-Oriented programming
 
 
 [Brent1995]
