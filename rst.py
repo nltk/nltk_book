@@ -104,6 +104,8 @@ CALLOUT_IMG = '<img src="callouts/callout%s.gif" alt="[%s]" class="callout" />'
 REF_EXTENSION = '.ref'
 """File extension for reference files."""
 
+CSS_STYLESHEET = '../nltkdoc.css'
+
 ######################################################################
 #{ Reference files
 ######################################################################
@@ -511,6 +513,10 @@ directives.register_directive('gloss', gloss_directive)
 class Citations(Transform):
     default_priority = 500 # before footnotes.
     def apply(self):
+        if not os.path.exists(BIBTEX_FILE):
+            warning('Warning bibtex file %r not found.  '
+                    'Not linking citations.' % BIBTEX_FILE)
+            return
         bibliography = self.read_bibinfo(BIBTEX_FILE)
         for k, citation_refs in self.document.citation_refs.items():
             for citation_ref in citation_refs[:]:
@@ -1356,7 +1362,7 @@ epydoc.docwriter.html_colorize .PYSRC_EXPANDTO_JAVASCRIPT = ''
 class CustomizedHTMLWriter(HTMLWriter):
     settings_defaults = HTMLWriter.settings_defaults.copy()
     settings_defaults.update({
-        'stylesheet': '../nltkdoc.css',
+        'stylesheet': CSS_STYLESHEET,
         'stylesheet_path': None,
         'output_encoding': 'ascii',
         'output_encoding_error_handler': 'xmlcharrefreplace',
@@ -2306,12 +2312,16 @@ def parse_args():
     optparser.add_option("--letter",
         action="store_const", dest="papersize", const="letterpaper",
         help="Use letter paper size.")
+    optparser.add_option("--css",
+        action="store", dest="css", help="CSS stylesheet")
     optparser.add_option("--bibliography",
         action="store_const", dest="bibliography", const=True,
         help="Include a bibliography (LaTeX only).")
 
     optparser.set_defaults(action='html', documentclass='report',
-                           papersize='letterpaper', bibliography=False)
+                           papersize='letterpaper',
+                           bibliography=False,
+                           css=CSS_STYLESHEET)
 
     options, filenames = optparser.parse_args()
     return options, filenames
@@ -2327,6 +2337,10 @@ def main():
     if docutils.writers.html4css1.Image is None:
         warning('Cannot scale images in HTML unless Python '
              'Imaging\n         Library (PIL) is installed!')
+
+    if options.css:
+        CustomizedHTMLWriter.settings_defaults.update({
+            'stylesheet': options.css})
 
     EXTERN_REFERENCE_FILES = [f for f in filenames if
                               f.endswith(REF_EXTENSION)]
