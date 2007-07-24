@@ -47,3 +47,6 @@ rsync: html errs index.html
 
 clean:
 	rm *.errs *.html
+
+clean_up:
+	true # nothing to do.

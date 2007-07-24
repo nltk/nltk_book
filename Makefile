@@ -6,7 +6,7 @@
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
 
-WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
+WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 
 RST2HTML = rst2html.py
 
@@ -20,19 +20,21 @@ RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude
 
 .PHONY: en pt-br slides api rsync .api.done
 
-all: en slides api
+all: en slides api doctests
 
 clean:	clean_up
 	rm -rf api
 	$(MAKE) -C en clean
 	$(MAKE) -C pt-br clean
 	$(MAKE) -C slides clean
+	$(MAKE) -C doctests clean
 
 clean_up:
 	rm -f *.log *.aux *.tex *.out *.errs *~
 	$(MAKE) -C en clean_up
 	$(MAKE) -C pt-br clean_up
 	$(MAKE) -C slides clean_up
+	$(MAKE) -C doctests clean_up
 
 .txt.html:
 	$(RST2HTML) --stylesheet-path=$(STYLESHEET_PATH) $< > $@
@@ -45,6 +47,9 @@ pt-br:
 
 slides:
 	$(MAKE) -C slides
+
+doctests:
+	$(MAKE) -C doctests
 
 api:	.api.done
 	epydoc $(EPYDOC_OPTS) -o api ../nltk
