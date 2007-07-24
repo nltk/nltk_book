@@ -411,6 +411,10 @@ callout_directive.arguments = (0,1,0) # 1 optional arg, no whitespace
 callout_directive.content = True
 directives.register_directive('callouts', callout_directive)
 
+_OPTION_DIRECTIVE_RE = re.compile(
+    r'(\n[ ]*\.\.\.[ ]*)?#\s*doctest:\s*([^\n\'"]*)$', re.MULTILINE)
+def strip_doctest_directives(text):
+    return _OPTION_DIRECTIVE_RE.sub('', text)
 
 ######################################################################
 #{ RST In/Out table
@@ -1347,10 +1351,11 @@ class UnindentDoctestVisitor(docutils.nodes.NodeVisitor):
         docutils.nodes.NodeVisitor.__init__(self, document)
     def unknown_visit(self, node): pass
     def unknown_departure(self, node): pass
-    def visit_doctest_block(self, node):
-        if (isinstance(node.parent, docutils.nodes.block_quote) and
-            len(node.parent.children) == 1):
-            node.parent.replace_self(node)
+    def visit_block_quote(self, node):
+        if (len(node) == sum([1 for c in node if
+                              isinstance(c, docutils.nodes.doctest_block)])):
+            node.replace_self(list(node))
+        raise docutils.nodes.SkipNode()
         
 ######################################################################
 #{ HTML Output
@@ -1391,6 +1396,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_doctest_block(self, node):
         # Collect the text content of the doctest block.
         text = ''.join(str(c) for c in node)
+        text = strip_doctest_directives(text)
 
         # Colorize the contents of the doctest block.
         colorizer = HTMLDoctestColorizer(self.encode, node['callouts'])
@@ -1754,6 +1760,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_doctest_block(self, node):
         text = ''.join(str(c) for c in node)
+        text = strip_doctest_directives(text)
         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False,
                                           callouts=node['callouts'])
         self.literal = True
@@ -1892,38 +1899,40 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     def depart_pylisting(self, node):
         self.body.append( self.context.pop() )
 
-    def visit_pysrc_block(self, node):
-        self.literal = True
-        colorizer = LaTeXDoctestColorizer(self.encode, wrap=False, 
-                                          callouts=node['callouts'])
-        if node['is_doctest']:
-            pysrc = colorizer.colorize_doctest(str(node[0]))
-        else:
-            pysrc = colorizer.colorize_codeblock(str(node[0]))
-        self.literal = False
+#     def visit_pysrc_block(self, node):
+#         self.literal = True
+#         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False, 
+#                                           callouts=node['callouts'])
+#         text = str(node[0])
+#         if node['is_doctest']:
+#             text = strip_doctest_directives(text)
+#             pysrc = colorizer.colorize_doctest(text)
+#         else:
+#             pysrc = colorizer.colorize_codeblock(text)
+#         self.literal = False
 
-        # If we're the first child of a pylisting, then begin a
-        # boxedminipage environment.
-        if (node.parent[0] is node):
-            self.body.append('\n\n\\noindent\n'
-                             '\\begin{boxedminipage}{\\textwidth}\n')
+#         # If we're the first child of a pylisting, then begin a
+#         # boxedminipage environment.
+#         if (node.parent[0] is node):
+#             self.body.append('\n\n\\noindent\n'
+#                              '\\begin{boxedminipage}{\\textwidth}\n')
             
-        self.body.append(pysrc)
+#         self.body.append(pysrc)
 
-        # If we're the last non-caption child of a pylisting, then end
-        # the boxedminipage environment; otherwise, draw a horizontal
-        # rule to separate pysrc blocks in a listing.  The vspace
-        # arguments were picked via experimentation, to make the
-        # spacing look right.
-        if (node.parent[-1] is node or
-            (isinstance(node.parent[-1], docutils.nodes.caption) and
-             node.parent[-2] is node)):  # (the last child of a pylisting)
-            self.body.append('\\end{boxedminipage}\n')
-        else:                            # (not the last child)
-            self.body.append('\\vspace{-3.5ex}\\rule{\\textwidth}{1pt}'
-                             '\\vspace{-2.5ex}\n')
+#         # If we're the last non-caption child of a pylisting, then end
+#         # the boxedminipage environment; otherwise, draw a horizontal
+#         # rule to separate pysrc blocks in a listing.  The vspace
+#         # arguments were picked via experimentation, to make the
+#         # spacing look right.
+#         if (node.parent[-1] is node or
+#             (isinstance(node.parent[-1], docutils.nodes.caption) and
+#              node.parent[-2] is node)):  # (the last child of a pylisting)
+#             self.body.append('\\end{boxedminipage}\n')
+#         else:                            # (not the last child)
+#             self.body.append('\\vspace{-3.5ex}\\rule{\\textwidth}{1pt}'
+#                              '\\vspace{-2.5ex}\n')
             
-        raise docutils.nodes.SkipNode() # Content already processed
+#         raise docutils.nodes.SkipNode() # Content already processed
 
     def circledigit(self, n):
         return docutils.nodes.Text(unichr(0x2460+n-1))
@@ -2317,13 +2326,19 @@ def parse_args():
     optparser.add_option("--bibliography",
         action="store_const", dest="bibliography", const=True,
         help="Include a bibliography (LaTeX only).")
+    optparser.add_option("-o",
+        action="store", dest="outputfile", help="Output File")
 
     optparser.set_defaults(action='html', documentclass='report',
                            papersize='letterpaper',
                            bibliography=False,
+                           outputfile=None,
                            css=CSS_STYLESHEET)
 
     options, filenames = optparser.parse_args()
+    if options.outputfile is not None and len(filenames)>1:
+        optparser.error('-o can only be used with one filename')
+
     return options, filenames
 
 def main():
@@ -2384,7 +2399,10 @@ def main():
 
     for in_file in filenames:
         OUTPUT_BASENAME = os.path.splitext(in_file)[0]
-        out_file = os.path.splitext(in_file)[0] + output_ext
+        if options.outputfile != None:
+            out_file = options.outputfile
+        else:
+            out_file = os.path.splitext(in_file)[0] + output_ext
         logger.start_progress()#'%s -> %s' % (in_file, out_file))
         if in_file == out_file: out_file += output_ext
 
