@@ -30,7 +30,8 @@ RSYNC_OPTS = -rltgoDvz -e ssh --relative --cvs-exclude
 all: html errs index.html
 html: $(HTML)
 errs: $(ERRS)
-	ls -l $(ERRS)
+	@echo Failed doctests:
+	@grep 'FAILED (failures' *.errs |sed 's/\(.*\)\.errs:.*/  - \1/'
 
 %.errs: $(DOCTEST_SRC)/%.doctest $(PYSRC)
 	$(DOCTEST) $(DOCTEST_FLAGS) $(DOCTEST_SRC)/$*.doctest > $*.errs 2>&1
