@@ -39,7 +39,7 @@ errs: $(ERRS)
 %.html: $(DOCTEST_SRC)/%.doctest
 	$(RST2HTML) $< -o $@
 
-index.html: index.txt update_list.py
+index.html: index.txt update_list.py $(ERRS)
 	python update_list.py
 	$(RST2HTML) index.txt
 
