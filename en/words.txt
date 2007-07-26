@@ -3,7 +3,7 @@
 
 .. standard global imports
 
-    >>> from nltk.book import *
+    >>> import nltk, re, pprint
 
 .. _chap-words:
 
@@ -12,9 +12,20 @@
 =========================================
 
 .. TODO: cleaning web text
+.. TODO: brown.documents() -- does this method exist, or is there a workaround?
 .. TODO: more on regular expressions, including ()
 .. TODO: add some literature references (esp to other intro linguistics textbooks)
 .. TODO: talk about fact that English lexicon is open set (e.g. malware = malicious software)
+.. TODO: add section on sentence tokenization (or sentence segmentation), and punkt
+.. TODO: other issues
+   - nltk.corpus.brown.documents() doesn't exist
+   - nltk.corpus.webtext.documents() doesn't exist
+   - nltk.tokenize.regexp_tokenize() should be accessible via nltk.regexp_tokenize()
+   - nltk.corpus.brown.items returns a tuple, not a list (cf discussion in ch 6)
+   - nltk.tokenize.whitespace() should be called nltk.tokenize.whitespace_tokenizer()
+   - invocation of pprint.pprint is a little clunky
+   - regexp_tokenize() doesn't work when it is given a compiled pattern
+
 
 ------------
 Introduction
@@ -40,7 +51,7 @@ sources using Python and NLTK; stemming and normalisation;
 the WordNet lexical database; and a variety of useful programming tasks involving words.
 
 .. Note:: From this chapter onwards, our program samples will assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
+   begin your interactive session or your program with: ``import nltk, re, pprint``
 
 -----------------------
 Tokens, Types and Texts
@@ -321,7 +332,7 @@ a selection of texts from the `Project Gutenberg
 <http://www.gutenberg.org/>`_ electronic text archive, and list the
 items it contains:
 
-    >>> corpus.gutenberg.items
+    >>> nltk.corpus.gutenberg.items
     ['austen-emma', 'austen-persuasion', 'austen-sense', 'bible-kjv',
     'blake-poems', 'blake-songs', 'chesterton-ball', 'chesterton-brown',
     'chesterton-thursday', 'milton-paradise', 'shakespeare-caesar',
@@ -331,16 +342,16 @@ items it contains:
 We can count the number of tokens for each text in our Gutenberg sample
 as follows:
 
-    >>> for book in corpus.gutenberg.items:
-    ...     print book + ':', len(corpus.gutenberg.read(book))
+    >>> for book in nltk.corpus.gutenberg.items:
+    ...     print book + ':', len(nltk.corpus.gutenberg.words(book))
     austen-emma: 192432
     austen-persuasion: 98191
     austen-sense: 141586
     bible-kjv: 1010735
     blake-poems: 8360
     blake-songs: 6849
-    chesterton-ball: 0
-    chesterton-brown: 0
+    chesterton-ball: 97396
+    chesterton-brown: 89090
     chesterton-thursday: 69443
     milton-paradise: 97400
     shakespeare-caesar: 26687
@@ -353,21 +364,19 @@ part-of-speech tagged electronic corpus of English, created in 1961 at
 Brown University.  Each of the sections ``a`` through ``r`` represents
 a different genre.
 
-    >>> corpus.brown.items
+    >>> nltk.corpus.brown.items
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
-    >>> corpus.brown.documents['a']
+    >>> nltk.corpus.brown.documents['a']
     'press: reportage'
 
-|nopar|
-We can read section ``a`` of the corpus as follows.  By default we get a list
-of sentences, where each sentence is a list of tokens, i.e. a list of lists of
-tokens.  If we want to ignore the sentence breaks, we can supply an extra argument
-to the corpus reader function:
+We can access the corpus as a list of words, or a list of sentences (where each sentence
+is itself just a list of words).  We can optionally specify a section of the corpus to
+read:
 
-    >>> corpus.brown.tokenized('a')
-    [['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', 'Friday', 'an', ...], ...]
-    >>> corpus.brown.tokenized('a', group_by_sent=False)
-    ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', 'Friday', 'an', ...]
+    >>> nltk.corpus.brown.words('a')
+    ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', ...]
+    >>> nltk.corpus.brown.sents('a') 
+    [['The', 'Fulton', 'County'...], ['The', 'jury', 'further'...], ...]
 
 Before concluding this section, we return to the original topic of
 distinguishing tokens and types.  Now that we can access substantial
@@ -396,11 +405,11 @@ have been read.
     def speeches():
         presidents = []
         texts = nltk.defaultdict(list)
-        for speech in corpus.state_union.items:
+        for speech in nltk.corpus.state_union.items:
             president = speech.split('-')[1]
             if president not in texts:
                 presidents.append(president)
-            texts[president].append(corpus.state_union.tokenized(speech))
+            texts[president].append(nltk.corpus.state_union.words(speech))
         return [(president, texts[president]) for president in presidents]
 
     >>> import pylab
@@ -427,8 +436,8 @@ Exercises
 #. |easy| Use the corpus module to read ``austin-persuasion.txt``.
    How many word tokens does this book have?  How many word types?
 
-#. |easy| Use the Brown corpus reader ``brown.raw()`` or the Web text corpus
-   reader ``webtext.raw()`` to access some sample text in two different genres.
+#. |easy| Use the Brown corpus reader ``nltk.corpus.brown.words()`` or the Web text corpus
+   reader ``nltk.corpus.webtext.words()`` to access some sample text in two different genres.
 
 #. |easy| Read in the texts of the *State of the Union* addresses, using the
    ``state_union`` corpus reader.  Count occurrences of ``men``, ``women``,
@@ -495,14 +504,14 @@ treated as words.  We will also look at ways to normalize tokens.
 Tokenization with Regular Expressions
 -------------------------------------
 
-The function ``tokenize.regexp()`` takes a text string and a
+The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
 regular expression, and returns the list of substrings that match the
 regular expression.  To define a tokenizer that includes punctuation
 as separate tokens, we could do the following:
 
     >>> text = '''Hello.  Isn't this fun?'''
     >>> pattern = r'\w+|[^\w\s]+'
-    >>> list(tokenize.regexp(text, pattern))
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
     ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
 
 |nopar| 
@@ -532,29 +541,24 @@ embedded whitespace and comments.
     ...   | [\A\.]+           # abbreviations, e.g. U.S.A.
     ...   | [^\w\s]+          # sequences of punctuation
     ... ''', re.VERBOSE)
-    >>> list(tokenize.regexp(text, pattern))
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
     ['That', 'poster', 'costs', '$22.40', '.']
 
 It is sometimes more convenient to write a regular expression
 matching the material that appears *between* tokens, such as whitespace
-and punctuation.  The ``tokenize.regexp()`` function permits
+and punctuation.  The ``nltk.tokenize.regexp_tokenize()`` function permits
 an optional boolean parameter ``gaps``; when set to ``True`` the
-pattern is matched against the gaps.  For example, here is how
-``tokenize.whitespace()`` is defined:
+pattern is matched against the gaps.  For example, we could define
+a whitespace tokenizer as follows:
 
-    >>> list(tokenize.regexp(text, pattern=r'\s+', gaps=True))
+    >>> nltk.tokenize.regexp_tokenize(text, pattern=r'\s+', gaps=True)
     ['That', 'poster', 'costs', '$22.40.']
 
 Of course it is more convenient to call it directly:
 
-    >>> list(tokenize.whitespace(text))
+    >>> nltk.tokenize.whitespace(text)
     ['That', 'poster', 'costs', '$22.40.']
     
-.. Note:: It is possible to do simple kinds of tokenization using ``re.findall()``,
-   but the |NLTK| tokenizers are more efficient for processing large corpora because
-   they are implemented as `iterators`:dt:, only producing tokens as they are used
-   by a calling program.
-
 Lemmatization and Normalization
 -------------------------------
 
@@ -666,7 +670,7 @@ for the regular word patterns, and table look-up for
 the irregular patterns. Within |NLTK|, we can use off-the-shelf
 stemmers, such as the `Porter Stemmer`:dt: and the `Lancaster Stemmer`:dt:, e.g.:
 
-    >>> stemmer = stem.Porter()
+    >>> stemmer = nltk.stem.Porter()
     >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
     >>> stems = [stemmer.stem(verb) for verb in verbs]
     >>> sorted(set(stems))
@@ -740,7 +744,7 @@ List comprehensions can build nested structures too.  For example,
 the following code builds a list of tuples, where each tuple consists
 of a word and its stem.
 
-    >>> sent = corpus.brown.tokenized('a')[0]
+    >>> sent = nltk.corpus.brown.sents('a')[0]
     >>> [(x, stemmer.stem(x).lower()) for x in sent]
     [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
     ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
@@ -758,12 +762,12 @@ Exercises
    that reads from the file named in its sole argument, and returns a string
    containing the text of the file.
 
-   a) Use ``tokenize.regexp()`` to create a tokenizer which tokenizes
+   a) Use ``nltk.tokenize.regexp_tokenize()`` to create a tokenizer which tokenizes
       the various kinds of punctuation in this text.  Use a single
       regular expression, with inline comments using the
       ``re.VERBOSE`` flag.
    
-   b) Use ``tokenize.regexp()`` to create a tokenizer which tokenizes
+   b) Use ``nltk.tokenize.regexp_tokenize()`` to create a tokenizer which tokenizes
       the following kinds of expression: monetary amounts; dates; names
       of people and companies.
 
@@ -818,10 +822,6 @@ Exercises
 
     .. sorted(set(''.join(c for c in word if c in 'aeiou') for word in words))
 
-#. |hard| **Sentence tokenizers:**
-   Develop a sentence tokenizer.  Test it on the Brown Corpus, which
-   has been grouped into sentences.
-
 ------------------------------------------------
 Counting Words: Several Interesting Applications
 ------------------------------------------------
@@ -835,7 +835,7 @@ Before getting started, we need to see how to get Python to
 count the number of occurrences of *each* word in a document.
 
     >>> counts = nltk.defaultdict(int)           # [_count-initialization]
-    >>> sec_a = corpus.brown.tokenized('a', group_by_sent=False)
+    >>> sec_a = nltk.corpus.brown.words('a')
     >>> for token in sec_a:
     ...     counts[token] += 1                   # [_count-increment]
     >>> for token in sorted(counts)[:5]:         # [_count-output]
@@ -919,7 +919,7 @@ Listing print-freq_ demonstrates this, and also prints rank and cumulative frequ
             cumulative += fd[word] * 100.0 / fd.N()
             print "%3d %3.2d%% %s" % (rank, cumulative, word)
 
-    >>> print_freq(corpus.brown.tokenized('a', group_by_sent=False), 20)
+    >>> print_freq(nltk.corpus.brown.words('a'), 20)
       1  05% the
       2  10% ,
       3  14% .
@@ -1087,9 +1087,9 @@ word lengths.  We see that the most frequent word length for the English
 sample is 3 characters, while the most frequent length for the Finnish
 sample is 5-6 characters.
 
-    >>> print_length_dist(corpus.genesis.tokenized('english-kjv'))
+    >>> print_length_dist(nltk.corpus.genesis.words('english-kjv'))
      2 15 30 23 12  6  4  2  1  0  0  0  0  0
-    >>> print_length_dist(corpus.genesis.tokenized('finnish'))
+    >>> print_length_dist(nltk.corpus.genesis.words('finnish'))
      0 12  6 10 17 17 11  9  5  3  2  1  0  0
     
 This is an intriguing area for exploration, and so in Listing word-len-dist_
@@ -1105,7 +1105,7 @@ The output is shown in Figure fig-word-len-dist_ (a color figure in the online v
     import pylab
     
     def cld(lang):
-        text = corpus.udhr.read(lang)
+        text = nltk.corpus.udhr.raw(lang)
         fd = nltk.FreqDist(len(token) for token in text)
         ld = [100*fd.freq(i) for i in range(36)]
         return [sum(ld[0:i+1]) for i in range(len(ld))]
@@ -1162,8 +1162,8 @@ the available words.
             print word,
             word = cfdist[word].max()
 
-    >>> model = train_model(corpus.genesis.read())
-    >>> list(model['living'])
+    >>> model = train_model(nltk.corpus.genesis.words('english-kjv'))
+    >>> model['living']
     ['substance', ',', '.', 'thing', 'soul', 'creature']
     >>> generate_model(model, 'living')
     living creature that he said, I will not be a wife of the land
@@ -1205,9 +1205,9 @@ In Listing collocations_ we try this for the items in the webtext corpus.
         freq12 = pfd[(word1, word2)]
         return freq12 ** power / float(freq1 * freq2)
 
-    >>> for item in corpus.webtext.items:
-    ...     words = [word.lower() for word in corpus.webtext.tokenized(item) if len(word) > 2]
-    ...     print corpus.webtext.documents[item]
+    >>> for item in nltk.corpus.webtext.items:
+    ...     words = [word.lower() for word in nltk.corpus.webtext.words(item) if len(word) > 2]
+    ...     print nltk.corpus.webtext.documents[item]
     ...     print [w1+' '+w2 for w1, w2 in collocations(words)[:15]]
     Overheard in New York
     ['new york', 'girl #1:', 'girl #2:', 'teen boy', 'teen girl', 'guy #1:', 'you know',
@@ -1239,7 +1239,7 @@ Exercises
    Modify the code that creates these word counts so that it ignores non-content
    words.  You can easily get a list of words to ignore with:
    
-    >>> ignored_words = list(corpus.stopwords.read('english'))
+    >>> ignored_words = nltk.corpus.stopwords.words('english')
 
 #. |easy| Modify the ``generate_model()`` function in Listing random_ to use Python's
    ``random.choose()`` method to randomly pick the next word from
@@ -1355,6 +1355,7 @@ a part of speech for the word.  WordNet contains four dictionaries: ``N``
 (adverbs). To simplify our discussion, we will focus on the ``N``
 dictionary here.  Let's look up `motorcar`:lx: in the ``N`` dictionary.
 
+    >>> from nltk import wordnet
     >>> car = wordnet.N['motorcar']
     >>> car
     motorcar (noun)
@@ -1441,7 +1442,7 @@ synset we can trace (multiple) paths back to a unique beginner.
 Synsets have a method for doing this, called ``tree()``,
 which produces a nested list structure.
 
-    >>> pprint(wordnet.N['car'][0].tree(wordnet.HYPERNYM))
+    >>> pprint.pprint(wordnet.N['car'][0].tree(wordnet.HYPERNYM))
     [{noun: car, auto, automobile, machine, motorcar},
      [{noun: motor_vehicle, automotive_vehicle},
       [{noun: self-propelled_vehicle},
