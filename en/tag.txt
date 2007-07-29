@@ -14,6 +14,7 @@
 .. TODO: exercise on cascaded tagging
 .. TODO: simplified tagset (N, V, J, A) -- WordNet
 .. TODO: better approach to tagging unknown words using special UNK token
+.. TODO: motivate trigram tagging by showing some cases where bigram tagging doesn't work
 .. TODO: * outstanding problems:
    - what are we doing with ConditionalFreqDist?
    - nltk.tag contains all of math library
@@ -21,6 +22,7 @@
    - nltk.tag.LookupTagger() should be accessible via nltk.LookupTagger()?
      (same for other taggers)
    - nltk.corpus.brown.tagged_sents() is too verbose?
+   - tag method returns generator object?
 
 ------------
 Introduction
@@ -124,9 +126,9 @@ For example, if we encounter the word
 `blogging`:lx: we can probably infer that it is a verb, with
 the root `blog`:lx:, and likely to occur after forms of the auxiliary
 ``to be`` (e.g. `he was blogging`:lx:).  Parts of speech are also used
-in speech synthesis and recognition.  For example, ``wind/nn``, as in
+in speech synthesis and recognition.  For example, ``wind/NN``, as in
 `the wind blew`:lx:, is pronounced with a short vowel, whereas
-``wind/vb``, as in `wind the clock`:lx:, is pronounced with a long
+``wind/VB``, as in `to wind the clock`:lx:, is pronounced with a long
 vowel.  Other examples can be found where the stress pattern differs
 depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
 `insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
@@ -240,9 +242,6 @@ with this data.
    :scale: 60
 
    POS-Tagged Data from Four Indian Languages
-
-.. Note:: Contributions of tagged data for other languages are invited.  These will be
-          incorporated into NLTK.
 
 ..    इराक_NNP के_PREP विदेश_NNC मंत्री_NN ने_PREP अमरीका_NNP के_PREP उस_PRP प्रस्ताव_NN का_PREP मजाक_NVB उड़ाया_VFM है_VAUX ...
 
@@ -681,10 +680,12 @@ arbitrary.  Second, we need a way to connect multiple taggers
 together, so that if a more specialized tagger is unable to assign
 a tag, we can "back off" to a more generalized tagger.
 
+.. _sec-lookup-tagger:
+
 The Lookup Tagger
 -----------------
 
-A lot of high-frequency words do not have the ``nn`` tag.
+A lot of high-frequency words do not have the ``NN`` tag.
 Let's find some of these words and their tags.  The
 following code takes a list of sentences and counts up the words,
 and prints the 100 most frequent words:
@@ -704,9 +705,9 @@ this in the most obvious (but highly inefficient) way:
 
     >>> [(w,t) for (w,t) in nltk.corpus.brown.tagged_words('a')
     ...        if w in most_freq_words]
-    [('The', 'at'), ('said', 'vbd'), ('an', 'at'), ('of', 'in'),
-    ('``', '``'), ('no', 'at'), ("''", "''"), ('that', 'cs'), 
-    ('any', 'dti'), ('.', '.'), ..., ("''", "''")]
+    [('The', 'AT'), ('said', 'VBDd'), ('an', 'AT'), ('of', 'IN'),
+    ('``', '``'), ('no', 'AT'), ("''", "''"), ('that', 'CS'), 
+    ('any', 'DTI'), ('.', '.'), ..., ("''", "''")]
 
 |nopar|
 A much better approach is to set up a dictionary which maps each of the
@@ -765,6 +766,9 @@ in case it can't assign a tag itself.
     >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     0.58177695566561249
 
+We will return to this technique in the context of a broader discussion
+on combining taggers in Section sec-combining-taggers_.
+
 Choosing a Good Baseline
 ------------------------
 
@@ -777,18 +781,17 @@ pairs for words other than nouns.
 .. pylisting:: baseline-tagger
    :caption: Lookup Tagger Performance with Varying Model Size
 
-    def performance(size):
-        fd = nltk.FreqDist(nltk.corpus.brown.words('a'))
-        fw = fd.sorted()[:size]
-        cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words('a'))
-        lt = dict((word, cfd[word].max()) for word in fw)
+    def performance(cfd, wordlist):
+        lt = dict((word, cfd[word].max()) for word in wordlist)
         baseline_tagger = nltk.tag.Lookup(lt, backoff=nltk.tag.Default('NN'))
         return nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
 
     def display():
         import pylab
+        words_by_freq = nltk.FreqDist(nltk.corpus.brown.words('a')).sorted()
+        cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words('a'))
         sizes = 2 ** pylab.arange(15)
-        perfs = [performance(size) for size in sizes]
+        perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
         pylab.plot(sizes, perfs, '-bo')
         pylab.title('Lookup Tagger Performance with Varying Model Size')
         pylab.xlabel('Model Size')
@@ -931,41 +934,30 @@ between, during, for, from, in, near, on, outside, over, past,
 through, towards, under, up, with`:lx:), and membership of the set only
 changes very gradually over time.
 
-With this background we are now ready to embark on our main task for
-this chapter, automatically assigning part-of-speech tags to words.
-
-
 Unigram Tagging
 ---------------
 
-The ``nltk.tag.Unigram()`` class implements a simple statistical tagging
-algorithm: for each token, it assigns the tag that is most likely for
-that particular token. For example, it will assign the tag ``jj`` to any
+Unigram taggers are based on a simple statistical algorithm:
+for each token, assign the tag that is most likely for
+that particular token. For example, it will assign the tag ``JJ`` to any
 occurrence of the word `frequent`:lx:, since `frequent`:lx: is used as an
 adjective (e.g. `a frequent word`:lx:) more often than it is used as a
 verb (e.g. `I frequent this cafe`:lx:).
+A unigram tagger behaves just like a lookup tagger (Section sec-lookup-tagger_),
+except there is a more convenient technique for setting it up,
+called `training`:dt:\ .  In the following code sample, we train
+a unigram tagger then use it to tag a sentence, then test its
+overall accuracy:
 
-Before a unigram tagger can be used to tag data, it must be trained
-on a tagged corpus. It uses this corpus to determine which tags
-are most common for each word.  Unigram taggers are trained using
-the ``train()`` method, which takes a tagged corpus:
-
-    >>> train_sents = nltk.corpus.brown.tagged_sents('a')[:500]  # sents 0..499
+    >>> sents = nltk.corpus.brown.tagged_sents('a')
     >>> unigram_tagger = nltk.tag.Unigram()
     >>> unigram_tagger.train(train_sents)
-
-|nopar|
-Once a unigram tagger has been trained, the ``tag()`` method can be
-used to tag new text:
-
     >>> tokens = "John saw the book on the table".split()
     >>> unigram_tagger.tag(tokens)
-    [('John', 'np'), ('saw', 'vbd'), ('the', 'at'), ('book', None),
-    ('on', 'in'), ('the', 'at'), ('table', None)]
-
-|nopar|
-The unigram tagger will assign the special tag ``None`` to any token that was
-not encountered in the training data.
+    [('John', 'NP'), ('saw', 'VBD'), ('the', 'AT'), ('book', None),
+    ('on', 'IN'), ('the', 'AT'), ('table', None)]
+    >>> nltk.tag.accuracy(unigram_tagger, test_sents)
+    0.82363315696649031    
 
 Affix Taggers
 -------------
@@ -978,43 +970,27 @@ length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
     >>> affix_tagger = nltk.tag.Affix(-2, 3)
-    >>> affix_tagger.train(train_sents)
+    >>> affix_tagger.train(sents)
     >>> affix_tagger.tag(tokens)
     [('John', 'NP'), ('saw', 'NN'), ('the', 'AT'), ('book', 'NP'),
     ('on', None), ('the', 'AT'), ('table', 'JJ')]
 
-Exercises
----------
-
-#. |easy|
-   Train a unigram tagger and run it on some new text.
-   Observe that some words are not assigned a tag.  Why not?
-
-#. |easy|
-   Train an affix tagger ``tag.Affix()`` and run it on some new text.
-   Experiment with different settings for the affix length
-   and the minimum word length.  Can you find a setting which seems
-   to perform better than the one described above?  Discuss your findings.
-
-#. |soso|
-   Write a program which calls ``tag.Affix()`` repeatedly, using
-   different settings for the affix length and the minimum word length.
-   What parameter values give the best overall performance?  Why do
-   you think this is the case?
-
 .. _n-gram-taggers:
 
---------------
 N-Gram Taggers
 --------------
 
-Earlier we encountered the unigram tagger, which assigns a tag to a
-word based on the identity of that word.  In this section we will look
-at taggers that exploit a larger amount of context when assigning a
-tag.
+When we perform a language processing task based on unigrams, we are using
+one item of context.  In the case of tagging, we only consider the current
+token, in isolation from any larger context.  Given such a model, the best
+we can do is tag each word with its *a priori* most likely tag.
+This means we would tag a word such as `wind`:lx: with the same tag,
+regardless of whether it appears in the context `the wind`:lx: or
+`to wind`:lx:\ .
+
 An `n-gram tagger`:dt: is a generalization of a unigram tagger whose context is
 the current word together with the part-of-speech tags of the
-*n-1*: preceding tokens, as shown in Figure tag-context_. The tag to be
+*n-1* preceding tokens, as shown in Figure tag-context_. The tag to be
 chosen, *t*\ `n`:subscript:, is circled, and the context is shaded
 in grey. In the example of an n-gram tagger shown in Figure tag-context_,
 we have *n=3*; that is, we consider the tags of the two preceding words in addition
@@ -1066,6 +1042,7 @@ retrieval.)
    the start of a sentence, *t*\ `n-1`:subscript: and preceding
    tags are set to ``None``.
 
+.. _sec-combining-taggers:
 
 Combining Taggers
 -----------------
@@ -1081,18 +1058,19 @@ a ``regexp_tagger``, as follows:
    the unigram tagger.
 3. If the unigram tagger is also unable to find a tag, use a default tagger.
 
-Each NLTK tagger other than ``nltk.tag.Default`` permits a backoff-tagger to be specified.
+Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
     >>> t0 = nltk.tag.Default('NN')
     >>> t1 = nltk.tag.Unigram(backoff=t0)
     >>> t2 = nltk.tag.Bigram(backoff=t1)
-    >>> sec_a = nltk.corpus.brown.tagged_sents('a')
-    >>> t1.train(sec_a)                     # section a: press-reportage
-    >>> t2.train(sec_a)
+    >>> sents = nltk.corpus.brown.tagged_sents('a')
+    >>> t1.train(sents)
+    >>> t2.train(sents)
+    >>> nltk.tag.accuracy(t2, sents)
 
 .. Note:: We specify the backoff tagger when the tagger is
-   initialized, so that training can take advantage of the backing off.
+   initialized, so that training can take advantage of the backoff tagger.
    Thus, if the bigram tagger would assign
    the same tag as its unigram backoff tagger in
    a certain context, the bigram tagger discards the training instance.
@@ -1101,19 +1079,22 @@ The backoff-tagger may itself have a backoff tagger:
    context in order to retain it, e.g. ``nltk.tag.Bigram(cutoff=2, backoff=t1)``
    will discard contexts which have only been seen once or twice.
 
-As before we test the taggers against unseen data.  Here we will use
-a different segment of the corpus.
+Tagging Unknown Words
+---------------------
 
-    >>> accuracy0 = nltk.tag.accuracy(t0, nltk.corpus.brown.tagged_sents('b')) # section b: press-editorial
-    >>> accuracy1 = nltk.tag.accuracy(t1, nltk.corpus.brown.tagged_sents('b'))
-    >>> accuracy2 = nltk.tag.accuracy(t2, nltk.corpus.brown.tagged_sents('b'))
+Our approach to tagging unknown words still uses backoff to a regular-expression tagger
+or a default tagger.  These are unable to make use of context.  Thus, if our tagger
+encountered the word `blog`:lx:, not seen during training, it would assign it a tag
+regardless of whether this word appeared in the context `the blog`:lx: or `to blog`:lx:.
+How can we do better with these unknown words, or `out-of-vocabulary`:dt: items?
 
-    >>> print 'Default Accuracy = %4.1f%%' % (100 * accuracy0)
-    Default Accuracy = 12.5%
-    >>> print 'Unigram Accuracy  = %4.1f%%' % (100 * accuracy1)
-    Unigram Accuracy  = 81.0%
-    >>> print 'Bigram Accuracy = %4.1f%%' % (100 * accuracy2)
-    Bigram Accuracy = 81.9%
+A useful method to tag unknown words based on context is to limit the vocabulary
+of a tagger to the most frequent `n`:math: words, and to replace every other word
+with a special word `UNK`:lx:\ .  During training, a unigram tagger will probably
+learn that this "word" is usually a noun.  However, the n-gram taggers will
+detect contexts in which it has some other tag.  For example, if the
+preceding word is `to`:lx: (tagged ``TO``), then `UNK`:lx: will probably
+be tagged as a verb.  Full exploration of this method is left to the exercises.
 
 Storing Taggers
 ---------------
@@ -1147,104 +1128,29 @@ Now let's check that it can be used for tagging.
     ('up', 'RP'), ('against', 'IN'), ('in', 'IN'), ('our', 'PP$'), ('complex', 'JJ'),
     ('maze', 'NN'), ('of', 'IN'), ('regulatory', 'NN'), ('laws', 'NNS'), ('.', '.')]
 
-Investigating Tagger Performance
---------------------------------
-
-What is the upper limit to tagger performance?
-Unfortunately perfect tagging is impossible.  Consider the case of a
-trigram tagger.  How many cases of part-of-speech ambiguity does it
-encounter?  We can determine the answer to this question empirically
-(Listing upper-limit_).
-
-.. pylisting:: upper-limit
-   :caption: Upper Limit to Trigram Tagger Performance
-
-    def upper_limit(sents):
-        cfdist = nltk.ConditionalFreqDist()
-        for sent in sents:
-            p = [(None, None)] # empty token/tag pair
-            trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
-            for (pair1,pair2,pair3) in trigrams:
-                context = (pair1[1], pair2[1], pair3[0]) # last 2 tags, this word
-                cfdist[context].inc(pair3[1])            # current tag
-        total = ambiguous = 0
-        for cond in cfdist.conditions():
-            if cfdist[cond].B() > 1:
-                ambiguous += cfdist[cond].N()
-            total += cfdist[cond].N()
-        return float(ambiguous) / total
-
-    >>> upper_limit(nltk.corpus.brown.tagged_sents('a'))
-    0.0560200364299
-
-Thus, one out of twenty trigrams is ambiguous.  Given the
-current word and the previous two tags, there is more than one tag
-that could be legitimately assigned to the current word according to
-the training data.  Assuming we always pick the most likely tag in
-such ambiguous contexts, we can derive an empirical upper bound on
-the performance of a trigram tagger.
-
-Another way to investigate the performance of a tagger is to study
-its mistakes.  Some tags may be harder than others to assign, and
-it might be possible to treat them specially by pre- or post-processing
-the data.  A convenient way to look at tagging errors is the
-`confusion matrix`:dt:.  It charts expected tags (the gold standard)
-against actual tags generated by a tagger:
-
-    >>> def tag_list(tagged_sents):
-    ...     return [tag for sent in tagged_sents for (word, tag) in sent]
-    >>> def apply_tagger(tagger, corpus):
-    ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
-    >>> gold = tag_list(nltk.corpus.brown.tagged_sents('b'))
-    >>> test = tag_list(apply_tagger(t2, nltk.corpus.brown.tagged_sents('b')))
-    >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
-
-Based on such analysis we may decide to modify the tagset.  Perhaps
-a distinction between tags that is difficult to make can be dropped,
-since it is not important in the context of some larger processing task.
-In general, observe that the tagging process simultaneously collapses distinctions
-(i.e., lexical identity is usually lost when all personal pronouns are
-tagged `prp`:gc:), while introducing distinctions and removing
-ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
-facilitates classification and prediction.
-When we introduce finer distinctions in a tag set, we get better information
-about linguistic context, but we have to do more work to classify the
-current token (there are more tags to choose from).  Conversely, with
-fewer distinctions, we have less work to do for classifying the
-current token, but less information about the context to draw on.
-
-We could collapse distinctions with the aid of a dictionary that maps
-the existing tagset to a simpler tagset:
-
-.. doctest-ignore::
-    >>> mapping = {'PPS': 'NN', 'PPSS': 'NN'}
-    >>> data = [(word, mapping.get(tag, tag))
-    ...         for (word, tag) in sent for sent in tagged_sents]
-
-We have seen that ambiguity in the training data leads to an upper limit
-in tagger performance.  Sometimes more context will resolve the
-ambiguity.  In other cases however, as noted by [Abney1996PST]_, the
-ambiguity can only resolved with reference to syntax, or to world
-knowledge.  Despite these imperfections, part-of-speech tagging has
-played a central role in the rise of statistical approaches to natural
-language processing.  In the early 1990s, the surprising accuracy of
-statistical taggers was a striking demonstration that it was possible
-to solve one small part of the language understanding problem, namely
-part-of-speech disambiguation, without reference to deeper sources of
-linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
-on chunk parsing, we shall see that it can.
-
 Exercises
 ---------
 
-1. |easy|
+#. |easy|
+   Train a unigram tagger and run it on some new text.
+   Observe that some words are not assigned a tag.  Why not?
+
+#. |easy|
+   Train an affix tagger ``tag.Affix()`` and run it on some new text.
+   Experiment with different settings for the affix length
+   and the minimum word length.  Can you find a setting which seems
+   to perform better than the one described above?  Discuss your findings.
+
+#. |easy|
    Train a bigram tagger with no backoff tagger, and run it on some of the training
-   data.  Next, run it on some new data.  What happens to the performance of the tagger?  Why?
+   data.  Next, run it on some new data.
+   What happens to the performance of the tagger?  Why?
 
 #. |soso|
-   Inspect the confusion matrix for the bigram tagger ``t2`` defined above, and
-   identify one or more sets of tags to collapse.  Define a dictionary to do
-   the mapping, and evaluate the tagger on the simplified data.
+   Write a program which calls ``tag.Affix()`` repeatedly, using
+   different settings for the affix length and the minimum word length.
+   What parameter values give the best overall performance?  Why do
+   you think this is the case?
 
 #. |soso|
    How serious is the sparse data problem?  Investigate the
@@ -1253,20 +1159,6 @@ Exercises
    for these taggers, assuming a vocabulary size of
    10\ `5`:superscript: and a tagset size of 10\ `2`:superscript:.
    
-#. |soso| Consider the program in Listing upper-limit_, which
-   determines the upper bound for accuracy of a trigram tagger.
-   Consult the Abney reading (section sec-tag-further-reading_) and review his discussion of the
-   impossibility of exact tagging.  Explain why correct tagging of
-   these examples requires access to other kinds of information than
-   just words and tags.  How might you estimate the scale of this
-   problem?
-
-#. |soso| Experiment with using a simplified tagset (e.g. map all noun
-   tags to ``n``, and so on for the other tags, by discarding all but
-   the first letter of each tag.)  Such a tagger has fewer distinctions
-   to make, but much less information on which to base its work.
-   Discuss your findings.
-
 #. |soso| Obtain some tagged data for another language, and train and
    evaluate a variety of taggers on it.  If the language is
    morphologically complex, or if there are any orthographic clues
@@ -1304,6 +1196,14 @@ Exercises
       and bigram taggers that look at words), right before the usual default tagger.
 
    c) Evaluate the contribution of this new unigram tagger.
+
+#. |hard|
+   Write code to preprocess tagged training data, replacing all but the most frequent
+   `n`:math: words with the special word `UNK`:lx:.  Train an n-gram backoff tagger
+   on this data, then use it to tag some new text.  Note that you will have
+   to preprocess the text to replace unknown words with `UNK`:lx:, and post-process
+   the tagged output to replace the `UNK`:lx: words with the words from the original
+   input.
 
 -------
 Summary
