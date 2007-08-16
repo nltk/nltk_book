@@ -18,9 +18,6 @@
 .. TODO: * outstanding problems:
    - what are we doing with ConditionalFreqDist?
    - nltk.tag contains all of math library
-   - nltk.tag.Lookup() should be called nltk.tag.LookupTagger()?
-   - nltk.tag.LookupTagger() should be accessible via nltk.LookupTagger()?
-     (same for other taggers)
    - nltk.corpus.brown.tagged_sents() is too verbose?
    - tag method returns generator object?
 
@@ -188,9 +185,9 @@ using parentheses.  Like lists, tuples can be indexed and sliced:
 
 A tagged token is represented using a tuple consisting of just two items.
 We can create one of these special tuples from the standard string
-representation of a tagged token, using the function ``tag2tuple()``:
+representation of a tagged token, using the function ``str2tuple()``:
 
-    >>> tagged_token = nltk.tag.tag2tuple('fly/NN')
+    >>> tagged_token = nltk.tag.str2tuple('fly/NN')
     >>> tagged_token
     ('fly', 'NN')
     >>> tagged_token[0]
@@ -201,11 +198,11 @@ representation of a tagged token, using the function ``tag2tuple()``:
 We can construct a list of tagged tokens directly from a string.  The first
 step is to tokenize the string
 to access the individual ``word/tag`` strings, and then to convert
-each of these into a tuple (using ``tag2tuple()``).  We do this in
-two ways.  The first method, starting at line tag2tuple1_, initializes
+each of these into a tuple (using ``str2tuple()``).  We do this in
+two ways.  The first method, starting at line str2tuple1_, initializes
 an empty list ``tagged_words``, loops over the ``word/tag`` tokens, converts them into
 tuples, appends them to ``tagged_words``, and finally displays the result.
-The second method, on line tag2tuple2_, uses a list comprehension to do
+The second method, on line str2tuple2_, uses a list comprehension to do
 the same work in a way that is not only more compact, but also more readable.
 (List comprehensions were introduced in section sec-list-comprehensions_).
 
@@ -217,13 +214,13 @@ the same work in a way that is not only more compact, but also more readable.
     ... accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
     ... interest/nn of/in both/abx governments/nns ''/'' ./.
     ... '''
-    >>> tagged_words = []                                   # [_tag2tuple1]
+    >>> tagged_words = []                                   # [_str2tuple1]
     >>> for t in sent.split():
-    ...     tagged_words.append(nltk.tag.tag2tuple(t))
+    ...     tagged_words.append(nltk.tag.str2tuple(t))
     >>> tagged_words
     [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
     ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
-    >>> [nltk.tag.tag2tuple(t) for t in sent.split()]   # [_tag2tuple2]
+    >>> [nltk.tag.str2tuple(t) for t in sent.split()]   # [_str2tuple2]
     [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
     ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
 
@@ -405,7 +402,7 @@ Now we can create a tagger, called ``default_tagger``, that
 tags everything as ``NN``.
 
     >>> tokens = 'John saw 3 polar bears .'.split()
-    >>> default_tagger = nltk.tag.Default('NN')
+    >>> default_tagger = nltk.DefaultTagger('NN')
     >>> list(default_tagger.tag(tokens))
     [('John', 'NN'), ('saw', 'NN'), ('3', 'NN'), ('polar', 'NN'),
     ('bears', 'NN'), ('.', 'NN')]
@@ -701,7 +698,7 @@ and prints the 100 most frequent words:
     'that', '``', 'is', 'was', "''", 'on', 'at', 'with', 'be', 'by',
     'as', 'he', 'said', 'his', 'will', 'it', 'from', 'are', ';', '--',
     'an', 'has', 'had', 'who', 'have', 'not', 'Mrs.', 'were', 'this',
-    'which', 'would', 'their', 'been', 'they', 'He', 'one', ..., 'now']
+    'which', 'would', 'their', 'been', 'they', 'He', 'one', ...]
 
 |nopar|
 Next, let's inspect the tags that these words have.  First we will do
@@ -709,7 +706,7 @@ this in the most obvious (but highly inefficient) way:
 
     >>> [(w,t) for (w,t) in nltk.corpus.brown.tagged_words('a')
     ...        if w in most_freq_words]
-    [('The', 'AT'), ('said', 'VBDd'), ('an', 'AT'), ('of', 'IN'),
+    [('The', 'AT'), ('said', 'VBD'), ('an', 'AT'), ('of', 'IN'),
     ('``', '``'), ('no', 'AT'), ("''", "''"), ('that', 'CS'), 
     ('any', 'DTI'), ('.', '.'), ..., ("''", "''")]
 
@@ -733,7 +730,7 @@ we can determine its most likely tag:
 Finally, we can create and evaluate a simple tagger that assigns tags to words
 based on this table:
 
-    >>> baseline_tagger = nltk.tag.Lookup(likely_tags)
+    >>> baseline_tagger = nltk.UnigramTagger(likely_tags)
     >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     0.45578495136941344
 
@@ -766,7 +763,7 @@ We do this by specifying the default tagger as an argument to the
 lookup tagger.  The lookup tagger will call the default tagger just
 in case it can't assign a tag itself.
 
-    >>> baseline_tagger = nltk.tag.Lookup(likely_tags, backoff=nltk.tag.Default('NN'))
+    >>> baseline_tagger = nltk.UnigramTagger(likely_tags, backoff=nltk.DefaultTagger('NN'))
     >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     0.58177695566561249
 
@@ -787,7 +784,7 @@ pairs for words other than nouns.
 
     def performance(cfd, wordlist):
         lt = dict((word, cfd[word].max()) for word in wordlist)
-        baseline_tagger = nltk.tag.Lookup(lt, backoff=nltk.tag.Default('NN'))
+        baseline_tagger = nltk.UnigramTagger(lt, backoff=nltk.DefaultTagger('NN'))
         return nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
 
     def display():
@@ -954,7 +951,7 @@ a unigram tagger then use it to tag a sentence, then test its
 overall accuracy:
 
     >>> sents = nltk.corpus.brown.tagged_sents('a')
-    >>> unigram_tagger = nltk.tag.Unigram()
+    >>> unigram_tagger = nltk.UnigramTagger()
     >>> unigram_tagger.train(train_sents)
     >>> tokens = "John saw the book on the table".split()
     >>> unigram_tagger.tag(tokens)
@@ -973,7 +970,7 @@ sense.)  For example, the following tagger will consider suffixes of
 length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
-    >>> affix_tagger = nltk.tag.Affix(-2, 3)
+    >>> affix_tagger = nltk.AffixTagger(-2, 3)
     >>> affix_tagger.train(sents)
     >>> affix_tagger.tag(tokens)
     [('John', 'NP'), ('saw', 'NN'), ('the', 'AT'), ('book', 'NP'),
@@ -1012,11 +1009,11 @@ picks the tag that is most likely in the given context.
    2-gram taggers are also called *bigram taggers*, and 3-gram taggers
    are called *trigram taggers*.
 
-The ``tag.Ngram`` class uses a tagged training corpus to determine which
+The ``NgramTagger`` class uses a tagged training corpus to determine which
 part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger:
 
-    >>> bigram_tagger = nltk.tag.Bigram()
+    >>> bigram_tagger = nltk.BigramTagger()
     >>> bigram_tagger.train(nltk.corpus.brown.tagged_sents('a'))
 
 |nopar|
@@ -1065,9 +1062,9 @@ a ``regexp_tagger``, as follows:
 Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
-    >>> t0 = nltk.tag.Default('NN')
-    >>> t1 = nltk.tag.Unigram(backoff=t0)
-    >>> t2 = nltk.tag.Bigram(backoff=t1)
+    >>> t0 = nltk.DefaultTagger('NN')
+    >>> t1 = nltk.UnigramTagger(backoff=t0)
+    >>> t2 = nltk.BigramTagger(backoff=t1)
     >>> sents = nltk.corpus.brown.tagged_sents('a')
     >>> t1.train(sents)
     >>> t2.train(sents)
@@ -1080,7 +1077,7 @@ The backoff-tagger may itself have a backoff tagger:
    a certain context, the bigram tagger discards the training instance.
    This keeps the bigram tagger model as small as possible.  We can
    further specify that a tagger needs to see more than one instance of a
-   context in order to retain it, e.g. ``nltk.tag.Bigram(cutoff=2, backoff=t1)``
+   context in order to retain it, e.g. ``nltk.BigramTagger(cutoff=2, backoff=t1)``
    will discard contexts that have only been seen once or twice.
 
 Tagging Unknown Words
@@ -1140,7 +1137,7 @@ Exercises
    Observe that some words are not assigned a tag.  Why not?
 
 #. |easy|
-   Train an affix tagger ``tag.Affix()`` and run it on some new text.
+   Train an affix tagger ``AffixTagger()`` and run it on some new text.
    Experiment with different settings for the affix length
    and the minimum word length.  Can you find a setting that seems
    to perform better than the one described above?  Discuss your findings.
@@ -1151,7 +1148,7 @@ Exercises
    What happens to the performance of the tagger?  Why?
 
 #. |soso|
-   Write a program that calls ``tag.Affix()`` repeatedly, using
+   Write a program that calls ``AffixTagger()`` repeatedly, using
    different settings for the affix length and the minimum word length.
    What parameter values give the best overall performance?  Why do
    you think this is the case?
@@ -1184,8 +1181,8 @@ Exercises
 
 #. |hard|
    Our approach for tagging an unknown word has been to consider the letters of the word
-   (using ``tag.Regexp()`` and ``tag.Affix()``), or to ignore the word altogether and tag
-   it as a noun (using ``nltk.tag.Default()``).  These methods will not do well for texts having
+   (using ``RegexpTagger()`` and ``AffixTagger()``), or to ignore the word altogether and tag
+   it as a noun (using ``nltk.DefaultTagger()``).  These methods will not do well for texts having
    new words that are not nouns.
    Consider the sentence `I like to blog on Kim's blog`:lx:.  If `blog`:lx: is a new
    word, then looking at the previous tag (``TO`` vs ``NP$``) would probably be helpful.
@@ -1193,7 +1190,7 @@ Exercises
    
    a) Create a new kind of unigram tagger that looks at the tag of the previous word,
       and ignores the current word.  (The best way to do this is to modify the source
-      code for ``tag.Unigram()``, which presumes knowledge of Python classes discussed
+      code for ``UnigramTagger()``, which presumes knowledge of Python classes discussed
       in Section OO_.)
 
    b) Add this tagger to the sequence of backoff taggers (including ordinary trigram
