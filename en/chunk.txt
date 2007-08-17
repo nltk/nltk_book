@@ -3,7 +3,7 @@
 
 .. standard global imports
 
-    >>> from nltk.book import *
+    >>> import nltk, re, pprint
 
 .. _chap-chunk:
 
@@ -246,7 +246,7 @@ following example identifies noun phrases that consist of an
 optional determiner, followed by any number of adjectives, then a
 noun.
 
-    >>> cp = chunk.Regexp("NP: {<DT>?<JJ>*<NN>}")
+    >>> cp = nltk.RegexpParser("NP: {<DT>?<JJ>*<NN>}")
 
 |nopar| We create a chunker ``cp`` that can then be used
 repeatedly to parse tagged input.  The result of chunking is 
@@ -261,7 +261,7 @@ a tree.
 
 
 .. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
+   begin your interactive session or your program with: ``import nltk, re, pprint``
 
 Tag Patterns
 ------------
@@ -324,14 +324,14 @@ define some tagged tokens to be chunked, and run the chunker on this input.
       NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and nouns
           {<NNP>+}                # chunk sequences of proper nouns
     """
-    cp = chunk.Regexp(grammar)
+    cp = nltk.RegexpParser(grammar)
     tagged_tokens = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"), ("her", "PP$"), ("long", "JJ"),
                  ("golden", "JJ"), ("hair", "NN")]
     >>> print cp.parse(tagged_tokens)
     (S
       (NP Rapunzel/NNP)
-      ('let', 'VBD')
-      ('down', 'RP')
+      let/VBD
+      down/RP
       (NP her/PP$ long/JJ golden/JJ hair/NN))
 
 .. note:: The ``$`` symbol is a special character in regular
@@ -346,7 +346,7 @@ then only the first two nouns will be chunked:
 
     >>> nouns = [("money", "NN"), ("market", "NN"), ("fund", "NN")]
     >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
-    >>> cp = chunk.Regexp(grammar)
+    >>> cp = nltk.RegexpParser(grammar)
     >>> print cp.parse(nouns)
     (S (NP money/NN market/NN) fund/NN)
 
@@ -376,12 +376,12 @@ the same input.
    :Caption: Two Noun Phrase Chunkers Having Identical Rules in Different Orders
 
     tagged_tokens = [("The", "DT"), ("enchantress", "NN"),
-                ("clutched", "VBD"), ("the", "DT"), ("beautiful", "JJ"), ("hair", "N")]
-    cp1 = chunk.Regexp(r"""
+                ("clutched", "VBD"), ("the", "DT"), ("beautiful", "JJ"), ("hair", "NN")]
+    cp1 = nltk.RegexpParser(r"""
       NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
           {<DT|NN>+}          # Chunk sequences of NN and DT
       """)
-    cp2 = chunk.Regexp(r"""
+    cp2 = nltk.RegexpParser(r"""
       NP: {<DT|NN>+}          # Chunk sequences of NN and DT
           {<DT><JJ><NN>}      # Chunk det+adj+noun
       """)
@@ -395,7 +395,7 @@ the same input.
     {<DT>  <NN>} <VBD> {<DT>  <JJ>  <NN>}
     (S
       (NP The/DT enchantress/NN)
-      ('clutched', 'VBD')
+      clutched/VBD
       (NP the/DT beautiful/JJ hair/NN))
     # Input:
      <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
@@ -405,9 +405,9 @@ the same input.
     {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
     (S
       (NP The/DT enchantress/NN)
-      ('clutched', 'VBD')
+      clutched/VBD
       (NP the/DT)
-      ('beautiful', 'JJ')
+      beautiful/JJ
       (NP hair/NN))
 
 Observe that when we chunk material that is already partially chunked,
@@ -434,36 +434,35 @@ in labeling noun chunks as ``NX``.
     >>> grammar = (r"""
     ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}  # Chunk article/numeral/possessive+adj+noun
     ...        {<NP>+}                       # Chunk one or more proper nouns                   
-    ...  """)
-    >>> cp = chunk.Regexp(grammar)
-    >>> sent = corpus.brown.tagged('a')[112]
+    ... """)
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> sent = nltk.corpus.brown.tagged_sents('a')[112]
     >>> print cp.parse(sent)
     (S
       (NX His/PP$ contention/NN)
-      ('was', 'BEDZ')
-      ('denied', 'VBN')
-      ('by', 'IN')
+      was/BEDZ
+      denied/VBN
+      by/IN
       (NX several/AP bankers/NNS)
-      (',', ',')
-      ('including', 'IN')
+      ,/,
+      including/IN
       (NX Scott/NP Hudson/NP)
-      ('of', 'IN')
+      of/IN
       (NX Sherman/NP)
-      (',', ',')
+      ,/,
       (NX Gaynor/NP B./NP Jones/NP)
-      ('of', 'IN')
+      of/IN
       (NX Houston/NP)
-      (',', ',')
+      ,/,
       (NX J./NP B./NP Brady/NP)
-      ('of', 'IN')
+      of/IN
       (NX Harlingen/NP)
-      ('and', 'CC')
+      and/CC
       (NX Howard/NP Cox/NP)
-      ('of', 'IN')
+      of/IN
       (NX Austin/NP)
-      ('.', '.'))
+      ./.)
  
-
 Exercises
 ---------
 
@@ -492,11 +491,9 @@ Exercises
    "company/NN courts/NNS and/CC adjudicators/NNS".
 
 
-
 ----------
 Scaling Up
 ----------
-
 
 Now you have a taste of what chunking can do, but we have not
 explained how to carry out a quantitative evaluation of chunkers.  For
@@ -548,7 +545,7 @@ example below produces only `np`:gc: chunks:
     ... concern NN I-NP
     ... . . O
     ... '''
-    >>> chunk.conllstr2tree(text, chunk_types=('NP',)).draw()
+    >>> nltk.chunk.conllstr2tree(text, chunk_types=('NP',)).draw()
 
 .. tree:: (S (NP (PRP he))
              (VBD accepted)
@@ -570,34 +567,34 @@ part-of-speech tags and chunk tags in the IOB format.  We can access
 the data using an NLTK corpus reader called ``conll2000``.  Here is an
 example that reads the 100th sentence of the "train" portion of the corpus:
 
-    >>> print corpus.conll2000.chunked('train')[99]
+    >>> print nltk.corpus.conll2000.chunked_sents('train')[99]
     (S
       (PP Over/IN)
       (NP a/DT cup/NN)
       (PP of/IN)
       (NP coffee/NN)
-      (',', ',')
+      ,/,
       (NP Mr./NNP Stone/NNP)
       (VP told/VBD)
       (NP his/PRP$ story/NN)
-      ('.', '.'))
+      ./.)
 
 
 |nopar|
 This  showed three chunk types, for `np`:gc:, `vp`:gc: and `pp`:gc:.
 We can also select which chunk types to read:
 
-    >>> print corpus.conll2000.chunked('train', chunk_types=('NP',))[99]
+    >>> print nltk.corpus.conll2000.chunked_sents('train', chunk_types=('NP',))[99]
     (S
-      ('Over', 'IN')
+      Over/IN
       (NP a/DT cup/NN)
-      ('of', 'IN')
+      of/IN
       (NP coffee/NN)
-      (',', ',')
+      ,/,
       (NP Mr./NNP Stone/NNP)
-      ('told', 'VBD')
+      told/VBD
       (NP his/PRP$ story/NN)
-      ('.', '.'))
+      ./.)
 
 
 Simple Evaluation and Baselines
@@ -607,8 +604,8 @@ Armed with a corpus, it is now possible to carry out some simple evaluation.
 We start off by establishing a baseline for the trivial chunk parser
 ``cp`` that creates no chunks:
 
-    >>> cp = chunk.Regexp("")
-    >>> print chunk.accuracy(cp, corpus.conll2000.chunked('train', chunk_types=('NP',)))
+    >>> cp = nltk.RegexpParser("")
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train', chunk_types=('NP',)))
     0.440845995079
 
 This indicates that more than a third of the words are tagged with
@@ -617,8 +614,8 @@ expression chunker that looks for tags (e.g., ``CD``, ``DT``, ``JJ``,
 etc.) beginning with letters that are typical of noun phrase tags:
 
     >>> grammar = r"NP: {<[CDJNP].*>+}"
-    >>> cp = chunk.Regexp(grammar)
-    >>> print chunk.accuracy(cp, corpus.conll2000.chunked('train', chunk_types=('NP',)))
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train', chunk_types=('NP',)))
     0.874479872666
 
 As you can see, this approach achieves pretty good results. In
@@ -637,13 +634,13 @@ inside chunks more often than outside chunks.
         """Generate a list of tags that tend to appear inside chunks"""
     	cfdist = nltk.ConditionalFreqDist()
  	for t in train:
-            for word, tag, chtag in chunk.tree2conlltags(t):
+            for word, tag, chtag in nltk.chunk.tree2conlltags(t):
                 if chtag == "O":
                     cfdist[tag].inc(False)
                 else:
                     cfdist[tag].inc(True)
         return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
-    >>> print chunked_tags(corpus.conll2000.chunked('train', chunk_types=('NP',)))
+    >>> print chunked_tags(nltk.corpus.conll2000.chunked_sents('train', chunk_types=('NP',)))
     ['PRP$', 'WDT', 'JJ', 'WP', 'DT', '#', '$', 'NN', 'FW', 'POS',
     'PRP', 'NNS', 'NNP', 'PDT', 'RBS', 'EX', 'WP$', 'CD', 'NNPS', 'JJS', 'JJR']
 
@@ -661,14 +658,14 @@ regular expression chunker:
         chunk_tags = [re.sub(r'(\W)', r'\\\1', tag)
                       for tag in chunked_tags(train)]
         grammar = 'NP: {<%s>}' % '|'.join(chunk_tags)
-        return chunk.Regexp(grammar)
+        return nltk.RegexpParser(grammar)
 
 |nopar|
 The final step is to train this chunker and test its accuracy (this
 time on the "test" portion of the corpus, i.e., data not seen during training):
 
-    >>> cp = baseline_chunker(corpus.conll2000.chunked('train', chunk_types=('NP',)))
-    >>> print chunk.accuracy(cp, corpus.conll2000.chunked('test', chunk_types=('NP',)))
+    >>> cp = baseline_chunker(nltk.corpus.conll2000.chunked_sents('train', chunk_types=('NP',)))
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('test', chunk_types=('NP',)))
     0.914262194736
 
 
@@ -731,20 +728,20 @@ chunk, then excise the chink:
    :caption: Simple Chinker
 
     grammar = r"""
-    NP:
-	 {<.*>+}          # Chunk everything
-	 }<VBD|IN>+{      # Chink sequences of VBD and IN
-    """
+      NP:
+        {<.*>+}          # Chunk everything
+        }<VBD|IN>+{      # Chink sequences of VBD and IN
+      """
     tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
            ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
-    cp = chunk.Regexp(grammar)
+    cp = nltk.RegexpParser(grammar)
     >>> print cp.parse(tagged_tokens)
     (S
       (NP the/DT little/JJ yellow/JJ dog/NN)
-      ('barked', 'VBD')
-      ('at', 'IN')
+      barked/VBD
+      at/IN
       (NP the/DT cat/NN))
-    >>> print chunk.accuracy(cp, corpus.conll2000.chunked('test', chunk_types=('NP',)))
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('test', chunk_types=('NP',)))
     0.581041433607
 
 |nopar|
@@ -759,31 +756,31 @@ in the chapter, the CoNLL chunking data is also annotated for `pp`:gc: and
 `vp`:gc: chunks.  Here is an example, to show the structure we get from the
 corpus and the flattened version that will be used as input to the parser.
 
-    >>> example = corpus.conll2000.chunked('train')[99]
+    >>> example = nltk.corpus.conll2000.chunked_sents('train')[99]
     (S
       (PP Over/IN)
       (NP a/DT cup/NN)
       (PP of/IN)
       (NP coffee/NN)
-      (',', ',')
+      ,/,
       (NP Mr./NNP Stone/NNP)
       (VP told/VBD)
       (NP his/PRP$ story/NN)
-      ('.', '.'))
+      ./.)
     >>> print example.flatten()
     (S
-      ('Over', 'IN')
-      ('a', 'DT')
-      ('cup', 'NN')
-      ('of', 'IN')
-      ('coffee', 'NN')
-      (',', ',')
-      ('Mr.', 'NNP')
-      ('Stone', 'NNP')
-      ('told', 'VBD')
-      ('his', 'PRP$')
-      ('story', 'NN')
-      ('.', '.'))
+      Over/IN
+      a/DT
+      cup/NN
+      of/IN
+      coffee/NN
+      ,/,
+      Mr./NNP
+      Stone/NNP
+      told/VBD
+      his/PRP$
+      story/NN
+      ./.)
 
 Now we can set up a multi-stage chunk grammar, as shown in
 Listing multistage-chunker_.  It has a stage for each of the chunk types.
@@ -791,12 +788,12 @@ Listing multistage-chunker_.  It has a stage for each of the chunk types.
 .. pylisting:: multistage-chunker
    :caption: A Multistage Chunker
 
-    cp = chunk.Regexp(r"""
+    cp = nltk.RegexpParser(r"""
       NP: {<DT>?<JJ>*<NN.*>+}	# noun phrase chunks
       VP: {<TO>?<VB.*>}       	# verb phrase chunks
       PP: {<IN>}              	# prepositional phrase chunks
       """)
-    >>> example = corpus.conll2000.chunked('train')[99]
+    >>> example = nltk.corpus.conll2000.chunked_sents('train')[99]
     >>> print cp.parse(example.flatten(), trace=1)
     # Input:
      <IN>  <DT>  <NN>  <IN>  <NN>  <,>  <NNP>  <NNP>  <VBD>  <PRP$>  <NN>  <.> 
@@ -815,12 +812,12 @@ Listing multistage-chunker_.  It has a stage for each of the chunk types.
       (NP a/DT cup/NN)
       (PP of/IN)
       (NP coffee/NN)
-      (',', ',')
+      ,/,
       (NP Mr./NNP Stone/NNP)
       (VP told/VBD)
-      ('his', 'PRP$')
+      his/PRP$
       (NP story/NN)
-      ('.', '.'))
+      ./.)
 
 
 Exercises
@@ -830,7 +827,7 @@ Exercises
    Pick one of the three chunk types in the CoNLL corpus.
    Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
    that make up this kind of chunk.  Develop a simple chunker using
-   the regular expression chunker ``chunk.Regexp``.
+   the regular expression chunker ``nltk.RegexpParser``.
    Discuss any tag sequences that are difficult to chunk reliably.
 
 #. |easy|
@@ -895,8 +892,8 @@ Exercises
    that has been chunked into noun phrases.  The format uses square brackets,
    and we have encountered it several times during this chapter.
    The Treebank corpus can be accessed using:
-   ``for sent in corpus.treebank.chunked(item)``.  These items are flat trees,
-   just as we got using ``corpus.conll2000.chunked()``.
+   ``for sent in nltk.corpus.treebank.chunked_sents(item)``.  These items are flat trees,
+   just as we got using ``nltk.corpus.conll2000.chunked_sents()``.
 
    a) The functions ``nltk.tree.pprint()`` and ``nltk.chunk.tree2conllstr()``
       can be used to create Treebank and IOB strings from a tree.
@@ -926,8 +923,8 @@ part-of-speech tag.
 The first step is to get the ``word,tag,chunk`` triples from the
 CoNLL 2000 corpus and map these to ``tag,chunk`` pairs:
 
-    >>> chunk_data = [[(t,c) for w,t,c in chunk.tree2conlltags(chtree)]
-    ...              for chtree in corpus.conll2000.chunked('train')]
+    >>> chunk_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(chtree)]
+    ...              for chtree in nltk.corpus.conll2000.chunked_sents('train')]
 
 We will now train two *n*-gram taggers over this data.
 
@@ -937,9 +934,8 @@ A Unigram Chunker
 To start off, we train and score a `unigram chunker`:dt: on the above data, just as if
 it was a tagger:
 
-    >>> unigram_chunker = tag.Unigram()
-    >>> unigram_chunker.train(chunk_data)
-    >>> print tag.accuracy(unigram_chunker, chunk_data)
+    >>> unigram_chunker = nltk.UnigramTagger.train(chunk_data)
+    >>> print nltk.tag.accuracy(unigram_chunker, chunk_data)
     0.781378851068
 
 This chunker does reasonably well.  Let's look at the errors it makes.
@@ -975,8 +971,7 @@ A Bigram Chunker (incomplete)
 
 Let's run a bigram chunker:
 
-    >>> bigram_chunker = tag.Bigram(backoff=unigram_chunker)
-    >>> bigram_chunker.train(chunk_data)
+    >>> bigram_chunker = nltk.BigramTagger.train(chunk_data, backoff=unigram_chunker)
     >>> print tag.accuracy(bigram_chunker, chunk_data)
     0.89312652614
 
@@ -1040,7 +1035,7 @@ structures having a depth of at most four.
       VP: {<VB.*><NP|PP|S>+$}   # Chunk rightmost verbs and arguments/adjuncts
       S:  {<NP><VP>}            # Chunk NP, VP
       """
-    cp = chunk.Regexp(grammar)
+    cp = nltk.RegexpParser(grammar)
     tagged_tokens = [("Mary", "NN"), ("saw", "VBD"), ("the", "DT"), ("cat", "NN"),
         ("sit", "VB"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
 
@@ -1074,7 +1069,7 @@ patterns: after trying all of them, it repeats the process.
 We add an optional second argument ``loop`` to specify the number
 of times the set of patterns should be run:
 
-    >>> cp = chunk.Regexp(grammar, loop=2)
+    >>> cp = nltk.RegexpParser(grammar, loop=2)
     >>> print cp.parse(tagged_tokens)
     (S
       (NP John/NNP)
@@ -1195,7 +1190,7 @@ that contain the word `in`:lx:. The special character expression
 disregard strings such as `success in supervising the transition
 of`:lx:, where `in`:lx: is followed by a gerundive verb.
 
-    >>> from nltk.contrib.ieer_rels import *
+    >>> from nltk_contrib.ieer_rels import *
     >>> from itertools import islice
     >>> IN = re.compile(r'.*\bin\b(?!\b.+ing\b)')
     >>> ieer_trees = (d['text'] for d in ieer.dictionary())
@@ -1311,8 +1306,6 @@ bracketing task run by the *Conference on Natural Language Learning*
 (|CoNLL|) in 1999.  The same format was
 adopted by |CoNLL| 2000 for annotating a section of Wall Street
 Journal text as part of a shared task on `np`:gc: chunking.
-
-
 
 
 .. include:: footer.txt
