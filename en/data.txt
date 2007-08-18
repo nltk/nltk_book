@@ -3,7 +3,7 @@
 
 .. standard global imports
 
-    >>> from nltk.book import *
+    >>> import nltk, re, pprint
 
 .. _chap-data:
 
@@ -254,30 +254,28 @@ Each item name has complex internal structure, as shown in Figure timit_.
 
    Structure of a TIMIT Identifier in the NLTK Corpus Package
 
-Each item has phonetic a phonetic transcription, which can be accessed using the ``phonetic()``
+Each item has phonetic a phonetic transcription, which can be accessed using the ``phones()``
 method.  We can access the corresponding word tokens in the customary way.  Both access
 methods permit an optional argument ``offset=True`` which includes the start and end offsets
 of the corresponding span in the audio file.
 
-    >>> phonetic = list(corpus.timit.phonetic())
-    >>> phonetic[0]
+    >>> phonetic = nltk.corpus.timit.phones('dr1-fvmh0/sa1')
     ['h#', 'sh', 'iy', 'hv', 'ae', 'dcl', 'y', 'ix', 'dcl', 'd', 'aa', 'kcl',
     's', 'ux', 'tcl', 'en', 'gcl', 'g', 'r', 'iy', 's', 'iy', 'w', 'aa',
     'sh', 'epi', 'w', 'aa', 'dx', 'ax', 'q', 'ao', 'l', 'y', 'ih', 'ax', 'h#']
-    >>> tokenized = list(corpus.timit.tokenized(offset=True))
-    >>> tokenized[0]
+    >>> nltk.corpus.timit.word_times('dr1-fvmh0/sa1')
     [('she', 7812, 10610), ('had', 10610, 14496), ('your', 14496, 15791),
     ('dark', 15791, 20720), ('suit', 20720, 25647), ('in', 25647, 26906),
     ('greasy', 26906, 32668), ('wash', 32668, 37890), ('water', 38531, 42417),
     ('all', 43091, 46052), ('year', 46052, 50522)]
 
 .. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
+   begin your interactive session or your program with: ``import nltk, re, pprint``
    
 In addition to this text data, TIMIT includes a lexicon that provides the canonical
 pronunciation of every word:
 
-    >>> timitdict = corpus.timit.dictionary()
+    >>> timitdict = nltk.corpus.timit.transcription_dict()
     >>> timitdict['greasy'] + timitdict['wash'] + timitdict['water']
     ['g', 'r', 'iy1', 's', 'iy', 'w', 'ao1', 'sh', 'w', 'ao1', 't', 'axr']
     >>> phonetic[0][17:30]
@@ -289,11 +287,10 @@ would have to do in producing or recognizing speech in this particular dialect
 (New England).  Finally, TIMIT includes demographic data about the speakers,
 permitting fine-grained study of vocal, social, and gender characteristics.
 
-    >>> spkrinfo = corpus.timit.spkrinfo()
-    >>> spkrinfo['dr1-fvmh0']
-    {'use': 'TRN', 'birthdate': '01/08/60', 'sex': 'F', 'race': 'WHT',
-    'ht': '5\'05"', 'edu': 'BS', 'recdate': '03/11/86', 'dr': '1',
-    'id': 'VMH0', 'comments': 'BEST NEW ENGLAND ACCENT SO FAR'}
+    >>> nltk.corpus.timit.spkrinfo('dr1-fvmh0')
+    SpeakerInfo(id='VMH0', sex='F', dr='1', use='TRN', recdate='03/11/86',
+    birthdate='01/08/60', ht='5\'05"', race='WHT', edu='BS',
+    comments='BEST NEW ENGLAND ACCENT SO FAR')
 
 TIMIT illustrates several key features of corpus design.
 First, the corpus contains two layers of annotation, at the phonetic and orthographic
@@ -572,11 +569,11 @@ alphabetic.  The field name is separated from the field's contents by
 whitespace.  The contents can be arbitrary text, and can continue over
 several lines (but cannot contain a line-initial backslash).
 
-We can use the ``toolbox.parse_corpus()`` method to access a Toolbox
+We can use the ``toolbox.xml()`` method to access a Toolbox
 file and load it into an ``elementtree`` object.
 
     >>> from nltk.corpus import toolbox
-    >>> lexicon = toolbox.parse_corpus('rotokas.dic')
+    >>> lexicon = toolbox.xml('rotokas.dic')
 
 There are two ways to access the contents of the lexicon object, by
 indexes and by paths.  Indexes use the familiar syntax, thus
@@ -634,7 +631,7 @@ the last line of output, which shows the new CV field.
                 cv_field = SubElement(entry, 'cv')
                 cv_field.text = cv(field.text)
 
-    >>> lexicon = toolbox.parse_corpus('rotokas.dic')
+    >>> lexicon = toolbox.xml('rotokas.dic')
     >>> add_cv_field(lexicon[53])
     >>> print toolbox.to_sfm_string(lexicon[53])
     \lx kaeviro
@@ -684,7 +681,7 @@ lexicon:
       ''')
 
     def validate_lexicon(grammar, lexicon):
-        rd_parser = parse.RecursiveDescent(grammar)
+        rd_parser = nltk.RecursiveDescentParser(grammar)
         for entry in lexicon[10:20]:
             marker_list = [field.tag for field in entry]
             if rd_parser.get_parse_list(marker_list):
@@ -692,7 +689,7 @@ lexicon:
             else:
                 print "-", ':'.join(marker_list)
 
-    >>> lexicon = toolbox.parse_corpus('rotokas.dic')[10:20]
+    >>> lexicon = toolbox.xml('rotokas.dic')[10:20]
     >>> validate_lexicon(grammar, lexicon)
     - lx:ps:ge:gp:sf:nt:dt:ex:xp:xe:ex:xp:xe
     - lx:rt:ps:ge:gp:nt:dt:ex:xp:xe:ex:xp:xe
@@ -784,9 +781,9 @@ Archive for Digital Sources in Endangered Cultures (PARADISEC)::
 
 NLTK Version 0.9 includes support for reading an OLAC record, for example:
 
-    >>> file = corpus.find_corpus_file('treebank', 'olac', '.xml')
+    >>> file = nltk.corpus.find_corpus_file('treebank', 'olac', '.xml')
     >>> xml = open(file).read()
-    >>> olac.pprint_olac(xml)
+    >>> nltk.olac.pprint_olac(xml)
     identifier  : LDC99T42
     title       : Treebank-3
     type        : (olac:linguistic-type=primary_text)
@@ -918,7 +915,7 @@ We can also print a formatted
 version of a lexicon.  It allows us to request specific fields without
 needing to be concerned with their relative ordering in the original file.
 
-    >>> lexicon = toolbox.parse_corpus('rotokas.dic')
+    >>> lexicon = toolbox.xml('rotokas.dic')
     >>> for entry in lexicon[70:80]:
     ...     lx = entry.findtext('lx')
     ...     ps = entry.findtext('ps')
@@ -1074,9 +1071,10 @@ probability modules.  Then we iterate over the lexemes to find all
 sequences of a non-vowel ``[^aeiou]`` followed by a vowel ``[aeiou]``.
 
     >>> fd = nltk.FreqDist()
+    >>> tokenizer = nltk.RegexpTokenizer(pattern=r'[^aeiou][aeiou]')
     >>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
     >>> for lex in lexemes:
-    ...     for syl in tokenize.regexp(lex, pattern=r'[^aeiou][aeiou]'):
+    ...     for syl in tokenizer.tokenize(lex):
     ...         fd.inc(syl)
 
 Now, rather than just printing the syllables and their frequency
