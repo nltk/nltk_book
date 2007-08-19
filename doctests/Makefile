@@ -39,9 +39,11 @@ errs: $(ERRS)
 %.html: $(DOCTEST_SRC)/%.doctest
 	$(RST2HTML) $< -o $@
 
-index.html: index.txt update_list.py $(ERRS)
-	python update_list.py
+index.html: index.txt test-list.txt
 	$(RST2HTML) index.txt
+
+test-list.txt: update_list.py $(ERRS)
+	python update_list.py
 
 rsync: html errs index.html
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/test/

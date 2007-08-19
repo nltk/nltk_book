@@ -1,3 +1,7 @@
+#
+# Script that updates test-list.txt
+#
+
 import os, os.path, re, sys
 
 DOCTEST_SRC = '../../nltk/test'
@@ -43,26 +47,10 @@ def doctest_listing():
                     (basename, basename, title, errs))
     return listing
 
-def splice_listing(filename, listing):
-    # Read index:
-    index = open(filename).read()
-    
-    # Sanity check:
-    matches = len(LISTING_RE.findall(index))
-    if matches == 0:
-        print >>sys.stderr, "Splice location not found!"
-        sys.exit(-1)
-    if matches > 1:
-        print >>sys.stderr, "Multiple splice locations found!"
-        sys.exit(-1)
-
-    # Write new index:
-    out = open(filename, 'w')
-    out.write(LISTING_RE.sub(HEAD+'\n'+listing+'\n'+FOOT, index))
-    out.close()
-        
 def main():
-    splice_listing('index.txt', doctest_listing())
+    out = open('test-list.txt')
+    out.write(HEAD+doctest_listing()+FOOT)
+    out.close()
 
 if __name__ == '__main__':
     main()
