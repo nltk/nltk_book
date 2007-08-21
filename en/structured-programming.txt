@@ -4,7 +4,7 @@
 
 .. standard global imports
 
-    >>> from nltk.book import *
+    >>> import nltk, re, pprint
 
 .. _chap-structured-programming:
 
@@ -43,7 +43,7 @@ and consult other introductions to programming if necessary;
 experienced programmers can quickly skim this chapter.
 
 .. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
+   begin your interactive session or your program with: ``import nltk, re, pprint``
 
 .. _sec-back-to-the-basics:
 
@@ -234,7 +234,7 @@ their length.
     >>> wordlens
     [(1, 'I'), (6, 'turned'), (3, 'off'), (3, 'the'), (12, 'spectroroute')]
     >>> wordlens.sort()                                     # [_sequence3]
-    >>> string.join([word for (count, word) in wordlens])     # [_sequence4]
+    >>> ' '.join([word for (count, word) in wordlens])      # [_sequence4]
     'I off the turned spectroroute'
 
 Each of the above lines of code contains a significant feature.
@@ -435,7 +435,7 @@ We can also have `nested loops`:dt: with shared variables.
 The next example iterates over all sentences in a
 section of the Brown Corpus, and for each sentence, iterates over each word.
 
-    >>> [word for word in corpus.brown.tokenized('a', group_by_sent=False)
+    >>> [word for word in nltk.corpus.brown.words('a')
     ...     if len(word) == 17]
     ['September-October', 'Sheraton-Biltmore', 'anti-organization',
      'anti-organization', 'Washington-Oregon', 'York-Pennsylvania',
@@ -459,7 +459,7 @@ as shown in line 2d-array_ below.  Observe that the loop variables
     >>> m, n = 3, 7
     >>> array = [[set() for i in range(n)] for j in range(m)]     # [_2d-array]
     >>> array[2][5].add('foo')
-    >>> pprint(array)
+    >>> pprint.pprint(array)
     [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
      [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
      [set([]), set([]), set([]), set([]), set([]), set(['foo']), set([])]]
@@ -470,7 +470,7 @@ Notice that we don't bother storing the list comprehension in a temporary
 variable, but use it directly as an argument to the ``average()`` function.
 
     >>> from numpy import average
-    >>> average([len(word) for word in corpus.brown.tokenized('a', group_by_sent=False)])
+    >>> average([len(word) for word in nltk.corpus.brown.words('a')])
     4.40154543827
 
 Now that we have reviewed the sequence types, we have one more fundamental data type
@@ -530,13 +530,13 @@ representation.
     def mystery(input):
         groups = {}
         for word in input:
-            key = string.join(sorted(list(word)), '')
+            key = ' '.join(sorted(list(word)), '')
             if key not in groups:               # [_mystery-key]
                 groups[key] = set()             # [_mystery-add]
             groups[key].add(word)               # [_mystery-update]
-        return sorted(string.join(sorted(v)) for v in groups.values() if len(v) > 1)
+        return sorted(' '.join(sorted(v)) for v in groups.values() if len(v) > 1)
 
-    >>> words = corpus.words.read()
+    >>> words = nltk.corpus.words.words()
     >>> print mystery(words)                         # doctest: +SKIP
 
 Listing mystery_ illustrates two important idioms, which we already
@@ -557,7 +557,7 @@ and build up a dictionary in the usual way, as exemplified in Listing compound-k
 
     attachment = nltk.defaultdict(lambda:[0,0])
     V, N = 0, 1
-    for entry in corpus.ppattach.read('training', format='object'):
+    for entry in nltk.corpus.ppattach.attachments('training'):
         key = entry.verb, entry.prep
         if entry.attachment == 'V':
             attachment[key][V] += 1
@@ -711,17 +711,17 @@ pre-specified strings, e.g. given a dictionary ``wordcount``
 consisting of words and their frequencies we could do:
 
     >>> wordcount = {'cat':3, 'dog':4, 'snake':1}
-    >>> for word in wordcount:
+    >>> for word in sorted(wordcount):
     ...     print word, '->', wordcount[word], ';',
-    dog -> 4 ; cat -> 3 ; snake -> 1
+    cat -> 3 ; dog -> 4 ; snake -> 1 ;
 
 Apart from the problem of unwanted whitespace, print statements
 that contain alternating variables and constants can be difficult to read and
-maintain.  A better solution is to use print formatting strings:
+maintain.  A better solution is to use formatting strings:
 
-    >>> for word in wordcount:
+    >>> for word in sorted(wordcount):
     ...    print '%s->%d;' % (word, wordcount[word]),
-    dog->4; cat->3; snake->1
+    cat->3; dog->4; snake->1;
     
 .. TODO: describe textwrap package
     
@@ -771,15 +771,15 @@ from the tabulation of results.
     def count_words_by_tag(t, genres):
         cfdist = nltk.ConditionalFreqDist()
         for genre in genres:
-            for (word,tag) in corpus.brown.tagged(genre, group_by_sent=False):
+            for (word,tag) in nltk.corpus.brown.tagged_words(genre):
                 if tag == t:
                      cfdist[genre].inc(word.lower())
         return cfdist
 
     def tabulate(cfdist, words):
-        print '%-18s' % 'Genre', string.join([('%6s' % w) for w in words])
+        print 'Genre', ' '.join([('%6s' % w) for w in words])
         for genre in cfdist.conditions():                   # for each genre
-            print '%-18s' % corpus.brown.documents[genre],  # print row heading
+            print '%5s' % genre,                            # print row heading
             for w in words:                                 # for each word
                 print '%6d' % cfdist[genre][w],             # print table cell
             print                                           # end the row
@@ -788,20 +788,21 @@ from the tabulation of results.
     >>> cfdist = count_words_by_tag('md', genres)
     >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']   # [_modals-of-interest]
     >>> tabulate(cfdist, modals)
-    Genre                 can  could    may  might   must   will
-    press: reportage       94     86     66     36     50    387
-    government            115     37    152     13     99    237
-    skill and hobbies     273     59    130     22     83    259
-    religion               84     59     79     12     54     64
-    fiction: adventure     48    154      6     58     27     48
+    Genre    can  could    may  might   must   will
+    a      94     86     66     36     50    387
+    d     115     37    152     13     99    237
+    e     273     59    130     22     83    259
+    h      84     59     79     12     54     64
+    n      48    154      6     58     27     48
 
 There are some interesting patterns in the table produced by
 Listing modal-tabulate_.  For instance,
-compare the rows for government literature and adventure literature;
+compare row d (government literature) with row n (adventure literature);
 the former is dominated by the use of ``can, may, must, will`` while
 the latter is characterized by the use of ``could`` and ``might``.
 With some further work it might be possible to guess the genre of a
-new text automatically, according to its distribution of modals.
+new text automatically, simply using information about the distribution of modal
+verbs.
 
 Our next example, in Listing concordance_, generates a concordance display.
 We use the left/right justification of strings and the variable width
@@ -818,11 +819,11 @@ to get vertical alignment of a variable-width window.
 
     def concordance(word, context):
         "Generate a concordance for the word with the specified context window"
-        for sent in corpus.brown.tokenized('a'):
+        for sent in nltk.corpus.brown.sents('a'):
             try:
                 pos = sent.index(word)
-                left = string.join(sent[:pos])
-                right = string.join(sent[pos+1:])
+                left = ' '.join(sent[:pos])
+                right = ' '.join(sent[pos+1:])
                 print '%*s %s %-*s' %\
                     (context, left[-context:], word, context, right[:context])
             except ValueError:
@@ -858,7 +859,7 @@ code opens a file ``output.txt`` for writing, and saves the program
 output to the file.
 
     >>> file = open('output.txt', 'w')
-    >>> words = set(corpus.genesis.tokenized('english-kjv'))
+    >>> words = set(nltk.corpus.genesis.words('english-kjv'))
     >>> for word in sorted(words):
     ...     file.write(word + "\n")
 
@@ -1009,8 +1010,11 @@ purpose of the function to someone reading the code, it is accessible to a progr
 who has loaded the code from a file:
 
     >>> help(get_text)
+    Help on function get_text:
+
     get_text(file)
-        Read text from a file, normalizing whitespace and stripping HTML markup
+        Read text from a file, normalizing whitespace
+        and stripping HTML markup.
 
 We have seen that functions help to make our work reusable and readable.  They
 also help make it *reliable*.  When we re-use code that has already been developed
@@ -1233,7 +1237,7 @@ passed in as a parameter, and it also prints a list of the
 .. pylisting:: freq-words1
 
     def freq_words(url, freqdist, n):
-        for word in corpus.web.tokenized(url):
+        for word in nltk.corpus.web.words(url):
             freqdist.inc(word.lower())
         print freqdist.sorted()[:n]
 
@@ -1256,7 +1260,7 @@ and simplify its interface by providing a single ``url`` parameter.
 
     def freq_words(url):
         freqdist = nltk.FreqDist()
-        for word in corpus.web.tokenized(url):
+        for word in nltk.corpus.web.words(url):
             freqdist.inc(word.lower())
         return freqdist
 
@@ -1268,7 +1272,7 @@ and simplify its interface by providing a single ``url`` parameter.
 Note that we have now simplified the work of ``freq_words``
 to the point that we can do its work with a single line of code:
 
-    >>> fd = nltk.FreqDist(word.lower() for word in corpus.web.tokenized(constitution))
+    >>> fd = nltk.FreqDist(word.lower() for word in nltk.corpus.web.words(constitution))
     >>> fd.sorted()[:20]
     ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', 'in', 'states', 'or',
     ';', 'united', 'a', 'state', 'by', 'for', 'any', 'president', 'which']
@@ -1357,7 +1361,7 @@ Another helpful function, which like ``filter()`` applies a function
 to a sequence, is ``map()``.  Here is a simple
 way to find the average length of a sentence in a section of the Brown Corpus:
 
-    >>> average(map(len, corpus.brown.tokenized('a')))
+    >>> average(map(len, nltk.corpus.brown.words('a')))
     21.7508111616
 
 |nopar|
@@ -1527,7 +1531,7 @@ Building a letter trie, Listing trie_.
     {'a': {'t': {'value': 'cat'}}, 'i': {'e': {'n': {'value': 'dog'}}}}
     >>> trie['c']['h']['a']['t']['value']
     'cat'
-    >>> pprint(trie)
+    >>> pprint.pprint(trie)
     {'c': {'h': {'a': {'t': {'value': 'cat'}},
                  'i': {'e': {'n': {'value': 'dog'}}}}}}
 

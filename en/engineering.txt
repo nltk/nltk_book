@@ -3,7 +3,7 @@
 
 .. standard global imports
 
-    >>> from nltk.book import *
+    >>> import nltk, re, pprint
 
 .. _chap-engineering:
 
@@ -66,7 +66,7 @@ create large vs small models (e.g. n-gram tagging vs Brill tagging).
 .. TODO: architectures: pipeline/cascade vs blackboard
 
 .. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``from nltk.book import *``
+   begin your interactive session or your program with: ``import nltk, re, pprint``
    
 ---------------------
 Problems with Tagging
@@ -334,8 +334,8 @@ a larger sample of data.  NLTK provides a function called
 can test the tagger using the same data it was trained on:
 
     >>> from itertools import islice
-    >>> train_sents = corpus.brown.tagged('a')[:500]  # sents 0..499
-    >>> unigram_tagger = tag.Unigram()
+    >>> train_sents = nltk.corpus.brown.tagged_sents('a')[:500]  # sents 0..499
+    >>> unigram_tagger = nltk.UnigramTagger()
     >>> unigram_tagger.train(train_sents)
     >>> acc = tag.accuracy(unigram_tagger, train_sents)
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
@@ -348,13 +348,13 @@ to reward systems that make good generalizations, so we should test
 against *unseen data*, and replace ``train_sents`` above with
 ``unseen_sents``.  We can then define the two sets of data as follows:
 
-    >>> train_sents  = corpus.brown.tagged('a')[:500]
-    >>> unseen_sents = corpus.brown.tagged('a')[500:600] # sents 500-599
+    >>> train_sents  = nltk.corpus.brown.tagged_sents('a')[:500]
+    >>> unseen_sents = nltk.corpus.brown.tagged_sents('a')[500:600] # sents 500-599
 
 Now we train the tagger using ``train_sents`` and evaluate it using
 ``unseen_sents``, as follows:
 
-    >>> unigram_tagger = tag.Unigram(backoff=tag.Default('nn'))
+    >>> unigram_tagger = nltk.UnigramTagger(backoff=nltk.DefaultTagger('nn'))
     >>> unigram_tagger.train(train_sents)
     >>> acc = tag.accuracy(unigram_tagger, unseen_sents)
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
@@ -390,7 +390,7 @@ In the case of tagging, a  possible baseline score can be found by
 tagging every word with ``NN``, the most likely tag.
 
     >>> baseline_tagger = tag.Default('nn')
-    >>> acc = tag.accuracy(baseline_tagger, corpus.brown.tagged('a'))
+    >>> acc = tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
     Accuracy = 13.1%
 
@@ -406,10 +406,9 @@ and for each of these words, identify the most likely tag:
 
     >>> wordcounts = nltk.FreqDist()
     >>> wordtags = nltk.ConditionalFreqDist()
-    >>> for sent in corpus.brown.tagged('a'):
-    ...     for (w,t) in sent:
-    ...         wordcounts.inc(w)    # count the word
-    ...         wordtags[w].inc(t)   # count the word's tag
+    >>> for (word, tag) in nltk.corpus.brown.tagged_words('a'):
+    ...         wordcounts.inc(word)    # count the word
+    ...         wordtags[w].inc(tag)    # count the word's tag
     >>> frequent_words = wordcounts.sorted()[:1000]
 
 Now we can create a lookup table (a dictionary) which maps words to
@@ -417,8 +416,8 @@ likely tags, just for these high-frequency words.  We can then define
 a new baseline tagger which uses this lookup table:
 
     >>> table = dict((word, wordtags[word].max()) for word in frequent_words)
-    >>> baseline_tagger = tag.Lookup(table, tag.Default('nn'))
-    >>> acc = tag.accuracy(baseline_tagger, corpus.brown.tagged('a'))
+    >>> baseline_tagger = nltk.LookupTagger(table, nltk.DefaultTagger('nn'))
+    >>> acc = tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     >>> print 'Accuracy = %4.1f%%' % (100 * acc)
     Accuracy = 72.5%
 
@@ -699,7 +698,7 @@ of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
 During evaluation of a chunk parser, it is useful to flatten a chunk
 structure into a tree consisting only of a root node and leaves:
 
-    >>> correct = chunk.tagstr2tree(
+    >>> correct = nltk.chunk.tagstr2tree(
     ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
     >>> correct.flatten()
     (S: ('the', 'DT') ('little', 'JJ') ('cat', 'NN') ('sat', 'VBD')
@@ -710,10 +709,10 @@ resulting chunked sentences with the originals, as follows:
 
     
     >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
-    >>> cp = chunk.Regexp(grammar)
+    >>> cp = nltk.RegexpParser(grammar)
     >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
     ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-    >>> chunkscore = chunk.ChunkScore()
+    >>> chunkscore = nltk.chunk.ChunkScore()
     >>> guess = cp.parse(correct.flatten())
     >>> chunkscore.score(correct, guess)
     >>> print chunkscore
@@ -732,10 +731,10 @@ class.  In this example, ``chunkparser`` is being tested on each
 sentence from the Wall Street Journal tagged files.
 
     >>> grammar = r"NP: {<DT|JJ|NN>+}"
-    >>> cp = chunk.Regexp(grammar)
-    >>> chunkscore = chunk.ChunkScore()
-    >>> for item in corpus.treebank.items[:5]
-    ...     for chunk_struct in corpus.treebank.chunked(item)
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> chunkscore = nltk.chunk.ChunkScore()
+    >>> for item in nltk.corpus.treebank.items[:5]
+    ...     for chunk_struct in nltk.corpus.treebank.chunked_sents(item)
     ...         test_sent = cp.parse(chunk_struct.flatten())
     ...         chunkscore.score(chunk_struct, test_sent)
     >>> print chunkscore
@@ -791,8 +790,8 @@ Here are the incorrect chunks:
    ``max_fn_examples`` (maximum false negative examples) keyword
    arguments to the ``ChunkScore`` constructor:
 
-    >>> chunkscore = chunk.ChunkScore(max_fp_examples=1000,
-    ...                               max_fn_examples=1000)
+    >>> chunkscore = nltk.chunk.ChunkScore(max_fp_examples=1000,
+    ...                                    max_fn_examples=1000)
 
 Exercises
 ---------
