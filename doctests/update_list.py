@@ -48,7 +48,7 @@ def doctest_listing():
     return listing
 
 def main():
-    out = open('test-list.txt')
+    out = open('test-list.txt', 'w')
     out.write(HEAD+doctest_listing()+FOOT)
     out.close()
 
