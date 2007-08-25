@@ -6,7 +6,7 @@
 # URL: <http://nltk.sf.net>
 # For license information, see LICENSE.TXT
 
-WEB = stevenbird@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
+WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 
 TEX = introduction.tex programming.tex tag.tex chunk.tex data.tex
 PDF := $(TEX:.tex=.pdf)
