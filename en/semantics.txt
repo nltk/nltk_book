@@ -1745,19 +1745,18 @@ interpretation of a list of input sentences. It builds a dictionary
 ``sent``. The value is a list, since ``sent`` may be syntactically
 ambiguous; in the following example, we just look at the first member
 of the list.
-
-   >>> grammar = nltk.data.load('grammars/sem1.fcfg')
-   >>> result  = nltk.sem.text_interpret(['a dog barks'], grammar, beta_reduce=0)
-   >>> (syntree, semrep) = result['a dog barks'][0]
-   >>> print syntree
-   ([INIT]
-     (S[sem=some x.(and (dog x) (bark x))]
-       (NP[sem=\P.some x.(and (dog x) (P x))]
-         (Det[sem=\Q P.some x.(and (Q x) (P x))] a)
-         (N[sem=dog] dog))
-       (VP[sem=\x.(bark x)] (IV[sem=\x.(bark x)] barks))))
-   >>> print semrep
-   some x.(and (dog x) (bark x))
+   
+    >>> grammar = nltk.data.load('grammars/sem1.fcfg')
+    >>> result  = nltk.sem.text_interpret(['a dog barks'], grammar, beta_reduce=0)
+    >>> (syntree, semrep) = result['a dog barks'][0]
+    >>> print syntree
+    (S[sem=<some x.(and (dog x) (bark x))>]
+      (NP[sem=<\P.some x.(and (dog x) (P x))>]
+        (Det[sem=<\Q P.some x.(and (Q x) (P x))>] a)
+        (N[sem=<dog>] dog))
+      (VP[sem=<\x.(bark x)>] (IV[sem=<\x.(bark x)>] barks)))
+    >>> print semrep
+    some x.(and (dog x) (bark x))
 
 |nopar| By default, the semantic representation that is produced by
 ``text_interpret()`` has already undergone |beta|-reduction, but in the
@@ -1903,24 +1902,18 @@ parses for the sentence `every boy chases a girl in Noosa`:lx:, and
 evaluate each of the corresponding semantic representations in the
 model ``model0.py`` which we have imported.
 
-    >>> from nltk.parse import FeatureEarleyChartParser
-    >>> import nltk.data
-    >>> grammar, lexicon = nltk.data.load('grammars/sem2.fcfg')
-    >>> cp = FeatureEarleyChartParser(grammar, lexicon)
+    >>> grammar = nltk.data.load('grammars/sem2.fcfg')
     >>> val = nltk.data.load('grammars/valuation1.val')
-    >>> dom = val.domain
-    >>> m = Model(dom, val)
-    >>> g = Assignment(dom)
+    >>> m = nltk.sem.Model(val.domain, val)
+    >>> g = nltk.sem.Assignment(dom)
     >>> sent = 'every boy chases a girl in Noosa'
     >>> result = nltk.sem.text_evaluate([sent], grammar, m, g)
     >>> for (syntree, semrep, value) in result[sent]:
     ... 	print "'%s' is %s in Model m\n" % (semrep.infixify(), value)
-    ... 
-    'all x.((boy x) implies (some z4.((girl z4) and (chase z4 x)) and 
-    (in noosa x)))' is True in Model m
-    ...
-    'all x.((boy x) implies some z5.(((girl z5) and (in noosa z5)) and
-    (chase z5 x)))' is False in Model m
+    'all x.((boy x) implies (some z240.((girl z240) and (chase z240 x)) and (in noosa x)))' is True in Model m
+    'all x.((boy x) implies some z333.(((girl z333) and (in noosa z333)) and (chase z333 x)))' is False in Model m
+
+
 
 ----------------------------------------------
 Case Study: Extracting Valuations from Chat-80
@@ -1982,14 +1975,14 @@ lexical item such as the following for each individual constant:
 The ``chat80`` module can be found in the ``corpora`` package. The
 attribute ``chat80.items`` gives us a list of Chat-80 relations:
 
-   >>> nltk.corpus.chat80.items
-   ('borders', 'contains', 'city', 'country', 'circle_of_lat', 
-   'circle_of_long', 'continent', 'region', 'ocean', 'sea')
+   >>> from nltk.corpus import chat80
+   >>> chat80.items # doctest: +ELLIPSIS
+    ('borders', 'circle_of_lat', 'circle_of_long', 'city', ...)
 
 The ``concepts()`` method shows the list of ``Concept``\ s that can be
 extracted from a ``chat80`` relation, and we can then inspect their extensions.
 
-   >>> concepts = nltk.corpus.chat80.concepts('city')
+   >>> concepts = chat80.concepts('city')
    >>> concepts
    [Concept('city'), Concept('country_of'), Concept('population_of')]
    >>> rel = concepts[1].extension
@@ -2008,6 +2001,7 @@ a new ``Valuation`` object which contains the results.
    >>> val['country_of']['india']
    {'hyderabad': True, 'delhi': True, 'bombay': True, 
    'madras': True, 'calcutta': True}
+   >>> dom = val.domain
    >>> g = nltk.sem.Assignment(dom)
    >>> m = nltk.sem.Model(dom, val)
    >>> m.evaluate(r'\x . (population_of x jakarta)', g)
