@@ -49,7 +49,7 @@ def doctest_listing():
 
 def main():
     out = open('test-list.txt', 'w')
-    out.write(HEAD+doctest_listing()+FOOT)
+    out.write('%s\n%s\n%s' % (HEAD, doctest_listing(), FOOT))
     out.close()
 
 if __name__ == '__main__':
