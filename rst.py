@@ -890,6 +890,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         if 'avm' in node['classes']: return
         if 'gloss' in node['classes']: return
         if 'rst-example' in node['classes']: return
+        if 'doctest-list' in node['classes']: return
         self.table_num += 1
         num = '%s.%s' % (self.format_section_num(1), self.table_num)
         for node_id in self.get_ids(node):
