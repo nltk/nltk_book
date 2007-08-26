@@ -734,7 +734,7 @@ we can determine its most likely tag:
 Finally, we can create and evaluate a simple tagger that assigns tags to words
 based on this table:
 
-    >>> baseline_tagger = nltk.UnigramTagger(likely_tags)
+    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
     >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     0.45578495136941344
 
@@ -767,7 +767,7 @@ We do this by specifying the default tagger as an argument to the
 lookup tagger.  The lookup tagger will call the default tagger just
 in case it can't assign a tag itself.
 
-    >>> baseline_tagger = nltk.UnigramTagger(likely_tags, backoff=nltk.DefaultTagger('NN'))
+    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
     >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
     0.58177695566561249
 
@@ -788,7 +788,7 @@ pairs for words other than nouns.
 
     def performance(cfd, wordlist):
         lt = dict((word, cfd[word].max()) for word in wordlist)
-        baseline_tagger = nltk.UnigramTagger(lt, backoff=nltk.DefaultTagger('NN'))
+        baseline_tagger = nltk.UnigramTagger(model=lt, backoff=nltk.DefaultTagger('NN'))
         return nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents('a'))
 
     def display():
@@ -955,13 +955,12 @@ a unigram tagger then use it to tag a sentence, then test its
 overall accuracy:
 
     >>> sents = nltk.corpus.brown.tagged_sents('a')
-    >>> unigram_tagger = nltk.UnigramTagger()
-    >>> unigram_tagger.train(train_sents)
+    >>> unigram_tagger = nltk.UnigramTagger(sents)
     >>> tokens = "John saw the book on the table".split()
     >>> unigram_tagger.tag(tokens)
     [('John', 'NP'), ('saw', 'VBD'), ('the', 'AT'), ('book', None),
     ('on', 'IN'), ('the', 'AT'), ('table', None)]
-    >>> nltk.tag.accuracy(unigram_tagger, test_sents)
+    >>> nltk.tag.accuracy(unigram_tagger, sents)
     0.82363315696649031    
 
 Affix Taggers
@@ -974,8 +973,7 @@ sense.)  For example, the following tagger will consider suffixes of
 length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
-    >>> affix_tagger = nltk.AffixTagger(-2, 3)
-    >>> affix_tagger.train(sents)
+    >>> affix_tagger = nltk.AffixTagger(sents, affix_length=-2, min_stem_length=3)
     >>> affix_tagger.tag(tokens)
     [('John', 'NP'), ('saw', 'NN'), ('the', 'AT'), ('book', 'NP'),
     ('on', None), ('the', 'AT'), ('table', 'JJ')]
@@ -1017,8 +1015,7 @@ The ``NgramTagger`` class uses a tagged training corpus to determine which
 part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger:
 
-    >>> bigram_tagger = nltk.BigramTagger()
-    >>> bigram_tagger.train(nltk.corpus.brown.tagged_sents('a'))
+    >>> bigram_tagger = nltk.BigramTagger(nltk.corpus.brown.tagged_sents('a'))
 
 |nopar|
 Once a bigram tagger has been trained, it can be used to tag untagged
@@ -1066,12 +1063,10 @@ a ``regexp_tagger``, as follows:
 Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
-    >>> t0 = nltk.DefaultTagger('NN')
-    >>> t1 = nltk.UnigramTagger(backoff=t0)
-    >>> t2 = nltk.BigramTagger(backoff=t1)
     >>> sents = nltk.corpus.brown.tagged_sents('a')
-    >>> t1.train(sents)
-    >>> t2.train(sents)
+    >>> t0 = nltk.DefaultTagger('NN')
+    >>> t1 = nltk.UnigramTagger(sents, backoff=t0)
+    >>> t2 = nltk.BigramTagger(sents, backoff=t1)
     >>> nltk.tag.accuracy(t2, sents)
 
 .. Note:: We specify the backoff tagger when the tagger is
@@ -1081,7 +1076,7 @@ The backoff-tagger may itself have a backoff tagger:
    a certain context, the bigram tagger discards the training instance.
    This keeps the bigram tagger model as small as possible.  We can
    further specify that a tagger needs to see more than one instance of a
-   context in order to retain it, e.g. ``nltk.BigramTagger(cutoff=2, backoff=t1)``
+   context in order to retain it, e.g. ``nltk.BigramTagger(sents, cutoff=2, backoff=t1)``
    will discard contexts that have only been seen once or twice.
 
 Tagging Unknown Words
