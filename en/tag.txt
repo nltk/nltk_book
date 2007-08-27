@@ -403,7 +403,7 @@ tags everything as ``NN``.
 
     >>> tokens = 'John saw 3 polar bears .'.split()
     >>> default_tagger = nltk.DefaultTagger('NN')
-    >>> list(default_tagger.tag(tokens))
+    >>> default_tagger.tag(tokens)
     [('John', 'NN'), ('saw', 'NN'), ('3', 'NN'), ('polar', 'NN'),
     ('bears', 'NN'), ('.', 'NN')]
 
@@ -742,7 +742,7 @@ This is surprisingly good; just knowing the tags for the 100 most frequent
 words enables us to tag nearly half of all words correctly!  Let's see
 what it does on some untagged input text:
 
-    >>> baseline_tagger.tag(nltk.corpus.brown.sents('a'))[3]
+    >>> baseline_tagger.tag(nltk.corpus.brown.sents('a')[3])
     [('``', '``'), ('Only', None), ('a', 'AT'), ('relative', None),
     ('handful', None), ('of', 'IN'), ('such', None), ('reports', None), 
     ('was', 'BEDZ'), ('received', None), ("''", "''"), (',', ','),
@@ -954,14 +954,16 @@ called `training`:dt:\ .  In the following code sample, we train
 a unigram tagger then use it to tag a sentence, then test its
 overall accuracy:
 
-    >>> sents = nltk.corpus.brown.tagged_sents('a')
-    >>> unigram_tagger = nltk.UnigramTagger(sents)
-    >>> tokens = "John saw the book on the table".split()
-    >>> unigram_tagger.tag(tokens)
-    [('John', 'NP'), ('saw', 'VBD'), ('the', 'AT'), ('book', None),
-    ('on', 'IN'), ('the', 'AT'), ('table', None)]
-    >>> nltk.tag.accuracy(unigram_tagger, sents)
-    0.82363315696649031    
+    >>> brown_a = nltk.corpus.brown.tagged_sents('a')
+    >>> unigram_tagger = nltk.UnigramTagger(brown_a)
+    >>> sent = nltk.corpus.brown.sents('a')[2007]
+    >>> unigram_tagger.tag(sent)
+    [('Various', None), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
+    ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
+    ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
+    ('so', 'QL'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
+    >>> nltk.tag.accuracy(unigram_tagger, brown_a)
+    0.8550331165343994
 
 Affix Taggers
 -------------
@@ -973,11 +975,14 @@ sense.)  For example, the following tagger will consider suffixes of
 length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
-    >>> affix_tagger = nltk.AffixTagger(sents, affix_length=-2, min_stem_length=3)
-    >>> affix_tagger.tag(tokens)
-    [('John', 'NP'), ('saw', 'NN'), ('the', 'AT'), ('book', 'NP'),
-    ('on', None), ('the', 'AT'), ('table', 'JJ')]
-
+    >>> affix_tagger = nltk.AffixTagger(brown_a, affix_length=-2, min_stem_length=3)
+    >>> affix_tagger.tag(sent)
+    [('Various', 'JJ'), ('of', None), ('the', None), ('apartments', 'NNS'), ('are', None),
+    ('of', None), ('the', None), ('terrace', 'NN'), ('type', None), (',', None),
+    ('being', 'VBG'), ('on', None), ('the', None), ('ground', 'NN'), ('floor', 'NN'),
+    ('so', None), ('that', None), ('entrance', 'NN'), ('is', None), ('direct', 'NN'),
+    ('.', None)]
+    
 .. _n-gram-taggers:
 
 N-Gram Taggers
@@ -1013,18 +1018,16 @@ picks the tag that is most likely in the given context.
 
 The ``NgramTagger`` class uses a tagged training corpus to determine which
 part-of-speech tag is most likely for each context.  Here we see
-a special case of an n-gram tagger, namely a bigram tagger:
+a special case of an n-gram tagger, namely a bigram tagger.
+First we train it, then use it to tag untagged sentences:
 
-    >>> bigram_tagger = nltk.BigramTagger(nltk.corpus.brown.tagged_sents('a'))
-
-|nopar|
-Once a bigram tagger has been trained, it can be used to tag untagged
-corpora:
-
-    >>> tokens = "John saw the book on the table".split()
-    >>> list(bigram_tagger.tag(tokens))
-    [('John', None), ('saw', None), ('the', 'AT'), ('book', 'NN'),
-    ('on', 'IN'), ('the', 'AT'), ('table', None)]
+    >>> bigram_tagger = nltk.BigramTagger(brown_a, cutoff=0)
+    >>> bigram_tagger.tag(sent)
+    [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
+    ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
+    ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
+    ('so', 'CS'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'),
+    ('.', '.')]
 
 |nopar|
 As with the other taggers, n-gram taggers assign the tag `None`:gc: to
@@ -1063,11 +1066,10 @@ a ``regexp_tagger``, as follows:
 Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
-    >>> sents = nltk.corpus.brown.tagged_sents('a')
     >>> t0 = nltk.DefaultTagger('NN')
-    >>> t1 = nltk.UnigramTagger(sents, backoff=t0)
-    >>> t2 = nltk.BigramTagger(sents, backoff=t1)
-    >>> nltk.tag.accuracy(t2, sents)
+    >>> t1 = nltk.UnigramTagger(brown_a, backoff=t0)
+    >>> t2 = nltk.BigramTagger(brown_a, backoff=t1)
+    >>> nltk.tag.accuracy(t2, brown_a)
 
 .. Note:: We specify the backoff tagger when the tagger is
    initialized, so that training can take advantage of the backoff tagger.
@@ -1232,6 +1234,9 @@ Summary
 ---------------
 Further Reading
 ---------------
+
+For more examples of tagging with |NLTK|, please see the
+guide at ``http://nltk.org/doc/guides/tag.html``.
 
 There are several other important approaches to tagging involving
 *Transformation-Based Learning*, *Markov Modeling*, and *Finite State
