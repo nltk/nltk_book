@@ -245,15 +245,14 @@
 \textcolor{black}{The simplest possible tagger tags everything as a noun:}
 \small
 \begin{verbatim}
-from nltk import tokenize
 text = 'There are 11 players in a football team'
-text_tokens = list(tokenize.whitespace(text))
+text_tokens = text.split()
 # ['There', 'are', '11', 'players', 'in', 'a', 'football', 'team']
 \end{verbatim}
   \pause
 \begin{verbatim}
-from nltk import tag
-mytagger = tag.Default('nn')
+import nltk
+mytagger = nltk.DefaultTagger('NN')
 for t in mytagger.tag(text_tokens):
     print t
 # ('There', 'NN')
@@ -272,8 +271,8 @@ the text, eg numerals:}
 default_pattern = (r'.*', 'NN')
 cd_pattern = (r' ^[0-9]+(.[0-9]+)?$', 'CD')
 patterns = [cd_pattern, default_pattern]
-NN_CD_tagger = tag.Regexp(patterns)
-re_tagged = list(NN_CD_tagger.tag(text_tokens))
+NN_CD_tagger = nltk.RegexpTagger(patterns)
+re_tagged = NN_CD_tagger.tag(text_tokens)
 # [('There', 'NN'), ('are', 'NN'), ('11', 'NN'), ('players', 'NN'), 
 ('in', 'NN'), ('a', 'NN'), ('football', 'NN'), ('team', 'NN')]
 \end{verbatim}
@@ -292,16 +291,12 @@ table of unigram probabilities:
 Training a UnigramTagger on the Penn Treebank:
 {\small
 \begin{verbatim}
-from nltk.corpora import treebank
-from itertools import islice
-
 # sentences 0-2999
-train_sents = list(islice(treebank.tagged(), 3000))
+train_sents = nltk.corpus.treebank.tagged_sents()[:3000]
 # from sentence 3000 to the end
-test_sents = list(islice(treebank.tagged(), 3000, None))
+test_sents = nltk.corpus.treebank.tagged_sents()[3000:]
 
-unigram_tagger = tag.Unigram()
-unigram_tagger.train(train_sents)
+unigram_tagger = nltk.UnigramTagger(train_sents)
 \end{verbatim}}
 \end{frame}
 
@@ -311,8 +306,8 @@ unigram_tagger.train(train_sents)
   \frametitle{Unigram tagging}
 {\small
 \begin{verbatim}
->>> list(unigram_tagger.tag(tokenize.whitespace("Mr. Jones saw 
-the book on the shelf")))
+>>> sent = "Mr. Jones saw the book on the shelf"
+>>> unigram_tagger.tag(sent.split())
 [('Mr.', 'NNP'), ('Jones', 'NNP'), ('saw', 'VBD'), ('the', 'DT'), 
 ('book', 'NN'), ('on', 'IN'), ('the', 'DT'), ('shelf', None)]
 \end{verbatim}}
@@ -324,10 +319,8 @@ the book on the shelf")))
   We can combine taggers to ensure every word is tagged:
 {\small
 \begin{verbatim}
->>> unigram_tagger = tag.Unigram(cutoff=0,backoff=NN_CD_tagger)
->>> unigram_tagger.train(train_sents)
->>> list(unigram_tagger.tag(tokenize.whitespace("Mr. Jones saw 
-the book on the shelf")))
+>>> unigram_tagger = nltk.UnigramTagger(train_sents, cutoff=0, backoff=NN_CD_tagger)
+>>> unigram_tagger.tag(sent.split())
 [('Mr.', 'NNP'), ('Jones', 'NNP'), ('saw', 'VBD'), ('the', 'DT'), 
 ('book', 'VB'), ('on', 'IN'), ('the', 'DT'), ('shelf', 'NN')]
 \end{verbatim}}
@@ -358,11 +351,10 @@ the book on the shelf")))
   some text to be tagged and the gold standard tags.  
   
   \pause
-  We can make
-  print more prettily:
+  We can make print more prettily:
 \begin{verbatim}
 def print_accuracy(tagger, data):
-    print '%3.1f%%' % (100 * tag.accuracy(tagger, data))
+    print '%3.1f%%' % (100 * nltk.tag.accuracy(tagger, data))
 \end{verbatim}
 
   \pause
@@ -469,11 +461,9 @@ def print_accuracy(tagger, data):
 >>> default_pattern = (r'.*', 'NN')
 >>> cd_pattern = (r' ^[0-9]+(.[0-9]+)?$', 'CD')
 >>> patterns = [cd_pattern, default_pattern]
->>> NN_CD_tagger = tag.Regexp(patterns)
->>> unigram_tagger = tag.Unigram(cutoff=0, backoff=NN_CD_tagger)
->>> unigram_tagger.train(train_sents)
->>> bigram_tagger = tag.Bigram(backoff=unigram_tagger)
->>> bigram_tagger.train(train_sents)
+>>> NN_CD_tagger = nltk.RegexpTagger(patterns)
+>>> unigram_tagger = nltk.UnigramTagger(train_sents, cutoff=0, backoff=NN_CD_tagger)
+>>> bigram_tagger = tag.BigramTagger(train_sents, backoff=unigram_tagger)
 \end{verbatim}%$
 
 \begin{verbatim}
@@ -525,25 +515,25 @@ def print_accuracy(tagger, data):
 \textbf{Sentence}
 & \textbf{Gold}
 & \textbf{Unigram}
-& \textbf{Replace \texttt{nn} with \texttt{vb}}
-& \textbf{Replace \texttt{to} with \texttt{in}} \\
-&&& \textbf{when the previous word is \texttt{to}}
+& \textbf{Replace \texttt{NN} with \texttt{VB}}
+& \textbf{Replace \texttt{TO} with \texttt{IN}} \\
+&&& \textbf{when the previous word is \texttt{TO}}
 & \textbf{when the next tag is \texttt{nns}} \\ \hline
-The            & at      & at \\
-President      & nn-tl   & nn-tl \\
-said           & vbd     & vbd \\
-he             & pps     & pps \\
-will           & md      & md \\
-ask            & vb      & vb \\
-Congress       & np      & np \\
-to             & to      & to \\
-increase       & vb      & \textit{nn}     &    \textit{vb} \\
-grants         & nns     & nns \\
-to             & in      & \textit{to}     &    \textit{to} &   \textit{in} \\
-states         & nns     & nns \\
-for            & in      & in \\
-vocational     & jj      & jj \\
-rehabilitation & nn      & nn
+The            & AT      & AT \\
+President      & NN-TL   & NN-TL \\
+said           & VBD     & VBD \\
+he             & PPS     & PPS \\
+will           & MD      & MD \\
+ask            & VB      & VB \\
+Congress       & NP      & NP \\
+to             & TO      & TO \\
+increase       & VB      & \textit{NN}     &    \textit{VB} \\
+grants         & NNS     & NNS \\
+to             & IN      & \textit{TO}     &    \textit{TO} &   \textit{IN} \\
+states         & NNS     & NNS \\
+for            & IN      & IN \\
+vocational     & JJ      & JJ \\
+rehabilitation & NN      & NN
 \end{tabular}
 }
 \end{frame}
