@@ -8,7 +8,7 @@
 
 WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 
-TEX = introduction.tex programming.tex tag.tex chunk.tex data.tex
+TEX = preface.tex introduction.tex programming.tex tag.tex chunk.tex data.tex
 PDF := $(TEX:.tex=.pdf)
 
 RST2HTML = ../rst.py --html
