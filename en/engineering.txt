@@ -15,340 +15,22 @@
 Introduction
 ------------
 
-**This chapter is in the early draft stage!**
-
-* grammar engineering
-* connection to Part II
-* test suites
-* not testing on the training data
-* regression testing
-* professional issues, ethics, reliability
+**This chapter is a rough draft only**
 
 ----------
 Evaluation
 ----------
 
-* precision/recall
-* tagging & chunking examples
-* selecting appropriate baselines
-
------------------
-Language Modeling
------------------
-
-* smoothing
-* estimation
-
-----------------
-Machine Learning
-----------------
-
-* feature selection, feature extraction
-* text classification (question classification, language id, naive bayes etc)
-* sequence classification (HMM, TBL)
-* unsupervised learning (clusterers) 
-
-
-
-
-* Summary
-* Further Reading
-
-This chapter will cover evaluation, trade-offs between methods that
-create large vs small models (e.g. n-gram tagging vs Brill tagging).
-
-.. TODO: spell checking example	
-.. TODO: confusion matrix
-.. TODO: lexical chaining for text segmentation, or WSD
-.. TODO: introduce terminology
-   - knowledge engineering approach (rule-based; hand-crafted)
-   - machine learning approach (learn rules from annotated corpora)
-   - hybrid: rules <-> features
-   - refer back to introduction
-.. TODO: architectures: pipeline/cascade vs blackboard
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
-   
----------------------
-Problems with Tagging
----------------------
-
-* what context is relevant?
-* how best to combine taggers?
-* sensitivity to lexical identity?
-* ngram tagging produces large models, uninterpretable
-  cf Brill tagging, which has smaller, linguistically-interpretable models
-
-.. Discussion of how statistical methods have been used to
-   reach a linguistically interpretable, symbolic result.
-   Contrast between n-gram and Brill tagger about whether
-   we can learn anything from inspecting the model itself
-   (n-gram data vs transformational rules).
-
-
-Brief discussion of NLTK's smoothing classes, for another approach to
-handling unknown words: Lidstone, Laplace, Expected Likelihood,
-Heldout, Witten-Bell, Good-Turing.
-
-Exercises
----------
-
-#. |soso| **HMM taggers**:
-   Explore the Hidden Markov Model tagger ``tag.hmm``.
-
-#. |soso| **Estimation:**
-   Use some of the estimation techniques in ``nltk.probability``,
-   such as *Lidstone* or *Laplace* estimation, to develop a statistical
-   tagger that does a better job than ngram backoff taggers in cases where
-   contexts encountered during testing were not seen during training.
-   Read up on the TnT tagger, since this provides useful technical
-   background: ``http://www.aclweb.org/anthology/A00-1031``
-
-#. |hard| **Tagger context**:
-
-   N-gram taggers choose a tag for a token based on its text and the
-   tags of the *n-1* preceding tokens. This is a common context to use
-   for tagging, but certainly not the only possible context.
-
-   a) Construct a new tagger, sub-classed from ``SequentialTagger``, that
-      uses a different context. If your tagger's context contains
-      multiple elements, then you should combine them in a
-      tuple. Some possibilities for elements to include are: (i)
-      the current word or a previous word; (ii) the length
-      of the current word text or of the previous word; (iii)
-      the first letter of the current word or the previous word;
-      or (iv) the previous tag.  Try to choose
-      context elements that you believe will help the tagger decide which
-      tag is appropriate. Keep in mind the trade-off between more
-      specific taggers with accurate results; and more general taggers
-      with broader coverage.  Combine your tagger with other taggers
-      using the backoff method.
-
-   #) How does the combined tagger's accuracy compare to the basic tagger? 
-
-   #) How does the combined tagger's accuracy compare to the combined taggers you
-      created in the previous exercise? 
-
-#. |hard| **Tagging out-of-vocabulary words**:
-   Develop a version of the n-gram backoff tagger that stores a vocabulary
-   of the `n`:math: most frequent words seen during training, and maps
-   all other words to the special word ``UNK`` (unknown).  This word will
-   occur with a variety of tags, and the n-gram tagger will be able to use
-   the context of the preceding tags to disambiguate.  For example,
-   if the word `blog`:lx: is not in the vocabulary, a training sentence
-   containing ``the/dt blog/nn`` would be treated as ``the/dt UNK/nn``,
-   and ``to/to blog/vb`` would be treated as ``to/to UNK/vb``.
-   The n-gram backoff taggers will work in the usual way, to tag
-   ``UNK`` in contexts that were not observed during training.
-
-#. |hard| **Reverse sequential taggers**:
-   Since sequential taggers tag tokens in order, one at a time, they
-   can only use the predicted tags to the *left* of the current token
-   to decide what tag to assign to a token. But in some cases, the
-   *right* context may provide more useful information than the left
-   context.  A reverse sequential tagger starts with the last word of the
-   sentence and, proceeding in right-to-left order, assigns tags to words
-   on the basis of the tags it has already predicted to the right.
-   By reversing texts at appropriate times, we can use NLTK's existing
-   sequential tagging classes to perform reverse sequential
-   tagging: reverse the training text before training the tagger;
-   and reverse the text being tagged both before and after.
-
-   a) Use this technique to create a bigram reverse sequential tagger.
-
-   #) Measure its accuracy on a tagged section of the Brown corpus. Be
-      sure to use a different section of the corpus for testing than you
-      used for training.
-
-   #) How does its accuracy compare to a left-to-right bigram
-      tagger, using the same training data and test data?
-        
-#. |hard| **Alternatives to backoff**:
-   Create a new kind of tagger that combines several taggers using
-   a new mechanism other than backoff (e.g. voting).  For robustness
-   in the face of unknown words, include a regexp tagger, a unigram
-   tagger that removes a small number of prefix or suffix characters
-   until it recognizes a word, or an n-gram tagger that does not
-   consider the text of the token being tagged.
-        
-#. |hard| **Comparing n-gram taggers and Brill taggers**:
-   Investigate the relative performance of n-gram taggers with backoff
-   and Brill taggers as the size of the training data is increased.
-   Consider the training time, running time, memory usage, and accuracy,
-   for a range of different parameterizations of each technique.
-        
-------------------
-Evaluating Taggers
-------------------
-
-As we experiment with different taggers, it is important to have an
-objective performance measure.  Fortunately, we already have manually
-verified training data (the original tagged corpus), so we can use
-that to score the accuracy of a tagger, and to perform systematic error analysis.
-
-Investigating Tagger Performance
---------------------------------
-
-What is the upper limit to tagger performance?
-Unfortunately perfect tagging is impossible.  Consider the case of a
-trigram tagger.  How many cases of part-of-speech ambiguity does it
-encounter?  We can determine the answer to this question empirically
-(Listing upper-limit_).
-
-.. pylisting:: upper-limit
-   :caption: Upper Limit to Trigram Tagger Performance
-
-    def upper_limit(sents):
-        cfdist = nltk.ConditionalFreqDist()
-        for sent in sents:
-            p = [(None, None)] # empty token/tag pair
-            trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
-            for (pair1,pair2,pair3) in trigrams:
-                context = (pair1[1], pair2[1], pair3[0]) # last 2 tags, this word
-                cfdist[context].inc(pair3[1])            # current tag
-        total = ambiguous = 0
-        for cond in cfdist.conditions():
-            if cfdist[cond].B() > 1:
-                ambiguous += cfdist[cond].N()
-            total += cfdist[cond].N()
-        return float(ambiguous) / total
-
-    >>> upper_limit(nltk.corpus.brown.tagged_sents('a'))
-    0.0560200364299
-
-Thus, one out of twenty trigrams is ambiguous.  Given the
-current word and the previous two tags, there is more than one tag
-that could be legitimately assigned to the current word according to
-the training data.  Assuming we always pick the most likely tag in
-such ambiguous contexts, we can derive an empirical upper bound on
-the performance of a trigram tagger.
-
-Another way to investigate the performance of a tagger is to study
-its mistakes.  Some tags may be harder than others to assign, and
-it might be possible to treat them specially by pre- or post-processing
-the data.  A convenient way to look at tagging errors is the
-`confusion matrix`:dt:.  It charts expected tags (the gold standard)
-against actual tags generated by a tagger:
-
-    >>> def tag_list(tagged_sents):
-    ...     return [tag for sent in tagged_sents for (word, tag) in sent]
-    >>> def apply_tagger(tagger, corpus):
-    ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
-    >>> gold = tag_list(nltk.corpus.brown.tagged_sents('b'))
-    >>> test = tag_list(apply_tagger(t2, nltk.corpus.brown.tagged_sents('b')))
-    >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
-
-Based on such analysis we may decide to modify the tagset.  Perhaps
-a distinction between tags that is difficult to make can be dropped,
-since it is not important in the context of some larger processing task.
-In general, observe that the tagging process simultaneously collapses distinctions
-(i.e., lexical identity is usually lost when all personal pronouns are
-tagged `prp`:gc:), while introducing distinctions and removing
-ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
-facilitates classification and prediction.
-When we introduce finer distinctions in a tag set, we get better information
-about linguistic context, but we have to do more work to classify the
-current token (there are more tags to choose from).  Conversely, with
-fewer distinctions, we have less work to do for classifying the
-current token, but less information about the context to draw on.
-
-We could collapse distinctions with the aid of a dictionary that maps
-the existing tagset to a simpler tagset:
-
-.. doctest-ignore::
-    >>> mapping = {'PPS': 'NN', 'PPSS': 'NN'}
-    >>> data = [(word, mapping.get(tag, tag))
-    ...         for (word, tag) in sent for sent in tagged_sents]
-
-We have seen that ambiguity in the training data leads to an upper limit
-in tagger performance.  Sometimes more context will resolve the
-ambiguity.  In other cases however, as noted by [Abney1996PST]_, the
-ambiguity can only be resolved with reference to syntax, or to world
-knowledge.  Despite these imperfections, part-of-speech tagging has
-played a central role in the rise of statistical approaches to natural
-language processing.  In the early 1990s, the surprising accuracy of
-statistical taggers was a striking demonstration that it was possible
-to solve one small part of the language understanding problem, namely
-part-of-speech disambiguation, without reference to deeper sources of
-linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
-on chunk parsing, we shall see that it can.
-
-#. |soso|
-   Inspect the confusion matrix for the bigram tagger ``t2`` defined above, and
-   identify one or more sets of tags to collapse.  Define a dictionary to do
-   the mapping, and evaluate the tagger on the simplified data.
-
-#. |soso| Consider the program in Listing upper-limit_, which
-   determines the upper bound for accuracy of a trigram tagger.
-   Consult the Abney reading (section sec-engineering-further-reading_) and review his discussion of the
-   impossibility of exact tagging.  Explain why correct tagging of
-   these examples requires access to other kinds of information than
-   just words and tags.  How might you estimate the scale of this
-   problem?
-
-#. |soso| Experiment with using a simplified tagset (e.g. map all noun
-   tags to ``n``, and so on for the other tags, by discarding all but
-   the first letter of each tag.)  Such a tagger has fewer distinctions
-   to make, but much less information on which to base its work.
-   Discuss your findings.
-
-
-
 
 Scoring Accuracy
 ----------------
 
-Consider the sentence from the Brown Corpus in Table evaluating-taggers_.
-The 'Gold Standard' tags from the corpus are given in the second column, while
-the tags assigned by a unigram tagger appear in the third column.
-Two mistakes made by the unigram tagger are italicized.
-
-.. table:: evaluating-taggers
-
-   ===============  =============  ==============
-   Sentence         Gold Standard  Unigram Tagger
-   ===============  =============  ==============
-   The              at             at
-   President        nn-tl          nn-tl
-   said             vbd            vbd
-   he               pps            pps
-   will             md             md
-   ask              vb             vb
-   Congress         np             np
-   to               to             to
-   increase         vb             *nn*
-   grants           nns            nns
-   to               in             *to*
-   states           nns            nns
-   for              in             in
-   vocational       jj             jj
-   rehabilitation   nn             nn
-   .                .              .
-   ===============  =============  ==============
-
-   Evaluating Taggers
- 
-The tagger correctly tagged 14 out of 16 words, so it gets a score of
-14/16, or 87.5%.  Of course, accuracy should be judged on the basis of
-a larger sample of data.  NLTK provides a function called
-``tag.accuracy`` to automate the task.  In the simplest case, we
-can test the tagger using the same data it was trained on:
-
-    >>> from itertools import islice
-    >>> train_sents = nltk.corpus.brown.tagged_sents('a')[:500]  # sents 0..499
-    >>> unigram_tagger = nltk.UnigramTagger()
-    >>> unigram_tagger.train(train_sents)
-    >>> acc = tag.accuracy(unigram_tagger, train_sents)
-    >>> print 'Accuracy = %4.1f%%' % (100 * acc)
-    Accuracy = 79.6%
-
-However, testing a language processing system over its training data is unwise.
+Testing a language processing system over its training data is unwise.
 A system which simply memorized the training data would get a perfect
 score without doing any linguistic modeling.  Instead, we would like
 to reward systems that make good generalizations, so we should test
-against *unseen data*, and replace ``train_sents`` above with
-``unseen_sents``.  We can then define the two sets of data as follows:
+against *unseen data*.
+We can then define the two sets of data as follows:
 
     >>> train_sents  = nltk.corpus.brown.tagged_sents('a')[:500]
     >>> unseen_sents = nltk.corpus.brown.tagged_sents('a')[500:600] # sents 500-599
@@ -356,11 +38,11 @@ against *unseen data*, and replace ``train_sents`` above with
 Now we train the tagger using ``train_sents`` and evaluate it using
 ``unseen_sents``, as follows:
 
-    >>> unigram_tagger = nltk.UnigramTagger(backoff=nltk.DefaultTagger('nn'))
+    >>> default_tagger = nltk.DefaultTagger('NN')
+    >>> unigram_tagger = nltk.UnigramTagger(backoff=default_tagger)
     >>> unigram_tagger.train(train_sents)
-    >>> acc = tag.accuracy(unigram_tagger, unseen_sents)
-    >>> print 'Accuracy = %4.1f%%' % (100 * acc)
-    Accuracy = 74.6%
+    >>> print tag.accuracy(unigram_tagger, unseen_sents)
+    .746
 
 The accuracy scores produced by this evaluation method are lower, but
 they give a more realistic picture of the performance of the tagger.
@@ -369,12 +51,6 @@ dependent on the quality of its training set. In particular, if the
 training set is too small, it will not be able to reliably estimate
 the most likely tag for each word. Performance will also suffer if the
 training set is significantly different from the texts we wish to tag.
-
-In the process of developing a tagger, we can use the accuracy score
-as an objective measure of the improvements made to the system.
-Initially, the accuracy score will go up quickly as we fix obvious
-shortcomings of the tagger.  After a while, however, it becomes more
-difficult and improvements are small.
 
 Baseline Performance
 --------------------
@@ -490,24 +166,308 @@ of the tagger would improve if it was modified to consider not just
 the word being tagged, but also the tag of the word on the left.  Such
 taggers are known as bigram taggers, and we consider them in the next section.
 
+Upper Limit to Performance
+--------------------------
+
+What is the upper limit to tagger performance?
+Unfortunately perfect tagging is impossible.  Consider the case of a
+trigram tagger.  How many cases of part-of-speech ambiguity does it
+encounter?  We can determine the answer to this question empirically
+(Listing upper-limit_).
+
+.. pylisting:: upper-limit
+   :caption: Upper Limit to Trigram Tagger Performance
+
+    def upper_limit(sents):
+        cfdist = nltk.ConditionalFreqDist()
+        for sent in sents:
+            p = [(None, None)] # empty token/tag pair
+            trigrams = zip(p+p+sent, p+sent+p, sent+p+p)
+            for (pair1,pair2,pair3) in trigrams:
+                context = (pair1[1], pair2[1], pair3[0]) # last 2 tags, this word
+                cfdist[context].inc(pair3[1])            # current tag
+        total = ambiguous = 0
+        for cond in cfdist.conditions():
+            if cfdist[cond].B() > 1:
+                ambiguous += cfdist[cond].N()
+            total += cfdist[cond].N()
+        return float(ambiguous) / total
+
+    >>> upper_limit(nltk.corpus.brown.tagged_sents('a'))
+    0.0560200364299
+
+Thus, one out of twenty trigrams is ambiguous.  Given the
+current word and the previous two tags, there is more than one tag
+that could be legitimately assigned to the current word according to
+the training data.  Assuming we always pick the most likely tag in
+such ambiguous contexts, we can derive an empirical upper bound on
+the performance of a trigram tagger.
+
+Another way to investigate the performance of a tagger is to study
+its mistakes.  Some tags may be harder than others to assign, and
+it might be possible to treat them specially by pre- or post-processing
+the data.  A convenient way to look at tagging errors is the
+`confusion matrix`:dt:.  It charts expected tags (the gold standard)
+against actual tags generated by a tagger:
+
+    >>> def tag_list(tagged_sents):
+    ...     return [tag for sent in tagged_sents for (word, tag) in sent]
+    >>> def apply_tagger(tagger, corpus):
+    ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
+    >>> gold = tag_list(nltk.corpus.brown.tagged_sents('b'))
+    >>> test = tag_list(apply_tagger(t2, nltk.corpus.brown.tagged_sents('b')))
+    >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
+
+Based on such analysis we may decide to modify the tagset.  Perhaps
+a distinction between tags that is difficult to make can be dropped,
+since it is not important in the context of some larger processing task.
+In general, observe that the tagging process simultaneously collapses distinctions
+(i.e., lexical identity is usually lost when all personal pronouns are
+tagged `prp`:gc:), while introducing distinctions and removing
+ambiguities (e.g. `deal`:lx: tagged as `vb`:gc: or `nn`:gc:).  This move
+facilitates classification and prediction.
+When we introduce finer distinctions in a tag set, we get better information
+about linguistic context, but we have to do more work to classify the
+current token (there are more tags to choose from).  Conversely, with
+fewer distinctions, we have less work to do for classifying the
+current token, but less information about the context to draw on.
+
+We could collapse distinctions with the aid of a dictionary that maps
+the existing tagset to a simpler tagset:
+
+.. doctest-ignore::
+    >>> mapping = {'PPS': 'NN', 'PPSS': 'NN'}
+    >>> data = [(word, mapping.get(tag, tag))
+    ...         for (word, tag) in sent for sent in tagged_sents]
+
+We have seen that ambiguity in the training data leads to an upper limit
+in tagger performance.  Sometimes more context will resolve the
+ambiguity.  In other cases however, as noted by [Abney1996PST]_, the
+ambiguity can only be resolved with reference to syntax, or to world
+knowledge.  Despite these imperfections, part-of-speech tagging has
+played a central role in the rise of statistical approaches to natural
+language processing.  In the early 1990s, the surprising accuracy of
+statistical taggers was a striking demonstration that it was possible
+to solve one small part of the language understanding problem, namely
+part-of-speech disambiguation, without reference to deeper sources of
+linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
+on chunk parsing, we shall see that it can.
+
 Exercises
 ---------
+
+#. |soso|
+   Inspect the confusion matrix for the bigram tagger ``t2`` defined above, and
+   identify one or more sets of tags to collapse.  Define a dictionary to do
+   the mapping, and evaluate the tagger on the simplified data.
+
+#. |soso| Consider the program in Listing upper-limit_, which
+   determines the upper bound for accuracy of a trigram tagger.
+   Consult the Abney reading (section sec-engineering-further-reading_) and review his discussion of the
+   impossibility of exact tagging.  Explain why correct tagging of
+   these examples requires access to other kinds of information than
+   just words and tags.  How might you estimate the scale of this
+   problem?
+
+#. |soso| Experiment with using a simplified tagset (e.g. map all noun
+   tags to ``n``, and so on for the other tags, by discarding all but
+   the first letter of each tag.)  Such a tagger has fewer distinctions
+   to make, but much less information on which to base its work.
+   Discuss your findings.
 
 #. |soso| **Evaluating a Unigram Tagger**:
    Apply our evaluation methodology to the unigram tagger developed in
    the previous section.  Discuss your findings.
           
+#. |soso| **Estimation:**
+   Use some of the estimation techniques in ``nltk.probability``,
+   such as *Lidstone* or *Laplace* estimation, to develop a statistical
+   tagger that does a better job than ngram backoff taggers in cases where
+   contexts encountered during testing were not seen during training.
 
--------------------------
-Sparse Data and Smoothing
--------------------------
+#. |soso| Read up on the TnT tagger, and experiment with ``nltk_contrib.tnt``.
+   ``http://www.aclweb.org/anthology/A00-1031``
 
-[Introduction to NLTK's support for statistical estimation.]
+#. |hard| **Tagger context**:
 
+   N-gram taggers choose a tag for a token based on its text and the
+   tags of the *n-1* preceding tokens. This is a common context to use
+   for tagging, but certainly not the only possible context.
+
+   a) Construct a new tagger, sub-classed from ``SequentialTagger``, that
+      uses a different context. If your tagger's context contains
+      multiple elements, then you should combine them in a
+      tuple. Some possibilities for elements to include are: (i)
+      the current word or a previous word; (ii) the length
+      of the current word text or of the previous word; (iii)
+      the first letter of the current word or the previous word;
+      or (iv) the previous tag.  Try to choose
+      context elements that you believe will help the tagger decide which
+      tag is appropriate. Keep in mind the trade-off between more
+      specific taggers with accurate results; and more general taggers
+      with broader coverage.  Combine your tagger with other taggers
+      using the backoff method.
+
+   #) How does the combined tagger's accuracy compare to the basic tagger? 
+
+   #) How does the combined tagger's accuracy compare to the combined taggers you
+      created in the previous exercise? 
+
+#. |hard| **Tagging out-of-vocabulary words**:
+   Develop a version of the n-gram backoff tagger that stores a vocabulary
+   of the `n`:math: most frequent words seen during training, and maps
+   all other words to the special word ``UNK`` (unknown).  This word will
+   occur with a variety of tags, and the n-gram tagger will be able to use
+   the context of the preceding tags to disambiguate.  For example,
+   if the word `blog`:lx: is not in the vocabulary, a training sentence
+   containing ``the/dt blog/nn`` would be treated as ``the/dt UNK/nn``,
+   and ``to/to blog/vb`` would be treated as ``to/to UNK/vb``.
+   The n-gram backoff taggers will work in the usual way, to tag
+   ``UNK`` in contexts that were not observed during training.
+
+#. |hard| **Reverse sequential taggers**:
+   Since sequential taggers tag tokens in order, one at a time, they
+   can only use the predicted tags to the *left* of the current token
+   to decide what tag to assign to a token. But in some cases, the
+   *right* context may provide more useful information than the left
+   context.  A reverse sequential tagger starts with the last word of the
+   sentence and, proceeding in right-to-left order, assigns tags to words
+   on the basis of the tags it has already predicted to the right.
+   By reversing texts at appropriate times, we can use NLTK's existing
+   sequential tagging classes to perform reverse sequential
+   tagging: reverse the training text before training the tagger;
+   and reverse the text being tagged both before and after.
+
+   a) Use this technique to create a bigram reverse sequential tagger.
+
+   #) Measure its accuracy on a tagged section of the Brown corpus. Be
+      sure to use a different section of the corpus for testing than you
+      used for training.
+
+   #) How does its accuracy compare to a left-to-right bigram
+      tagger, using the same training data and test data?
+        
+#. |hard| **Alternatives to backoff**:
+   Create a new kind of tagger that combines several taggers using
+   a new mechanism other than backoff (e.g. voting).  For robustness
+   in the face of unknown words, include a regexp tagger, a unigram
+   tagger that removes a small number of prefix or suffix characters
+   until it recognizes a word, or an n-gram tagger that does not
+   consider the text of the token being tagged.
+        
+#. |hard| **Comparing n-gram taggers and Brill taggers**:
+   Investigate the relative performance of n-gram taggers with backoff
+   and Brill taggers as the size of the training data is increased.
+   Consider the training time, running time, memory usage, and accuracy,
+   for a range of different parameterizations of each technique.
+
+Precision and Recall
+--------------------
+
+.. _precision-recall:
+
+.. figure:: ../images/precision-recall.png
+   :scale: 70
+
+   True and False Positives and Negatives
+
+Consider Figure precision-recall_.
+The intersection of these sets defines four regions: the true
+positives (TP), true negatives (TN), false positives (FP), and false
+negatives (FN).  Two standard measures are
+*precision*, the fraction of guessed chunks that were correct TP/(TP+FP),
+and *recall*, the fraction of correct chunks that were identified
+TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
+of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
+
+
+Grammar Engineering
+-------------------
+
+* regression testing, test suites
+* reliability
+
+-----------------
+Language Modeling
+-----------------
+
+* n-gram modeling, Maximum Likelihood Estimation ``nltk.MLEProbDist``
+* sparse data problem
+* smoothing, estimation
+* simple estimation:
+  Expected Likelihood Estimation ``nltk.ELEProbDist``,
+  Laplace Estimation ``nltk.LaplaceProbDist``,
+  Lidstone Estimatio ``nltk.LidstoneProbDist``.
+* advanced estimation:
+  Heldout Estimation ``nltk.HeldoutProbDist``,
+  Good-Turing Estimation ``nltk.GoodTuringProbDist``,
+  Witten-Bell Estimation ``nltk.WittenBellProbDist``.
 
 ----------------
-The Brill Tagger
+Machine Learning
 ----------------
+
+* Example problems in text classification, e.g. question classification, language identification
+* supervised vs unsupervised
+* knowledge engineering approach (rule-based; hand-crafted)
+* machine learning approach (learn rules from annotated corpora)
+* many NLP tasks can be easily construed as classification tasks, e.g. tagging
+* even tokenization can be viewed as a boolean classification task: for each letter of the input, is the letter immediately followed by a token boundary?
+* in tagging, we used the identity of the word, optionally with the tag(s) of preceding word(s)
+* German example: capitalization a relevant feature for unknown words
+
+
+Feature Selection and Extraction
+--------------------------------
+
+* features as attributes of linguistic entities
+* boolean vs scalar
+* dictionary representation
+
+Example of some possible features for the word `Melbourne`:lx:.
+Note that the feature names are arbitrary strings.
+
+    >>> word123['initial_capital'] = True
+    >>> word123['length'] = 9
+    >>> word123['vowels'] = 4
+    >>> word123['endswith(e)'] = True
+    >>> word123['endswith(f)'] = False
+
+Its obvious we can have a large number of features.
+The issue becomes one of feature selection...
+
+
+Text Classification
+-------------------
+
+* sequence classification (HMM, TBL)
+* unsupervised learning (clusterers)
+
+Hybrid Approaches
+-----------------
+
+* rules vs features
+* refer back to introduction chapter
+
+
+Problems with Tagging
+---------------------
+
+* what context is relevant?
+* how best to combine taggers?
+* sensitivity to lexical identity?
+* ngram tagging produces large models, uninterpretable
+  cf Brill tagging, which has smaller, linguistically-interpretable models
+
+.. Discussion of how statistical methods have been used to
+   reach a linguistically interpretable, symbolic result.
+   Contrast between n-gram and Brill tagger about whether
+   we can learn anything from inspecting the model itself
+   (n-gram data vs transformational rules).
+
+
+Transformation-Based Learning: the Brill Tagger
+-----------------------------------------------
 
 A potential issue with n-gram taggers is the size of their n-gram
 table (or language model).  If tagging is to be employed in a variety
@@ -626,12 +586,18 @@ rules learned by the Brill tagger.
 
 .. TODO: saving a Brill tagger to a file, reloading
 
+Sequence Learning: the HMM Tagger
+---------------------------------
+
+* Overview of NLTK's HMM tagger, ``nltk.HiddenMarkovModelTagger``
+
+
 Exercises
 ---------
 
-1. |easy| Try the Brill tagger demonstration: ``tag.brill.demo()``.
+1. |easy| Try the Brill tagger demonstration: ``nltk.tag.brill.demo()``.
 
-#. |soso| Consult the documentation for the demo function, using ``help(brill.demo)``.
+#. |soso| Consult the documentation for the demo function, using ``help(nltk.tag.brill.demo)``.
    Experiment with the tagger by setting different values for the parameters.
    Is there any trade-off between training time (corpus size) and performance?
 
@@ -645,194 +611,32 @@ Exercises
    b) Add some new rule templates which employ contexts that might help
       to correct the errors you saw in ``errors.out``.
 
---------------
-The HMM Tagger
---------------
+-------
+Summary
+-------
 
-[Overview of NLTK's HMM tagger.]
-
-------------------------
-Evaluating Chunk Parsers
-------------------------
-
-An easy way to evaluate a chunk parser is to take some already chunked
-text, strip off the chunks, rechunk it, and compare the result with
-the original chunked text.  The ``ChunkScore.score()`` function takes
-the correctly chunked sentence as its first argument, and the newly
-chunked version as its second argument, and compares them.  It reports
-the fraction of actual chunks that were found (recall), the fraction
-of hypothesized chunks that were correct (precision), and a combined
-score, the F-measure (the harmonic mean of precision and recall).
-    
-A number of different metrics can be used to evaluate chunk parsers.
-We will concentrate on a class of metrics that can be derived from two
-sets:
-
-* **guessed**: The set of chunks returned by the chunk parser. 
-* **correct**: The correct set of chunks, as defined in the test corpus.
-
-The evaluation method we will use comes from the field of information retrieval,
-and considers the performance of a document retrieval system.  We will set up
-an analogy between the correct set of chunks and a user's so-called "information need",
-and between the set of returned chunks and a system's returned documents.  Consider
-the following diagram.
-
-.. figure:: ../images/precision-recall.png
-   :scale: 70
-
-   True and False Positives and Negatives
-
-The intersection of these sets defines four regions: the true
-positives (TP), true negatives (TN), false positives (FP), and false
-negatives (FN).  Two standard measures are
-*precision*, the fraction of guessed chunks that were correct TP/(TP+FP),
-and *recall*, the fraction of correct chunks that were identified
-TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
-of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
-
-.. Note: Note that these metrics do not assign any credit for chunks
-   that are "almost" right (e.g., chunks that extend one word too long).
-   It would be possible to design metrics that do assign partial credit
-   for such cases, they would be more complex.  We decided to keep our
-   metrics simple, so that it is easy to understand what a given result
-   means.
-
-During evaluation of a chunk parser, it is useful to flatten a chunk
-structure into a tree consisting only of a root node and leaves:
-
-    >>> correct = nltk.chunk.tagstr2tree(
-    ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    >>> correct.flatten()
-    (S: ('the', 'DT') ('little', 'JJ') ('cat', 'NN') ('sat', 'VBD')
-    ('on', 'IN') ('the', 'DT') ('mat', 'NN'))
-
-We run a chunker over this flattened data, and compare the
-resulting chunked sentences with the originals, as follows:
-
-    
-    >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-    ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> guess = cp.parse(correct.flatten())
-    >>> chunkscore.score(correct, guess)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision: 100.0%
-        Recall:    100.0%
-        F-Measure: 100.0%
-
-``ChunkScore`` is a class for scoring chunk parsers.  It can be used
-to evaluate the output of a chunk parser, using precision, recall,
-f-measure, missed chunks, and incorrect chunks.  It can also be used
-to combine the scores from the parsing of multiple texts.  This is
-quite useful if we are parsing a text one sentence at a time.  The
-following program listing shows a typical use of the ``ChunkScore``
-class.  In this example, ``chunkparser`` is being tested on each
-sentence from the Wall Street Journal tagged files.
-
-    >>> grammar = r"NP: {<DT|JJ|NN>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> for item in nltk.corpus.treebank.items[:5]
-    ...     for chunk_struct in nltk.corpus.treebank.chunked_sents(item)
-    ...         test_sent = cp.parse(chunk_struct.flatten())
-    ...         chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision:  48.6%
-        Recall:     34.0%
-        F-Measure:  40.0%
-
-The overall results of the evaluation can be viewed by printing the
-``ChunkScore``.  Each evaluation metric is also returned by an
-accessor method: ``precision()``, ``recall``, ``f_measure``,
-``missed``, and ``incorrect``.  The ``missed`` and ``incorrect``
-methods can be especially useful when trying to improve the
-performance of a chunk parser.  Here are the missed chunks:
-
-.. doctest-ignore::
-    >>> from random import shuffle
-    >>> missed = chunkscore.missed()
-    >>> shuffle(missed)
-    >>> print missed[:10]
-    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
-     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('30', 'CD'), ('years', 'NNS')),
-     (('workers', 'NNS'),),
-     (('preliminary', 'JJ'), ('findings', 'NNS')),
-     (('Medicine', 'NNP'),),
-     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('researchers', 'NNS'),)]
-
-Here are the incorrect chunks:
-
-.. doctest-ignore::
-    >>> incorrect = chunkscore.incorrect()
-    >>> shuffle(incorrect)
-    >> print incorrect[:10]
-    [(('New', 'JJ'), ('York-based', 'JJ')),
-     (('Micronite', 'NN'), ('cigarette', 'NN')),
-     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
-     (('later', 'JJ'),),
-     (('preliminary', 'JJ'),),
-     (('New', 'JJ'), ('York-based', 'JJ')),
-     (('resilient', 'JJ'),),
-     (('group', 'NN'),),
-     (('the', 'DT'),),
-     (('Micronite', 'NN'), ('cigarette', 'NN'))]
-
-.. Note: By default, only the first 100 missed chunks and the first
-   100 incorrect chunks will be remembered by the ``ChunkScore``.  You
-   can tell ``ChunkScore`` to record more chunk examples with the
-   ``max_fp_examples`` (maximum false positive examples) and the
-   ``max_fn_examples`` (maximum false negative examples) keyword
-   arguments to the ``ChunkScore`` constructor:
-
-    >>> chunkscore = nltk.chunk.ChunkScore(max_fp_examples=1000,
-    ...                                    max_fn_examples=1000)
-
-Exercises
----------
-
-#. |soso| **Chunker Evaluation:**
-   Carry out the following evaluation tasks for
-   any of the chunkers you have developed earlier.
-   (Note that most chunking corpora contain some internal
-   inconsistencies, such that any reasonable rule-based approach
-   will produce errors.)
-
-   a) Evaluate your chunker on 100 sentences from a chunked corpus,
-      and report the precision, recall and F-measure.
-   b) Use the ``chunkscore.missed()`` and ``chunkscore.incorrect()``
-      methods to identify the errors made by your chunker.  Discuss.
-   c) Compare the performance of your chunker to the baseline chunker
-      discussed in the evaluation section of this chapter.
-
-#. |hard| **Transformation-Based Chunking:**
-   Apply the n-gram and Brill tagging methods to IOB chunk tagging.
-   Instead of assigning POS tags to words, here we will assign IOB tags
-   to the POS tags.  E.g. if the tag ``DT`` (determiner) often occurs
-   at the start of a chunk, it will be tagged ``B`` (begin).  Evaluate
-   the performance of these chunking methods relative to the regular
-   expression chunking methods covered in this chapter.
-
-.. TODO: amplify following example
-
-#. |hard| **Statistically Improbable Phrases:**
-   Design an algorithm to find the statistically improbable
-   phrases of a document collection.
-   http://www.amazon.com/gp/search-inside/sipshelp.html
+connection to Part II
 
 
+---------------
+Further Reading
+---------------
 
 
-Exercises
----------
+-------------------------------
+Old Material to be incorporated
+-------------------------------
 
+This chapter will cover evaluation, trade-offs between methods that
+create large vs small models (e.g. n-gram tagging vs Brill tagging).
+
+.. TODO: spell checking example	
+.. TODO: confusion matrix
+
+
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``import nltk, re, pprint``
+   
 
 .. TODO: IE evaluations:
    
@@ -865,13 +669,15 @@ Further Reading
 
 ``http://nltk.org/doc/guides/classify.html``
 
-Brill tagging: Manning and Schutze 361ff; Jurafsky and Martin 307ff
+* probability, estimation (Manning and Schutze, ch 2, 6)
 
-HMM tagging: Manning and Schutze 345ff
+* Brill tagging: Manning and Schutze 361ff; Jurafsky and Martin 307ff
 
-Sekine -- 140 types of NE.
+* HMM tagging: Manning and Schutze 345ff
 
 [Abney1996PST]_
+
+.. Sekine -- 140 types of NE.
 
 .. include:: footer.txt
 
