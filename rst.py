@@ -906,9 +906,9 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         num = '%s.%s' % (self.format_section_num(1), self.listing_num)
         for node_id in self.get_ids(node):
             self.reference_labels[node_id] = '%s' % num
-        pyfile = re.sub('\W', '_', node['name'])+'.py'
+        pyfile = re.sub('\W', '_', node['name']) + PYLISTING_EXTENSION
         self.label_node(node, 'Listing %s (%s)' % (num, pyfile),
-                      PYLISTING_DIR + node['name'] + PYLISTING_EXTENSION)
+                      PYLISTING_DIR + pyfile)
         self.callout_labels.update(node['callouts'])
 
     def visit_doctest_block(self, node):
