@@ -12,29 +12,39 @@ DOCTESTS = $(wildcard $(DOCTEST_SRC)/*.doctest)
 PYSRC = $(shell find ../../nltk -name '*.py')
 HTML = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.html)
 ERRS = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.errs)
+COVERAGE = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.coverage)
 
 # Converting rst->html:
 RST = ../rst.py
 RST2HTML = $(RST) --html --css ../nltkdoc.css
 
 # Testing:
-DOCTEST = python ../../nltk/test/doctest_driver.py
+PYTHON = python
+DOCTEST = $(PYTHON) ../../nltk/test/doctest_driver.py
 DOCTEST_FLAGS = --udiff
 
 # Uploading to sourceforge:
 WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 RSYNC_OPTS = -rltgoDvz -e ssh --relative --cvs-exclude
 
-.PHONY: all html
+.PHONY: all html coverage
 
-all: html errs index.html
+all: html errs coverage index.html
 html: $(HTML)
 errs: $(ERRS)
 	@echo Failed doctests:
 	@grep 'FAILED (failures' *.errs |sed 's/\(.*\)\.errs:.*/  - \1/'
+coverage: coverage/.up2date
 
+coverage/.up2date: $(COVERAGE) ./show_coverage.py
+	python ./show_coverage.py $(COVERAGE)
+	touch coverage/.up2date
+
+%.coverage: %.errs
+	@true
 %.errs: $(DOCTEST_SRC)/%.doctest $(PYSRC)
-	$(DOCTEST) $(DOCTEST_FLAGS) $(DOCTEST_SRC)/$*.doctest > $*.errs 2>&1
+	$(DOCTEST) $(DOCTEST_FLAGS) $(DOCTEST_SRC)/$*.doctest \
+		--coverage=$*.coverage > $*.errs 2>&1
 
 %.html: $(DOCTEST_SRC)/%.doctest
 	$(RST2HTML) $< -o $@
