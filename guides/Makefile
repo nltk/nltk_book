@@ -55,7 +55,7 @@ index.html: index.txt test-list.txt
 test-list.txt: update_list.py $(ERRS)
 	python update_list.py
 
-rsync: html errs index.html
+rsync: html errs coverage index.html
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/guides/
 
 clean:
