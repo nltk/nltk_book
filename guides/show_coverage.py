@@ -43,34 +43,38 @@ INDEX_FOOTER = """
 </html>
 """
 
-def report_coverage(module_regexps):
-    output = []
+# def report_coverage(module_regexps):
+#     output = []
     
-    # filename, statements, excluded, missing, missing_formatted
-    for module_name, module in sorted(sys.modules.items()):
-        if module is None: continue
-        for regexp in module_regexps:
-            if re.match(regexp, module_name):
-                print 'Finding coverage for %s' % module_name
-                output.append(module_name)
-                (fname, stmts, excluded, missing, fmt_missing) = (
-                    coverage.analysis2(module))
-                output.append('  Missing: %s' % fmt_missing)
-                if excluded:
-                    output.append('  Exclude: %s' %
-                               coverage.format_lines(stmts, excluded))
-                break
+#     # filename, statements, excluded, missing, missing_formatted
+#     for module_name, module in sorted(sys.modules.items()):
+#         if module is None: continue
+#         for regexp in module_regexps:
+#             if re.match(regexp, module_name):
+#                 print 'Finding coverage for %s' % module_name
+#                 output.append(module_name)
+#                 (fname, stmts, excluded, missing, fmt_missing,
+#                  coverage_by_def) = (
+#                     coverage.analysis3(module))
+#                 for (name, val) in sorted(coverage_by_def.items()):
+#                     print '%6.4f %s' % (val, name)
+                
+#                 output.append('  Missing: %s' % fmt_missing)
+#                 if excluded:
+#                     output.append('  Exclude: %s' %
+#                                coverage.format_lines(stmts, excluded))
+#                 break
 
-    return '\n'.join(output)
+#     return '\n'.join(output)
 
 def report_coverage(module):
     sys.stdout.write('  %-40s ' % module.__name__)
     sys.stdout.flush()
-    (fname, stmts, excluded, missing, fmt_missing) = (
-        coverage.analysis2(module))
+    (fname, stmts, excluded, missing, fmt_missing, def_info) = (
+        coverage.analysis3(module))
     out = open(os.path.join(OUT_DIR, module.__name__+'.html'), 'wb')
-    color_coverage.colorize_file(fname, outstream=out,
-                                 not_covered=fmt_missing)
+    color_coverage.colorize_file(fname, module.__name__, out,
+                                 fmt_missing, def_info)
     out.close()
     if not missing: c = 100
     elif stmts: c = 100.*(len(stmts)-len(missing)) / len(stmts)

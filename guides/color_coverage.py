@@ -27,17 +27,12 @@ import tokenize
 _VERBOSE = False
 
 _KEYWORD = token.NT_OFFSET + 1
-_TEXT    = token.NT_OFFSET + 2
 
 _css_classes = {
-    token.NUMBER:       'number',
-    token.OP:           'operator',
-    token.STRING:       'string',
-    tokenize.COMMENT:   'comment',
-    token.NAME:         'name',
-    token.ERRORTOKEN:   'error',
-    _KEYWORD:           'keyword',
-    _TEXT:              'text',
+    token.STRING:       'pysrc-string',
+    tokenize.COMMENT:   'pysrc-comment',
+    token.ERRORTOKEN:   'pysrc-error',
+    _KEYWORD:           'pysrc-keyword',
 }
 
 _HTML_HEADER = """\
@@ -45,46 +40,30 @@ _HTML_HEADER = """\
   "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<title>code coverage of %(title)s</title>
+<title>code coverage of %(module_name)s</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 
 <style type="text/css">
 pre.code {
     font-style: Lucida,"Courier New";
+    background-color: #eeeeff;
+    border: 1px solid black;
+    padding: 0.5em;
 }
-.number {
-    color: #0080C0;
-}
-.operator {
-    color: #000000;
-}
-.string {
-    color: #008000;
-}
-.comment {
-    color: #808080;
-}
-.name {
-    color: #000000;
-}
-.error {
-    color: #FF8080;
-    border: solid 1.5pt #FF0000;
-}
-.keyword {
-    color: #0000FF;
-    font-weight: bold;
-}
-.text {
-    color: #000000;
-}
-.notcovered {
-    background-color: #FFB2B2;
-}
+span.pysrc-keyword  { color: #e06000; }
+span.pysrc-string   { color: #00aa00; }
+span.pysrc-comment  { color: #ff0000; }
+span.pysrc-error    { color: #FF8080; border: solid 1.5pt #FF0000; }
+span.notcovered     { background-color: #FFB2B2; }
+a.red:link       { color: #800000; }
+a.red:visited    { color: #800000; }
+a.yellow:link    { color: #808000; }
+a.yellow:visited { color: #808000; }
 </style>
 
 </head>
 <body>
+<h1>Code Coverage for <code>%(module_name)s</code></h1>
 """
 
 _HTML_FOOTER = """\
@@ -95,13 +74,15 @@ _HTML_FOOTER = """\
 class Parser:
     """ Send colored python source.
     """
-    def __init__(self, raw, out=sys.stdout, not_covered=[]):
+    def __init__(self, raw, out=sys.stdout, not_covered=[], def_info=[]):
         """ Store the source text.
         """
         self.raw = string.strip(string.expandtabs(raw))
         self.out = out
         self.not_covered = not_covered  # not covered list of lines
         self.cover_flag = False  # is there a <span> tag opened?
+        # map lineno -> name.
+        self.anchors = dict([(info.defstart, info.name) for info in def_info])
 
     def format(self):
         """ Parse and send the colored source.
@@ -143,6 +124,9 @@ class Parser:
         newpos = self.lines[srow] + scol
         self.pos = newpos + len(toktext)
 
+        if srow in self.anchors:
+            self.out.write('<a name="%s"></a>' % self.anchors.pop(srow))
+
         if not self.cover_flag and srow in self.not_covered:
             self.out.write('<span class="notcovered">')
             self.cover_flag = True
@@ -167,12 +151,12 @@ class Parser:
             toktype = token.OP
         elif toktype == token.NAME and keyword.iskeyword(toktext):
             toktype = _KEYWORD
-        css_class = _css_classes.get(toktype, 'text')
+        css_class = _css_classes.get(toktype)
 
         # send text
-        self.out.write('<span class="%s">' % (css_class,))
+        if css_class: self.out.write('<span class="%s">' % (css_class,))
         self.out.write(cgi.escape(toktext))
-        self.out.write('</span>')
+        if css_class: self.out.write('</span>')
 
 
 class MissingList(list):
@@ -193,21 +177,64 @@ class MissingList(list):
                 return True
         return False
 
+def coverage_summary(out, def_info, src_url=''):
+    # Just report on functions.  Split into wholly & partially
+    # untested.  Use a separate column for each.
+    def_info = [info for info in def_info if info.typ == 'func']
+    untested = [info for info in def_info if info.coverage==0.0]
+    partially_tested = [info for info in def_info
+                        if 0.0<info.coverage<1.0]
+    if not (untested or partially_tested):
+        out.write('<h2>100% Covered by Tests!</h2>')
+        return
+    both = (untested and partially_tested)
+    if both: out.write('<table border="0" width="100%">\n'
+                       '<tr valign="top"><td width="50%">\n')
+    _summary(out, 'Untested Functions', untested, 'red', src_url)
+    if both: out.write('</td><td width="50%">\n')
+    _summary(out, 'Partially Tested Functions', partially_tested,
+             'yellow', src_url)
+    if both: out.write('</td></tr></table>\n')
 
-def colorize_file(filename, outstream=sys.stdout, not_covered=[]):
+def _summary(out, title, def_info, css, src_url):
+    # If nothing remains, we're done.
+    if not def_info: return
+    names = [info.name for info in def_info]
+    # Display a summary table.
+    out.write('<h2>%s</h2>\n' % title)
+    out.write('<ul>\n')
+    #for name in sorted(names):
+    #    out.write('  <li><a class="%s" href="%s#%s">%s()</a>'
+    #              '</li>\n' % (css, src_url, name, name))
+    for (context, f_names) in sorted(_group_names(names).items()):
+        out.write('  <li>')
+        if context: out.write('<b>%s</b>: ' % context)
+        out.write(', '.join(['<a class="%s" href="%s#%s">%s()</a>' %
+                             (css, src_url, f_name, f_name.split('.')[-1])
+                             for f_name in sorted(f_names)]))
+        out.write('</li>\n')
+    out.write('</ul>\n')
+
+def _group_names(names):
+    grouped = {}
+    for name in names:
+        pieces = name.split('.')
+        grouped.setdefault('.'.join(pieces[:-1]), []).append(name)
+    return grouped
+
+def colorize_file(filename, module_name, out, not_covered, def_info):
     """
     Convert a python source file into colorized HTML.
 
-    Reads file and writes to outstream (default sys.stdout).
+    Reads file and writes to out.
     """
     fo = file(filename, 'rb')
     try:
         source = fo.read()
     finally:
         fo.close()
-    outstream.write(_HTML_HEADER % {'title': os.path.basename(filename)})
-    Parser(source, out=outstream,
-           not_covered=MissingList((not_covered and \
-                                    not_covered.split(', ')) or \
-                                   [])).format()
-    outstream.write(_HTML_FOOTER)
+    out.write(_HTML_HEADER % {'module_name': module_name})
+    coverage_summary(out, def_info)
+    missing = MissingList((not_covered and not_covered.split(', ')) or [])
+    Parser(source, out, missing, def_info).format()
+    out.write(_HTML_FOOTER)
