@@ -49,6 +49,9 @@ coverage/.up2date: $(COVERAGE) ./show_coverage.py
 %.html: $(DOCTEST_SRC)/%.doctest
 	$(RST2HTML) $< -o $@
 
+$(DOCTEST_SRC)/%.doctest: $(DOCTEST_SRC)/%.doctest_latin1
+	iconv -f iso8859-1 -t utf8 $< > $@
+
 index.html: index.txt test-list.txt
 	$(RST2HTML) index.txt
 
