@@ -20,7 +20,6 @@ HEAD = (".. ==========================================================\n"
         "  * - Topic\n    - Test Outcome\n")
 FOOT = (".. END AUTO-GENERATED LISTING\n"
         ".. ==========================================================\n")
-LISTING_RE = re.compile(re.escape(HEAD)+'.*'+re.escape(FOOT), re.DOTALL)
 
 TITLE_REGEXPS = (
     '\A\s*----+[ ]*\n(.*)\n----+[ ]*\n',

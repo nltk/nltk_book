@@ -6,66 +6,22 @@ import color_coverage
 OUT_DIR = 'coverage'
 MODULE_RE = re.compile(r'nltk.*')
 
-INDEX_HEADER = """
-<!DOCTYPE HTML PUBLIC"-//W3C//DTD HTML 4.01 Transitional//EN"
-  "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-<head>
-<title>NLTK code coverage</title>
-<link rel="stylesheet" href="../../nltkdoc.css" type="text/css" />
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head>
-<body>
-<h1 class="title"> NLTK Regression Test Coverage </h1>
-
-<p>The following table lists each NLTK module, and indicates what percentage
-of the module's statements are currently covered by the regression test set.
-To see which statements are covered in a given module, click on that
-module.</p>
-
-<div class="doctest-list container">
-<table border="1" class="doctest-list docutils">
-<colgroup>
-<col width="80%" />
-<col width="20%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th>Module</th><th>Coverage</th></tr>
-</thead>
-<tbody>
-"""
-
-INDEX_FOOTER = """
-</tbody>
-</table>
-</div>
-</body>
-</html>
-"""
-
-# def report_coverage(module_regexps):
-#     output = []
-    
-#     # filename, statements, excluded, missing, missing_formatted
-#     for module_name, module in sorted(sys.modules.items()):
-#         if module is None: continue
-#         for regexp in module_regexps:
-#             if re.match(regexp, module_name):
-#                 print 'Finding coverage for %s' % module_name
-#                 output.append(module_name)
-#                 (fname, stmts, excluded, missing, fmt_missing,
-#                  coverage_by_def) = (
-#                     coverage.analysis3(module))
-#                 for (name, val) in sorted(coverage_by_def.items()):
-#                     print '%6.4f %s' % (val, name)
-                
-#                 output.append('  Missing: %s' % fmt_missing)
-#                 if excluded:
-#                     output.append('  Exclude: %s' %
-#                                coverage.format_lines(stmts, excluded))
-#                 break
-
-#     return '\n'.join(output)
+HEAD = (".. ==========================================================\n"
+        ".. AUTO-GENERATED LISTING -- DO NOT EDIT!:\n\n"
+        ".. role:: red\n"
+        "    :class: red\n\n"
+        ".. role:: yellow\n"
+        "    :class: yellow\n\n"
+        ".. role:: green\n"
+        "    :class: green\n\n"
+        ".. container:: doctest-list\n\n"
+        " .. list-table::\n"
+        "  :class: doctest-list \n"
+        "  :widths: 80 20\n"
+        "  :header-rows: 1\n\n"
+        "  * - Module\n    - Coverage\n")
+FOOT = (".. END AUTO-GENERATED LISTING\n"
+        ".. ==========================================================\n")
 
 def report_coverage(module):
     sys.stdout.write('  %-40s ' % module.__name__)
@@ -81,7 +37,6 @@ def report_coverage(module):
     else: c = 100
     sys.stdout.write('%3d%%\n' % c)
     return c
-
 
 def init_out_dir():
     # Create the dir if it doesn't exist.
@@ -107,25 +62,26 @@ def main(filenames):
         print 'Unable to create output directory %r: %s' % (OUT_DIR, e)
         return
 
-    out = open(os.path.join(OUT_DIR, 'index.html'), 'wb')
-    out.write(INDEX_HEADER)
+    out = open('coverage-list.txt', 'wb')
+    out.write(HEAD)
 
     # Construct a coverage file for each NLTK module.
-    print '\n%-40s %s' % ('Module', 'Coverage')
-    print '-'*50
+    print '\nGenerating coverage summary files...\n'
+    print '  %-40s %s' % ('Module', 'Coverage')
+    print '  '+'-'*50
     for module_name, module in sorted(sys.modules.items()):
         if module is None: continue
         if MODULE_RE.match(module_name):
-            c = report_coverage(module)
-            if c == 100: color = '#008000'
-            elif c > 50: color = '#808000'
-            else: color = '#800000'
-            out.write('<tr><td><code><a href="%s.html">%s</a></code></td>'
-                      '<td><font color="%s">%d%%</font></td></tr>\n' %
-                      (module_name, module_name, color, c))
+            cover = report_coverage(module)
+            if cover == 100: color = 'green'
+            elif cover > 50: color = 'yellow'
+            else: color = 'red'
+            out.write('  * - `%s <%s.html>`__\n'
+                      '    - `%d%%`:%s:\n' %
+                      (module_name, module_name, cover, color))
             out.flush()
             
-    out.write(INDEX_FOOTER)
+    out.write(FOOT)
     out.close()
 
 if __name__ == '__main__':

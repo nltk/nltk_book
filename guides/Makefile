@@ -34,11 +34,13 @@ html: $(HTML)
 errs: $(ERRS)
 	@echo Failed doctests:
 	@grep 'FAILED (failures' *.errs |sed 's/\(.*\)\.errs:.*/  - \1/'
-coverage: coverage/.up2date
+coverage: coverage/index.html
 
-coverage/.up2date: $(COVERAGE) ./show_coverage.py
+coverage/index.html: coverage-list.txt coverage.txt
+	$(RST2HTML) coverage.txt -o $@
+
+coverage-list.txt: $(COVERAGE) ./show_coverage.py
 	python ./show_coverage.py $(COVERAGE)
-	touch coverage/.up2date
 
 %.coverage: %.errs
 	@true
