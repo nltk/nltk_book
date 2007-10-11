@@ -82,7 +82,7 @@ sentence has two readings.
 
     >>> tokens = ["fish"] * 5
     >>> cp = nltk.ChartParser(grammar, nltk.parse.TD_STRATEGY)
-    >>> for tree in cp.get_parse_list(tokens):
+    >>> for tree in cp.nbest_parse(tokens):
     ...     print tree
     (S (NP (NP fish) (Sbar (NP fish) (V fish))) (V fish) (NP fish))
     (S (NP fish) (V fish) (NP (NP fish) (Sbar (NP fish) (V fish))))
@@ -1148,7 +1148,7 @@ we wish to use the same tokenized sentence several times.
     parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY)
 
     >>> sent = 'old men and women'.split()
-    >>> for tree in parser.get_parse_list(sent):
+    >>> for tree in parser.nbest_parse(sent):
     ...     print tree
     (NP (JJ old) (NNS (NNS men) (CC and) (NNS women)))
     (NP (NP (JJ old) (NNS men)) (CC and) (NP (NNS women)))
@@ -1165,7 +1165,7 @@ incomplete edge.
    :caption: Trace of Bottom-Up Parser
    
     >>> parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY, trace=2)
-    >>> trees = parser.get_parse_list(sent)
+    >>> trees = parser.nbest_parse(sent)
     |.   old   .   men   .   and   .  women  .|
     Bottom Up Init Rule:
     |[---------]         .         .         .| [0:1] 'old' 
@@ -1374,10 +1374,10 @@ probabilities that sum to one.
 The grammar in Listing pcfg1_ obeys this constraint: for ``S``,
 there is only one production, with a probability of 1.0; for ``VP``,
 0.4+0.3+0.3=1.0; and for ``NP``, 0.8+0.2=1.0.
-The parse tree returned by ``get_parse()`` includes probabilities:
+The parse tree returned by ``parse()`` includes probabilities:
 
     >>> viterbi_parser = nltk.ViterbiParser(grammar)
-    >>> print viterbi_parser.get_parse(['Jack', 'saw', 'telescopes'])
+    >>> print viterbi_parser.parse(['Jack', 'saw', 'telescopes'])
     (S (NP Jack) (VP (TV saw) (NP telescopes))) (p=0.064)
 
 The next two sections introduce two probabilistic parsing algorithms
@@ -1496,7 +1496,7 @@ original constituent; so ``ViterbiParse`` will discard it.
 
 In NLTK, we create Viterbi parsers using ``ViterbiParse()``.
 Note that since ``ViterbiParse`` only finds the single most likely
-parse, that ``get_parse_list`` will never return more than one parse.
+parse, that ``nbest_parse()`` will never return more than one parse.
 
 .. pylisting:: viterbi-parse
 
@@ -1506,7 +1506,7 @@ parse, that ``get_parse_list`` will never return more than one parse.
       JJ  -> "old" [0.4] | "young" [0.6]
       CC  -> "and" [0.9] | "or" [0.1]
       ''')
-    viterbi_parser = parse.ViterbiParse(grammar)
+    viterbi_parser = nltk.ViterbiParser(grammar)
 
     >>> sent = 'old men and women'.split()
     >>> print viterbi_parser.parse(sent)
@@ -1613,7 +1613,7 @@ Instead, different strategies are implemented in subclasses of ``BottomUpChartPa
 
 **Lowest Cost First:**
 The simplest way to order the edge queue is to sort edges by the
-probabilities of their associated trees (``nltk.parse.InsideParse()``).
+probabilities of their associated trees (``nltk.InsideChartParser()``).
 This ordering concentrates the efforts of the parser on those edges
 that are more likely to be correct analyses of their underlying tokens.
 
@@ -1662,7 +1662,7 @@ unlikely to be used.  Therefore, it is reasonable to remove (or
 `beam search`:dt:; it only keeps the best partial results.
 The bottom-up chart parsers take an optional parameter ``beam_size``;
 whenever the edge queue grows longer than this, it is pruned.
-This parameter is best used in conjunction with ``InsideParse()``.
+This parameter is best used in conjunction with ``InsideChartParser()``.
 Beam search reduces the space requirements for lowest-cost-first
 search, by discarding edges that are not likely to be used.  But beam
 search also loses many of lowest-cost-first search's more useful
@@ -1672,17 +1672,17 @@ beam search is not even `complete`:idx:\ : it is not guaranteed to return a
 parse if one exists.
 
 In NLTK we can construct these parsers using
-``InsideParse``, ``LongestParse``, ``RandomParse``.
+``InsideChartParser``, ``LongestChartParser``, ``RandomChartParser``.
 
 .. pylisting:: bottom-up-chart-parsers
 
-    inside_parser = nltk.parse.InsideParse(grammar)
-    longest_parser = nltk.parse.LongestParse(grammar)
-    beam_parser = nltk.parse.InsideParse(grammar, beam_size=20)
+    inside_parser = nltk.InsideChartParser(grammar)
+    longest_parser = nltk.LongestChartParser(grammar)
+    beam_parser = nltk.InsideChartParser(grammar, beam_size=20)
 
     >>> print inside_parser.parse(sent)
     (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
-    >>> for tree in inside_parser.get_parse_list(sent):
+    >>> for tree in inside_parser.nbest_parse(sent):
     ...     print tree
     (NP
       (JJ old)
@@ -1698,7 +1698,7 @@ they are added to the chart, and shows the probability for each edges'
 tree.
 
     >>> inside_parser.trace(3)
-    >>> trees = inside_parser.get_parse_list(sent)
+    >>> trees = inside_parser.nbest_parse(sent)
       |. . . [-]| [3:4] 'women'                          [1.0]
       |. . [-] .| [2:3] 'and'                            [1.0]
       |. [-] . .| [1:2] 'men'                            [1.0]
@@ -1773,17 +1773,17 @@ three parse trees in the Penn Treebank corpus:
     >>> grammar = nltk.induce_pcfg(S, productions)
     >>> for production in grammar.productions()[:10]:
     ...      print production
-    PP -> IN NP [1.0]
-    NNP -> 'Nov.' [0.0714285714286]
-    NNP -> 'Agnew' [0.0714285714286]
-    JJ -> 'industrial' [0.142857142857]
-    NP -> CD NNS [0.133333333333]
-    , -> ',' [1.0]
     CC -> 'and' [1.0]
-    NNP -> 'Pierre' [0.0714285714286]
-    NP -> NNP NNP NNP NNP [0.0666666666667]
-    NNP -> 'Rudolph' [0.0714285714286]
-    
+    NNP -> 'Agnew' [0.166666666667]
+    JJ -> 'industrial' [0.2]
+    NP -> CD NNS [0.142857142857]
+    , -> ',' [1.0]
+    S -> NP-SBJ NP-PRD [0.5]
+    VP -> VBN S [0.5]
+    NNP -> 'Rudolph' [0.166666666667]
+    NP -> NP PP [0.142857142857]
+    NNP -> 'PLC' [0.166666666667]
+
 .. _sec-normal-forms:
 
 Normal Forms
