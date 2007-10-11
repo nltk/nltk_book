@@ -929,6 +929,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     no_section_numbers_in_preface = True
     TOP_SECTION = 'chapter'
 
+    # [xx] I don't think this currently does anything..
     def visit_document(self, node):
         if (len(node)>0 and isinstance(node[0], docutils.nodes.title) and
             isinstance(node[0].children[0], docutils.nodes.Text) and
@@ -1211,6 +1212,10 @@ class AVM:
                     docutils.nodes.inline(ident, ident,
                                           classes=['avm-pointer']))
     def as_table(self):
+        if not self.keys:
+            return docutils.nodes.paragraph('', '[]',
+                                            classes=['avm-empty'])
+        
         rows = []
         for key in self.keys:
             val = self.vals[key]
@@ -1397,6 +1402,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_doctest_block(self, node):
         # Collect the text content of the doctest block.
         text = ''.join(str(c) for c in node)
+        text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
 
         # Colorize the contents of the doctest block.
@@ -1556,7 +1562,7 @@ function astext(node)
                          .replace(/&amp;/ig, "&");
 }
 
-function copy_notify(node, bar_color)
+function copy_notify(node, bar_color, data)
 {
     // The outer box: relative + inline positioning.
     var box1 = document.createElement("div");
@@ -1581,11 +1587,13 @@ function copy_notify(node, bar_color)
     box2.style.background = "white";
     box2.style.padding = ".3em .4em .3em .4em";
     box2.style.fontStyle = "normal";
+    box2.style.background = "#f0e0e0";
 
     node.insertBefore(box1, node.childNodes.item(0));
     box1.appendChild(shadow);
     shadow.appendChild(box2);
-    box2.innerHTML="Example copied to the clipboard.";
+    box2.innerHTML="Copied to the clipboard: <pre class='copy-notify'>"+
+                   data+"</pre>";
     setTimeout(function() { node.removeChild(box1); }, 1000);
 
     var elt = node.parentNode.firstChild;
@@ -1597,7 +1605,7 @@ function copy_codeblock_to_clipboard(node)
 {
     var data = astext(node)+"\\n";
     if (copy_text_to_clipboard(data)) {
-        copy_notify(node, "#40a060");
+        copy_notify(node, "#40a060", data);
     }
 }
 
@@ -1625,7 +1633,7 @@ function copy_doctest_to_clipboard(node)
     }
     
     if (copy_text_to_clipboard(data)) {
-        copy_notify(node, "#4060a0");
+        copy_notify(node, "#4060a0", data);
     }
 }
     
@@ -1761,6 +1769,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 
     def visit_doctest_block(self, node):
         text = ''.join(str(c) for c in node)
+        text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False,
                                           callouts=node['callouts'])
