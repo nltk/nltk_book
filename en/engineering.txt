@@ -11,22 +11,425 @@
 5. Language Engineering
 =======================
 
+(does this title reflect what's actually covered?)
+
 ------------
 Introduction
 ------------
 
-* grammar engineering, connection to Part II, test suites, regression testing
+- language is full of patterns.
+- we want to understand the patterns & regularity in language.
+
+  - e.g., POS tags occur in specific patterns.
+  
+- these patterns are useful...
+
+  - for understanding how things fit together
+  - for prediction
+  - etc.
+
+- give examples of patterns, and how they might be useful..  e.g., use
+  patterns to automatically fined NEs in text, to do SRL, etc.  Patterns
+  are the basis for all automatic processing of language; and also give
+  us a first step in understanding language.
+
+- to understand these patterns, we examine representative corpora.
+
+  - although we can come to some understanding by 'just thinking about
+    it,' we can get much more precise, concrete, and objective answers
+    by examining what happens in the real world.
+  - amount of data is growing every day
+
+    - not just unannotated text, but annotated & carefully selected
+      text (fwd ref to chap-data_)
+
+- two approaches to understanding the patterns:
+
+  - manual: exploratory data analysis
+  - automatic: machine learning & modeling
+
+-------------------------
+Exploratory Data Analysis
+-------------------------
+
+- our intuitions about language are not always reliable
+
+  - we tend to notice the unusual cases
+  - and ignore the common cases
+
+- study language as an outside observer:
+
+  - how is language used in natural contexts?
+
+    - spoken language, written language -> corpora
+
+- exploratory corpus analysis is a technique to learn more about a
+  specific linguistic phenomenon/pattern/regularity.  three steps:
+
+  - search for occurences of the phenomenon
+  - categorize those occurences.
+  - count the categorized occurences
+
+  all three steps are optional. (skip search if we already have a
+  corpus of the relevant occurences; skip categorization if they're
+  already labeled; skip counting if we're just interested in whether
+  things happen or not, etc)
+
+Selecting a Corpus
+------------------
+
+- The starting point for exploratory data analysis is a corpus.
+- corpora vary widely, and it's important to understand the
+  characteristics of the corpus, in order to understand how those
+  characteristics affect the data analysis.
+
+  - how specialized?  one genre vs multi-genre.  balanced?
+  
+    - analysis results do not necessarily generalize to other
+      genres, other modalities, etc.
+
+  - how large is it?  be careful about interpreting data from small
+    corpora.  In particular, be careful about making any negative
+    statements -- if you don't find something, that doesn't mean that
+    it never happens.
+  
+Search
+------
+- Once we've selected a corpus, we can search it for relevant instances.
+- Our search techniques will depend on the corpus type.
+
+Searching Unannotated Data
+++++++++++++++++++++++++++
+  - corpus consists of raw text, with no extra information.
+
+    - messy.
+  
+  - most common example: web search engine such as google
+  - searches are typically formulated as word patterns
+
+    - simple word patterns: "give the * to him"
+    - complex word patterns: regexps
+
+  - It's usually possible to find some examples of the phenomenon
+    that we're interested in.
+
+    - But it can be very difficult to find all examples -> so be
+      very careful about drawing any negative conclusions.
+
+  - Example: google.
+
+    - Use quoted strings to tell google to search for a specific pattern.
+    
+      - Use "x and other ys" to look for hypernyms.
+
+    - Use "*" for fill-in-the-blank patterns
+
+      - Use "give * a ball" to search for nouns that can receive
+        concrete objects.
+
+    - Google caveats:
+
+      - If we can't find something, that doesn't mean it's not there.
+      - Counts can be misleading
+
+        - Some examples may contain the word string you searched for,
+          but may use it in an unexpected way -- each example potentially
+          needs to be verified!
+        - Duplicates, images, etc, cause problems.  E.g., count("the of")
+          is very high, even though we know it's not good english.
+
+Searching hand-annotated corpora
+++++++++++++++++++++++++++++++++
+
+  - Searching unannotated corpora is fairly easy; but it has several
+    drawbacks: it can be very difficult to search for some types of
+    patterns; and it can be hard to find all occurences of a given
+    phenomenon.
+
+  - Partially to help address these concerns, a large number of manually
+    annotated corpora have been created.
+
+    - Make it easier to find occurences of specific types of phenomena
+
+      - Often, this makes it possible to find all of the occurences of
+        a given phenomenon (if phenomenon & annotation info are closely
+        related.)
+        
+      - But annotated corpora are usually small, so still be careful
+        about negative conclusions.
+
+  - Search techniques:
+
+    - Use existing tools (tgrep, treesearch, etc)
+    - Write short programs
+    - Walk through several examples
+
+>>> grammar = r"""
+...   CHUNK: {<V.*> <TO> <V.*>}
+... """
+>>> cp = nltk.RegexpChunker(grammar)
+>>> brown = nltk.corpus.brown
+>>> for sent in brown.tagged_sents()[:500]:
+...     tree = cp.parse(sent)
+...     for subtree in tree.subtrees():
+...         if subtree.node == 'CHUNK': print subtree
+(CHUNK combined/VBN to/TO achieve/VB)
+(CHUNK continue/VB to/TO place/VB)
+(CHUNK serve/VB to/TO protect/VB)
+(CHUNK wanted/VBD to/TO wait/VB)
+(CHUNK allowed/VBN to/TO place/VB)
+(CHUNK expected/VBN to/TO become/VB)
+(CHUNK expected/VBN to/TO approve/VB)
+(CHUNK expected/VBN to/TO make/VB)
+(CHUNK intends/VBZ to/TO make/VB)
+        
+.. pylisting:: sentential_complement
+
+  def filter(tree):
+      child_nodes = [child.node for child in tree
+                     if isinstance(child, Tree)]
+      return  (subtree.node == 'VP') and ('S' in child_nodes)
+
+  >>> treebank = nltk.corpus.treebank
+  >>> for tree in treebank.parsed_sents()[:5]:
+  ...     for subtree in tree.subtrees(filter):
+  ...         print subtree
+  (VP
+    (VBN named)
+    (S
+      (NP-SBJ (-NONE- *-1))
+      (NP-PRD
+        (NP (DT a) (JJ nonexecutive) (NN director))
+        (PP
+          (IN of)
+          (NP (DT this) (JJ British) (JJ industrial) (NN conglomerate))))))
+
+Searching Automatically Annotated Data
+++++++++++++++++++++++++++++++++++++++
+
+- sometimes hand-annotated corpora are too small, but annotated corpora
+  don't have enough info.
+  
+- solution: automatically annotated data
+
+  - use hand-annotated corpora to train a system
+  - automatically annotate more data
+  - search the automatically annotated data
+  - is this safe?
+
+    - yes, sometimes.
+    - look at the automatic system's accuracy, and think about how it
+      might affect your search
+
+      - could the automatic system make a systematic error that would
+        prevent you from finding an important class of instances?
+      - the more closely tied the annotation & the phenomenon are, the
+        more likely you are to get into trouble.
+
+Categorizing
+------------
+
+Once we've found the occurences we're interested in, the next step is
+to categorize them.  In general, we're interested in two things:
+
+  - features of the phenomenon itself
+  - features of the context that we think are relevant to the phenomenon.
+
+Categorization can be automatic or manual
+
+  - automatic: when the decision can be made deterministically.  e.g.,
+    what is the previous word?
+    
+  - manual: when the decision needs human judgement.  example.. animacy?
+
+Encoding this information -- features.  We need to encode this info in
+a concrete way.  Use a feature dictionary for each occurence, mapping
+feature names (eg 'prevword') to concrete values (eg a string, int).
+Features are typically simple-valued, but don't necessarily need to
+be.  (Though they will need to be for automatic methods.. coming up)
+  
+Counting
+--------
+
+Now that we've got our occurences coded up, we want to look at how
+often different combinations occur.
+
+- we can look for both graded and categorical distictions
+
+  - for categorical distinctions, we don't necessarily require that
+    the counts be zero; every rule has its exception.
+
+Example: what makes a name sound male or female?  Walk through it,
+explain some features, do some counts using python.  
+
+-------------
+Data Modeling
+-------------
+
+In exploratory data analysis, we manually constructed models of
+language patterns.  In this section, we'll look at automatic methods
+to do the same thing.  These models can range in complexity (eg from
+simple models like linear regression to more complex models like
+maxent and CRF).
+
+Why build automatic models?
+
+  - Like exploratory data anlaysis, we can use automatic models to get
+    a better understanding of the patterns in the data.  which factors
+    are related to one another?  which factors are important in making
+    decisions?
+    
+  - We can also use automatic models to make predictions -- once we have
+    a model of a phenomenon, we can use it to make predictions for
+    unseen data.  This is the approach taken by many languag processing
+    systems (MT, QA, etc)
+
+What do models tell us?
+
+  - Before we delve into how models work, it's important to spend some
+    time looking at exactly what these models will tell us.
+  - Automatically learned models are (typically) descriptive, *not*
+    explanatory.
+
+    - They try to generate a parsimoneous explanation for the data.
+    - they do *not* distinguish causla factors from correlational
+      factors.
+
+      - include example for people not familiar with the distinction;
+        e.g., tall people tend to be better basketball players, but
+        playing basketball well does not make you grow taller.  maybe
+        a more linguistic example?
+
+    - Models tell us what features are relevant, but don't necessarily
+      tell us how those features relate to one another.
+    - If we actually want to understand the causal relationships in
+      language phenonmena, we need to follow up with further experiments.
+    - If we just want to make predictions, then we can just use the model's
+      output.
+
+Supervised Classification
+-------------------------
+
+One of the most basic tasks in data modeling is classification:
+
+  - Choose the correct "class label" for a given input.
+
+    - I.e., make a single decision about a single input, in isolation.
+    
+  - Labels are defined in advance (fixed finite set)
+
+Automatic classification models that are based on labeled training
+data are called "supervised classification" models.
+
+Feature Extraction
+------------------
+(include diagram: relationship between label, input, feature
+extractor, features, ML system, for training vs prediction)
+
+Before we can create a model, we have to decide which aspects of the
+input might be relevant; and decide how to encode them.  I.e., we must
+select the "features" that will be used.
+
+- "Features" are aspects of that input that might be relevant to
+  deciding the right label.
+
+For most learning methods, features must have simple value types.
+E.g., true/false features, numeric features, or string-valued
+features.
+
+  - Note that just because the feature's type is simple, doesn't mean
+    that the feature is "simple" -- it can be fuzzy, difficult to
+    compute, etc.
+
+Selecting relevant features, and deciding how to present them to the
+learning method, can have an enormous impact on its ability to extract
+a good model.  As we'll see, much of the interesting work in modeling
+a phenomenon is deciding what features might be relevant, and how we
+can represent them.
+
+In principle, automatic methods should be capable of deciding which
+features are relevant, and selecting out only the "good" features; but
+be careful about giving the model too many features -- overfitting.
+
+Choosing the right set of features may require a good understanding of
+the phenomenon in question.  And choosing good features makes a big
+difference.
+
+For supervised classification, each instance is encoded using a
+'feature set', which is a dictionary mapping feature names to values:
+
+>>> animal = {'fur': True, 'legs': 4, 
+...           'size': 'large', 'spots': True}
+>>> my_classifier.classify(animal)
+'leopard'
+
+In order to construct feature sets for the instances in a corpus, we
+will typically define a feature extractor function.  This is simply a
+function that takes an instance from a corpus, and returns a
+corresponding feature set.
+
+.. pylisting:: feature_extractor
+
+   def extract_features(word):
+       features = {} 
+       features["firstletter"] = word[0] 
+       return features
+
+   >>> extract_features('underneath')
+   {'firstletter': 'u'}
+
+Given a feature extractor and a corpus, we can train a classifier.
+First, run the feature extractor on each instance in the training
+corpus, and building a list of (featureset, label) tuples.  Then, pass
+this list to the classifier's constructor:
+
+>>> train = [(extract_features(word), label)
+...          for (word, label) in labeled_words]
+>>> classifier = nltk.NaiveBayesClassifier.train(train)
+
+Walk through example: what makes a name sound male or female?
+
+- Task: Given a new name, that we've never seen before, predict
+  whether it is male of female.
+- Training corpus: 5000 names, randomly drawn from nltk.corpus.names.
+- Test corpus: 500 names, randomly drawn from nltk.corpus.names (no
+  overlap w/ train).
+
+Incrementally build up a feature set, based partially on the
+exploration that we did in exploratory data analysis section.
+
+
+Exercise: compare the performance of different machine learning
+methods.  (they're still black boxes at this point)
 
 ----------
 Evaluation
 ----------
 
-* basic tasks of segmentation and labeling
-* accuracy: why it is not enough for a labeling task
+(*There's some material for this in eng.txt*)
+
+Before we go into detail about how various classification models work,
+we'll take a look at how we can decide whether they're doing what we
+want.
+
+There's several ways to measure how well a system does, and each has
+its pluses and minuses.
+
+Evaluation Set
+--------------
+
+Don't test on train!!!!   (Explain why, etc)
+
+Which data should be used?  (eg random sampling vs single chunk)
+
+Accuracy
+--------
+
+- Simplest metric: accuracy.  Describe what it is, where it can be
+  limited in usefulness.
 
 Precision and Recall
 --------------------
-
 .. _precision-recall:
 
 .. figure:: ../images/precision-recall.png
@@ -43,50 +446,293 @@ and *recall*, the fraction of correct chunks that were identified
 TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
 of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
 
-Windowdiff: Evaluating Segmentations
-------------------------------------
-
-.. _windowdiff:
-.. figure:: ../images/windowdiff.png
-   :scale: 30
-
-   A Reference Segmentation and Two Hypothetical Segmentations
-
-A different method must be used for comparing segmentations.  In Figure windowdiff_ we see two
-possible segmentations of a sequence of items (e.g. tokenization, chunking, sentence segmentation),
-which might have been produced by two programs or annotators.  If we naively score S\ :subscript:`1` and
-S\ :subscript:`2` for their alignment with the reference segmentation, both will score 0 as neither
-got the correct alignment.  However, S\ :subscript:`1` is clearly better than S\ :subscript:`2`,
-and so we need a corresponding measure, such as `Windowdiff`:dt:.  Windowdiff is a simple
-algorithm for evaluating the quality of a segmentation, by running a sliding window over the
-data and awarding partial credit for near misses.  The following code illustrates the algorithm
-running on the segmentations from Figure windowdiff_ using a window size of 3:
-
-    >>> ref = "00000001000000010000000"
-    >>> s1  = "00000010000000001000000"
-    >>> s2  = "00010000000000000001000"
-    >>> nltk.windowdiff(ref,ref,3)
-    0
-    >>> nltk.windowdiff(ref,s1,3)
-    4
-    >>> nltk.windowdiff(ref,s2,3)
-    16
-
-
------------------
-Language Modeling
------------------
-
-* smoothing, estimation [EL]
-
-----------------
-Machine Learning
+Cross-Validation
 ----------------
 
-* feature selection, feature extraction
-* text classification (question classification, language id, naive bayes etc)
-* sequence classification (HMM, TBL)
-* unsupervised learning (clusterers) 
+To do evaluation, we need to keep some of the data back -- don't test
+on train.  But that means we have less data available to train.  Also,
+what if our training set has ideosyncracies?
+
+Cross-validation: run training&testing multiple times, with different
+training sets.
+
+  - Lets us get away with smaller training sets
+  - Lets us get a feel for how much the performance varies based on
+    different training sets.
+
+Error Analysis
+--------------
+
+The metrics above give us a general feel for how well a system does,
+but doesn't tell us much about why it gets that performance .. are
+there patterns in what it gets wrong?  If so, that can help us to
+improve the system, or if we can't improve it, then at least make us
+more aware of what the limitations of the system are, and what kind of
+data it will produce more reliable or less reliable results for.
+
+Talk some about how to do error analysis?
+
+----------------------
+Classification Methods
+----------------------
+here we talk about some specific method.. before here, its' all blackbox
+
+- Decision Trees
+- Naive Bayes Classifier
+- Maximum Entropy Classifier
+
+Decision Trees
+--------------
+(draw some pictures)
+
+Building a Decision Tree:
+
+- Pick the most "informative" feature.
+- Split the examples into two groups, based on that feature.
+- For each group, find the next-most informative feature.
+- Repeat
+
+Good:
+
+- Easy to interpret (esp. near the top)
+- Good for categorical distinctions
+
+Bad:
+
+- Features can't "combine" their impact
+- Not as good for graded distinctions
+
+
+Naive Bayes Classifiers
+-----------------------
+
+- Each feature has a say.
+- Features can "combine" their effect
+- What a feature has to say:
+  "How likely am I, given a label?"
+- Pick whichever label has the most support.
+
+Classifying an input: E.g., the word "line"
+
+1. Draw a bar graph showing how often each sense occurs in the
+   training corpus.
+2. Look at each input feature, and decide how likely it is given each
+   label. Decrease each label's bar by a corresponding amount.  
+
+Alternative visualization:
+- Start with a point that's "between" the labels.
+- Each feature "pushes" the point
+- Which label does it end up closest to?
+
+Math -- give the equations.
+
+- Every feature has an effect.
+
+  - At the same time!
+  
+- A feature's effect is calculated by looking at the likelihood of a
+  feature, given a label.  (Just count how often a feature occurs in
+  the training data with each label.)
+
+Smoothing: zero counts can be a problem.
+
+  - Do we really want to say that something has 0 probability, just
+    because we haven't seen it in the training corpus?
+  - If not, then what prob should it have?
+  - Explain basic smoothing, but don't necessarily go into great
+    detail.
+  
+Why is Naive Bayes "naive"?
+
+- It assumes that each feature is "independent"
+- Which is almost never true!
+- Why is this a problem?
+
+  - If we include two features that are tightly correlated, then the
+    same piece of information gets counted twice!
+
+Maximum Entropy Classifiers
+---------------------------
+- Why do we get "double counting"?
+- When we decide what effect a feature should have, we only look at
+  that one feature.
+- During training, features are computed separately.
+- During prediction, features are combined.
+- What can we do about it?
+  - Consider feature interactions during training.
+
+
+- MaxEnt Model is almost identical to Naive Bayes
+  (though it might not be immediately clear why if you look at the math.)
+- Main difference is in training.
+- When deciding what effect features should have, consider all features.
+
+- A feature's effects are determined by that feature's parameters (or
+  weights).
+
+- Training:
+
+  - Choose the feature parameters that would give us the highest score
+    if we were testing on our training set.
+  - I.e., maximize the likelihood of the training data.
+
+Math.
+
+-------------------------------------------
+Sequence Classification & Language Modeling
+-------------------------------------------
+
+would go here.  This includes HMMs.
+
+(*There's some material for this in eng.txt*)
+
+---------------------
+Unsupervised Learning
+---------------------
+
+- Even when there's no labeled training data, we can still use
+  automatic methods to learn about the data.
+- What patterns tend to occur?
+- How do those patterns relate to one another?
+
+
+Example: Punkt sentence tokenizer.
+
+- Dividing a paragraph into sentences is hard. (western languages)
+- Mainly because we can't tell if "." is used as part of an
+  abbreviation or not.
+- Punkt uses unsupervised methods to find common abbreviations.
+- If "xyz" is almost always followed by "." then it's probably an
+  abbreviation.
+
+It can be useful to know whether two words are "similar."
+
+- Search: don't just find the exact terms you specify.
+- Question Answering: handle synonyms.
+- Parsing: what words act similarly to one another?
+
+Different notions of "similarity":
+
+- What words tend to co-occur?
+- What words occur in similar contexts?
+
+
+----------------------------
+Machine Learning in Python..
+----------------------------
+
+- For machine learning, it can be very convenient to do feature
+  extraction in Python.
+- Python has excellent text processing facilities
+- NLTK should make your job easier.
+- But when you actually build the model, you may want to use something
+  written in C or Java.
+- Python does not perform numerically intensive calculations very
+  quickly.
+- NLTK can interface w/ external ML systems.
+
+-----------
+Conclusions
+-----------
+
+how it all fits together..
+
+-------
+Summary
+-------
+
+---------------
+Further Reading
+---------------
+
+
+
+
+
+
 
 .. include:: footer.txt
+
+
+.. 
+
+  *** Old material ***
+  
+  ------------
+  Introduction
+  ------------
+  
+  * grammar engineering, connection to Part II, test suites, regression testing
+  
+  ----------
+  Evaluation
+  ----------
+  
+  * basic tasks of segmentation and labeling
+  * accuracy: why it is not enough for a labeling task
+  
+  Precision and Recall
+  --------------------
+  
+  .. _precision-recall:
+  
+  .. figure:: ../images/precision-recall.png
+     :scale: 70
+  
+     True and False Positives and Negatives
+  
+  Consider Figure precision-recall_.
+  The intersection of these sets defines four regions: the true
+  positives (TP), true negatives (TN), false positives (FP), and false
+  negatives (FN).  Two standard measures are
+  *precision*, the fraction of guessed chunks that were correct TP/(TP+FP),
+  and *recall*, the fraction of correct chunks that were identified
+  TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
+  of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
+  
+  Windowdiff: Evaluating Segmentations
+  ------------------------------------
+  
+  .. _windowdiff:
+  .. figure:: ../images/windowdiff.png
+     :scale: 30
+  
+     A Reference Segmentation and Two Hypothetical Segmentations
+  
+  A different method must be used for comparing segmentations.  In Figure windowdiff_ we see two
+  possible segmentations of a sequence of items (e.g. tokenization, chunking, sentence segmentation),
+  which might have been produced by two programs or annotators.  If we naively score S\ :subscript:`1` and
+  S\ :subscript:`2` for their alignment with the reference segmentation, both will score 0 as neither
+  got the correct alignment.  However, S\ :subscript:`1` is clearly better than S\ :subscript:`2`,
+  and so we need a corresponding measure, such as `Windowdiff`:dt:.  Windowdiff is a simple
+  algorithm for evaluating the quality of a segmentation, by running a sliding window over the
+  data and awarding partial credit for near misses.  The following code illustrates the algorithm
+  running on the segmentations from Figure windowdiff_ using a window size of 3:
+  
+      >>> ref = "00000001000000010000000"
+      >>> s1  = "00000010000000001000000"
+      >>> s2  = "00010000000000000001000"
+      >>> nltk.windowdiff(ref,ref,3)
+      0
+      >>> nltk.windowdiff(ref,s1,3)
+      4
+      >>> nltk.windowdiff(ref,s2,3)
+      16
+  
+  
+  -----------------
+  Language Modeling
+  -----------------
+  
+  * smoothing, estimation [EL]
+  
+  ----------------
+  Machine Learning
+  ----------------
+  
+  * feature selection, feature extraction
+  * text classification (question classification, language id, naive bayes etc)
+  * sequence classification (HMM, TBL)
+  * unsupervised learning (clusterers) 
+  
 
