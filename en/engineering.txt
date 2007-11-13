@@ -7,20 +7,18 @@
 
 .. _chap-engineering:
 
-=======================
-5. Language Engineering
-=======================
-
-(does this title reflect what's actually covered?)
-
-SB: data-intensive language processing?
-EK: yes, sounds better
+=====================================
+5. Data-Intensive Language Processing
+=====================================
 
 ------------
 Introduction
 ------------
 
 - language is full of patterns.
+
+  - patterns seen so far: relative frequency of modal verbs as an indicator of
+    genre in Table brown-types_.
 
   - sb: detecting them is key to many NLP tasks, especially those that try to get
     at the meaning of text.  E.g. WSD: detecting intended word sense in given context;
@@ -29,20 +27,29 @@ Introduction
   - sb: these have applications in QA, MT, ...
   
   - E.g. what does "by" mean?  (agent, location, time)
-    - The lost children were found by the searchers
-    - The lost children were found by the mountain
-    - The lost children were found by the afternoon
+  
+.. _lost-children:
+.. ex::
+   .. ex:: The lost children were found by the searchers
+   .. ex:: The lost children were found by the mountain
+   .. ex:: The lost children were found by the afternoon
 
-  - E.g. who is the subject of the final verb (sold, caught, found)?
-    - The thieves stole the jewels, and some of them were subsequently sold.
-    - The thieves stole the jewels, and some of them were subsequently caught.
-    - The thieves stole the jewels, and some of them were subsequently found.
+- E.g. who is the subject of the final verb (sold, caught, found)?
+
+.. _thieves:
+.. ex::
+   .. ex:: The thieves stole the jewels, and some of them were subsequently sold.
+   .. ex:: The thieves stole the jewels, and some of them were subsequently caught.
+   .. ex:: The thieves stole the jewels, and some of them were subsequently found.
     
   - E.g. on the NLG side, render the predicate strong(x), where x is:
     chip (powerful), position (strong), sales (strong), symbol (powerful)
     (computer, chip, country, criticism, demand, evidence, force, gains, Germany,
     machines, military, opposition, position, possibility, sales, sense, showing, support,
     symbol, weapons).
+    
+  - E.g. "spatial gender"
+    http://itre.cis.upenn.edu/~myl/languagelog/archives/002003.html
 
 - we want to understand the patterns & regularity in language.
 
@@ -98,6 +105,10 @@ Exploratory Data Analysis
 
   - we tend to notice the unusual cases
   - and ignore the common cases
+  
+- claim that women use 15,000 words a day while men use 7,000
+  http://itre.cis.upenn.edu/~myl/languagelog/archives/003607.html
+  http://itre.cis.upenn.edu/~myl/languagelog/archives/003621.html
 
 - study language as an outside observer:
 
@@ -159,6 +170,7 @@ Search
 
 Searching Unannotated Data
 ++++++++++++++++++++++++++
+
   - corpus consists of raw text, with no extra information.
 
     - messy.
@@ -167,6 +179,7 @@ Searching Unannotated Data
   - searches are typically formulated as word patterns
 
     - simple word patterns: "give the * to him"
+    - http://itre.cis.upenn.edu/~myl/languagelog/archives/002733.html
     - complex word patterns: regexps
 
   - It's usually possible to find some examples of the phenomenon
@@ -469,6 +482,26 @@ Walk through example: what makes a name sound male or female?
 Incrementally build up a feature set, based partially on the
 exploration that we did in exploratory data analysis section.
 
+Initial work on a classifier to use frequency of modal verbs to classify
+documents by genre.
+
+.. pylisting:: modals
+
+    def modal_features(tokens):
+        modals = ['can', 'could', 'may', 'might', 'must', 'will']
+        return nltk.FreqDist(word for word in tokens if word in modals)
+
+    def train():
+        genres = 'ermapd'
+        train = [(modal_features(nltk.corpus.brown.words(g)[:2000]), g) for g in genres]
+        test = [(modal_features(nltk.corpus.brown.words(g)[2000:4000]), g) for g in genres]
+
+        print train[1][0].items()
+        classifier = nltk.NaiveBayesClassifier.train(train)
+        print 'Accuracy: %6.4f' % nltk.classify.accuracy(classifier, test)
+
+    train()
+
 
 Exercise: compare the performance of different machine learning
 methods.  (they're still black boxes at this point)
@@ -519,8 +552,8 @@ Precision and Recall
 
 Consider Figure precision-recall_.
 The intersection of these sets defines four regions: the true
-positives (TP), true negatives (TN), false positives (FP), and false
-negatives (FN).  Two standard measures are
+positives (TP), true negatives (TN), false positives (FP) or Type I errors, and false
+negatives (FN) or Type II errors.  Two standard measures are
 *precision*, the fraction of guessed chunks that were correct TP/(TP+FP),
 and *recall*, the fraction of correct chunks that were identified
 TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
