@@ -566,20 +566,47 @@ documents by genre.
 
 .. pylisting:: modals
 
-    def modal_features(tokens):
-        modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    import nltk, math
+    modals = ['can', 'could', 'may', 'might', 'must', 'will']
+
+    def modal_counts(tokens):
         return nltk.FreqDist(word for word in tokens if word in modals)
 
-    def train():
-        genres = 'ermapd'
-        train = [(modal_features(nltk.corpus.brown.words(g)[:2000]), g) for g in genres]
-        test = [(modal_features(nltk.corpus.brown.words(g)[2000:4000]), g) for g in genres]
+    # just the most frequent modal verb
+    def modal_features1(tokens):
+        return dict(most_frequent_modal = model_counts(tokens).max())
 
-        print train[1][0].items()
-        classifier = nltk.NaiveBayesClassifier.train(train)
-        print 'Accuracy: %6.4f' % nltk.classify.accuracy(classifier, test)
+    # one feature per verb, set to True if the verb occurs more than once
+    def modal_features2(tokens):
+        fd = modal_counts(tokens)
+        return dict( (word,(fd[word]>1)) for word in modals)
 
-    train()
+    # one feature per verb, with a small number of scalar values
+    def modal_features3(tokens):
+        fd = modal_counts(tokens)
+        features = {}
+        for word in modals:
+            try:
+                features[word] = int(-math.log10(float(fd[word])/len(tokens)))
+            except OverflowError:
+                features[word] = 1000
+        return features
+
+    # 4 bins per verb based on frequency
+    def modal_features4(tokens):
+        fd = modal_counts(tokens)
+        features = {}
+        for word in modals:
+            freq = float(fd[word])/len(tokens)
+            for logfreq in range(3,7):
+                features["%s(%d)" % (word, logfreq)] = (freq < 10**(-logfreq))
+        return features
+
+    >>> genres = 'ermapd'
+    >>> train = [(modal_features4(nltk.corpus.brown.words(g)[:2000]), g) for g in genres]
+    >>> test = [(modal_features4(nltk.corpus.brown.words(g)[2000:4000]), g) for g in genres]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train)
+    >>> print 'Accuracy: %6.4f' % nltk.classify.accuracy(classifier, test)
 
 
 Exercise: compare the performance of different machine learning
