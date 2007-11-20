@@ -76,12 +76,14 @@ EXTERN_REFERENCE_FILES = []
    when building one chapter at a time)."""
 
 BIBTEX_FILE = '../book.bib'
-"""The name of the bibtex file used to generate bibliographic entries.
-   """
+"""The name of the bibtex file used to generate bibliographic entries."""
 
 BIBLIOGRAPHY_HTML = "bibliography.html"
 """The name of the HTML file containing the bibliography (for
    hyperrefs from citations)."""
+
+LATEX_STYLESHEET_PATH = '../definitions.sty'
+"""The name of the LaTeX style file used for generating PDF output."""
 
 LOCAL_BIBLIOGRAPHY = False
 """If true, assume that this document contains the bibliography, and
@@ -1690,7 +1692,7 @@ class CustomizedLaTeXWriter(LaTeXWriter):
         'output_encoding_error_handler': 'backslashreplace',
         #'use_latex_docinfo': True,
         'font_encoding': 'C10,T1',
-        'stylesheet': '../definitions.sty',
+        'stylesheet': LATEX_STYLESHEET_PATH,
         'documentoptions': '11pt,twoside',
         'use_latex_footnotes': True,
         'use_latex_toc': True,
@@ -2326,12 +2328,16 @@ def parse_args():
         help="Include a bibliography (LaTeX only).")
     optparser.add_option("-o",
         action="store", dest="outputfile", help="Output File")
-
+    optparser.add_option("--bibtex_file", action="store", dest="bibtex_file",
+        help="BibTeX .bib file to use.")
+    optparser.add_option("--latex_stylesheet_path", action="store",
+        dest="latex_stylesheet", help="LaTeX definitions.sty file to use.")
     optparser.set_defaults(action='html', documentclass='report',
                            papersize='letterpaper',
                            bibliography=False,
                            outputfile=None,
-                           css=CSS_STYLESHEET)
+                           css=CSS_STYLESHEET,
+                           latex_stylesheet=LATEX_STYLESHEET_PATH)
 
     options, filenames = optparser.parse_args()
     if options.outputfile is not None and len(filenames)>1:
@@ -2361,10 +2367,11 @@ def main():
 
     CustomizedLaTeXWriter.settings_defaults.update(dict(
         documentclass = options.documentclass,
+        stylesheet=options.latex_stylesheet,
         use_latex_docinfo = (options.documentclass=='book')))
     CustomizedLaTeXWriter.settings_defaults['documentoptions'] += (
         ','+options.papersize)
-    
+
     if options.documentclass == 'article':
         NumberingVisitor.TOP_SECTION = 'section'
     else:
@@ -2376,8 +2383,8 @@ def main():
             '\\bibliographystyle{apalike}\n',
             '\\addcontentsline{toc}{chapter}{Bibliography}\n',
             '\\bibliography{%s}\n' %
-            os.path.splitext(BIBTEX_FILE)[0]]
-        
+            os.path.splitext(bibtex_file)[0]]
+
     OUTPUT_FORMAT = options.action
     if options.action == 'html':
         writer = CustomizedHTMLWriter()
