@@ -40,9 +40,9 @@ As another example, in `semantic role labeling`:dt: we want to
 detect the subjects and objects of particular verbs,
 in other words, to discover who did what to whom.
 In the sentence `the thieves stole the jewels`:lx:
-it is easy to tell who performed the action.
+it is easy to tell who performed the stealing action.
 Consider the sentences in thieves_, and try to determine
-what was sold, caught, and found.
+what was sold, caught, and found.  Notice that one case is ambiguous.
   
 .. _thieves:
 .. ex::
@@ -53,8 +53,8 @@ what was sold, caught, and found.
 Similar issues arise in the context of `Natural Language Generation`:dt:.
 For example, suppose you wanted to generate a prose description of a scene,
 and had a word to describe each entity, such as `the jar`:lx:,
-and simply wanted to chose the correct preposition to describe relationships,
-e.g. `in the cupboard`:lx: vs `on the shelf`:lx:.
+and simply wanted to decide whether to use `in`:lx: or `on`:lx: in relating
+various items, e.g. `the book is in the cupboard`:lx: vs `the book is on the shelf`:lx:.
 
 .. _prepositions:
 .. ex::
@@ -63,7 +63,6 @@ e.g. `in the cupboard`:lx: vs `on the shelf`:lx:.
    .. ex:: in the picture *vs* on the screen
    .. ex:: in Macbeth *vs* on Letterman
 
-  - http://itre.cis.upenn.edu/~myl/languagelog/archives/002003.html
 
   - E.g. render the predicate strong(x), where x is:
     chip (powerful), position (strong), sales (strong), symbol (powerful)
@@ -152,7 +151,7 @@ journalism, telephone conversations, instant messaging, and web pages.
 Once we've selected a corpus to work with, we can start analyzing it.
 We'll discuss two methods for analyzing corpora: `exploratory data
 analysis`:dt:, which will be described in this section, and `data
-modeling`:dt:, which will be described in section `Data-Modeling`_.
+modeling`:dt:, which will be described in section sec-data-modeling_.
 
 Exploratory data analysis is a technique for learning about a specific
 linguistic phenomenon, pattern, or construction.  It consists of four
@@ -332,10 +331,9 @@ Searching hand-annotated corpora
         
 .. pylisting:: sentential_complement
 
-  from nltk import Tree
   def filter(tree):
       child_nodes = [child.node for child in tree
-                     if isinstance(child, Tree)]
+                     if isinstance(child, nltk.Tree)]
       return  (tree.node == 'VP') and ('S' in child_nodes)
 
   >>> treebank = nltk.corpus.treebank
@@ -462,6 +460,8 @@ often different combinations occur.
 
 Example: what makes a name sound male or female?  Walk through it,
 explain some features, do some counts using python.  
+
+.. _sec-data-modeling:
 
 -------------
 Data Modeling
@@ -655,10 +655,10 @@ a fairly simple and obvious set of features, there are usually
 significant gains to be had by using carefully constructed features
 based on an understanding of the task at hand.  
 
-Typically, features extractors are built through a process of
+Typically, feature extractors are built through a process of
 trial-and-error, guided by intuitions about what information is
 relevant to the problem at hand.  It's often useful to start with a
-"shotgun" approach, including all the features that you can think of,
+"kitchen sink" approach, including all the features that you can think of,
 and then checking to see which features actually appear to be helpful.
 However, there are usually limits to the number of features that you
 should use with a given learning algorithm -- if you provide too many
@@ -689,17 +689,19 @@ this classification task.  We'll use the same ``names`` corpus that we
 used for exploratory data analysis, divided into a training set and an
 evaluation set:
 
->>> from nltk.corpus import names
->>> import random
->>>
->>> # Construct a list of classified names, using the names corpus.
->>> namelist = ([(name, 'male') for name in names.words('male')] + 
-...             [(name, 'female') for name in names.words('female')])
->>>
->>> # Randomly split the names into a test & train set.
->>> random.shuffle(namelist)
->>> train = namelist[:5000]
->>> test = namelist[5000:5500]
+    >>> from nltk.corpus import names
+    >>> import random
+    >>>
+    >>> # Construct a list of classified names, using the names corpus.
+    >>> namelist = ([(name, 'male') for name in names.words('male')] + 
+    ...             [(name, 'female') for name in names.words('female')])
+    >>>
+    >>> # Randomly split the names into a test & train set.
+    >>> random.shuffle(namelist)
+    >>> train = namelist[500:]
+    >>> test = namelist[:500]
+
+.. SB: NB I simplified the slice for testing in above example; was 5000:5500
 
 Next, we'll build a simple feature extractor, using some of the
 features that appeared to be useful in the exploratory data analysis.
@@ -726,23 +728,48 @@ described in more detail in section `Naive Bayes Classifiers`_.
 
 .. XX THIS IS CURRENTLY NOT USING THE CONSTRUCTOR
 
->>> classifier = nltk.NaiveBayesClassifier.train(train)
->>> train_featuresets = [(gender_features(n), g) for (n,g) in train]
->>> classifier = nltk.NaiveBayesClassifier.train(train_featuresets)
+    >>> train_featuresets = [(gender_features(n), g) for (n,g) in train]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train_featuresets)
 
 Now we can use the classifier to predict the gender for unseen names:
 
->>> classifier.classify(gender_features('Blorgy'))
-'male'
->>> classifier.classify(gender_features('Alaphina'))
-'female'
+    >>> classifier.classify(gender_features('Blorgy'))
+    'male'
+    >>> classifier.classify(gender_features('Alaphina'))
+    'female'
 
 And using the test corpus, we can check the overall accuracy of the
 classifier across a collection of unseen names with known labels:
 
->>> train_featuresets = [(gender_features(n),g) for (n,g) in test]
->>> print nltk.classify.accuracy(classifier, train_featuresets)
-0.688
+    >>> test_featuresets = [(gender_features(n),g) for (n,g) in test]
+    >>> print nltk.classify.accuracy(classifier, test_featuresets)
+    0.688
+
+Example: Predicting Sentiment
++++++++++++++++++++++++++++++
+
+Movie review domain; ACL 2004 paper by Lillian Lee and Bo Pang.
+Movie review corpus included with NLTK.
+
+.. pylisting:: movie-reviews
+
+    import nltk, random
+
+    TEST_SIZE = 500
+
+    def word_features(doc):
+        words = nltk.corpus.movie_reviews.words(doc)
+        return nltk.FreqDist(words), doc[0]
+
+    def get_data():
+        featuresets = apply(word_features, nltk.corpus.movie_reviews.items)
+        random.shuffle(featuresets)
+        return featuresets[TEST_SIZE:], featuresets[:TEST_SIZE]
+
+    >>> train_featuresets, test_featuresets = get_data()
+    >>> nltk.NaiveBayesClassifier.train(train_featuresets).accuracy(test_featuresets)
+    0.774
+    
 
 
 Initial work on a classifier to use frequency of modal verbs to classify
@@ -799,6 +826,14 @@ Exercises
 #. |easy|
    Exercise: compare the performance of different machine learning
    methods.  (they're still black boxes at this point)
+   
+#. |soso|
+   Accessing extra features from WordNet to augment those that appear
+   directly in the text (e.g. hyperym of any monosemous word)
+
+#. |hard|
+   Task involving PP Attachment data; predict choice of preposition
+   from the nouns.
 
 
 .. _feature-extraction:
@@ -905,7 +940,7 @@ methods that can be used to automatically build classification models:
 Decision Trees, Naive Bayes classifiers, and Maximum Entropy
 classifiers.  As we've seen, it's possible treat these learning
 methods as black boxes, simply training models and using them for
-prediction without how they work.  But there's a lot to be learned
+prediction without understanding how they work.  But there's a lot to be learned
 from taking a closer look at how these learning methods select models
 based on the data in a training corpus.  An understanding of these
 methods can help guide our selection of appropriate features, and
@@ -940,7 +975,7 @@ node, that decides how to classify inputs based on a single feature.
 It contains one leaf for each possible feature value, specifying the
 class label that should be assigned to inputs whose features have that
 value.  The hardest part of selecting the best decision stump is
-deciding which feature should be use.  The simplest method is to just
+deciding which feature should be used.  The simplest method is to just
 build a feature stump for each possible feature, and see which one
 achieves the highest accuracy on the training data; but we'll discuss
 some other alternatives below.  Once we've picked a feature, we can
@@ -949,7 +984,7 @@ the most frequent label for the selected examples in the training
 corpus (i.e., the examples where the selected feature has that value).
 
 Given the algorithm for choosing decision stumps, the algorithm for
-growing larger decision trees becomes fairly streight forward.  We
+growing larger decision trees is straightforward.  We
 begin by selecting the overall best decision stump for the corpus.  We
 then check the accuracy of each of the leaves on the training corpus.
 Any leaves that do not achieve sufficiently good accuracy are then
@@ -1116,6 +1151,13 @@ Different notions of "similarity":
 - What words tend to co-occur?
 - What words occur in similar contexts?
 
+Document clustering:
+
+- vocabulary (ignore words other than the n most frequent and m least frequent; or use tf.idf)
+- document vectors
+- WordNet
+- news collection?  unsupervised topic detection?
+
 
 ----------------------------
 Machine Learning in Python..
@@ -1160,6 +1202,7 @@ Summary
 Further Reading
 ---------------
 
+  - choosing prepositions http://itre.cis.upenn.edu/~myl/languagelog/archives/002003.html
 
 
 
