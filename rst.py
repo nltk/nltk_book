@@ -75,7 +75,7 @@ EXTERN_REFERENCE_FILES = []
 """A list of .ref files, for crossrefering to external documents (used
    when building one chapter at a time)."""
 
-BIBTEX_FILE = '../book.bib'
+BIBTEX_FILE = '../refs.bib'
 """The name of the bibtex file used to generate bibliographic entries."""
 
 BIBLIOGRAPHY_HTML = "bibliography.html"
@@ -2336,6 +2336,7 @@ def parse_args():
                            papersize='letterpaper',
                            bibliography=False,
                            outputfile=None,
+                           bibtex_file=BIBTEX_FILE,
                            css=CSS_STYLESHEET,
                            latex_stylesheet=LATEX_STYLESHEET_PATH)
 
@@ -2383,7 +2384,7 @@ def main():
             '\\bibliographystyle{apalike}\n',
             '\\addcontentsline{toc}{chapter}{Bibliography}\n',
             '\\bibliography{%s}\n' %
-            os.path.splitext(bibtex_file)[0]]
+            os.path.splitext(options.bibtex_file)[0]]
 
     OUTPUT_FORMAT = options.action
     if options.action == 'html':
