@@ -82,7 +82,8 @@ BIBLIOGRAPHY_HTML = "bibliography.html"
 """The name of the HTML file containing the bibliography (for
    hyperrefs from citations)."""
 
-LATEX_STYLESHEET_PATH = '../definitions.sty'
+# needs to include "../doc" so it works in /doc_contrib
+LATEX_STYLESHEET_PATH = '../../doc/definitions.sty'
 """The name of the LaTeX style file used for generating PDF output."""
 
 LOCAL_BIBLIOGRAPHY = False
@@ -106,7 +107,8 @@ CALLOUT_IMG = '<img src="callouts/callout%s.gif" alt="[%s]" class="callout" />'
 REF_EXTENSION = '.ref'
 """File extension for reference files."""
 
-CSS_STYLESHEET = '../nltkdoc.css'
+# needs to include "../doc" so it works in /doc_contrib
+CSS_STYLESHEET = '../../doc/nltkdoc.css'
 
 ######################################################################
 #{ Reference files
