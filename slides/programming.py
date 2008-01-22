@@ -318,8 +318,8 @@ track up to 10 sites within a single google account.
 
 text = str.split(' ')
 for n in range(len(text)):
-   if text[n] == 'very' and text[n+1] == 'very':
-		print n, n+1
+    if text[n] == 'very' and text[n+1] == 'very':
+        print n, n+1
 
 import re
 from nltk.utilities import re_show

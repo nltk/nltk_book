@@ -54,9 +54,9 @@ if '/sw/bin' not in os.environ['PATH']:
 def tokenize(s, regexp):
     pos = 0
     for m in re.finditer(regexp, s):
-	if m.start() != pos: raise ValueError, 'tokenization error'
-	pos = m.end()
-	yield m.group()
+        if m.start() != pos: raise ValueError, 'tokenization error'
+        pos = m.end()
+        yield m.group()
 
 def tree_to_widget(s, canvas):
     """
@@ -69,19 +69,19 @@ def tree_to_widget(s, canvas):
     for tok in tokenize(s.strip(), TOKEN_RE):
         if tok.strip() == '':
             pass
-	elif tok[:1] in '(<':
-	    node = word_to_widget(tok[1:].strip(), canvas,
+        elif tok[:1] in '(<':
+            node = word_to_widget(tok[1:].strip(), canvas,
                                   color='#004080', bold=True)
-	    roof = (tok[:1] == '<')
-	    stack[-1].append(dict(canvas=canvas, node=node, roof=roof))
-	    stack.append([])
-	elif tok[:1] in ')>':
-	    subtrees = stack.pop()
-	    node_kwargs = stack[-1][-1]
-	    stack[-1][-1] = TreeSegmentWidget(subtrees=subtrees, **node_kwargs)
-	else:
+            roof = (tok[:1] == '<')
+            stack[-1].append(dict(canvas=canvas, node=node, roof=roof))
+            stack.append([])
+        elif tok[:1] in ')>':
+            subtrees = stack.pop()
+            node_kwargs = stack[-1][-1]
+            stack[-1][-1] = TreeSegmentWidget(subtrees=subtrees, **node_kwargs)
+        else:
             leaf = word_to_widget(tok.strip(), canvas, color='#008040')
-	    stack[-1].append(leaf)
+            stack[-1].append(leaf)
 
     if not len(stack) == 1 and len(stack[0])==1:
         raise ValueError, 'unbalanced parens?'

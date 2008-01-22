@@ -183,7 +183,7 @@ directives.register_directive('doctest-ignore', doctest_directive)
 
 _treenum = 0
 def tree_directive(name, arguments, options, content, lineno,
-		   content_offset, block_text, state, state_machine):
+                   content_offset, block_text, state, state_machine):
     global _treenum
     text = '\n'.join(arguments) + '\n'.join(content)
     _treenum += 1
@@ -492,6 +492,9 @@ def gloss_directive(name, arguments, options, content, lineno,
         prevline = line
     table_lines = tablestr.strip().split('\n')
     new_content = docutils.statemachine.StringList(table_lines)
+    # [XX] DEBUG GLOSSES:
+    print 'converted to:'
+    print tablestr
 
     # Parse the table.
     node = docutils.nodes.compound('')
@@ -1048,20 +1051,32 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     #////////////////////////////////////////////////////////////
     # Examples
     #////////////////////////////////////////////////////////////
+    NESTED_EXAMPLES = True
 
     def visit_example(self, node):
         self.example_num[-1] += 1
-        node['num'] = self.format_example_num()
+        node['num'] = self.short_example_num()
         for node_id in self.get_ids(node):
-            self.reference_labels[node_id] = '%s' % node['num']
+            self.reference_labels[node_id] = self.format_example_num()
         self.example_num.append(0)
 
     def depart_example(self, node):
-        if self.example_num[-1] > 0:
-            # If the example contains a list of subexamples, then
-            # splice them in to our parent.
-            node.replace_self(list(node))
+        if not self.NESTED_EXAMPLES:
+            if self.example_num[-1] > 0:
+                # If the example contains a list of subexamples, then
+                # splice them in to our parent.
+                node.replace_self(list(node))
         self.example_num.pop()
+
+    def short_example_num(self):
+        if len(self.example_num) == 1:
+            return '(%s)' % self.example_num[0]
+        if len(self.example_num) == 2:
+            return '%s.' % self.LETTERS[self.example_num[1]-1]
+        if len(self.example_num) == 3:
+            return '%s.' % self.ROMAN[self.example_num[2]-1]
+        else:
+            return '%s.' % self.example_num[-1]
 
     def format_example_num(self):
         """ (1), (2); (1a), (1b); (1a.i), (1a.ii)"""
@@ -1749,7 +1764,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             \\newcommand{\\pysrcdefname}[1]{\\textbf{#1}}
             % Python source code: Comments
             \\newcommand{\\pysrccomment}[1]{\\textrm{#1}}
-	    % Python interpreter: Traceback message
+            % Python interpreter: Traceback message
             \\newcommand{\\pysrcexcept}[1]{\\textbf{#1}}
             % Python interpreter: Output
             \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
@@ -1806,7 +1821,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         raise docutils.nodes.SkipNode() # Content already processed
 
     def depart_literal(self, node):
-	pass
+        pass
 
     def node_is_inside_title(self, node):
         while node.parent is not None:
@@ -2064,7 +2079,7 @@ class LaTeXDoctestColorizer(DoctestColorizer):
 # _DEFNAME = r'(?<=def )\w+|(?<=def  )\w+'
 
 # PROMPT_RE = re.compile('(%s|%s)' % (_PROMPT1, _PROMPT2),
-# 		       re.MULTILINE | re.DOTALL)
+#                      re.MULTILINE | re.DOTALL)
 # PROMPT2_RE = re.compile('(%s)' % _PROMPT2, re.MULTILINE | re.DOTALL)
 # '''The regular expression used to find Python prompts (">>>" and
 # "...") in doctest blocks.'''
@@ -2095,12 +2110,12 @@ class LaTeXDoctestColorizer(DoctestColorizer):
 
 #     The tags that will be passed to the markup function are: 
 #         - C{prompt} -- the Python PS1 prompt (>>>)
-# 	- C{more} -- the Python PS2 prompt (...)
+#       - C{more} -- the Python PS2 prompt (...)
 #         - C{keyword} -- a Python keyword (for, if, etc.)
 #         - C{builtin} -- a Python builtin name (abs, dir, etc.)
 #         - C{string} -- a string literal
 #         - C{comment} -- a comment
-# 	- C{except} -- an exception traceback (up to the next >>>)
+#       - C{except} -- an exception traceback (up to the next >>>)
 #         - C{output} -- the output from a doctest block.
 #         - C{other} -- anything else (does *not* include output.)
 #     """
@@ -2130,8 +2145,8 @@ class LaTeXDoctestColorizer(DoctestColorizer):
 #             return v+match.group() # No coloring for other-whitespace.
 #         if match.group('PROMPT1'):
 #             return v+markup_func(match.group(), 'prompt')
-# 	if match.group('PROMPT2'):
-# 	    return v+markup_func(match.group(), 'more')
+#       if match.group('PROMPT2'):
+#           return v+markup_func(match.group(), 'more')
 #         if match.group('KEYWORD'):
 #             return v+markup_func(match.group(), 'keyword')
 #         if match.group('BUILTIN'):
@@ -2152,9 +2167,9 @@ class LaTeXDoctestColorizer(DoctestColorizer):
 #             assert 0, 'unexpected match'
 
 #     if inline:
-# 	pysrc = DOCTEST_RE.sub(subfunc, s)
+#       pysrc = DOCTEST_RE.sub(subfunc, s)
 #         if other: pysrc += markup_func(''.join(other), 'other')
-# 	return pysrc.strip()
+#       return pysrc.strip()
 
 #     # need to add a third state here for correctly formatting exceptions
 
@@ -2434,5 +2449,6 @@ if __name__ == '__main__':
     try:
         main()
     except docutils.utils.SystemMessage, e:
-        print 'Fatal error encountered!'
+        print 'Fatal error encountered!', e
+        raise
         sys.exit(-1)
