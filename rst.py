@@ -493,8 +493,8 @@ def gloss_directive(name, arguments, options, content, lineno,
     table_lines = tablestr.strip().split('\n')
     new_content = docutils.statemachine.StringList(table_lines)
     # [XX] DEBUG GLOSSES:
-    print 'converted to:'
-    print tablestr
+    # print 'converted to:'
+    # print tablestr
 
     # Parse the table.
     node = docutils.nodes.compound('')
