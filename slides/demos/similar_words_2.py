@@ -11,8 +11,8 @@ def build_association_distribution():
     assoc = ConditionalFreqDist()
     
     # For each document in the "Brown Corpus"...
-    for document in brown.documents:
-        words = brown.tagged(document, group_by_sent=False)
+    for document in brown.files():
+        words = brown.tagged_words(document)
         
         # For each word that's a noun...
         for index, (word, tag) in enumerate(words):

@@ -3,7 +3,7 @@
 ##  What words occur in similar contexts?
 ##
 
-from nltk.book import *
+from nltk import *
 from collections import defaultdict
 
 ######################################################################
@@ -12,8 +12,8 @@ def build_context_map():
     of local lexical contexts, where a context is encoded as a tuple
     (prevword, nextword)."""
     context_map = defaultdict(list)
-    for item in corpus.brown.items:
-        words = corpus.brown.tokenized(item, group_by_sent=False)
+    for document in corpus.brown.files():
+        words = corpus.brown.words(document)
         words = [word.lower() for word in words]
         for i in range(1, len(words)-1):
             prevword, word, nextword = words[i-1:i+2]
