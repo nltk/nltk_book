@@ -18,7 +18,7 @@ RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude
 
 .SUFFIXES: .txt .html
 
-.PHONY: en pt-br slides api rsync .api.done
+.PHONY: en pt-br slides api rsync .api.done guides rsync-api
 
 all: en slides api guides
 
