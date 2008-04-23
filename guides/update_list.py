@@ -22,15 +22,16 @@ FOOT = (".. END AUTO-GENERATED LISTING\n"
         ".. ==========================================================\n")
 
 TITLE_REGEXPS = (
-    '\A\s*----+[ ]*\n(.*)\n----+[ ]*\n',
-    '\A\s*====+[ ]*\n(.*)\n====+[ ]*\n',
-    '\A\s*(.*)\n====+[ ]*\n',
-    '\A\s*(.*)\n----+[ ]*\n')
+    '\s*----+[ ]*\n(.*)\n----+[ ]*\n',
+    '\s*====+[ ]*\n(.*)\n====+[ ]*\n',
+    '\s*(.*)\n====+[ ]*\n',
+    '\s*(.*)\n----+[ ]*\n')
 
 def find_title(basename):
     filename = os.path.join(DOCTEST_SRC, basename + '.doctest')
-    head = open(filename).read(400)
+    head = open(filename).read(800)
     for regexp in TITLE_REGEXPS:
+        regexp = '\A\s*(?:\.\..*\n)*'+regexp
         m = re.match(regexp, head)
         if m: return m.group(1).strip().replace('`', "'")
     print 'Warning: no title found for %s' % basename
