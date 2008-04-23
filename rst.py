@@ -2005,6 +2005,8 @@ class HTMLDoctestColorizer(DoctestColorizer):
         self.encode = encode_func
         self.callouts = callouts
     def markup(self, s, tag):
+        if tag == 'output':
+            s = re.sub(r'(?m)^[ \t]*<BLANKLINE>[ \t]*$', '', s)
         if tag == 'other':
             return self.encode(s)
         elif (tag == 'comment' and self.callouts is not None and
@@ -2030,6 +2032,8 @@ class LaTeXDoctestColorizer(DoctestColorizer):
         callout_num = self.callouts[callout_id]
         return self.encode(unichr(0x2460+int(callout_num)-1))
     def markup(self, s, tag):
+        if tag == 'output':
+            s = re.sub(r'(?m)^[ \t]*<BLANKLINE>[ \t]*$', '', s)
         if (tag == 'comment' and self.callouts is not None and
             CALLOUT_RE.match(s)):
             return self._callout(CALLOUT_RE.match(s))
