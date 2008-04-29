@@ -203,11 +203,14 @@ def tree_directive(name, arguments, options, content, lineno,
         return []
     else:
         assert 0, 'bad output format %r' % OUTPUT_FORMAT
+    if not os.path.exists(TREE_IMAGE_DIR):
+        os.mkdir(TREE_IMAGE_DIR)
     try:
         filename = os.path.join(TREE_IMAGE_DIR, filename)
         tree_to_image(text, filename, density)
     except Exception, e:
-        warning('Error parsing tree: %s\n%s' % (e, text))
+        raise
+        warning('Error parsing tree: %s\n%s\n%s' % (e, text, filename))
         return [example(text, text)]
 
     imagenode = docutils.nodes.image(uri=filename, scale=scale, align=align)
