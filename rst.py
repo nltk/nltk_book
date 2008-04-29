@@ -403,7 +403,7 @@ def callout_directive(name, arguments, options, content, lineno,
             return [state_machine.reporter.error(
                 'Error in "%s" directive: bad field id' % (name), line=lineno)]
             
-        field_name = prefix+str(field[0][0])
+        field_name = prefix+('%s' % field[0][0])
         field[0].clear()
         field[0].append(docutils.nodes.reference(field_name, field_name,
                                                  refid=field_name))
@@ -924,7 +924,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         else:
             callouts = node['callouts'] = {}
         
-        pysrc = ''.join(str(c) for c in node)
+        pysrc = ''.join(('%s' % c) for c in node)
         for callout_id in CALLOUT_RE.findall(pysrc):
             callouts[callout_id] = len(callouts)+1
         self.callout_labels.update(callouts)
@@ -1028,9 +1028,9 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         self.section_num.pop()
 
     def format_section_num(self, depth=None):
-        pieces = [str(p) for p in self.section_num]
+        pieces = [('%s' % p) for p in self.section_num]
         if self.section_context == 'body':
-            pieces[0] = str(self.section_num[0])
+            pieces[0] = ('%s' % self.section_num[0])
         elif self.section_context == 'preface':
             pieces[0] = self.ROMAN[self.section_num[0]-1].upper()
         elif self.section_context == 'appendix':
@@ -1080,7 +1080,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
 
     def format_example_num(self):
         """ (1), (2); (1a), (1b); (1a.i), (1a.ii)"""
-        ex_num = str(self.example_num[0])
+        ex_num = ('%s' % self.example_num[0])
         if len(self.example_num) > 1:
             ex_num += self.LETTERS[self.example_num[1]-1]
         if len(self.example_num) > 2:
@@ -1420,16 +1420,23 @@ class CustomizedHTMLTranslator(HTMLTranslator):
 
     def visit_doctest_block(self, node):
         # Collect the text content of the doctest block.
-        text = ''.join(str(c) for c in node)
+        text = ''.join(('%s' % c) for c in node)
         text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
+        text = text.decode('latin1')
 
         # Colorize the contents of the doctest block.
         colorizer = HTMLDoctestColorizer(self.encode, node['callouts'])
         if node.get('is_codeblock'):
             pysrc = colorizer.colorize_codeblock(text)
         else:
-            pysrc = colorizer.colorize_doctest(text)
+            try:
+                pysrc = colorizer.colorize_doctest(text)
+            except:
+                print '='*70
+                print text
+                print '='*70
+                raise
 
         if node.get('is_codeblock'): typ = 'codeblock' 
         else: typ = 'doctest'
@@ -1472,9 +1479,9 @@ class CustomizedHTMLTranslator(HTMLTranslator):
             if not isinstance(child, docutils.nodes.doctest_block):
                 continue
             elif child['is_codeblock']:
-                out.write(''.join(str(c) for c in child)+'\n\n')
+                out.write(''.join(('%s' % c) for c in child)+'\n\n')
             elif INCLUDE_DOCTESTS_IN_PYLISTING_FILES:
-                lines = ''.join(str(c) for c in child).split('\n')
+                lines = ''.join(('%s' % c) for c in child).split('\n')
                 in_doctest_block = False
                 for line in lines:
                     if line.startswith('>>> '):
@@ -1494,7 +1501,8 @@ class CustomizedHTMLTranslator(HTMLTranslator):
 
     def visit_literal(self, node):
         """Process text to prevent tokens from wrapping."""
-        text = ''.join(str(c) for c in node)
+        text = ''.join(('%s' % c) for c in node)
+        text = text.decode('latin1')
         colorizer = HTMLDoctestColorizer(self.encode)
         pysrc = colorizer.colorize_inline(text)#.strip()
         #pysrc = colorize_doctestblock(text, self._markup_pysrc, True)
@@ -1787,9 +1795,10 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             self.body[-1] = self.body[-1][:-1] + '*{'
 
     def visit_doctest_block(self, node):
-        text = ''.join(str(c) for c in node)
+        text = ''.join(('%s' % c) for c in node)
         text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
+        text = text.decode('latin1')
         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False,
                                           callouts=node['callouts'])
         self.literal = True
@@ -1814,8 +1823,8 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         self.literal = True
         wrap = (not self.node_is_inside_title(node))
         colorizer = LaTeXDoctestColorizer(self.encode, wrap)
-        pysrc = colorizer.colorize_inline(str(node[0]))
-        #pysrc = colorize_doctestblock(str(node[0]), markup_func, True)
+        pysrc = colorizer.colorize_inline(('%s' % node[0]))
+        #pysrc = colorize_doctestblock(('%s' % node[0]), markup_func, True)
         self.literal = False
         self.body.append('\\texttt{%s}' % pysrc)
         raise docutils.nodes.SkipNode() # Content already processed
@@ -1919,7 +1928,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 #         self.literal = True
 #         colorizer = LaTeXDoctestColorizer(self.encode, wrap=False, 
 #                                           callouts=node['callouts'])
-#         text = str(node[0])
+#         text = ('%s' % node[0])
 #         if node['is_doctest']:
 #             text = strip_doctest_directives(text)
 #             pysrc = colorizer.colorize_doctest(text)
@@ -2298,14 +2307,14 @@ Publisher.apply_transforms = _new_Publisher_apply_transforms
 
 supress_warnings = False
 def debug(s):
-    s = str(s)
+    s = ('%s' % s)
     if s.strip(): logger.log(DEBUG, s.strip())
 def warning(s):
     if supress_warnings: return
-    s = str(s)
+    s = ('%s' % s)
     if s.strip(): logger.log(WARNING, s.strip())
 def error(s):
-    s = str(s)
+    s = ('%s' % s)
     if s.strip(): logger.log(ERROR, s.strip())
 
 class WarningStream:
