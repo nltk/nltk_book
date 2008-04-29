@@ -17,7 +17,7 @@ STYLESHEET_PATH = .
 
 EPYDOC_OPTS = --name=nltk --navlink="nltk $(NLTK_VERSION)"\
               --url=$(NLTK_URL) --inheritance=listed
-RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude
+RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude --omit-dir-times
 
 .SUFFIXES: .txt .html
 
