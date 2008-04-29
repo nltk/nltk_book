@@ -56,6 +56,18 @@ $(DOCTEST_SRC)/%.doctest: $(DOCTEST_SRC)/%.doctest_latin1
 
 index.html: index.txt test-list.txt
 	$(RST2HTML) index.txt
+	cat index.txt |sed s/test-list.txt/test-list-sort-title.txt/ \
+		>sort-title.txt
+	cat index.txt |sed s/test-list.txt/test-list-sort-lines.txt/ \
+		>sort-lines.txt
+	cat index.txt |sed s/test-list.txt/test-list-sort-tests.txt/ \
+		>sort-tests.txt
+	cat index.txt |sed s/test-list.txt/test-list-sort-outcome.txt/ \
+		>sort-outcome.txt
+	$(RST2HTML) sort-title.txt
+	$(RST2HTML) sort-lines.txt
+	$(RST2HTML) sort-tests.txt
+	$(RST2HTML) sort-outcome.txt
 
 test-list.txt: update_list.py $(ERRS)
 	python update_list.py
