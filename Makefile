@@ -8,6 +8,9 @@
 
 WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
 
+NLTK_VERSION = $(shell python -c 'import nltk; print nltk.__version__')
+NLTK_URL = $(shell python -c 'import nltk; print nltk.__url__')
+
 RST2HTML = rst2html.py
 
 STYLESHEET_PATH = .
