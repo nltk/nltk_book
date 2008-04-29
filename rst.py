@@ -1622,7 +1622,8 @@ function copy_notify(node, bar_color, data)
     node.insertBefore(box1, node.childNodes.item(0));
     box1.appendChild(shadow);
     shadow.appendChild(box2);
-    box2.innerHTML="Copied to the clipboard: <pre class='copy-notify'>"+
+    box2.innerHTML="Copied&nbsp;to&nbsp;the&nbsp;clipboard: " +
+                   "<pre class='copy-notify'>"+
                    data+"</pre>";
     setTimeout(function() { node.removeChild(box1); }, 1000);
 
