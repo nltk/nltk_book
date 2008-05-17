@@ -16,29 +16,55 @@ Introduction
 ------------
 
 Language is full of patterns.
-In Chapter chap-words_ we saw that the presence of certain modal verbs
-was an indicator of genre; e.g. `will`:lx: is characteristic of news text
-(Table brown-types_).
-In Chapter chap-tag_ we saw that the internal make-up of words
-was an indicator of part-of-speech; e.g. words ending in `ed`:lx: tend to
-be past tense verbs (Section regular-expression-tagger_).
+In Chapter chap-words_ we saw that frequent use of the modal verb
+`will`:lx: is characteristic of news text, and
+more generally, that we can use the frequency of a small number of diagnostic
+words in order to automatically guess the genre of a text (Table brown-types_).
+In Chapter chap-tag_ we saw that words ending in `ed`:lx: tend to
+be past tense verbs, and more generally, that the internal structure of words
+tells us something about their part of speech. (Section sec-regular-expression-tagger_).
 Detecting such patterns is central to many NLP tasks,
 particularly those that try to access the meaning of a text.
 
-For example, in `word sense disambiguation`:dt: we want to detect
-the intended sense of a word in a given context.  We can do this by
-exploiting the simple fact that nearby words are usually related in
-meaning.  Consider the ambiguous words `serve`:lx: and `dish`:lx:\ :
+In order to study and model these linguistic patterns we need to be able to write
+programs to process large quantities of annotated text.
+In this chapter we will focus on data-intensive language processing,
+covering manual approaches to exploring linguistic data in Section sec-exploratory-data-analysis_
+and automatic approaches in Section sec-data-modeling_.
+
+.. more motivation and overview of this simple ontology (manual vs automatic)
+
+------------------------------------------
+Exploiting Patterns to Understand Language
+------------------------------------------
+
+For example, in `word sense disambiguation`:dt: we want to work out
+which sense of a word was intended in a given context.  Consider the
+ambiguous words `serve`:lx: and `dish`:lx:\ :
 
 .. ex::
     .. ex:: `serve`:lx:\ : help with food or drink; hold an office; put ball into play
     .. ex:: `dish`:lx:\ : plate; course of a meal; communications device
 
-Now, in a sentence containing the phrase: `he served the dish`:lx: we can detect that
-both `serve`:lx: and `dish`:lx: are being used with their food meanings.  Its unlikely
-that the topic of discussion shifted from sports to communications between these words.
-As another example, observe in lost-children_ that the meaning of the italicized word
-helps us interpret the meaning of `by`:lx: 
+|nopar|
+Now, in a sentence containing the phrase: `he served the dish`:lx: we
+can detect that both `serve`:lx: and `dish`:lx: are being used with
+their food meanings.  Its unlikely that the topic of discussion
+shifted from sports to communications between these words, since it
+would result in bizarre interpretations like striking a satellite dish
+with a tennis racquet:
+
+.. ex::
+    In a fit of fury, he tossed the portable satellite receiver in the air, and with
+    a quick flick of his tennis racquet, he served the dish.
+
+In other words, we automatically disambiguate words using context, exploiting
+the simple fact that nearby words have closely related meanings.
+As another example of this contextual effect, consider the word
+`by`:lx:, which has three meanings: `the book by Chesterton`:lx: (agentive);
+`the cup by the stove`:lx: (locative); and `submit by Friday`:lx: (temporal).
+Observe in lost-children_ that the meaning of the italicized word helps us
+interpret the meaning of `by`:lx:.
 
 .. _lost-children:
 .. ex::
@@ -46,13 +72,12 @@ helps us interpret the meaning of `by`:lx:
    .. ex:: The lost children were found by the `mountain`:em:   (locative)
    .. ex:: The lost children were found by the `afternoon`:em:  (temporal)
 
-In `semantic role labeling`:dt: we want to
-detect the subjects and objects of particular verbs,
-in other words, to discover who did what to whom.
+A deeper kind of language understanding is to work out who did what to whom |mdash|
+i.e. to detect the subjects and objects of verbs.
 In the sentence `the thieves stole the paintings`:lx:
 it is easy to tell who performed the stealing action.
 Consider three possible following sentences in thieves_, and try to determine
-what was sold, caught, and found.  Notice that one case is ambiguous.
+what was sold, caught, and found (one case is ambiguous).
   
 .. _thieves:
 .. ex::
@@ -60,31 +85,38 @@ what was sold, caught, and found.  Notice that one case is ambiguous.
    .. ex:: The thieves stole the paintings.  They were subsequently `caught`:em:.
    .. ex:: The thieves stole the paintings.  They were subsequently `found`:em:.
 
-These properties of language are significant in language understanding and language generation
-alike.  For example, in `question answering`:idx:, a user should be able to ask questions concern
-a stored text, such as the following.
+|nopar|
+Answering this question involves finding the `antecedent`:dt: of the pronoun `they`:lx:
+(the theives or the paintings).  Computational techniques for solving this problem
+fall under the heading of `semantic role labeling`:dt:.
+If we can automatically solve such problems, we will have understood enough of the
+text to perform some important language generation tasks, such as
+`question answering`:idx: and `machine translation`:idx:.  In the first case,
+a machine should be able to answer a user's questions relating to collection of texts:
 
 .. _qa-application:
 .. ex::
-   .. ex:: Text: The thieves stole the paintings.  They were subsequently sold.
-   .. ex:: Human: Who or what was sold?
-   .. ex:: Machine: The paintings.
+   .. ex:: *Text:* ... The thieves stole the paintings.  They were subsequently sold. ...
+   .. ex:: *Human:* Who or what was sold?
+   .. ex:: *Machine:* The paintings.
 
+|nopar|
 The machine's answer demonstrates that it has correctly worked out that `they`:lx:
-referred to the paintings and not to the theives.  As another example, consider
-the task of `machine translation`:idx:.  In translating the English into French,
+refers to paintings and not to theives.  In the second case, the machine should
+be able to produce a translation of the text into another language, accurately
+conveying the meaning of the original text.  In translating the above text into French,
 we are forced to choose the gender of the pronoun in the second sentence:
 `ils`:lx: (masculine) if the thieves are sold, and `elles`:lx: (feminine) if
-the paintings are sold.  Correct translation depends on correct understanding of
+the paintings are sold.  Correct translation actually depends on correct understanding of
 the pronoun.
 
 .. _mt-application:
 .. ex::
    .. ex:: The thieves stole the paintings.  They were subsequently sold.
-   .. ex:: Les voleurs ont vol les peintures. *Ils* ont t *vendus* plus tard.  (the thieves)
-   .. ex:: Les voleurs ont vol les peintures. *Elles* ont t *vendues* plus tard.  (the paintings)
+   .. ex:: Les voleurs ont vol\ |eacute| les peintures. *Ils* ont |eacute|\ t\ |eacute| *vendus* plus tard.  (the thieves)
+   .. ex:: Les voleurs ont vol\ |eacute| les peintures. *Elles* ont |eacute|\ t\ |eacute| *vendues* plus tard.  (the paintings)
     
-All of the above examples |mdash| working out the sense of a word, the subject of a verb, the 
+In all of the above examples |mdash| working out the sense of a word, the subject of a verb, the 
 antecedent of a pronoun |mdash| are steps in establishing the meaning of a sentence, things
 we would expect a language understanding system to be able to do.  Interestingly, all of them
 turn out to involve `classification`:dt:, tagging a word with a sense tag, a verb-argument tag, etc.
@@ -110,19 +142,20 @@ locations with no reference to context, in Figure locations_.
 Once we have this categorized sequence, we can try to discover higher-level patterns.
 For example, texts refer to entities, e.g. `audio books`:lx:, `the town of Springfield, Greene County, MO`:lx:,
 `Gary Sanchez`:lx:, `the library's $2 million budget`:lx:.  As we will see later in Chapter
-chap-chunk_, we can identify these "noun phrases" by classifying sequences of part-of-speech tags.
+chap-chunk_, we can identify these "named entities" by classifying sequences of part-of-speech tags.
 Texts go further to relate these entities, using verbs to link them into a series of events.
 At this level too, we will be able to automatically analyze sequences of classified linguistic
 items to extract meaning from the text.
 
-In order to study and model these linguistic patterns we need substantial quantities
-of text together with suitable annotations.  We will defer our detailed discussion of linguistic
-corpora, including the selection, annotation and structuring processes, until
-Chapter chap-data_.  In this chapter we will focus on data-intensive language processing,
-covering manual approaches to exploring linguistic data in Section sec-exploratory-data-analysis_
-and automatic approaches in Section sec-data-modeling_.
+Exercises
+---------
 
-[MORE OVERVIEW]
+#. |easy| Read up on one of the language technologies mentioned in this section, such as
+   word sense disambiguation, semantic role labeling, question answering, machine translation,
+   named entity detection.
+   Find out what type and quantity of annotated data is required for developing such systems.
+   Why do you think a large amount of data is required?
+
 
 .. _sec-exploratory-data-analysis:
 
@@ -154,8 +187,8 @@ variety of sources, including literature, journalism, telephone
 conversations, instant messaging, and web pages.
 
 Exploratory data analysis, the focus of this section, is a technique
-for learning about a specific linguistic phenomenon, pattern, or
-construction.  It consists of four steps, illustrated in Figure
+for learning about a specific linguistic pattern, or
+`construction`:dt:.  It consists of four steps, illustrated in Figure
 exploration_.
 
 .. _exploration:
@@ -165,29 +198,26 @@ exploration_.
 
    Exploratory Corpus Analysis
    
-First, we must find the occurrences of the phenomenon, pattern, or
-construction that we're interested in, by searching the corpus.
-Ideally, we would like to find all occurrences of the construction, but
-sometimes that may not be possible.  If we are unable to find every
-occurrence of the construction under consideration, then we must take
-that into account when making conclusions based on our findings.  In
-particular, we should be careful not to conclude that something
-doesn't happen simply because we were unable to find any examples; it's also possible that
-or data collection is deficient.
+First, we must find the occurrences of the construction that we're
+interested in, by searching the corpus.  Ideally, we would like to
+find all occurrences of the construction, but sometimes that may not
+be possible, and we have to be careful not to over-generalize our
+findings.  In particular, we should be careful not to conclude that
+something doesn't happen simply because we were unable to find any
+examples; it's also possible that our corpus is deficient.
 
 Once we've found the constructions of interest, we can then categorize
-them.  We're usually interested in two types of information:
-information about the construction itself; and information about the
-context in which the construction appears.  For some types of
-information, it will be possible to categorize the constructions
-automatically; but for other types of information, manual annotation
-will be required.
+them, using two sources of information: content and context.  In some cases,
+like identifying date and time expressions in text, we can simply write
+a set of rules to cover the various cases.  In general, we can't just
+enumerate the cases but we have to manually annotate a corpus of text
+and then train systems to do the task automatically.
 
 Having collected and categorized the constructions of interest, we can
 proceed to look for patterns.  Typically, this involves describing
 patterns as combinations of categories, and counting how often
-different patterns occur.  We can check for both graded distinctions,
-such as <<xx>>, and categorical distinctions, such as <<yy>>.
+different patterns occur.  We can check for both graded distinctions
+and categorical distinctions...
 
 * center-embedding suddenly gets bad after two levels
 * examples from probabilistic syntax / gradient grammaticality
