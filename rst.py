@@ -201,6 +201,12 @@ def tree_directive(name, arguments, options, content, lineno,
         align = 'top'
     elif OUTPUT_FORMAT == 'ref':
         return []
+    elif OUTPUT_FORMAT == 'docbook':
+        warning('TREE DIRECTIVE -- CHECK THIS')
+        density, scale = 300, 150 # <-- are these good?
+        density = density * options.get('scale', 100) / 100
+        filename = '%s-tree-%s.png' % (OUTPUT_BASENAME, _treenum)
+        align = 'top'
     else:
         assert 0, 'bad output format %r' % OUTPUT_FORMAT
     if not os.path.exists(TREE_IMAGE_DIR):
@@ -1412,6 +1418,7 @@ class CustomizedHTMLWriter(HTMLWriter):
 class CustomizedHTMLTranslator(HTMLTranslator):
     def __init__(self, document):
         HTMLTranslator.__init__(self, document)
+        print document.settings.__class__
         self.head_prefix.append(COPY_CLIPBOARD_JS)
 
     def visit_pylisting(self, node):
@@ -1709,6 +1716,56 @@ function copy_text_to_clipboard(data)
 //-->
 </script>
 '''
+
+######################################################################
+#{ Docbook Output
+######################################################################
+
+from docbook import Writer as DocBookWriter, DocBookTranslator
+class CustomizedDocBookWriter(DocBookWriter):
+    def translate(self):
+        # what's the correct way to generate this??  why isn't it
+        # getting generated for us??
+        self.document.settings = docutils.frontend.Values(dict(
+            strict_visitor=True, language_code='en',
+            doctype='...', output_encoding='utf-8',
+            ))
+        visitor = CustomizedDocBookTranslator(self.document)
+        self.document.walkabout(visitor)
+        self.output = visitor.astext()
+
+class CustomizedDocBookTranslator(DocBookTranslator):
+    def __init__(self, document):
+        DocBookTranslator.__init__(self, document)
+
+    def visit_compound(self, node):
+        warning('compound not handled yet')
+    def depart_compound(self, node):
+        pass
+
+    # the standard writer doesn't like node['ids'] = []
+    _next_id = 0
+    def visit_target(self, node):
+        if node.get('ids') == []:
+            node['ids'] = ['target-id-%d' % self._next_id]
+            self._next_id += 1
+        DocBookTranslator.visit_target(self, node)
+
+    # This is just a typo in the original (node.SkipNode should be
+    # nodes.SkipNode)
+    def visit_raw(self, node):
+        if node.has_key('format') and node['format'] == 'docbook':
+            self.body.append(node.astext())
+        raise docutils.nodes.SkipNode
+
+    _not_handled = set()
+    def unknown_visit(self, node):
+        typ = node.__class__.__name__
+        if typ not in self._not_handled:
+            warning('not handled: %s' % typ)
+            self._not_handled.add(typ)
+    def unknown_departure(self, node):
+        pass
 
 ######################################################################
 #{ LaTeX Output
@@ -2343,6 +2400,9 @@ def parse_args():
     optparser.add_option("--latex", "--tex",
         action="store_const", dest="action", const="latex",
         help="Write LaTeX output.")
+    optparser.add_option("--docbook", 
+        action="store_const", dest="action", const="docbook",
+        help="Write docbook output.")
     optparser.add_option("--ref",
         action="store_const", dest="action", const="ref",
         help="Generate references linking file.")
@@ -2427,6 +2487,9 @@ def main():
     elif options.action == 'latex':
         writer = CustomizedLaTeXWriter()
         output_ext = '.tex'
+    elif options.action == 'docbook':
+        writer = CustomizedDocBookWriter()
+        output_ext = '.xml'
     elif options.action == 'ref':
         writer = None
         global supress_warnings
