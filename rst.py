@@ -1758,14 +1758,29 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             self.body.append(node.astext())
         raise docutils.nodes.SkipNode
 
+    def visit_inline(self, node):
+        self.body.append("[START INLINE]")
+    def depart_inline(self, node):
+        self.body.append("[END INLINE]")
+
     _not_handled = set()
     def unknown_visit(self, node):
+        # print helpful warnings
         typ = node.__class__.__name__
         if typ not in self._not_handled:
             warning('not handled: %s' % typ)
             self._not_handled.add(typ)
+        # display as literal
+        self.body.append('\n\n'+self.starttag(node, 'programlisting'))
+        self.body.append(('%s' % node).replace('&', '&amp;').replace('<', '&lt;'))
+        self.body.append('</programlisting>\n')
+        #self.body.append('<!-- unknown visit: %s -->' % node)
+        raise docutils.nodes.SkipNode
     def unknown_departure(self, node):
+        #self.body.append('<!-- unknown depart: %s -->' % node)
         pass
+    def depart_paragraph(self, node):
+        self.body.append('</para>\n')
 
 ######################################################################
 #{ LaTeX Output
