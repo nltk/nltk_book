@@ -13,6 +13,8 @@ PYSRC = $(shell find ../../nltk -name '*.py')
 HTML = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.html)
 ERRS = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.errs)
 COVERAGE = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.coverage)
+PYTHONPATH = ../../
+export PYTHONPATH
 
 # Converting rst->html:
 RST = ../rst.py
