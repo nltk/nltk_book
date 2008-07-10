@@ -32,7 +32,9 @@ clean:	clean_up
 	$(MAKE) -C slides clean
 
 clean_up:
-	rm -f *.log *.aux *.tex *.out *.errs *~
+	TEXFILES=`find . -maxdepth 1 -name '*.tex' \
+			 -and -not -name 'xelatexsymbols.tex'`; \
+	    rm -f *.log *.aux $$TEXFILES *.out *.errs *~
 	$(MAKE) -C en clean_up
 	$(MAKE) -C guides clean_up
 	$(MAKE) -C slides clean_up
