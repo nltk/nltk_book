@@ -251,8 +251,10 @@ the formula's components. Let's create a valuation:
 
     >>> val1 = nltk.sem.Valuation([('p', True), ('q', True), ('r', False)])
     
-A ``Valuation`` object is essentially just a dictionary that maps
-logical expressions (treated as strings) to appropriate values.
+We initialize a ``Valuation`` with a list of pairs, each of which
+consists of a semantic symbol and a semantic value. The resulting
+object is essentially just a dictionary that maps logical expressions
+(treated as strings) to appropriate values.
 
    >>> val1['p']
    True
@@ -269,7 +271,7 @@ next section, so for the time being, just ignore the ``dom1`` and
 ``g1`` variables in the following declarations.
 
     >>> dom1 = set([])
-    >>> g1 = nltk.sem.Assignment(dom1)
+    >>> g = nltk.sem.Assignment(dom1)
 
 Now, let's create a model ``m that uses ``val1``:
 
@@ -302,22 +304,276 @@ First-Order Logic
 Predication
 -----------
 
-In |fol| (|FOL|), propositions are analyzed into predicates
-and arguments, which takes us a step closer to the structure of
-natural languages. The standard construction rules for |FOL| recognize
+In |fol| (|FOL|), propositions are analyzed into predicates and
+arguments, which takes us a step closer to the structure of natural
+languages. The standard construction rules for |FOL| recognize
 `terms`:dt: such as individual variables and individual constants, and
 `predicates`:dt: which take differing numbers of arguments. For
-example, `Jane walks`:lx: might be formalized as `walk(jane)`:mathit:
-and `Jane sees Mike`:lx: as  `see(jane, mike)`:mathit:. We will call
-`walk`:mathit: a `unary predicate`:dt:, and `see`:mathit: 
-a `binary predicate`:dt:. Semantically,
-`see`:mathit: is modeled as a relation, i.e., a set of
-pairs, and the proposition is true in a situation just in case the
-pair |langle|\ `j, m`:math:\ |rangle| belongs to this set. In order to
-make it explicit that we are treating `see`:lx: as a relation, we'll
-use the symbol |seeR| as its semantic representation, and we'll call
-|seeR|\ `(jane, mike)`:mathit: an instance of the
-'relational style' of representing predication.
+example, `Adam walks`:lx: might be formalized as `walk(adam)`:mathit:
+and `Adam sees Betty`:lx: as `see(adam, betty)`:mathit:. We will call
+`walk`:mathit: a `unary predicate`:dt:, and `see`:mathit: a `binary
+predicate`:dt:. Semantically, `see`:mathit: is usually modeled as a
+relation, i.e., a set of pairs, and the proposition is true in a
+situation just in case the ordered pair pair |langle|\ `a, b`:math:\
+|rangle| belongs to this set.
+
+There is an alternative
+approach in which predication is treated as function application.  In
+this functional style of representation, `Adam sees Betty`:lx: can be
+formalized as `see(j)(m)`:mathit:. That is than being modeled as a
+relation, `see`:mathit: denotes a function which applies to one argument to
+yield a new function that is then applied to the second argument. In
+NLTK, we will in fact treat predications syntactically as function
+applications, but we use a concrete syntax that allows them to
+represented as `n`:math:-ary relations.
+
+    >>> parsed = lp.parse('see(a, b)')
+    >>> parsed.argument
+    <IndividualVariableExpression b>   
+    >>> parsed.function
+    <ApplicationExpression see(a)>
+    >>> parsed.function.function
+    <VariableExpression see>
+
+Relations are represented semantically in NLTK in the standard
+set-theoretic way: as sets of tuples. For example, let's suppose we
+have a domain of discourse consisting of the individuals Adam, Betty and Fido,
+where Adam is a boy, Betty is a girl and Fido is a dog. For mnemonic
+reasons, we use ``b1``, ``g1`` and ``d1`` as the corresponding labels
+in the model. We can declare the domain as follows:
+
+    >>> dom2 = set(['b1', 'g1', 'd1'])
+
+As before, we are going to initialize a valuation with a list of (symbol,
+value) pairs:
+
+    >>> v = [('adam','b1'),('betty','g1'),('fido','d1'),
+    ... ('boy',set(['b1'])),('girl',set(['g1'])), ('dog',set(['d1'])),
+    ... ('walk',set(['g1', 'd1'])),
+    ... ('see', set([('b1','g1'),('d1','b1'),('g1','d1'),]))]
+    >>> val2 = nltk.sem.Valuation(v)
+    >>> print val2
+    {'adam': 'b1',
+     'betty': 'g1',
+     'boy': set([('b1',)]),
+     'dog': set([('d1',)]),
+     'fido': 'd1',
+     'girl': set([('g1',)]),
+     'see': set([('b1', 'g1'), ('d1', 'b1'), ('g1', 'd1')])}
+     'walk': set([('g1',), ('d1')]),
+    
+So according to this valuation, the value of ``see`` is a set of
+tuples such that Adam sees Betty, Fido sees Adam, and
+Betty sees Fido.
+
+You may have noticed that our unary predicates (i.e, ``boy``, ``girl``,
+``dog``) also come out represented as sets of singleton tuples, rather
+than just sets of individuals. This is a convenience which allows us
+to have a uniform treatment of relations of any arity. In order to
+combine a unary relation with an argument, we use the function
+``app()``. If the input relation is unary, then ``app()`` returns a
+Boolean value; if the input is :mathit:`n`-ary, for `n`:mathit: > 1,
+then ``app()`` returns an :mathit:`n`-1-ary relation.
+
+    >>> from nltk.sem import app
+    >>> boy = val2['boy']
+    >>> app(boy, 'b1')
+    True
+    >>> app(boy, 'g1')
+    False
+    >>> see = val2['see']
+    >>> app(see, 'b1')
+    set([('g1',)])
+    >>> app(app(see, 'b1'), 'g1')
+    True
+
+Individual Variables and Assignments
+------------------------------------
+
+In |FOL|, arguments of predicates can also be individual variables
+such as ``x``, ``y`` and ``z``. These can be thought of as similar to
+personal pronouns like `he`:lx:, `she`:lx: and `it`:lx:, in that we
+need to know about the context of use in order to figure out their
+denotation. In our models, the counterpart of a context of use is a
+variable `Assignment`:dt:. This is a mapping from individual variables to
+entities in the domain. 
+Assignments are created using the ``Assignment`` constructor, which
+also takes the model's domain of discourse as a parameter. We are not
+required to actually enter any bindings, but if we do, they are in a
+(variable, value) format similar to what we say earlier for valuations.
+
+   >>> g = nltk.sem.Assignment(dom2, [('x', 'b1'), ('y', 'g1')])
+
+|nopar| In addition, there is a ``print()`` format for assignments which
+uses a notation closer to that in logic textbooks:
+   
+   >>> print g
+   g[g1/y][b1/x]
+
+Let's now look at how we can evaluate an atomic formula of
+|FOL|. First, we create a model, then we use the ``evaluate()`` method
+to compute the truth value.
+
+    >>> m2 = nltk.sem.Model(dom2, val2)
+    >>> m2.evaluate('see(adam, y)', g)
+    True
+
+What's happening here? Essentially, we are making a call to
+``app(app(see, 'b1'), 'g1')`` just as in our earlier example.
+However, when the interpretation function encounters the variable ``'y'``,
+rather than checking for a value in ``val2``, it asks the variable
+assignment ``g`` to come up with a value:
+
+  >>> g['y']
+  'g1'
+
+Since we already know that 'b1' and 'g1' stand in the `see`:mathit:
+relation, the value ``True`` is what we expected. In this case, we can
+say that assignment ``g`` `satisfies`:dt: the formula 'see(adam, y)'.
+By contrast, the following formula evaluates to ``False`` relative to
+``g`` |mdash| check that you see why this is.
+
+    >>> m2.evaluate('see(y, x)', g)
+    False
+
+In our approach (though not in standard |fol|), variable assignments
+are `partial`:em:. For example, ``g`` says nothing about any variables
+apart from ``'x'`` and ``'y'''. The method ``purge()`` clears all
+bindings from an assignment.
+
+    >>> g.purge()
+    >>> print g
+    {}
+
+If we now try to evaluate a formula such as 'see(adam, y)' relative to
+``g``, it is like trying to interpret a sentence containing a `she`:lx: when
+we don't know what `she`:lx: refers to. In this case, the evaluation function
+fails to deliver a truth value.
+ 
+    >>> m2.evaluate('see(adam, y)', g)
+    'Undefined'
+
+Quantification and Scope
+------------------------
+
+|Fol| standardly offers us two quantifiers, `all`:lx: (or `every`:lx:)
+and `some`:lx:. These are formally written as |forall| and |exists|,
+respectively. At the syntactic level, quantifiers are used to bind
+individual variables like ``'x'`` and ``'y'``. The following two sets
+of examples show a simple English example, a logical representation,
+and the encoding which is accepted by the |NLTK| ``logic`` module.
+
+.. _forall1:
+.. ex::
+
+   .. _forall1a:
+   .. ex:: Every dog barks.
+
+   .. _forall1b:
+   .. ex:: |forall|\ `x.(dog(x)`:mathit: |rarr| `bark(x))`:mathit:
+
+   .. _forall1c:
+   .. ex:: ``all x.(dog(x) -> bark(x))``
+
+.. _exists1:
+.. ex::
+
+   .. ex:: Some girl walks.
+
+   .. ex:: |exists|\ `x.(girl(x)`:mathit: |wedge| `walk(x))`:mathit:
+
+   .. _existsc:
+   .. ex:: ``some x.(girl(x) & walk(x))``
+
+In the existsc_, the quantifier ``some`` binds both occurences of the
+variable ``'x'``. As a result, existsc_ is said to be a `closed
+formula`:dt:. By contrast, if we look at the body of existsc_,
+the variables are unbound:
+
+.. _exists2:
+.. ex:: girl(x) & walk(x)
+
+exists2_ is said to be an `open formula`:dt:. As we saw earlier, the
+interpretation of open formulas depends on the particular variable
+assignment that we are using. 
+
+One of the crucial insights of modern
+logic is that the notion of variable satisfaction can be used to
+provide an interpretation to quantified formulas. Let's continue to
+use existsc_ as an example. When is it true? Let's think about all the
+individuals in our domain, i.e., in ``dom2``. We want to check whether
+any of these individuals have the property of being a girl and
+walking. In other words, we want to know if there is some ``u`` in
+``dom2`` such that `g[u/x]' satisfies the open formula exists2_. Thus, we
+will say that existsc_ has value ``True`` just in case there is some some ``u`` in
+``dom2`` such that the following gives the value ``True``:
+
+.. doctest-ignore::
+   >>> m2.evaluate('girl(x) & walk(x)', g.add('x', 'u')
+
+|nopar| The inclusion of first-order quantifiers motivates the final clause of
+the definition of our version of |fol|.
+
+7. If `x`:mathit: |element|  **Var**\ (**Ind**) and |phi| 
+   |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
+   |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\
+   (**Bool**).  
+
+One important property of forall1b_ often trips people up. The logical
+rendering in effect says that *if* something is a dog, then it barks,
+but makes no commitment to the existence of dogs. So in a situation
+where nothing is a dog, forall1b_ will still come out true. (Remember
+that ``'(p implies q)'`` is true when ``'p'`` is false.) Now you might
+argue that forall1b_ does presuppose the existence of dogs,
+and that the logic formalization is wrong. 
+But it is possible  to find other
+examples which lack such a presupposition.  For instance, we might
+explain that the value of the Python expression ``re.sub('ate', '8',
+astring)`` is the result of replacing all occurrences of ``'ate'`` in
+``astring`` by ``'8'``, even though there may in fact be no such occurrences.
+
+What happens when we want to give a formal representation of a
+sentence with *two* quantifiers, such as the following?
+
+.. _scope1:
+.. ex:: Every girl chases a dog.
+
+There are (at least) two ways of expressing scope1_ in |FOL|:
+
+.. _scope2:
+.. ex::
+
+   .. _scope2a:
+   .. ex:: |forall|\ `x.((girl x)`:mathit: |rarr| |exists|\
+           `y.((dog y)`:mathit: |wedge| `(chase y x)))`:mathit:
+
+   .. _scope2b:
+   .. ex:: |exists|\ `y.((dog y)`:mathit: |wedge| |forall|\
+           `x.((every x)`:mathit: |rarr|  `(chase y x)))`:mathit:
+
+Can we use both of these? Then answer is Yes, but they have different
+meanings. scope2b_ is logically stronger than scope2a_: it claims that
+there is a unique dog, say Fido, which is chased by every girl.
+scope2a_, on the other hand, just requires that for every girl
+`g`:mathit:, we can find some dog which `d`:mathit: chases; but this could
+be a different dog in each case. We distinguish between scope2a_ and
+scope2b_ in terms of the `scope`:dt: of the quantifiers. In the first,
+|forall| has wider scope than |exists|, while in scope2b_, the scope ordering
+is reversed. So now we have two ways of representing the meaning of
+scope1_, and they are both quite legitimate. In other words, we are
+claiming that scope1_ is *ambiguous* with respect to quantifier scope,
+and the formulas in scope2_ give us a formal means of making the two
+readings explicit. However, we are not just interested in associating
+two distinct representations with scope1_. We also want to show in
+detail how the two representations lead to different conditions for
+truth in a formal model. This will be taken up in the next section.
+
+
+
+Before going into detail
+about this function, let's first look at a simpler case, namely the
+different styles of interpreting a unary predicate such as
+`walk`:mathit:.
 
 ---------------
 Further Reading
