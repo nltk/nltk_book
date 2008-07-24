@@ -1728,7 +1728,7 @@ class CustomizedDocBookWriter(DocBookWriter):
         # getting generated for us??
         self.document.settings = docutils.frontend.Values(dict(
             strict_visitor=True, language_code='en',
-            doctype='...', output_encoding='utf-8',
+            doctype='docbook', output_encoding='utf-8',
             ))
         visitor = CustomizedDocBookTranslator(self.document)
         self.document.walkabout(visitor)
