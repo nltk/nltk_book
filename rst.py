@@ -1770,6 +1770,11 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     def depart_idxterm(self, node):
         pass
 
+    # docutils example node becomes a docbook example with a title.
+    def visit_example(self, node):
+        self.body.append("<informalexample>\n")
+    def depart_example(self, node):
+        self.body.append("</informalexample>\n")
 
     _not_handled = set()
     def unknown_visit(self, node):
