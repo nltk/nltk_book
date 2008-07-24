@@ -1739,6 +1739,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         DocBookTranslator.__init__(self, document)
 
     def visit_compound(self, node):
+        # Does compound need to be handled at all?
         warning('compound not handled yet')
     def depart_compound(self, node):
         pass
@@ -1763,6 +1764,13 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     def depart_inline(self, node):
         self.body.append("[END INLINE]")
 
+    # idxterm nodes have no special formatting.
+    def visit_idxterm(self, node):
+        pass
+    def depart_idxterm(self, node):
+        pass
+
+
     _not_handled = set()
     def unknown_visit(self, node):
         # print helpful warnings
@@ -1770,9 +1778,22 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         if typ not in self._not_handled:
             warning('not handled: %s' % typ)
             self._not_handled.add(typ)
+
+        # Convert nodes to unicode strings.
+        def node_to_str(node):
+            if node.children:
+                return u'%s%s%s' % (node.starttag(),
+                                    ''.join([node_to_str(c) for c in node.children]),
+                                    node.endtag())
+            else:
+                try:
+                    return node.emptytag()
+                except:
+                    return u""
+
         # display as literal
         self.body.append('\n\n'+self.starttag(node, 'programlisting'))
-        self.body.append(('%s' % node).replace('&', '&amp;').replace('<', '&lt;'))
+        self.body.append(node_to_str(node).replace('&', '&amp;').replace('<', '&lt;'))
         self.body.append('</programlisting>\n')
         #self.body.append('<!-- unknown visit: %s -->' % node)
         raise docutils.nodes.SkipNode
