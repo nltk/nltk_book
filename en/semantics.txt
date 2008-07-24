@@ -281,7 +281,8 @@ The ``prop=True`` is just a flag to say that our models are intended
 for propositional logic.
 
 Every instance of Model defines appropriate truth functions for the
-Boolean connectives (and in fact they are implemented as functions).
+Boolean connectives (and in fact they are implemented as functions
+named ``AND()``, ``IMPLIES()`` and so on).
  
     >>> m1.AND
     <bound method Model.AND of (set([]), {'q': True, 'p': True, 'r': False})>
@@ -359,8 +360,8 @@ value) pairs:
      'dog': set([('d1',)]),
      'fido': 'd1',
      'girl': set([('g1',)]),
-     'see': set([('b1', 'g1'), ('d1', 'b1'), ('g1', 'd1')])}
-     'walk': set([('g1',), ('d1')]),
+     'see': set([('b1', 'g1'), ('d1', 'b1'), ('g1', 'd1')]),
+     'walk': set([('d1',), ('g1',)])}
     
 So according to this valuation, the value of ``see`` is a set of
 tuples such that Adam sees Betty, Fido sees Adam, and
@@ -382,9 +383,9 @@ then ``app()`` returns an :mathit:`n`-1-ary relation.
     >>> app(boy, 'g1')
     False
     >>> see = val2['see']
-    >>> app(see, 'b1')
-    set([('g1',)])
-    >>> app(app(see, 'b1'), 'g1')
+    >>> app(see, 'g1')
+    set([('d1',)])
+    >>> app(app(see, 'g1'), 'd1')
     True
 
 Individual Variables and Assignments
@@ -402,30 +403,32 @@ also takes the model's domain of discourse as a parameter. We are not
 required to actually enter any bindings, but if we do, they are in a
 (variable, value) format similar to what we say earlier for valuations.
 
-   >>> g = nltk.sem.Assignment(dom2, [('x', 'b1'), ('y', 'g1')])
+   >>> g = nltk.sem.Assignment(dom2, [('x', 'b1'), ('y', 'd1')])
+   >>> g
+   {'y': 'd1', 'x': 'b1'}
 
 |nopar| In addition, there is a ``print()`` format for assignments which
 uses a notation closer to that in logic textbooks:
    
    >>> print g
-   g[g1/y][b1/x]
+   g[d1/y][b1/x]
 
 Let's now look at how we can evaluate an atomic formula of
 |FOL|. First, we create a model, then we use the ``evaluate()`` method
 to compute the truth value.
 
     >>> m2 = nltk.sem.Model(dom2, val2)
-    >>> m2.evaluate('see(adam, y)', g)
+    >>> m2.evaluate('see(betty, y)', g)
     True
 
 What's happening here? Essentially, we are making a call to
-``app(app(see, 'b1'), 'g1')`` just as in our earlier example.
+``app(app(see, 'g1'), 'd1')`` just as in our earlier example.
 However, when the interpretation function encounters the variable ``'y'``,
 rather than checking for a value in ``val2``, it asks the variable
 assignment ``g`` to come up with a value:
 
   >>> g['y']
-  'g1'
+  'd1'
 
 Since we already know that 'b1' and 'g1' stand in the `see`:mathit:
 relation, the value ``True`` is what we expected. In this case, we can
@@ -433,16 +436,16 @@ say that assignment ``g`` `satisfies`:dt: the formula 'see(adam, y)'.
 By contrast, the following formula evaluates to ``False`` relative to
 ``g`` |mdash| check that you see why this is.
 
-    >>> m2.evaluate('see(y, x)', g)
+    >>> m2.evaluate('see(x, y)', g)
     False
 
 In our approach (though not in standard |fol|), variable assignments
 are `partial`:em:. For example, ``g`` says nothing about any variables
 apart from ``'x'`` and ``'y'''. The method ``purge()`` clears all
 bindings from an assignment.
-
+    
     >>> g.purge()
-    >>> print g
+    >>> g
     {}
 
 If we now try to evaluate a formula such as 'see(adam, y)' relative to
@@ -504,33 +507,90 @@ use existsc_ as an example. When is it true? Let's think about all the
 individuals in our domain, i.e., in ``dom2``. We want to check whether
 any of these individuals have the property of being a girl and
 walking. In other words, we want to know if there is some ``u`` in
-``dom2`` such that `g[u/x]' satisfies the open formula exists2_. Thus, we
-will say that existsc_ has value ``True`` just in case there is some some ``u`` in
-``dom2`` such that the following gives the value ``True``:
+``dom2`` such that ``g[u/x]`` satisfies the open formula
+exists2_. Consider the following:
 
-.. doctest-ignore::
-   >>> m2.evaluate('girl(x) & walk(x)', g.add('x', 'u')
+    >>> m2.evaluate('some x.(girl(x) & walk(x))', g)
+    True
 
-|nopar| The inclusion of first-order quantifiers motivates the final clause of
-the definition of our version of |fol|.
+``evaluate()`` returns ``True`` here because there is some ``u`` in
+``dom2`` such that exists2_ is satisfied by an assigment which binds
+``'x'`` to ``u``. In fact, ``g1`` is such a ``u``:
+    
+    >>> m2.evaluate('girl(x) & walk(x)', g.add('x', 'g1'))
+    True
 
-7. If `x`:mathit: |element|  **Var**\ (**Ind**) and |phi| 
-   |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
-   |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\
-   (**Bool**).  
+One useful tool offered by NLTK is the ``satisfiers()`` method. This
+lists all the individuals that satisfy an open formula. The method
+parameters are a parsed formula, a variable, and an assignment. Here
+are a few examples:
+    
+    >>> fmla1 = lp.parse('girl(x) | boy(x)')
+    >>> m2.satisfiers(fmla1, 'x', g)
+    set(['b1', 'g1'])
+    >>> fmla2 = lp.parse('girl(x) -> walk(x)')
+    >>> m2.satisfiers(fmla2, 'x', g)
+    set(['b1', 'g1', 'd1'])
+    >>> fmla3 = lp.parse('walk(x) -> girl(x)')
+    >>> m2.satisfiers(fmla3, 'x', g)
+    set(['b1', 'g1'])
 
-One important property of forall1b_ often trips people up. The logical
-rendering in effect says that *if* something is a dog, then it barks,
-but makes no commitment to the existence of dogs. So in a situation
-where nothing is a dog, forall1b_ will still come out true. (Remember
-that ``'(p implies q)'`` is true when ``'p'`` is false.) Now you might
-argue that forall1b_ does presuppose the existence of dogs,
-and that the logic formalization is wrong. 
-But it is possible  to find other
-examples which lack such a presupposition.  For instance, we might
-explain that the value of the Python expression ``re.sub('ate', '8',
-astring)`` is the result of replacing all occurrences of ``'ate'`` in
-``astring`` by ``'8'``, even though there may in fact be no such occurrences.
+It's useful to think about why ``fmla2`` and ``fmla3`` receive the
+values they do. In particular, recall the truth conditions for ``->``
+(encoded via the function ``IMPLIES()`` in every model):
+
+    >>> for first in [True, False]:
+    ...     for second in [True, False]:
+    ...	        print "%s %s => %s" % (first, second, m2.IMPLIES(first, second))
+    True True => True
+    True False => False
+    False True => True
+    False False => True
+
+This means that 
+``fmla2`` is equivalent to this:
+
+.. _fmla2or:
+.. ex:: ``- girl(x) | walk(x)``
+
+That is, fmla2or_ is satisfied by something which either isn't a girl
+or walks. Since neither ``b1`` (Adam) nor ``d1`` (Fido)
+are girls, according to model ``m2``, they both satisfy 
+the whole formula. And of course ``g1`` satisfies the formula because ``g1``
+satisfies both disjuncts. Now, since every member of the domain of
+discourse satisfies ``fmla2``, the corresponding universally
+quantified formula is also true.
+
+    >>> m2.evaluate('all x.(girl(x) -> walk(x))', g)
+    True
+
+In other words, a universally quantified formula |forall|\
+`x.`:mathit:\ |phi| is true with respect to ``g`` just in case for
+every ``u``, |phi| is true with respect to ``g[u/x]``. 
+
+
+
+.. 
+   |nopar| The inclusion of first-order quantifiers motivates the final clause of
+   the definition of our version of |fol|.
+
+   7. If `x`:mathit: |element|  **Var**\ (**Ind**) and |phi| 
+      |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
+      |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\
+    (**Bool**).  
+
+    One important property of forall1b_ often trips people up. The logical
+    rendering in effect says that *if* something is a dog, then it barks,
+    but makes no commitment to the existence of dogs. So in a situation
+    where nothing is a dog, forall1b_ will still come out true. (Remember
+    that ``'(p implies q)'`` is true when ``'p'`` is false.) Now you might
+    argue that forall1b_ does presuppose the existence of dogs,
+    and that the logic formalization is wrong. 
+    But it is possible  to find other
+    examples which lack such a presupposition.  For instance, we might
+    explain that the value of the Python expression ``re.sub('ate', '8',
+    astring)`` is the result of replacing all occurrences of ``'ate'`` in
+    ``astring`` by ``'8'``, even though there may in fact be no such occurrences.
 
 What happens when we want to give a formal representation of a
 sentence with *two* quantifiers, such as the following?
@@ -566,14 +626,10 @@ and the formulas in scope2_ give us a formal means of making the two
 readings explicit. However, we are not just interested in associating
 two distinct representations with scope1_. We also want to show in
 detail how the two representations lead to different conditions for
-truth in a formal model. This will be taken up in the next section.
+truth in a formal model.
 
 
 
-Before going into detail
-about this function, let's first look at a simpler case, namely the
-different styles of interpreting a unary predicate such as
-`walk`:mathit:.
 
 ---------------
 Further Reading
