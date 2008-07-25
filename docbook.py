@@ -69,7 +69,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.doc_header = [
             self.XML_DECL % (document.settings.output_encoding,),
             self.DOCTYPE_DECL % (self.doctype,),
-            '<%s>\n' % (self.doctype,),
+            '<%s xmlns:xlink="http://www.w3.org/1999/xlink">\n' % (self.doctype,),
         ]
         self.doc_footer = [
             '</%s>\n' % (self.doctype,)
@@ -145,8 +145,8 @@ class DocBookTranslator(nodes.NodeVisitor):
         for (name, value) in attributes.items():
             atts[name.lower()] = value
 
-        for att in ('id',):             # node attribute overrides
-            if node.has_key(att):
+        for att in ('xml:id',):             # node attribute overrides
+            if att in node:
                 atts[att] = node[att]
 
         attlist = atts.items()
@@ -514,9 +514,9 @@ class DocBookTranslator(nodes.NodeVisitor):
     def visit_entry(self, node):
         tagname = 'entry'
         atts = {}
-        if node.has_key('morerows'):
+        if 'morerows' in node:
             atts['morerows'] = node['morerows']
-        if node.has_key('morecols'):
+        if 'morecols' in node:
             atts['namest'] = self.colnames[self.entry_level]
             atts['nameend'] = self.colnames[self.entry_level \
                 + node['morecols']]
@@ -598,7 +598,7 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_footnote(self, node):
         self.footnotes[node['ids'][0]] = []
-        atts = {'id': node['ids'][0]}
+        atts = {'xml:id': node['ids'][0]}
         if isinstance(node[0], nodes.label):
             atts['label'] = node[0].astext()
         self.footnotes[node['ids'][0]].append(
@@ -620,7 +620,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self._body = None
 
     def visit_footnote_reference(self, node):
-        if node.has_key('refid'):
+        if 'refid' in node:
             refid = node['refid']
         else:
             refid = self.document.nameids[node['refname']]
@@ -670,22 +670,20 @@ class DocBookTranslator(nodes.NodeVisitor):
         else:
             element = 'mediaobject'
         atts = node.attributes.copy()
-        atts['fileref'] = atts['uri']
-        alt = None
-        del atts['uri']
-        if atts.has_key('alt'):
-            alt = atts['alt']
-            del atts['alt']
-        if atts.has_key('height'):
-            atts['depth'] = atts['height']
-            del atts['height']
+        atts['fileref'] = node.attributes['uri']
+        if 'scale' in node.attributes:
+            atts['scale'] = node.attributes['scale']
+        if 'height' in node.attributes:
+            atts['depth'] = node.attributes['height']
+        if 'width' in node.attributes:
+            atts['width'] = node.attributes['width']
         self.body.append('<%s>' % element)
         self.body.append('<imageobject>')
         self.body.append(self.emptytag(node, 'imagedata', **atts))
         self.body.append('</imageobject>')
-        if alt:
-            self.body.append('<textobject><phrase>' \
-                '%s</phrase></textobject>\n' % alt)
+       #if alt:
+        #    self.body.append('<textobject><phrase>' \
+                #'%s</phrase></textobject>\n' % alt)
         self.body.append('</%s>' % element)
 
     def depart_image(self, node):
@@ -821,19 +819,19 @@ class DocBookTranslator(nodes.NodeVisitor):
     visit_problematic = depart_problematic = lambda self, node: None
 
     def visit_raw(self, node):
-        if node.has_key('format') and node['format'] == 'docbook':
+        if 'format' in node and node['format'] == 'docbook':
             self.body.append(node.astext())
         raise node.SkipNode
 
     def visit_reference(self, node):
         atts = {}
-        if node.has_key('refuri'):
-            atts['url'] = node['refuri']
-            self.context.append('ulink')
-        elif node.has_key('refid'):
+        if 'refuri' in node:
+            atts['xlink:href'] = node['refuri']
+            self.context.append('link')
+        elif 'refid' in node:
             atts['linkend'] = node['refid']
             self.context.append('link')
-        elif node.has_key('refname'):
+        elif 'refname' in node:
             atts['linkend'] = self.document.nameids[node['refname']]
             self.context.append('link')
         # if parent is a section, 
@@ -950,6 +948,8 @@ class DocBookTranslator(nodes.NodeVisitor):
         )
 
     def depart_table(self, node):
+        while self.body[-2:] == ['<para>\n', '</para>']:
+            del self.body[-2:]
         self.body.append('</informaltable>\n')
 
     # don't think anything is needed for targets
@@ -964,13 +964,13 @@ class DocBookTranslator(nodes.NodeVisitor):
                     next = siblings[i+1]
                     if isinstance(next,nodes.Text):
                         pass
-                    elif not next.attributes.has_key('id'):
-                        next['id'] = node['ids'][0]
+                    elif 'xml:id' not in next.attributes:
+                        next['xml:id'] = node['ids'][0]
                         handled = 1
         if not handled:
-            if not node.parent.attributes.has_key('id'):
+            if 'xml:id' not in node.parent.attributes:
                 # TODO node["ids"] 
-                node.parent.attributes['id'] = node['ids'][0]
+                node.parent.attributes['xml:id'] = node['ids'][0]
                 handled = 1
         # might need to do more...
         # (if not handled, update the referrer to refer to the parent's id)
