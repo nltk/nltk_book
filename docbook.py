@@ -681,9 +681,8 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.body.append('<imageobject>')
         self.body.append(self.emptytag(node, 'imagedata', **atts))
         self.body.append('</imageobject>')
-       #if alt:
-        #    self.body.append('<textobject><phrase>' \
-                #'%s</phrase></textobject>\n' % alt)
+        if 'alt' in node.attributes:
+            self.body.append('<textobject><phrase>%s</phrase></textobject>\n' % node.attributes['alt'])
         self.body.append('</%s>' % element)
 
     def depart_image(self, node):
