@@ -2,9 +2,9 @@
 #
 # Natural Language Toolkit: Page length extraction script
 #
-# Copyright (C) 2001-2006 University of Pennsylvania
+# Copyright (C) 2001-2006 NLTK Project
 # Author: Steven Bird <sb@csse.unimelb.edu.au>
-# URL: <http://nltk.sf.net>
+# URL: <http://nltk.org>
 # For license information, see LICENSE.TXT
 
 r"""
