@@ -493,10 +493,10 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_doctest_block(self, node):
         self.body.append('<informalexample>\n')
-        self.body.append(self.starttag(node, 'programlisting'))
+        #self.body.append(self.starttag(node, 'programlisting'))
 
     def depart_doctest_block(self, node):
-        self.body.append('</programlisting>\n')
+        #self.body.append('</programlisting>\n')
         self.body.append('</informalexample>\n')
 
     def visit_document(self, node):
@@ -669,7 +669,7 @@ class DocBookTranslator(nodes.NodeVisitor):
             element = 'inlinemediaobject'
         else:
             element = 'mediaobject'
-        atts = node.attributes.copy()
+        atts = {}
         atts['fileref'] = node.attributes['uri']
         if 'scale' in node.attributes:
             atts['scale'] = node.attributes['scale']
@@ -677,6 +677,8 @@ class DocBookTranslator(nodes.NodeVisitor):
             atts['depth'] = node.attributes['height']
         if 'width' in node.attributes:
             atts['width'] = node.attributes['width']
+
+        self.body.append('<para>')
         self.body.append('<%s>' % element)
         self.body.append('<imageobject>')
         self.body.append(self.emptytag(node, 'imagedata', **atts))
@@ -684,6 +686,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         if 'alt' in node.attributes:
             self.body.append('<textobject><phrase>%s</phrase></textobject>\n' % node.attributes['alt'])
         self.body.append('</%s>' % element)
+        self.body.append('</para>')
 
     def depart_image(self, node):
         pass
@@ -810,7 +813,7 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_paragraph(self, node):
         self.body.append(self.starttag(node, 'para', ''))
-
+        
     def depart_paragraph(self, node):
         self.body.append('</para>')
 

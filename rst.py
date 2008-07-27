@@ -1760,15 +1760,26 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         raise docutils.nodes.SkipNode
 
     def visit_inline(self, node):
-        self.body.append("[START INLINE]")
+        self.body.append("<emphasis>")
     def depart_inline(self, node):
-        self.body.append("[END INLINE]")
+        self.body.append("</emphasis>")
+
+    def visit_pylisting(self, node):
+        self.body.append('[PYLISTING]\n')
+
+    def depart_pylisting(self, node):
+        self.body.append('[/PYLISTING]\n')
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):
         pass
     def depart_idxterm(self, node):
         pass
+
+    def visit_line(self, node):
+        pass
+    def depart_line(self, node):
+        self.body.append('\n')
 
     # docutils example node becomes a docbook example with a title.
     def visit_example(self, node):
@@ -1783,6 +1794,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         if typ not in self._not_handled:
             warning('not handled: %s' % typ)
             self._not_handled.add(typ)
+        self.body.append('<!-- unknown visit: %s -->' % node)
 
         # Convert nodes to unicode strings.
         def node_to_str(node):
@@ -1792,21 +1804,20 @@ class CustomizedDocBookTranslator(DocBookTranslator):
                                     node.endtag())
             else:
                 try:
-                    return node.emptytag()
+                    return node.starttag() + node.astext() + node.endtag()
+
                 except:
                     return u""
 
         # display as literal
-        self.body.append('\n\n'+self.starttag(node, 'programlisting'))
-        self.body.append(node_to_str(node).replace('&', '&amp;').replace('<', '&lt;'))
-        self.body.append('</programlisting>\n')
+        #self.body.append('\n\n'+self.starttag(node, 'programlisting'))
+        #self.body.append(node_to_str(node).replace('&', '&amp;').replace('<', '&lt;'))
+        #self.body.append('</programlisting>\n')
         #self.body.append('<!-- unknown visit: %s -->' % node)
         raise docutils.nodes.SkipNode
     def unknown_departure(self, node):
-        #self.body.append('<!-- unknown depart: %s -->' % node)
+        self.body.append('<!-- unknown depart: %s -->' % node)
         pass
-    def depart_paragraph(self, node):
-        self.body.append('</para>\n')
 
 ######################################################################
 #{ LaTeX Output
