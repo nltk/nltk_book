@@ -321,7 +321,7 @@ situation just in case the ordered pair pair |langle|\ `a, b`:math:\
 There is an alternative
 approach in which predication is treated as function application.  In
 this functional style of representation, `Adam sees Betty`:lx: can be
-formalized as `see(j)(m)`:mathit:. That is than being modeled as a
+formalized as `see(j)(m)`:mathit:. That is, rather than being modeled as a
 relation, `see`:mathit: denotes a function which applies to one argument to
 yield a new function that is then applied to the second argument. In
 NLTK, we will in fact treat predications syntactically as function
@@ -592,6 +592,10 @@ every ``u``, |phi| is true with respect to ``g[u/x]``.
     astring)`` is the result of replacing all occurrences of ``'ate'`` in
     ``astring`` by ``'8'``, even though there may in fact be no such occurrences.
 
+
+Quantificatier Scope Ambiguity
+------------------------------
+
 What happens when we want to give a formal representation of a
 sentence with *two* quantifiers, such as the following?
 
@@ -628,8 +632,592 @@ two distinct representations with scope1_. We also want to show in
 detail how the two representations lead to different conditions for
 truth in a formal model.
 
+|nopar| In order to examine the ambiguity more closely, let's fix our
+valuation as follows:
+
+  
+   >>> v3 = [('john', 'b1'),
+   ... ('mary', 'g1'),
+   ... ('suzie', 'g2'),
+   ... ('fido', 'd1'),
+   ... ('tess', 'd2'),
+   ... ('noosa', 'n'),
+   ... ('girl', set(['g1', 'g2'])),
+   ... ('boy', set(['b1', 'b2'])),
+   ... ('dog', set(['d1', 'd2'])),
+   ... ('bark', set(['d1', 'd2'])),
+   ... ('walk', set(['b1', 'g2', 'd1'])),
+   ... ('chase', set([('b1', 'g1'), ('b2', 'g1'), ('g1', 'd1'), ('g2', 'd2')])),
+   ... ('see', set([('b1', 'g1'), ('b2', 'd2'), ('g1', 'b1'),
+   ... ('d2', 'b1'), ('g2', 'n')])),
+   ... ('in', set([('b1', 'n'), ('b2', 'n'), ('d2', 'n')])),
+   ... ('with', set([('b1', 'g1'), ('g1', 'b1'), ('d1', 'b1'), ('b1', 'd1')]))]
+   >>> val3 = nltk.sem.Valuation(v3)
+ 
+|nopar| We can use the graph in chasegraph_ to visualize the
+`chase`:mathit: relation.
+
+.. _chasegraph:
+.. ex::
+   .. image:: ../images/models_chase.png
+      :scale: 30
+
+|nopar| In chasegraph_, an arrow between two individuals `x`:math: and
+`y`:math: indicates that `x`:math: chases
+`y`:math:. So ``b1`` and ``b2`` both chase ``g1``, while ``g1`` chases
+``d1`` and ``g2`` chases ``d2``. In this model, formula ``scope2a_`` above
+is true but ``scope2b_`` is false. One way of exploring these results is by
+using the ``satisfiers()`` method of ``Model`` objects.
+
+   >>> dom3 = val3.domain
+   >>> m3 = nltk.sem.Model(dom3, val3)
+   >>> g = nltk.sem.Assignment(dom3)
+   >>> fmla1 = lp.parse('(girl(x) -> exists y.(dog(y) and chase(x, y)))')
+   >>> m3.satisfiers(fmla1, 'x', g)
+   set(['g2', 'g1', 'n', 'b1', 'b2', 'd2', 'd1'])
+   >>> 
+
+|nopar| This gives us the set of individuals that can be assigned as the value
+of ``x`` in ``fmla1``. In particular, every girl is included in this
+set. By contrast, consider the formula ``fmla2`` below; this has no
+satisfiers for the variable ``y``.
+
+   >>> fmla2 = lp.parse('(dog(y) & all x.(girl(x) -> chase(x, y)))')
+   >>> m3.satisfiers(fmla2, 'y', g)
+   set([])
+   >>> 
+
+|nopar| That is, there is no dog that is chased by both ``g1`` and
+``g2``. Taking a slightly different open formula, ``fmla3``, we
+can verify that there is a girl, namely ``g1``, who is chased by every boy.
+
+   >>> fmla3 = lp.parse('(girl(y) & all x.(boy(x) -> chase(x, y)))')
+   >>> m3.satisfiers(fmla3, 'y', g)
+   set(['g1'])
+
+..
+   ADD something about the parse_valuation method
 
 
+----------------------------
+Evaluating English Sentences
+----------------------------
+
+Using the ``sem`` Feature
+-------------------------
+
+Until now, we have taken for granted that we have some appropriate
+logical formulas to interpret. However, ideally we would like to
+derive these formulas from natural language input. One relatively easy
+way of achieving this goal is to build on the grammar framework
+developed in Chapter chap-featgram_. Our first step is to introduce a new feature,
+``sem``. Because values of ``sem`` generally need to be treated
+differently from other feature values, we use the convention of
+enclosing them in angle brackets. sem1_ illustrates a first
+approximation to the kind of analyses we would like to build.
+
+.. _sem1:
+.. ex::
+   .. tree:: (S[sem=\<\walk\(jane\)\>] (NP[sem=\<\(jane\)\>] Jane) (VP[sem=\<\walk\>] (V[sem=\<\walk\>] walks)))
+
+|nopar| Thus, the ``sem`` value at the root node shows a semantic
+representation for the whole sentence, while the ``sem`` values at
+lower nodes show semantic representations for constituents of the
+sentence. So far, so good, but how do we write grammar rules which
+will give us this kind of result? To be more specific, suppose we have
+a `np`:gc: and `vp`:gc: constituents with appropriate values for their
+``sem`` nodes? If you reflect on the machinery that was introduced in
+discussing the |lambda| calculus, you might guess that function
+application will be central to composing semantic values. You will
+also remember that our feature-based grammar framework gives us the
+means to refer to `variable`:em: values. Putting this together, we can
+postulate a rule like sem2_ for building the ``sem`` value of an
+`s`:gc:.  (Observe that in the case where the value of ``sem`` is a
+variable, we omit the angle brackets.)
+
+.. _sem2:
+.. ex::
+   ::
+
+     S[sem = <app(?vp,?subj)>] -> NP[sem=?subj] VP[sem=?vp]
+
+sem2_ tells us that given some ``sem`` value ``?subj`` for the subject
+`np`:gc: and some ``sem`` value ``?vp`` for the `vp`:gc:, the ``sem``
+value of the `s`:gc: mother is constructed by applying ``?vp`` as a
+functor to ``?np``.  From this, we can conclude that ``?vp`` has to
+denote a function which has the denotation of ``?np`` in its
+domain; in fact, we are going to assume that ``?vp`` denotes a
+curryed characteristic function on individuals. sem2_ is a nice example of
+building semantics using `the principle of compositionality`:dt:\:
+that is, the principle that the semantics of a complex expression is a
+function of the semantics of its parts.
+
+To complete the grammar is very straightforward; all we require are the
+rules shown in sem3_.
+
+.. _sem3:
+.. ex::
+   ::
+
+     VP[sem=?v] -> IV[sem=?v]
+     NP[sem=<jane>] -> 'Jane'
+     IV[sem=<walk>] -> 'walks'
+
+|nopar| 
+The `vp`:gc: rule says that the mother's semantics is the same as the
+head daughter's. The two lexical rules just introduce non-logical
+constants to serve as the semantic values of `Jane`:lx: and
+`walks`:lx: respectively. This grammar can be parsed using the chart
+parser in ``parse.featurechart``, and the trace in sem4_
+shows how semantic values are derived by feature unification in the
+process of building a parse tree.
+
+.. _sem4:
+.. ex::
+   ::
+
+     Predictor |> . .| S[sem='(?vp ?subj)'] -> * NP[sem=?subj] VP[sem=?vp] 
+     Scanner   |[-] .| [0:1] 'Jane' 
+     Completer |[-> .| S[sem='(?vp john)'] -> NP[sem='john'] * VP[sem=?vp] 
+     Predictor |. > .| VP[sem=?v] -> * IV[sem=?v] 
+     Scanner   |. [-]| [1:2] 'walks' 
+     Completer |. [-]| VP[sem='walk'] -> IV[sem='walk'] * 
+     Completer |[===]| S[sem='(walk john)'] -> NP[sem='john'] VP[sem='walk'] * 
+     Completer |[===]| [INIT] -> S * 
+
+Quantified `np`:gc:\ s
+----------------------
+
+You might be thinking this is all too easy |mdash| surely there is a
+bit more to building compositional semantics. What about quantifiers,
+for instance? Right, this is a crucial issue. For example, we want
+sem5a_ to be given a semantic representation like sem5b_. How can this
+be accomplished? 
+
+.. _sem5: 
+.. ex::
+   .. _sem5a:
+   .. ex:: 
+      A dog barks.
+   .. _sem5b:
+   .. ex:: 
+      ``'exists x.(dog(x) & (bark(x))'``
+
+|nopar| Let's make the assumption that our `only`:em: operation for building
+complex semantic representations is function
+application. Then our problem is this: how do we give a semantic
+representation to quantified `np`:gc:\s such as `a dog`:lx: so that
+they can be combined with something like ``'walk'`` to give a result
+like sem5b_? As a first step, let's make the subject's ``sem`` value
+act as the functor rather than the argument. Now we are
+looking for way of instantiating ``?np`` so that sem6a_ is equivalent
+to sem6b_.
+
+.. _sem6: 
+.. ex::
+
+   .. _sem6a:
+   .. ex:: | [sem=<bark(?np)>]
+
+   .. _sem6b:
+   .. ex:: | [sem=<exist x.(dog(x) & bark(x))>]
+
+     
+|nopar| This is where |lambda| abstraction comes to the rescue;
+doesn't sem6_ look a bit reminiscent of carrying out |beta|-reduction
+in the |lambda|-calculus? In other words, we want a |lambda| term
+`M`:mathit: to replace ``'?np'`` so that applying `M`:mathit: to
+``'bark'`` yields sem5b_.  To do this, we replace the occurence of
+``'bark'`` in sem5b_ by a variable ``'P'``, and bind the variable with
+|lambda|, as shown in sem7_.
+
+.. _sem7: 
+.. ex:: ``'\P.exists x.(dog(x) & P(x))'``
+
+|nopar| As a point of interest, we have used a different style of variable in
+sem7_, that is ``'P'`` rather than ``'x'`` or ``'y'``. This is to signal
+that we are abstracting over a different kind of thing |mdash| not an
+individual, but a function from **Ind** to **Bool**. So the type of
+sem7_ as a whole is ((**Ind** |rarr| **Bool**) |rarr| **Bool**). We
+will take this to be the type of `np`:gc:\ s in general. To illustrate
+further, a universally quantified `np`:gc: will look like sem7univ_.
+
+.. _sem7univ: 
+.. ex:: ``'\P.all x.(dog(x) -> P(x))'``
+
+
+We are pretty much done now, except that we also want to carry out a
+further abstraction plus application for the process of combining the
+semantics of the determiner `a`:lx: with the semantics of `dog`:lx:.
+Applying sem7_ as a functor to ``'bark'`` gives us ``'(\P.exists x.(dog
+(x) & P(x)) bark)'``, and carrying out |beta|\-reduction yields
+just what we wanted, namely sem5b_.
+
+
+|NLTK| provides some utilities to make it easier to derive and inspect
+semantic interpretations. ``text_interpret()`` is intended for batch
+interpretation of a list of input sentences. It builds a dictionary
+``d`` where for each sentence ``sent`` in the input,
+``d[sent]`` is a list of paired trees and semantic representations for
+``sent``. The value is a list, since ``sent`` may be syntactically
+ambiguous; in the following example, we just look at the first member
+of the list.
+   
+    >>> grammar = nltk.data.load('grammars/sem1.fcfg')
+    >>> result  = nltk.sem.text_interpret(['a dog barks'], grammar, beta_reduce=0)
+    >>> (syntree, semrep) = result['a dog barks'][0]
+    >>> print syntree
+    (S[sem=<exists x.(dog(x) & bark(x))>]
+      (NP[sem=<\P.exists x.(dog(x) & P(x))>]
+        (Det[sem=<\Q.\P.exists x.(Q(x) & P(x))>] a)
+         (N[sem=<dog>] dog))
+       (VP[sem=<\x.bark(x)>] (IV[sem=<\x.bark(x)>] barks)))
+  
+
+|nopar| By default, the semantic representation that is produced by
+``text_interpret()`` has already undergone |beta|-reduction, but in the
+above example, we have overridden this.  Subsequent reduction is
+possible using the ``simplify()`` method, and Boolean connectives can be
+placed in infix position with the ``infixify()`` method.
+
+   >>> print semrep.simplify()
+   exists x.(dog(x) & bark(x))
+
+
+Transitive Verbs
+----------------
+
+Our next challenge is to deal with sentences containing transitive
+verbs, such as sem8_.
+
+.. _sem8: 
+.. ex:: Suzie chases a dog.
+
+|nopar| The output semantics that we want to build is shown in sem9_.
+
+.. _sem9: 
+.. ex:: ``'exists x.(dog(x) & chase(suzie, x))'``
+
+|nopar| Let's look at how we can use |lambda|-abstraction to get this
+result. A significant constraint on possible solutions is to require
+that the semantic representation of `a dog`:lx: be independent of
+whether the `np`:gc: acts as subject or object of the sentence. In
+other words, we want to get sem9_ as our output while sticking to
+sem7_ as the `np`:gc: semantics. A second constraint is that
+`vp`:gc:\s should have a uniform type of interpretation regardless
+of whether they consist of just an intransitive verb or a transitive
+verb plus object. More specifically, we stipulate that `vp`:gc:\s
+always denote characteristic functions on individuals. Given these
+constraints, here's a semantic representation for `chases a dog`:lx:
+which does the trick.
+
+.. _sem99: 
+.. ex:: ``'\y.exists x.(dog(x) & chase(y, x))'``
+
+|nopar| Think of sem99_ as the property of being a `y`:math: such that
+for some dog `x`:math:, `y`:math: chases `x`:math:; or more
+colloquially, being a `y`:math: who chases a dog. Our task now
+resolves to designing a semantic representation for
+`chases`:lx: which can combine via ``app`` with sem7_ so as to allow
+sem99_ to be derived. 
+
+Let's carry out a kind of inverse |beta|-reduction on sem99_,
+giving rise to sem10_.
+
+Let Then we are part
+way to the solution if we can derive sem10_, where ``'X'`` is applied to
+``'\z.chase(y, z)'``.
+
+.. _sem10: 
+.. ex:: ``'(\P.exists x.(dog(x) and P(x)) \z.chase(y, z))'``
+
+|nopar| sem10_ may be slightly hard to read at first; you need to see that
+it involves applying the quantified `np`:gc: representation from 
+sem7_ to ``'\z.(chase z y))'``. sem10_ is of course 
+equivalent to sem99_.
+
+Now let's replace the functor in sem10_ by a variable ``'X'`` of the
+same type as an `np`:gc:; that is, of type ((**Ind** |rarr| **Bool**)
+|rarr| **Bool**). 
+
+.. _sem11: 
+.. ex:: ``'X(\z.chase(y, z))'``
+
+|nopar| The representation of a transitive verb will have to apply to
+an argument of the type of ``'X'`` to yield a functor of the type of
+`vp`:gc:\ s, that is, of type (**Ind** |rarr| **Bool**). We can ensure
+this by abstracting over both the ``'X'`` variable in sem11_ and also
+the subject variable ``'y'``. So the full solution is reached by
+giving `chases`:lx: the semantic representation shown in sem12_.
+
+.. _sem12: 
+.. ex:: ``'\X y.X(\x.chase(y, x))'``
+
+|nopar| If sem12_ is applied to sem7_, the result after |beta|-reduction is
+equivalent to sem99_, which is what we wanted all along:
+
+.. ex:: | ``'(\X y.(X \x.(chase(y, x)) \P.exists x.(dog(x) & P(x))'``
+        | |reduce|
+        | ``'(\y.(\P.exists x.(dog(x) & P(x)) \x.chase(y, x))'``
+	| |reduce|
+        | ``'\y.(exists x.(dog(x) & chase(y, x)))'``
+
+In order to build a semantic representation for a sentence, we also
+need to combine in the semantics of the subject `np`:gc:. If the
+latter is a quantified expression like `every girl`:lx:, everything
+proceeds in the same way as we showed for `a dog barks`:lx: earlier
+on; the subject is translated as a functor which is applied to the
+semantic representation of the `vp`:gc:.  However, we now seem to have
+created another problem for ourselves with proper names. So far, these
+have been treated semantically as individual constants, and these
+cannot be applied as functors to expressions like
+sem99_. Consequently, we need to come up with a different semantic
+representation for them. What we do
+in this case is re-interpret proper names so that they too are
+functors, like quantified `np`:gc:\ s. sem13_ shows the required
+|lambda| expression for `Suzie`:lx:.
+
+.. _sem13: 
+.. ex:: ``'\P.P(suzie)'``
+
+|nopar| sem13_ denotes the characteristic function corresponding to the set of
+all properties which are true of Suzie. Converting from an individual
+constant to an expression like sem12_ is known as `type raising`:dt:,
+and allows us to flip functors with arguments. That is, type raising
+means that we can replace a Boolean-valued application such as `(f
+a`:mathit:) with an equivalent application `(`:math:\ |lambda|\ `P.(P a)
+f`:mathit:).
+
+
+One important limitation of the approach we have presented here is
+that it does not attempt to deal with scope ambiguity. Instead,
+quantifier scope ordering directly reflects scope in the parse
+tree. As a result, a sentence like scope1_, repeated here, will always
+be translated as scope12a_, not scope12b_.
+
+.. _scope11:
+.. ex:: Every girl chases a dog.
+
+.. _scope12:
+.. ex::
+
+   .. _scope12a:
+   .. ex:: ``'all x.((girl x) implies some y. ((dog y) and (chase y x)))'``
+
+   .. _scope12b:
+   .. ex:: ``'some y. (dog y) and all x. ((girl x) implies (chase y x)))'``
+
+|nopar| This limitation can be overcome, for example using the hole semantics
+described in [Blackburn2005RIN]_, but discussing the details would take
+us outside the scope of the current chapter.
+
+Now that we have looked at some slightly more complex constructions, we can
+evaluate them in a model. In the following example, we derive two
+parses for the sentence `every boy chases a girl in Noosa`:lx:, and
+evaluate each of the corresponding semantic representations in the
+model ``model0.py`` which we have imported.
+
+    >>> grammar = nltk.data.load('grammars/sem2.fcfg')
+    >>> val4 = nltk.data.load('grammars/valuation1.val')
+    >>> dom4 = val4.domain
+    >>> m4 = nltk.sem.Model(dom4, val4)
+    >>> g = nltk.sem.Assignment(dom4)
+    >>> sent = 'every boy chases a girl in Noosa'
+    >>> result = nltk.sem.text_evaluate([sent], grammar, m4, g)
+    >>> for (syntree, semrep, value) in result[sent]:
+    ... 	print "'%s' is %s in Model m\n" % (semrep, value)
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+    <BLANKLINE>
+
+
+
+
+----------------------------------------------
+Case Study: Extracting Valuations from Chat-80
+----------------------------------------------
+
+Building ``Valuation`` objects by hand becomes rather tedious once we
+consider larger examples. This raises the question of whether the
+relation data in a ``Valuation`` could be extracted from some
+pre-existing source. The ``corpora.chat80`` module
+provides an example of extracting data from the Chat-80 Prolog
+knowledge base (which included as part of the |NLTK| ``corpora``
+distribution).
+
+Chat-80 data is organized into collections of clauses, where each
+collection functions as a table in a relational database. The
+predicate of the clause provides the name of the table; the first
+element of the tuple acts as the
+'key'; and subsequent elements are further columns in the
+table. 
+
+In general, the name of the table provides a label for a unary
+relation whose extension is all the keys. For example,
+the table in ``cities.pl`` contains triples such as city_.
+
+.. _city:
+.. ex:: ``'city(athens,greece,1368).'``
+
+|nopar| Here, ``'athens'`` is the key, and will be mapped to a member of the
+unary relation `city`:mathit:.
+
+The other two columns in the table are mapped to binary relations, where the first
+argument of the relation is filled by the table key, and the
+second argument is filled by the data in the relevant column. Thus, in
+the ``city`` table illustrated by the tuple in 
+city_, the data from the third column is extracted  into a binary predicate
+`population_of`:mathit:, whose extension is a set of pairs such as
+``'(athens, 1368)'``.
+
+In order to encapsulate the results of the extraction, a class of
+``Concept``\ s is introduced.  A ``Concept`` object has a number of
+attributes, in particular a ``prefLabel`` and ``extension``, which
+make it easier to inspect the output of the extraction. The
+``extension`` of a ``Concept`` object is incorporated into a
+``Valuation`` object.
+
+As well as deriving unary and binary relations from the Chat-80 data,
+we also create a set of individual constants, one for each entity in
+the domain. The individual constants are string-identical to the
+entities. For example, given a data item such as ``'zloty'``, we add
+to the valuation a pair ``('zloty', 'zloty')``. In order to parse
+English sentences that refer to these entities, we also create a
+lexical item such as the following for each individual constant:
+
+.. ex::
+   ::
+
+     PropN[num=sg, sem=<\P.P(zloty)>] -> 'Zloty'
+
+The ``chat80`` module can be found in the ``corpora`` package. The
+attribute ``chat80.items`` gives us a list of Chat-80 relations:
+
+   >>> from nltk.corpus import chat80
+   >>> chat80.items # doctest: +ELLIPSIS
+    ('borders', 'circle_of_lat', 'circle_of_long', 'city', ...)
+
+The ``concepts()`` method shows the list of ``Concept``\ s that can be
+extracted from a ``chat80`` relation, and we can then inspect their extensions.
+
+   >>> concepts = chat80.concepts('city')
+   >>> concepts
+   [Concept('city'), Concept('country_of'), Concept('population_of')]
+   >>> rel = concepts[1].extension
+   >>> list(rel)[:5]
+   [('chungking', 'china'), ('karachi', 'pakistan'), 
+   ('singapore_city', 'singapore'), ('athens', 'greece'), 
+   ('birmingham', 'united_kingdom')]
+
+|nopar| In order to convert such an extension into a valuation, we use the
+``make_valuation()`` method; setting ``read=True`` creates and returns
+a new ``Valuation`` object which contains the results.
+
+   >>> val = nltk.corpus.chat80.make_valuation(concepts, read=True)
+   >>> val['city']['calcutta']
+   True
+   >>> val['country_of']['india']
+   {'hyderabad': True, 'delhi': True, 'bombay': True, 
+   'madras': True, 'calcutta': True}
+   >>> dom = val.domain
+   >>> g = nltk.sem.Assignment(dom)
+   >>> m = nltk.sem.Model(dom, val)
+   >>> m.evaluate(r'\x .population_of(jakarta, x)', g)
+   {'533': True}
+
+.. Note:: Population figures are given in thousands. Bear in mind that
+   the geographical data used in these examples dates back at least to
+   the 1980s, and was already somewhat out of date at the point when
+   [Warren1982EEA]_ was published.
+
+-------
+Summary
+-------
+
+* Semantic Representations (SRs) for English are constructed using a
+  language based on the |lambda|-calculus, together with Boolean
+  connectives, equality, and first-order quantifiers.
+
+* |beta|-reduction in the |lambda|-calculus corresponds semantically
+  to application of a function to an argument. Syntactically, it
+  involves replacing a variable bound by |lambda| in the functor with
+  the expression that provides the argument in the function
+  application.
+
+* If two |lambda|-abstracts differ only in the label of the variable
+  bound by |lambda|, they are said to be |alpha|
+  equivalents. Relabeling a variable bound by a |lambda| is called
+  |alpha|-conversion.
+
+* Currying of a binary function turns it into a unary function whose
+  value is again a unary function.
+
+* |FSRL| has both a syntax and a semantics. The semantics is
+  determined by recursively evaluating expressions in a model.
+
+* A key part of constructing a model lies in building a valuation
+  which assigns interpretations to non-logical constants. These are
+  interpreted as either curried characteristic functions or as
+  individual constants. 
+
+* The interpretation of Boolean connectives is handled by the
+  model; these are interpreted as characteristic functions.
+
+* An open expression is an expression containing one or more free
+  variables. Open expressions only receive an interpretation when
+  their free variables receive values from a
+  variable assignment.
+
+* Quantifiers are interpreted by constructing, for a formula |phi|\
+  [`x`:mathit:\ ] open in variable `x`:mathit:, the set of individuals
+  which make |phi|\ [`x`:mathit:\ ] true when an assignment *g*
+  assigns them as the value of `x`:mathit:. The quantifier then places
+  constraints on that set.
+
+* A closed expression is one that has no free variables; that is, the
+  variables are all bound. A closed sentence is true or
+  false with respect to all variable assignments.
+
+* Given a formula with two nested quantifiers *Q*\ :sub:`1` and *Q*\
+  :sub:`2`, the outermost quantifier *Q*\ :sub:`1` is said to have wide
+  scope (or scope over *Q*\ :sub:`2`). English sentences are frequently
+  ambiguous with respect to the scope of the quantifiers they
+  contain. 
+
+* English sentences can be associated with an SR by treating ``sem``
+  as a feature. The ``sem`` value of a complex expressions typically
+  involves functional application of the ``sem`` values of the
+  component expressions.
+
+* Model valuations need not be built by hand, but can also be
+  extracted from relational tables, as in the Chat-80 example.
+
+---------
+Exercises
+---------
+
+1. |soso| Modify the ``sem.evaluate`` code so that it will
+   give a helpful error message if an expression is not in the domain
+   of a model's valuation function.
+
+#. |hard| Specify and implement a typed functional language with quantifiers,
+   Boolean connectives and equality. Modify
+   ``sem.evaluate`` to interpret expressions of this language.
+   
+#. |hard| Extend the ``chat80`` code so that it will extract data from a
+   relational database using SQL queries.
+
+#. |hard| Taking [WarrenPereira1982] as a starting point, develop a technique
+   for converting a natural language query into a form that can be
+   evaluated more efficiently in a model. For example, given a query
+   of the form ``'(P(x) & Q(x)'``, convert it to ``'(Q(x) & P(x)'`` if
+   the extension of ``'Q'`` is smaller than the extension of 
+   ``'P'``.
 
 ---------------
 Further Reading
