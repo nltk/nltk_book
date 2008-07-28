@@ -69,7 +69,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.doc_header = [
             self.XML_DECL % (document.settings.output_encoding,),
             self.DOCTYPE_DECL % (self.doctype,),
-            '<%s xmlns:xlink="http://www.w3.org/1999/xlink">\n' % (self.doctype,),
+            '<%s>\n' % (self.doctype,),
         ]
         self.doc_footer = [
             '</%s>\n' % (self.doctype,)
@@ -492,12 +492,12 @@ class DocBookTranslator(nodes.NodeVisitor):
         pass
 
     def visit_doctest_block(self, node):
-        self.body.append('<informalexample>\n')
-        #self.body.append(self.starttag(node, 'programlisting'))
+        #self.body.append('<informalexample>\n')
+        self.body.append(self.starttag(node, 'programlisting'))
 
     def depart_doctest_block(self, node):
-        #self.body.append('</programlisting>\n')
-        self.body.append('</informalexample>\n')
+        self.body.append('</programlisting>\n')
+        #self.body.append('</informalexample>\n')
 
     def visit_document(self, node):
         pass
@@ -828,8 +828,8 @@ class DocBookTranslator(nodes.NodeVisitor):
     def visit_reference(self, node):
         atts = {}
         if 'refuri' in node:
-            atts['xlink:href'] = node['refuri']
-            self.context.append('link')
+            atts['url'] = node['refuri']
+            self.context.append('ulink')
         elif 'refid' in node:
             atts['linkend'] = node['refid']
             self.context.append('link')
