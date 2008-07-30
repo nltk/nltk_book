@@ -239,6 +239,9 @@ def avm_directive(name, arguments, options, content, lineno,
             return [parse_avm(textwrap.dedent(text)).as_table()]
         elif OUTPUT_FORMAT == 'ref':
             return [docutils.nodes.paragraph()]
+        # pass through for now
+        elif OUTPUT_FORMAT == 'docbook':
+            return [docutils.nodes.literal_block('', textwrap.dedent(text))]
     except ValueError, e:
         if isinstance(e.args[0], int):
             warning('Error parsing avm on line %s' % (lineno+e.args[0]))
@@ -1765,10 +1768,13 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         self.body.append("</emphasis>")
 
     def visit_pylisting(self, node):
-        self.body.append('[PYLISTING]\n')
+        atts = {}
+        if 'ids' in node.attributes and node.attributes['ids']:
+            atts['id'] = node.attributes['ids'][-1]
+        self.body.append(self.starttag(node, 'example', **atts))
 
     def depart_pylisting(self, node):
-        self.body.append('[/PYLISTING]\n')
+        self.body.append('</example>\n')
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):

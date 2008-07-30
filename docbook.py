@@ -890,7 +890,10 @@ class DocBookTranslator(nodes.NodeVisitor):
             if self.section == 0 and self.doctype == 'book':
                 self.body.append(self.starttag(node, 'chapter'))
             else:
-                self.body.append(self.starttag(node, 'section'))
+                atts = {}
+                if 'ids' in node.attributes and node.attributes['ids']:
+                    atts['id'] = node.attributes['ids'][-1]
+                self.body.append(self.starttag(node, 'section', **atts))
         self.section += 1
 
     def depart_section(self, node):
