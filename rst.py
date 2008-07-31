@@ -1725,6 +1725,7 @@ function copy_text_to_clipboard(data)
 ######################################################################
 
 from docbook import Writer as DocBookWriter, DocBookTranslator
+
 class CustomizedDocBookWriter(DocBookWriter):
     def translate(self):
         # what's the correct way to generate this??  why isn't it
