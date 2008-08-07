@@ -726,6 +726,10 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.body.append('</note>\n')
 
     def visit_image(self, node):
+
+        def docbook_scale_image(n):
+            return int(round((5.5/85.0) * n))
+
         if isinstance(node.parent, nodes.paragraph):
             element = 'inlinemediaobject'
         elif isinstance(node.parent, nodes.reference):
@@ -741,11 +745,11 @@ class DocBookTranslator(nodes.NodeVisitor):
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][11:]
 
         if 'scale' in node.attributes:
-            atts['scale'] = node.attributes['scale']
+            atts['scale'] = docbook_scale_image(node.attributes['scale'])
         if 'height' in node.attributes:
-            atts['depth'] = node.attributes['height']
+            atts['depth'] = docbook_scale_image(node.attributes['height'])
         if 'width' in node.attributes:
-            atts['width'] = node.attributes['width']
+            atts['width'] = docbook_scale_image(node.attributes['width'])
 
         # Don't wrap the image in a para, this breaks when the image
         # is in a figure tag.  I don't know if it breaks anywhere
