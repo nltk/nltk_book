@@ -1727,13 +1727,15 @@ function copy_text_to_clipboard(data)
 from docbook import Writer as DocBookWriter, DocBookTranslator
 import docbook
 
+DOCBOOK_ROOT_NODE = "chapter"
+
 class CustomizedDocBookWriter(DocBookWriter):
     def translate(self):
         # what's the correct way to generate this??  why isn't it
         # getting generated for us??
         self.document.settings = docutils.frontend.Values(dict(
             strict_visitor=True, language_code='en',
-            doctype='chapter', output_encoding='utf-8',
+            doctype=DOCBOOK_ROOT_NODE, output_encoding='utf-8',
             ))
         visitor = CustomizedDocBookTranslator(self.document)
         self.document.walkabout(visitor)
@@ -2600,6 +2602,9 @@ def main():
 
         # For .tex and .html files:
         else:
+            global DOCBOOK_ROOT_NODE
+            if in_file == "preface.txt":
+                DOCBOOK_ROOT_NODE="preface"
             docutils.core.publish_file(source_path=in_file, writer=writer,
                                        destination_path=out_file,
                                        reader=CustomizedReader(),
