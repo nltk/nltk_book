@@ -87,6 +87,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.subtitle = ''
         self.table_tag_stack = []
         self.figure_tag_stack = []
+        self.example_tag_stack = []
 
     def stack_push(self, stack, item):
         "Push an item onto the given stack"
@@ -725,17 +726,19 @@ class DocBookTranslator(nodes.NodeVisitor):
     def depart_hint(self, node):
         self.body.append('</note>\n')
 
-    def visit_image(self, node):
+    def visit_image(self, node, element=None):
 
         def docbook_scale_image(n):
             return int(round((5.5/85.0) * n))
 
-        if isinstance(node.parent, nodes.paragraph):
-            element = 'inlinemediaobject'
-        elif isinstance(node.parent, nodes.reference):
-            element = 'inlinemediaobject'
-        else:
-            element = 'mediaobject'
+        if not element:
+            if isinstance(node.parent, nodes.paragraph):
+                element = 'inlinemediaobject'
+            elif isinstance(node.parent, nodes.reference):
+                element = 'inlinemediaobject'
+            else:
+                element = 'mediaobject'
+
         atts = {}
         atts['fileref'] = node.attributes['uri']
         # NLTK specific:
@@ -889,10 +892,12 @@ class DocBookTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_paragraph(self, node):
-        self.body.append(self.starttag(node, 'para', ''))
+        if not isinstance(node.parent, nodes.caption):
+            self.body.append(self.starttag(node, 'para', ''))
         
     def depart_paragraph(self, node):
-        self.body.append('</para>')
+        if not isinstance(node.parent, nodes.caption):
+            self.body.append('</para>')
 
     # TODO: problematic
     visit_problematic = depart_problematic = lambda self, node: None
@@ -1031,13 +1036,13 @@ class DocBookTranslator(nodes.NodeVisitor):
         # If a child is a non-empty title then make this a table,
         # otherwise an informal table.  Multiple 'title' children are
         # not handled.
-        title_child = None
-        for child in node.children:
-            if isinstance(node.children[0], nodes.caption):
-                title_child = child
-                break
+        title_child_idx, title_child = child_of_instance(node, nodes.caption)
+
         if title_child and title_child.children != []:
             table_tag = "table"
+            # This is probably naughty but let's mutate the children
+            # so that the title comes first.
+            node.children = item_to_front(node.children, title_child_idx)
         else:
             table_tag = "informaltable"
 
@@ -1183,6 +1188,26 @@ class DocBookTranslator(nodes.NodeVisitor):
     def unimplemented_visit(self, node):
         raise NotImplementedError('visiting unimplemented node type: %s'
                 % node.__class__.__name__)
+
+# Utilitiy functions.
+
+def child_of_instance(node, object):
+    """
+    If the node has a child of the given class return it's index
+    within the children attribute and it its self.
+    """
+    for child_idx, child in enumerate(node.children): 
+        if isinstance(child, object): 
+            return child_idx, child 
+    return None, None
+
+def item_to_front(list, index):
+    """
+    Move the item at index of the list to the front of the list.  This
+    is not done in-place, a new list is returned.
+    """
+    return [list[index]] + list[0 : index] + list[index + 1 : -1]
+
 
 # :collapseFolds=0:folding=indent:indentSize=4:
 # :lineSeparator=\n:noTabs=true:tabSize=4:
