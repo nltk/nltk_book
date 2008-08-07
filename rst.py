@@ -1725,6 +1725,7 @@ function copy_text_to_clipboard(data)
 ######################################################################
 
 from docbook import Writer as DocBookWriter, DocBookTranslator
+import docbook
 
 class CustomizedDocBookWriter(DocBookWriter):
     def translate(self):
@@ -1787,12 +1788,33 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         pass
     def depart_line(self, node):
         self.body.append('\n')
-
-    # docutils example node becomes a docbook example with a title.
+    
     def visit_example(self, node):
-        self.body.append("<informalexample>\n")
+        # if a child is a non-empty title then make this an example
+        # rather than an informal example.
+
+        title_child_idx, title_child = \
+            docbook.child_of_instance(node, docbook.nodes.caption)
+        if title_child and title_child.children != []:
+            example_tag = "example"
+            node.children = \
+                docbook.item_to_front(node.children, title_child_idx)
+        else:
+            example_tag = "informalexample"
+
+        self.body.append("<%s>\n" % example_tag)
+        self.stack_push(self.example_tag_stack, example_tag)
+
     def depart_example(self, node):
-        self.body.append("</informalexample>\n")
+        example_tag = self.stack_pop(self.example_tag_stack)
+        self.body.append("</%s>\n" % example_tag)
+
+    def visit_image(self, node):
+        if isinstance(node.parent, example):
+            DocBookTranslator.visit_image(self, node, 'mediaobject')
+        else:
+            DocBookTranslator.visit_image(self, node)
+
 
     _not_handled = set()
     def unknown_visit(self, node):
