@@ -23,6 +23,7 @@ import re
 import string
 from docutils import writers, nodes, languages
 from types import ListType
+import Image
 
 class Writer(writers.Writer):
 
@@ -714,7 +715,8 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     # ??? does anything need to be done for generated?
     def visit_generated(self, node):
-        pass
+        raise nodes.SkipNode # Docbook generates it's own stuff chapter numbers
+                             # and such.
     def depart_generated(self, node):
         pass
 
@@ -728,8 +730,11 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_image(self, node, element=None):
 
-        def docbook_scale_image(n):
-            return int(round((5.5/85.0) * n))
+        def docbook_scale_image(dimension, scale):
+            # 1/64 is 12/768 which fits the description of scaleing below.
+            # Divide by 100.0 also since the scaling factor is expressed in a
+            # percentage.
+            return float(dimension) * scale / 100.0 / 64.0
 
         if not element:
             if isinstance(node.parent, nodes.paragraph):
@@ -747,12 +752,19 @@ class DocBookTranslator(nodes.NodeVisitor):
         if atts['fileref'][:10] == 'tree_images/':
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][11:]
 
+        # Scale images by specifying their width.  The sizes of the image files
+        # and the scale values given in the RST source describe how much of the
+        # page they should take up, 768 = Width * Scale is the whole width of
+        # the page, just under 13cm in the O'Reily rendered docbook output, (we
+        # round this down to 12cm).
         if 'scale' in node.attributes:
-            atts['scale'] = docbook_scale_image(node.attributes['scale'])
-        if 'height' in node.attributes:
-            atts['depth'] = docbook_scale_image(node.attributes['height'])
-        if 'width' in node.attributes:
-            atts['width'] = docbook_scale_image(node.attributes['width'])
+            if ('height' in node.attributes) and ('width' in node.attributes):
+                raise ValueError(
+                    "docbook.py doesn't handle specifying image width in ReST")
+            scale = node.attributes['scale']
+            im = Image.open(node.attributes['uri'])
+            atts['contentwidth'] = "%fcm" % docbook_scale_image(im.size[0], scale)
+            atts['contentdepth'] = "%fcm" % docbook_scale_image(im.size[1], scale)
 
         # Don't wrap the image in a para, this breaks when the image
         # is in a figure tag.  I don't know if it breaks anywhere
@@ -1123,8 +1135,8 @@ class DocBookTranslator(nodes.NodeVisitor):
         elif isinstance(node.parent, nodes.sidebar):
             # sidebar title and subtitle are collected in visit_sidebar
             raise nodes.SkipNode
-        else:
-            self.body.append(self.starttag(node, 'title', ''))
+        
+        self.body.append(self.starttag(node, 'title', ''))
 
     def depart_title(self, node):
         if not isinstance(node.parent, nodes.document):
@@ -1208,6 +1220,29 @@ def item_to_front(list, index):
     """
     return [list[index]] + list[0 : index] + list[index + 1 : -1]
 
+
+def node_to_str(node):
+    """
+    Return a unicode string representation of this node.  Docutils doesn't
+    implement __str__ or __unicode__ properely, hence the need for this.
+    """
+
+    if node.children:
+        return u'%s%s%s' % (node.starttag(),
+                            ''.join([node_to_str(c) for c in node.children]),
+                            node.endtag())
+    else:
+        str = ""
+        try:
+            str += node.starttag()
+        except:
+            pass
+        str += node.astext()
+        try:
+            str += node.endtag()
+        except:
+            pass
+        return str
 
 # :collapseFolds=0:folding=indent:indentSize=4:
 # :lineSeparator=\n:noTabs=true:tabSize=4:
