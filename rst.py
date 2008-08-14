@@ -1827,22 +1827,10 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             self._not_handled.add(typ)
         self.body.append('<!-- unknown visit: %s -->' % node)
 
-        # Convert nodes to unicode strings.
-        def node_to_str(node):
-            if node.children:
-                return u'%s%s%s' % (node.starttag(),
-                                    ''.join([node_to_str(c) for c in node.children]),
-                                    node.endtag())
-            else:
-                try:
-                    return node.starttag() + node.astext() + node.endtag()
-
-                except:
-                    return u""
-
         # display as literal
         #self.body.append('\n\n'+self.starttag(node, 'programlisting'))
-        #self.body.append(node_to_str(node).replace('&', '&amp;').replace('<', '&lt;'))
+        #self.body.append(
+        # docbook.node_to_str(node).replace('&', '&amp;').replace('<', '&lt;'))
         #self.body.append('</programlisting>\n')
         #self.body.append('<!-- unknown visit: %s -->' % node)
         raise docutils.nodes.SkipNode
