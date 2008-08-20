@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
-.. include:: regexp-defns.txt
+.. include:: ../definitions.rst
+.. include:: regexp-defns.rst
 
 .. standard global imports
 
@@ -464,6 +464,47 @@ XML and ElementTree
 * Shakespeare XML corpus example
 
 
+Chinese and XML
+---------------
+
+Codecs for processing Chinese text have been incorporated into Python
+(since version 2.4). 
+
+    >>> path = nltk.data.find('samples/sinorama-gb.xml')
+    >>> f = codecs.open(path, encoding='gb2312')
+    >>> lines = f.readlines()
+    >>> for l in lines:
+    ...     l = l[:-1]
+    ...     utf_enc = l.encode('utf8')
+    ...     print repr(utf_enc)
+    '<?xml version="1.0" encoding="gb2312" ?>'
+    ''
+    '<sent>'
+    '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
+    ''
+    'In some cases, cats were valued above humans.'
+    '</sent>'
+
+With appropriate support on your terminal, the escaped text string
+inside the ``<SENT>`` element above
+will be rendered as the following string of ideographs:
+|CJK-751a|\ |CJK-81f3|\ |CJK-732b|\ |CJK-4ee5|\ |CJK-4eba|\ |CJK-8d35|.
+
+We can also read in the contents of an XML file using the ``etree``
+package (at least, if the file is encoded as UTF-8 |mdash| as of
+writing, there seems to be a problem reading GB2312-encoded files in
+``etree``).
+
+
+    >>> path = nltk.data.find('samples/sinorama-utf8.xml')
+    >>> from nltk.etree import ElementTree as ET
+    >>> tree = ET.parse(path)
+    >>> text = tree.findtext('sent')
+    >>> uni_text = text.encode('utf8')
+    >>> print repr(uni_text.splitlines()[1])
+    '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
+
+
 Exercises
 ---------
 
@@ -478,6 +519,7 @@ Exercises
 |         <NNP>Vinken</NNP>
 |       </NP>
 |       <COMMA>,</COMMA>
+
 
 
 
@@ -1621,4 +1663,4 @@ Object-Oriented programming
 
 [Hunt1999PP]_
 
-.. include:: footer.txt
+.. include:: footer.rst

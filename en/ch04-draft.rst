@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 .. standard global imports
 
@@ -1279,7 +1279,7 @@ Further Reading
 
 
 
-.. include:: footer.txt
+.. include:: footer.rst
 
 
 ..   *** Old material ***

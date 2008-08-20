@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 .. standard global imports
 
@@ -660,5 +660,5 @@ Further Reading
 
 .. Sekine -- 140 types of NE.
 
-.. include:: footer.txt
+.. include:: footer.rst
 

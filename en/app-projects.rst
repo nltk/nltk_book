@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 ============================
 Appendix: Projects with NLTK
@@ -226,4 +226,4 @@ kinds of complexity, as described below:
  - a range of system configurations/modifications are explored (e.g. classifiers trained and tested using different parameters) 
 
 
-.. include:: footer.txt
+.. include:: footer.rst

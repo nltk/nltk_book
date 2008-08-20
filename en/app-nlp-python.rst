@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 ======================================================
 Appendix: NLP in Python vs other Programming Languages
@@ -202,5 +202,5 @@ its own line, and the second step finds all lines ending in `ing`:lx:\ ::
 program samples: Tim Baldwin, Trevor Cohn, David Duke, Rod Farmer,
 Andrew Hardie, Aaron Harnly, Edward Ivanovic, and Lars Yencken.)
 
-.. include:: footer.txt
+.. include:: footer.rst
 

@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 .. standard global imports
 
@@ -761,4 +761,4 @@ Exercises
    significant performance boosts from cleverer rule invocation
    strategies?
 
-.. include:: footer.txt
+.. include:: footer.rst

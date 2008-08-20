@@ -1,6 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
-.. include:: regexp-defns.txt
+.. include:: ../definitions.rst
 
 .. standard global imports
 
@@ -22,6 +21,7 @@ as "|oslash|" for Danish and Norwegian, "|odacute|" for Hungarian,
 Slovak. In this section, we will give an overview of how to use
 Unicode for processing texts that use non-ASCII character sets.
 
+----------------
 What is Unicode?
 ----------------
 
@@ -52,6 +52,7 @@ From a Unicode perspective, characters are abstract entities which can
 be realized as one or more **glyphs**. Only glyphs can appear on a
 screen or be printed on paper. A font is a mapping from characters to glyphs.
 
+----------------------------------
 Extracting encoded text from files
 ----------------------------------
 
@@ -205,6 +206,7 @@ correspondingly yields Unicode strings as output.
     [u'niemc\xf3w', u'pod', u'koniec', u'ii', u'wojny', u'\u015bwiatowej',
     u'na', u'dolny', u'\u015bl\u0105sk', u'zosta\u0142y']
 
+-----------------------------------
 Using your local encoding in Python
 -----------------------------------
     
@@ -243,46 +245,6 @@ literals within the IDLE editor:
 The above example also illustrates how regular expressions can use
 encoded strings.
 
-Chinese and XML
----------------
-
-Codecs for processing Chinese text have been incorporated into Python
-(since version 2.4). 
-
-    >>> path = nltk.data.find('samples/sinorama-gb.xml')
-    >>> f = codecs.open(path, encoding='gb2312')
-    >>> lines = f.readlines()
-    >>> for l in lines:
-    ...     l = l[:-1]
-    ...     utf_enc = l.encode('utf8')
-    ...     print repr(utf_enc)
-    '<?xml version="1.0" encoding="gb2312" ?>'
-    ''
-    '<sent>'
-    '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
-    ''
-    'In some cases, cats were valued above humans.'
-    '</sent>'
-
-With appropriate support on your terminal, the escaped text string
-inside the ``<SENT>`` element above
-will be rendered as the following string of ideographs:
-|CJK-751a|\ |CJK-81f3|\ |CJK-732b|\ |CJK-4ee5|\ |CJK-4eba|\ |CJK-8d35|.
-
-We can also read in the contents of an XML file using the ``etree``
-package (at least, if the file is encoded as UTF-8 |mdash| as of
-writing, there seems to be a problem reading GB2312-encoded files in
-``etree``).
-
-
-    >>> path = nltk.data.find('samples/sinorama-utf8.xml')
-    >>> from nltk.etree import ElementTree as ET
-    >>> tree = ET.parse(path)
-    >>> text = tree.findtext('sent')
-    >>> uni_text = text.encode('utf8')
-    >>> print repr(uni_text.splitlines()[1])
-    '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
-
 
 Further Reading
 ---------------
@@ -302,3 +264,6 @@ consulting:
 * Joel Spolsky, *The Absolute Minimum Every Software Developer
   Absolutely, Positively Must Know About Unicode and Character Sets
   (No Excuses!)*, http://www.joelonsoftware.com/articles/Unicode.html
+
+.. include:: footer.rst
+

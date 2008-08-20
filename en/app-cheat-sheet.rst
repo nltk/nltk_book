@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 =============================================
 Appendix: Python and NLTK Cheat Sheet (Draft)
@@ -165,4 +165,4 @@ Tagging
 
 .. note:: to be written
 
-.. include:: footer.txt
+.. include:: footer.rst

@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
-.. include:: regexp-defns.txt
+.. include:: ../definitions.rst
+.. include:: regexp-defns.rst
 
 .. standard global imports
 
@@ -470,4 +470,4 @@ A.M. Kuchling.
 http://www.amk.ca/python/howto/regex/
 
 
-.. include:: footer.txt
+.. include:: footer.rst

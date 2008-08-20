@@ -1,5 +1,5 @@
 .. -*- mode: rst -*-
-.. include:: ../definitions.txt
+.. include:: ../definitions.rst
 
 ==================================
 Appendix: NLTK Modules and Corpora
@@ -105,4 +105,4 @@ Wordlist Corpus              OpenOffice.org et al   960k words and 20k affixes f
 WordNet 3.0 (English)        Miller, Fellbaum       145k synonym sets
 ===========================  =====================  ============================================================
 
-.. include:: footer.txt
+.. include:: footer.rst

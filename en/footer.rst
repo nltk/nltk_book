@@ -3,7 +3,7 @@
 .. admonition:: About this document...
 
    This chapter is a draft from
-   *Introduction to Natural Language Processing* [|NLTK-BOOK|],
+   *Natural Language Processing* [|NLTK-BOOK|],
    by |StevenBird|, |EwanKlein| and |EdwardLoper|,
    Copyright |copy| 2008 the authors.
    It is distributed with the *Natural Language Toolkit* [|NLTK-URL|],

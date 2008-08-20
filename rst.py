@@ -27,8 +27,8 @@ the following ways:
 
     - New directives "def", "ifdef", and "ifndef", which can be used
       to conditionally control the inclusion of sections.  This is
-      used, e.g., to make sure that the definitions in 'definitions.txt'
-      are only performed once, even if 'definitions.txt' is included
+      used, e.g., to make sure that the definitions in 'definitions.rst'
+      are only performed once, even if 'definitions.rst' is included
       multiple times.
 """
 

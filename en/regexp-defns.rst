@@ -21,8 +21,8 @@
   .. |p[aeiou]+t|        replace:: |l|\ ``p[aeiou]+t``\ |r|
   .. |NN.*|              replace:: |l|\ ``NN.*``\ |r|
   .. |.*|                replace:: |l|\ ``.*``\ |r|
-  .. |abc|def|           replace:: |l|\ ``abc|def``\ |r|
-  .. |ab(c|d)ed|         replace:: |l|\ ``ab(c|d)ed``\ |r|
+  .. |123|456|           replace:: |l|\ ``123|456``\ |r|
+  .. |12(3|4)56|         replace:: |l|\ ``12(3|4)56``\ |r|
   .. |[a-z]|             replace:: |l|\ ``[a-z]``\ |r|
   .. |[^a-z]|            replace:: |l|\ ``[^a-z]``\ |r|
   .. |[a-zA-Z]|          replace:: |l|\ ``[a-zA-Z]``\ |r|

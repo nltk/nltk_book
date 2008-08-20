@@ -8,17 +8,20 @@
 
 PAPER_SIZE = a4
 
-CHAPTERS = preface.txt introduction.txt programming.txt words.txt tag.txt chunk.txt structured-programming.txt parse.txt advanced-parsing.txt featgram.txt applied-programming.txt data.txt semantics.txt data-intensive.txt projects.txt regexps.txt unicode.txt nlp-python.txt nltk-modules.txt cheat-sheet.txt term_index.txt
+CHAPTERS = ch00.rst ch01.rst ch02.rst ch03.rst ch04.rst ch05.rst ch06.rst\
+           ch07.rst ch08.rst ch09.rst ch10.rst ch11.rst ch12.rst\
+           app-regexps.rst app-unicode.rst app-nlp-python.rst app-modules.rst\
+           app-cheat-sheet.rst app-projects.rst term_index.rst
 
 REF_EXTENSION = .ref
 
-PDF := $(CHAPTERS:.txt=.pdf)
-HTML := $(CHAPTERS:.txt=.html)
-XML := $(CHAPTERS:.txt=.xml)
-ERRS := $(CHAPTERS:.txt=.errs)
-REF := $(CHAPTERS:.txt=$(REF_EXTENSION))
-PY := $(CHAPTERS:.txt=.py)
-TEX := $(CHAPTERS:.txt=.tex)
+PDF := $(CHAPTERS:.rst=.pdf)
+HTML := $(CHAPTERS:.rst=.html)
+XML := $(CHAPTERS:.rst=.xml)
+ERRS := $(CHAPTERS:.rst=.errs)
+REF := $(CHAPTERS:.rst=$(REF_EXTENSION))
+PY := $(CHAPTERS:.rst=.py)
+TEX := $(CHAPTERS:.rst=.tex)
 
 BIBTEX_FILE = ../refs.bib
 
@@ -32,8 +35,9 @@ RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
 DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk/test/doctest_driver.py
 BIBTEX = bibtex -terse
-#DOCBOOKDTD = ../docbookx.dtd
-DOCBOOKDTD = /sw/share/xml/dtd/docbookx/4.4.0/docbookx.dtd
+#get from environment
+#DOCBOOKDTD = /sw/share/xml/dtd/docbookx/4.4.0/docbookx.dtd
+#DOCBOOKDTD = /opt/local/share/xml/docbook/4.4/docbookx.dtd
 
 # <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
 BIB2XHTML = bib2xhtml -s named
@@ -44,7 +48,7 @@ RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
 
 LATEX_STYLESHEET_PATH = ../definitions.sty
 
-.SUFFIXES: .txt .html .pdf .errs .py
+.SUFFIXES: .rst .html .pdf .errs .py
 
 help: usage
 usage:
@@ -75,23 +79,23 @@ clean_up:
 
 .PRECIOUS: $(REF)
 
-%$(REF_EXTENSION): %.txt
+%$(REF_EXTENSION): %.rst
 	$(RST2REF) $<
 
-%.html: %.txt $(REF) revision.txt
+%.html: %.rst $(REF) revision.rst
 	$(RST2HTML) $(REF) $< 
 
-%.xml: %.txt $(RST) ../docbook.py #$(REF) revision.txt
+%.xml: %.rst $(RST) ../docbook.py #$(REF) revision.rst
 	$(RST2DOCBOOK) $(REF) $< 
 	xmllint --noout --dtdvalid $(DOCBOOKDTD) $@
 
-%.tex: %.txt $(REF) revision.txt
+%.tex: %.rst $(REF) revision.rst
 	$(RST2LATEX) $(REF) $< 
 
-revision.txt: $(CHAPTERS)
-	echo "This document is" > revision.txt
-	svn info | grep Revision >> revision.txt
-	date >> revision.txt
+revision.rst: $(CHAPTERS)
+	echo "This document is" > revision.rst
+	svn info | grep Revision >> revision.rst
+	date >> revision.rst
 
 %.bbl: %.tex $(BIBTEX_FILE)
 	rm -f $*.bbl
@@ -105,10 +109,10 @@ bibliography.html: $(BIBTEX_FILE) bib_template.html
 	cp bib_template.html $@
 	$(BIB2XHTML) $< $@
 
-book.html: book.txt $(CHAPTERS) part1.txt part2.txt part3.txt
+book.html: book.rst $(CHAPTERS) part1.rst part2.rst part3.rst
 	$(RST2HTML) $<
 
-book.tex: book.txt $(CHAPTERS) part1.txt part2.txt part3.txt
+book.tex: book.rst $(CHAPTERS) part1.rst part2.rst part3.rst
 	$(RST2LATEX) --documentclass=book --bibliography $<
 
 # This fairly complex target here will cause pdflatex to only generate
@@ -139,7 +143,7 @@ book.tex: book.txt $(CHAPTERS) part1.txt part2.txt part3.txt
 
 book.pdf: book.bbl book.tex
 
-.txt.errs:
+.rst.errs:
 	$(DOCTEST) $< --ellipsis --normalize_whitespace --udiff &> $@
 
 rsync-en:
@@ -148,5 +152,5 @@ rsync-en:
 rsync-en-beta:
 	rsync $(RSYNC_OPTS) . $(BETA)/doc/en/
 
-.txt.py:
+.rst.py:
 	$(PYTHON) $(EXAMPLES) $< > $@
