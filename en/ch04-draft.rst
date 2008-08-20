@@ -10,7 +10,7 @@
 .. _chap-data-intensive:
 
 =====================================
-5. Data-Intensive Language Processing
+4. Data-Intensive Language Processing
 =====================================
 
 ------------

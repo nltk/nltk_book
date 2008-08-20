@@ -36,7 +36,7 @@ IDLE session:
 
 * defines "moby", the text of Moby Dick from Project Gutenberg
 
-    >>> from nltk.book import *
+    >>> from nltk.book.ch01 import *
     >>> moby
     <Text with 260811 words>
     >>> len(moby)

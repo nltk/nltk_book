@@ -8,9 +8,9 @@
 
 .. _chap-applied-programming:
 
-=================================
-10. Applied Programming in Python
-=================================
+================================
+9. Applied Programming in Python
+================================
 
 .. TODO: transformation based learning?
 .. TODO: indexing and space-time trade-offs (more efficient concordancing, fuzzy spelling)
