@@ -1123,14 +1123,19 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
             else:
                 warning('unable to find id for %s' % target)
                 return []
-        return []
+        elif node.parent.has_key('ids'):
+            # Sometimes a table is inside another node who's id is the
+            # reference.
+            return node.parent['ids']
+        else:
+            return []
 
     def label_node(self, node, label, refuri=None, cls='caption-label'):
         if not isinstance(node[-1], docutils.nodes.caption):
             node.append(docutils.nodes.caption())
         caption = node[-1]
 
-        if OUTPUT_FORMAT == 'html':
+        if OUTPUT_FORMAT == 'html' or OUTPUT_FORMAT == 'docbook':
             cap = docutils.nodes.inline('', label, classes=[cls])
             if refuri:
                 cap = docutils.nodes.reference('', '', cap, refuri=refuri,
@@ -1165,6 +1170,7 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
             node.clear()
             node.append(docutils.nodes.Text(label))
             expand_reference_text(node)
+            node.resolved = True
         elif node_id in self.callout_labels:
             label = self.callout_labels[node_id]
             node.clear()
@@ -1817,6 +1823,11 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         else:
             DocBookTranslator.visit_image(self, node)
 
+    def visit_callout_marker(self, node):
+        self.body.append(str(node['number']))
+
+    def depart_callout_marker(self, node):
+        pass
 
     _not_handled = set()
     def unknown_visit(self, node):
