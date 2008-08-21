@@ -1044,6 +1044,11 @@ class DocBookTranslator(nodes.NodeVisitor):
         atts = {'frame':'all'}
         if 'ids' in node.attributes and node.attributes['ids']:
             atts['id'] = node.attributes['ids'][0]
+        elif node.parent and \
+                'ids' in node.parent.attributes and \
+                node.parent.attributes['ids']:
+            # Sometimes the parent carries the id for the table.
+            atts['id'] = node.parent.attributes['ids'][0]
 
         # If a child is a non-empty title then make this a table,
         # otherwise an informal table.  Multiple 'title' children are
