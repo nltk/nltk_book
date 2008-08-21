@@ -1170,7 +1170,6 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
             node.clear()
             node.append(docutils.nodes.Text(label))
             expand_reference_text(node)
-            node.resolved = True
         elif node_id in self.callout_labels:
             label = self.callout_labels[node_id]
             node.clear()
