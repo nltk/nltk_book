@@ -58,9 +58,6 @@ IDLE session:
 Forward pointers:
 * tokenization
 
-NB: need to pollute corpus object with extraneous viewing and plotting methods
-    (do this using a mixin class?  just needs a list of words)
-
 -------------------
 Counting vocabulary
 -------------------
@@ -134,6 +131,5 @@ IDLE session:
 
 
   
-
 
 
