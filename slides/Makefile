@@ -15,7 +15,7 @@ RST2HTML = ../rst.py --html
 
 RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude
 
-.SUFFIXES: .txt .html .tex .pdf
+.SUFFIXES: .rst .html .tex .pdf
 
 .PHONY: all clean
 
@@ -27,8 +27,8 @@ clean:	clean_up
 clean_up:
 	rm -f *.log *.aux *.snm *.vrb *.out *.nav *.toc index*.html
 
-index.html:	index.txt
-	$(RST2HTML) index.txt > index.html
+index.html:	index.rst
+	$(RST2HTML) index.rst > index.html
 
 .tex.pdf:
 	pdflatex $<
