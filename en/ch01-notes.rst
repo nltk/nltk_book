@@ -75,6 +75,44 @@ IDLE session:
 * defining simple functions (diagram of unary function)
 * define "diversity" function
 
+
+
+
+Another function: how many times a particular word occurs
+
+
+>>> sorted(set(word for word in text3 if word.endswith("eth")))
+['Hazarmaveth', 'Heth', 'Japheth', 'Jetheth', 'Seth', 'aileth', 'asketh', 'biteth', 'blesseth', 'breaketh', 'cometh', 'compasseth', 'creepeth', 'crieth', 'curseth', 'divineth', 'doeth', 'drinketh', 'faileth', 'findeth', 'giveth', 'goeth', 'knoweth', 'lieth', 'liveth', 'longeth', 'loveth', 'meeteth', 'moveth', 'needeth', 'pleaseth', 'proceedeth', 'remaineth', 'repenteth', 'seeth', 'sheddeth', 'sheweth', 'slayeth', 'speaketh', 'teeth', 'togeth', 'toucheth', 'twentieth', 'walketh', 'wotteth']
+
+
+>>> sorted(set(word for word in text1 if len(word) > 15))
+['CIRCUMNAVIGATION', 'Physiognomically', 'apprehensiveness', 'cannibalistically', 'characteristically', 'circumnavigating', 'circumnavigation', 'circumnavigations', 'comprehensiveness', 'hermaphroditical', 'indiscriminately', 'indispensableness', 'irresistibleness', 'physiognomically', 'preternaturalness', 'responsibilities', 'simultaneousness', 'subterraneousness', 'supernaturalness', 'superstitiousness', 'uncomfortableness', 'uncompromisedness', 'undiscriminating', 'uninterpenetratingly']
+>>> sorted(set(word for word in text5 if len(word) > 15))
+['!!!!!!!!!!!!!!!!', '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', '.(..(.vMp3 v1.7.4.).)', '.(..(.vMp3 vi.p.t.)..).', '.A.n.a.c.?.n.?.a.', 'BAAAAALLLLLLLLIIIIIIINNNNNNNNNNN', 'Bloooooooooooood', 'HolocaustYourMom', 'Mooooooooooooooooooooooooooo', 'aaaaaaaaaaaaaaaaa', 'bbbbbyyyyyyyeeeeeeeee', 'boooooooooooglyyyyyy', 'cooooooooookiiiiiiiiiiiieeeeeeeeeeee', 'eeeeeeeeewwwwwwww', 'hahahahahahahahahahahahahahahaha', 'oooooooooooglyyyyyyyy', 'raaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'weeeeeeeeeeeeeeee', 'wheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'yuuuuuuuuuuuummmmmmmmmmmm']
+
+
+
+comprehensions
+    
+    
+
+* vocabulary richness
+* defining functions -- allows us to explain what the () are everywhere
+  and gives inkling of the power of programming
+* key concept: VOCABULARY = SET OF WORDS
+
+IDLE session:
+* set(), str.lower()
+* sorted()
+* len(set(words)) / len(words)
+* defining simple functions (diagram of unary function)
+* define "diversity" function
+
+Forward pointers:
+* normalization
+
+
+
 Forward pointers:
 * normalization
 
