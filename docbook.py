@@ -21,9 +21,14 @@ __docformat__ = 'reStructuredText'
 
 import re
 import string
+import textwrap
 from docutils import writers, nodes, languages
 from types import ListType
 import Image
+
+# XML entity definitions are similar to HTML ones. we use them to
+# escape special charicters.
+import htmlentitydefs
 
 class Writer(writers.Writer):
 
@@ -89,6 +94,8 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.table_tag_stack = []
         self.figure_tag_stack = []
         self.example_tag_stack = []
+        self._OPTION_DIRECTIVE_RE = re.compile(
+            r'(\n[ ]*\.\.\.[ ]*)?#\s*doctest:\s*([^\n\'"]*)$', re.MULTILINE)
 
     def stack_push(self, stack, item):
         "Push an item onto the given stack"
@@ -541,12 +548,37 @@ class DocBookTranslator(nodes.NodeVisitor):
         pass
 
     def visit_doctest_block(self, node):
-        #self.body.append('<informalexample>\n')
-        self.body.append(self.starttag(node, 'programlisting'))
+        def strip_doctest_directives(text):
+            return self._OPTION_DIRECTIVE_RE.sub('', text)
+
+        def replace_html_entity(c):
+            try:
+                return unicode("&%s;" % htmlentitydefs.codepoint2name[ord(c)])
+            except KeyError:
+                return c
+
+        def create_anchors(text, callouts):
+            for name, line in callouts.items():
+                text = re.sub(u"\[_%s\]" % name, 
+                              u"<anchor id=\"%s\"/>Line %d" % (name, line), 
+                              text)
+            return text
+
+        self.body.append('\n<programlisting>')
+
+        text = ''.join(unicode(c).encode('utf8') for c in node)
+        text = textwrap.dedent(text)
+        text = strip_doctest_directives(text)
+        text = text.decode('utf8')
+        text = u''.join(map(replace_html_entity, text))
+        text = create_anchors(text, node['callouts'])
+        
+        self.body.append(text)
+        self.body.append('</programlisting>\n')
+        raise nodes.SkipNode # This node processes it's children.
 
     def depart_doctest_block(self, node):
-        self.body.append('</programlisting>\n')
-        #self.body.append('</informalexample>\n')
+        pass
 
     def visit_document(self, node):
         pass
