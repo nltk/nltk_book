@@ -2601,7 +2601,7 @@ def main():
         # For .tex and .html files:
         else:
             global DOCBOOK_ROOT_NODE
-            if in_file == "preface.txt":
+            if in_file == "ch00.rst":
                 DOCBOOK_ROOT_NODE="preface"
             docutils.core.publish_file(source_path=in_file, writer=writer,
                                        destination_path=out_file,
