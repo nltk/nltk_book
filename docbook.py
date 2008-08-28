@@ -223,7 +223,8 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_admonition(self, node, name=''):
         # This shouldn't be placed in chapters.
-        if self.doctype == "chapter":
+        if self.doctype == "chapter" or \
+                self.doctype == "preface":
             raise nodes.SkipNode
 
         self.body.append(self.starttag(node, 'note'))
