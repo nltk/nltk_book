@@ -1045,6 +1045,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         if 'ids' in node.attributes and node.attributes['ids']:
             atts['id'] = node.attributes['ids'][0]
         elif node.parent and \
+                not isinstance(node.parent, nodes.section) and \
                 'ids' in node.parent.attributes and \
                 node.parent.attributes['ids']:
             # Sometimes the parent carries the id for the table.
