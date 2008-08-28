@@ -1776,14 +1776,23 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     def depart_inline(self, node):
         self.body.append("</emphasis>")
 
+    def visit_caption(self, node):
+        if isinstance(node.parent, pylisting):
+            self.body.append("<title>")
+        else:
+            DocBookTranslator.visit_caption(self, node)
+
+    def depart_caption(self, node): 
+        if isinstance(node.parent, pylisting):
+            self.body.append("</title>\n")
+        else:
+            DocBookTranslator.depart_caption(self, node)
+
     def visit_pylisting(self, node):
-        atts = {}
-        if 'ids' in node.attributes and node.attributes['ids']:
-            atts['id'] = node.attributes['ids'][-1]
-        self.body.append(self.starttag(node, 'example', **atts))
+        self.visit_example(node)
 
     def depart_pylisting(self, node):
-        self.body.append('</example>\n')
+        self.depart_example(node)
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):
@@ -1799,7 +1808,6 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     def visit_example(self, node):
         # if a child is a non-empty title then make this an example
         # rather than an informal example.
-
         title_child_idx, title_child = \
             docbook.child_of_instance(node, docbook.nodes.caption)
         if title_child and title_child.children != []:
@@ -1809,7 +1817,10 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         else:
             example_tag = "informalexample"
 
-        self.body.append("<%s>\n" % example_tag)
+        atts = {}
+        if 'ids' in node.attributes and node.attributes['ids']:
+            atts['id'] = node.attributes['ids'][-1]
+        self.body.append(self.starttag(node, example_tag, **atts))
         self.stack_push(self.example_tag_stack, example_tag)
 
     def depart_example(self, node):
