@@ -34,30 +34,6 @@ IDLE session:
 * lists, str.split(), len()
 * variables
 
-* defines "moby", the text of Moby Dick from Project Gutenberg
-
-    >>> from nltk.book.ch01 import *
-    >>> moby
-    <Text with 260811 words>
-    >>> len(moby)
-    260811
-    >>> moby.concordance('whale')
-    
-* how many words does it contain?
-* moby.concordance('word') -> generates first n concordance lines
-  (not: concord = nltk.Concordance(moby); concord('word'))
-
-* defines "sense", the text of Sense and Sensibility by Jane Austen
-
-    >>> names = ['Elinor', 'Marianne', 'Edward', 'Willoughby']
-    >>> sense.dispersion_plot(names)
-    
-* moby.generate() -> generates random text in this style
-  (not: model = nltk.Model(moby); model.generate())
-
-Forward pointers:
-* tokenization
-
 -------------------
 Counting vocabulary
 -------------------
@@ -69,16 +45,8 @@ Counting vocabulary
 * key concept: VOCABULARY = SET OF WORDS
 
 IDLE session:
-* set(), str.lower()
-* sorted()
-* len(set(words)) / len(words)
+* str.lower()
 * defining simple functions (diagram of unary function)
-* define "diversity" function
-
-
-
-
-Another function: how many times a particular word occurs
 
 
 >>> sorted(set(word for word in text3 if word.endswith("eth")))
@@ -95,27 +63,6 @@ Another function: how many times a particular word occurs
 comprehensions
     
     
-
-* vocabulary richness
-* defining functions -- allows us to explain what the () are everywhere
-  and gives inkling of the power of programming
-* key concept: VOCABULARY = SET OF WORDS
-
-IDLE session:
-* set(), str.lower()
-* sorted()
-* len(set(words)) / len(words)
-* defining simple functions (diagram of unary function)
-* define "diversity" function
-
-Forward pointers:
-* normalization
-
-
-
-Forward pointers:
-* normalization
-
 --------------
 Word frequency
 --------------
