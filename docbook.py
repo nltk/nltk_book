@@ -998,8 +998,10 @@ class DocBookTranslator(nodes.NodeVisitor):
     def visit_section(self, node):
         if self.section:
             atts = {}
-            if 'ids' in node.attributes and node.attributes['ids']:
-                atts['id'] = node.attributes['ids'][-1]
+            # ignore the automatically-generated id (based on section title)
+            # and only keep the user-supplied id
+            if 'ids' in node.attributes and len(node.attributes['ids']) > 1:
+                atts['id'] = node.attributes['ids'][1]
             self.body.append(self.starttag(node, 'section', **atts))
 
         self.section += 1
