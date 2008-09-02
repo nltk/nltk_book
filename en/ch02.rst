@@ -592,6 +592,419 @@ Exercises
    as its argument, and returns a list of languages that have that
    string as a word.  Use the ``udhr`` corpus and limit your searches
    to files in the Latin-1 encoding.
+   
+
+-------------------
+Regular Expressions
+-------------------
+
+For a moment, imagine that you are editing a large text, and you have
+strong dislike of repeated occurrences of the word `very`:lx:.
+How could you find all such cases in the text? To be concrete, let's
+suppose that we assign the following text to the variable ``s``:
+
+    >>> s = """Google Analytics is very very very nice (now)
+    ... By Jason Hoffman 18 August 06
+    ... Google Analytics, the result of Google's acquisition of the San
+    ... Diego-based Urchin Software Corporation, really really opened its
+    ... doors to the world a couple of days ago, and it allows you to
+    ... track up to 10 sites within a single google account.
+    ... """
+    >>>
+
+|nopar| Python's triple quotes ``"""`` are used here since they allow us
+to break a string across lines.
+
+One approach to our task would be to convert the string into a list,
+and look for adjacent items that are both equal to the string
+``'very'``. We use the ``range(n)`` function in this example to create
+a list of consecutive integers from 0 up to, but not including, ``n``:
+
+    >>> text = s.split()
+    >>> for n in range(len(text)):
+    ...    if text[n] == 'very' and text[n+1] == 'very':
+    ...         print n, n+1
+    ... 
+    3 4
+    4 5
+    >>> 
+
+|nopar| However, such an approach is not very flexible or convenient. In this
+section, we will present Python's `regular expression`:dt: module
+``re``, which supports powerful search and substitution inside
+strings.  As a gentle introduction, we will start out using a utility
+function ``re_show()`` to illustrate how regular expressions match
+against substrings. ``re_show()`` takes two arguments, a pattern that
+it is looking for, and a string in which the pattern might occur.
+
+    >>> import nltk
+    >>> nltk.re_show('very very', s)
+    Google Analytics is {very very} very nice (now)
+    ...
+    >>>
+
+|nopar| (We have only displayed the first part of ``s`` that
+is returned, since the rest is irrelevant for the moment.)
+As you can see, ``re_show`` places curly braces around the first
+occurrence it has found of the string ``'very very'``. So an important
+part of what ``re_show`` is doing is searching for any substring of
+``s`` that `matches`:dt: the pattern in its first argument. 
+
+Now we might want to modify the example so that ``re_show`` highlights
+cases where there are two `or more`:em: adjacent sequences of
+``'very'``. To do this, we need to use a `regular expression
+operator`:dt:, namely ``'+'``. If `s`:ph: is a string, then `s`:ph:\
+``+`` means: 'match one or more occurrences of `s`:ph:\ '. Let's first look
+at the case where `s`:ph: is a single character, namely the letter
+``'o'``:
+
+.. doctest-ignore::
+    >>> nltk.re_show('o+', s)
+    G{oo}gle Analytics is very very very nice (n{o}w)
+    ...
+    >>>
+
+|nopar| ``'o+'`` is our first proper regular expression. You can think of it as
+matching an `infinite set`:em: of strings, namely the set {``'o'``,
+``'oo'``, ``'ooo'``, ...}. But we would really like to match
+sequences of least two ``'o'``\ s; for this, we need
+the regular expression  ``'oo+'``, which matches any string consisting of
+``'o'`` followed by one or more occurrences of ``o``.
+
+.. doctest-ignore::
+    >>> nltk.re_show('oo+', s)
+    G{oo}gle Analytics is very very very nice (now)
+    ...
+    >>>
+
+Let's return to the task of identifying multiple occurrences of
+``'very'``. Some initially plausible candidates won't do what we
+want. For example, ``'very+'`` would match ``'veryyy'`` (but not
+``'very very'``), since the ``+`` scopes over the immediately
+preceding expression, in this case ``'y'``. To widen the scope of
+``+``, we need to use parentheses, as in ``'(very)+'``. Will this
+match ``'very very'``? No, because we've forgotten about the
+whitespace between the two words; instead, it will match strings like
+``'veryvery'``. However, the following `does`:em: work: 
+
+.. doctest-ignore::
+    >>> nltk.re_show('(very\s)+', s)
+    Google Analytics is {very very very }nice (now)
+    >>>
+
+|nopar| Characters preceded by a ``\``, such as ``'\s'``, have a
+special interpretation inside regular expressions; thus, ``'\s'``
+matches a whitespace character. We could have used ``' '`` in our
+pattern, but ``'\s'`` is better practice in general. One reason is
+that the sense of "whitespace" we are using is more general than you
+might have imagined; it includes not just inter-word spaces, but also
+tabs and newlines. If you try to inspect the variable ``s``, you
+might initially get a shock:
+
+.. doctest-ignore::
+    >>> s
+    "Google Analytics is very very very nice (now)\nBy Jason Hoffman 
+    18 August 06\nGoogle
+    ...
+    >>>
+
+|nopar| You might recall that ``'\n'`` is a special character that corresponds
+to a newline in a string. The following example shows how newline is
+matched by ``'\s'``.
+
+    >>> s2 = "I'm very very\nvery happy"
+    >>> nltk.re_show('very\s', s2)
+    I'm {very }{very
+    }{very }happy
+    >>>
+
+Python's ``re.findall(``\ `patt`:ph:, `s`:ph:\ ``)`` function is a useful
+way to find all the substrings in `s`:ph: that are matched by `patt`:ph:.
+Before illustrating, let's introduce  two further
+special characters, ``'\d'`` and ``'\w'``: the first
+will match any digit, and the second will match any alphanumeric character.
+Before we can use ``re.findall()`` we have to load Python's regular
+expression module, using ``import re``.
+
+    >>> import re
+    >>> re.findall('\d\d', s)
+    ['18', '06', '10']
+    >>> re.findall('\s\w\w\w\s', s)
+    [' the ', ' the ', ' its\n', ' the ', ' and ', ' you ']
+    >>> 
+
+|nopar| As you will see, the second example matches three-letter
+words. However, this regular expression is not quite what we
+want. First, the leading and trailing spaces are extraneous. Second,
+it will fail to match against strings such as ``'the San'``, where two
+three-letter words are adjacent. To solve this problem, we can use
+another special character, namely ``'\b'``. This is sometimes called a
+"zero-width" character; it matches against the empty string, but only
+at the beginning and end of words:
+
+    >>> re.findall(r'\b\w\w\w\b', s)
+    ['now', 'the', 'the', 'San', 'its', 'the', 'ago', 'and', 'you']
+
+.. Note:: This example uses a Python `raw string`:dt:\:
+   ``r'\b\w\w\w\b'``. The specific justification here is that in an
+   ordinary string, ``\b`` is interpreted as a backspace character.
+   Python will convert it to a backspace in a regular expression
+   unless you use the ``r`` prefix to create a raw string as shown
+   above. Another use for raw strings is to match strings that
+   include backslashes. Suppose we want to match 'either\\or'. In order
+   to create a regular expression, the backslash needs to be escaped,
+   since it is a special character; 
+   so we want to pass the pattern ``\\`` to the regular expression
+   interpreter. But to express this as a Python string literal, each
+   backslash must be escaped again, yielding the string
+   ``'\\\\'``. However, with a raw string, this reduces down to
+   ``r'\\'``. 
+
+Returning to the case of repeated words, we might want to look for
+cases involving ``'very'`` or ``'really'``, and for this we use the
+disjunction operator ``|``.
+
+    >>> nltk.re_show('((very|really)\s)+', s)
+    Google Analytics is {very very very }nice (now)
+    By Jason Hoffman 18 August 06
+    Google Analytics, the result of Google's acquisition of the San
+    Diego-based Urchin Software Corporation, {really really }opened its
+    doors to the world a couple of days ago, and it allows you to
+    track up to 10 sites within a single google account.
+    >>>
+
+In addition to the matches just illustrated, the regular expression
+``'((very|really)\s)+'`` will also match cases where the two disjuncts
+occur with each other, such as the string ``'really very really '``. 
+
+Let's now look at how to perform substitutions, using the ``re.sub()``
+function.  In the first instance we replace
+all instances of ``l`` with ``s``.  Note that this generates a string
+as output, and doesn't modify the original string.  Then we replace
+any instances of ``green`` with ``red``.
+
+    >>> sent = "colorless green ideas sleep furiously"
+    >>> re.sub('l', 's', sent)
+    'cosorsess green ideas sseep furioussy'
+    >>> re.sub('green', 'red', sent)
+    'colorless red ideas sleep furiously'
+    >>>
+
+We can also disjoin individual characters using a square bracket
+notation.  For example, ``[aeiou]`` matches any of ``a``, ``e``,
+``i``, ``o``, or ``u``, that is, any vowel.  The expression
+``[^aeiou]`` matches any single character that is `not`:em: a vowel.
+In the following example, we match sequences consisting of a non-vowel
+followed by a vowel.
+
+    >>> nltk.re_show('[^aeiou][aeiou]', sent)
+    {co}{lo}r{le}ss g{re}en{ i}{de}as s{le}ep {fu}{ri}ously
+    >>>
+
+|nopar|
+Using the same regular expression, the function ``re.findall()``
+returns a list of all the substrings in ``sent`` that are matched:
+
+    >>> re.findall('[^aeiou][aeiou]', sent)
+    ['co', 'lo', 'le', 're', ' i', 'de', 'le', 'fu', 'ri']
+    >>>
+
+Groupings
+---------
+
+Returning briefly to our earlier problem with unwanted whitespace
+around three-letter words, we note that ``re.findall()`` behaves
+slightly differently if we create `groups`:dt: in the regular
+expression using parentheses; it only returns strings that occur
+within the groups:
+
+    >>> re.findall('\s(\w\w\w)\s', s)
+    ['the', 'the', 'its', 'the', 'and', 'you']
+    >>>
+
+|nopar|
+The same device allows us to select only the non-vowel characters
+that appear before a vowel:
+
+    >>> re.findall('([^aeiou])[aeiou]', sent)
+    ['c', 'l', 'l', 'r', ' ', 'd', 'l', 'f', 'r']
+    >>>
+
+By delimiting a second group in the regular expression, we can even
+generate pairs (or `tuples`:dt:) that we may then go on and
+tabulate.
+
+    >>> re.findall('([^aeiou])([aeiou])', sent)
+    [('c', 'o'), ('l', 'o'), ('l', 'e'), ('r', 'e'), (' ', 'i'),
+    ('d', 'e'), ('l', 'e'), ('f', 'u'), ('r', 'i')]
+    >>>
+
+Our next example also makes use of groups. One further special
+character is the so-called wildcard element, ``'.'``; this has the
+distinction of matching any single character (except ``'\n'``). Given
+the string ``s3``, our task is to pick out login names and email domains:
+
+    >>> s3 = """
+    ... <hart@vmd.cso.uiuc.edu>
+    ... Final editing was done by Martin Ward <Martin.Ward@uk.ac.durham>
+    ... Michael S. Hart <hart@pobox.com>
+    ... Prepared by David Price, email <ccx074@coventry.ac.uk>"""
+
+The task is made much easier by the fact that all the email addresses
+in the example are delimited by angle brackets, and we can exploit
+this feature in our regular expression:
+ 
+    >>> re.findall(r'<(.+)@(.+)>', s3)
+    [('hart', 'vmd.cso.uiuc.edu'), ('Martin.Ward', 'uk.ac.durham'), 
+    ('hart', 'pobox.com'), ('ccx074', 'coventry.ac.uk')]
+    >>>
+
+|nopar|
+Since ``'.'`` matches any single character, ``'.+'`` will match any
+non-empty `string`:em: of characters, including punctuation symbols
+such as the period.  
+
+One question that might occur to you is how do
+we specify a match against a period? The answer is that we have to
+place a ``'\'`` immediately before the ``'.'`` in order to escape its
+special interpretation.
+
+    >>> re.findall(r'(\w+\.)', s3)
+    ['vmd.', 'cso.', 'uiuc.', 'Martin.', 'uk.', 'ac.', 'S.', 
+    'pobox.', 'coventry.', 'ac.']
+    >>>
+
+Now, let's suppose that we wanted to match occurrences of both
+``'Google'`` and ``'google'`` in our sample text. If you have been
+following up till now, you would reasonably expect that this regular
+expression with a disjunction would do the trick:
+``'(G|g)oogle'``. But look what happens when we try this with
+``re.findall()``:
+
+    >>> re.findall('(G|g)oogle', s)
+    ['G', 'G', 'G', 'g']
+    >>> 
+
+|nopar|
+What is going wrong? We innocently used
+the parentheses to indicate the scope of the operator ``'|'``, but
+``re.findall()`` has interpreted them as marking a group. In order to
+tell ``re.findall()``  "don't try to do anything special with these
+parentheses", we need an extra piece of notation:
+
+    >>> re.findall('(?:G|g)oogle', s)
+    ['Google', 'Google', 'Google', 'google']
+    >>> 
+
+|nopar|
+Placing ``'?:'`` immediately after the opening parenthesis makes it
+explicit that the parentheses are just being used for scoping.
+
+Practice Makes Perfect
+----------------------
+
+Regular expressions are very flexible and very powerful. However, they
+often don't do what you expect. For this reason, you are strongly
+encouraged to try out a variety of tasks using ``re_show()`` and
+``re.findall()`` in order to develop your intuitions further; the
+exercises below should help get you started.  We suggest that you build up a
+regular expression in small pieces, rather than trying to get it
+completely right first time.  Here are some operators
+and sequences that are commonly used in natural language processing.
+ 
+  ===========  ====================================================================
+         Commonly-used Operators and Sequences
+  ---------------------------------------------------------------------------------
+  ``*``        Zero or more, e.g. ``a*``, ``[a-z]*``
+  -----------  --------------------------------------------------------------------
+  ``+``        One or more, e.g. ``a+``, ``[a-z]+``
+  -----------  --------------------------------------------------------------------
+  ``?``        Zero or one (i.e. optional), e.g. ``a?``, ``[a-z]?``
+  -----------  --------------------------------------------------------------------
+  ``[..]``     A set or range of characters, e.g. ``[aeiou]``, ``[a-z0-9]``
+  -----------  --------------------------------------------------------------------
+  ``(..)``     Grouping parentheses, e.g. ``(the|a|an)``
+  -----------  --------------------------------------------------------------------
+  ``\b``       Word boundary (zero width)
+  -----------  --------------------------------------------------------------------
+  ``\d``       Any decimal digit (``\D`` is any non-digit)
+  -----------  --------------------------------------------------------------------
+  ``\s``       Any whitespace character (``\S`` is any non-whitespace character)
+  -----------  --------------------------------------------------------------------
+  ``\w``       Any alphanumeric character (``\W`` is any non-alphanumeric character
+  -----------  --------------------------------------------------------------------
+  ``\t``       The tab character
+  -----------  --------------------------------------------------------------------
+  ``\n``       The newline character
+  ===========  ====================================================================
+
+Exercises
+---------
+
+#. |easy| Describe the class of strings matched by the following regular
+   expressions. Note that ``'*'`` means: match zero or more
+   occurrences of the preceding regular expression.
+
+   a) ``[a-zA-Z]+``
+   #) ``[A-Z][a-z]*``
+   #) ``\d+(\.\d+)?``
+   #) ``([bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz])*``
+   #) ``\w+|[^\w\s]+``
+
+   Test your answers using ``re_show()``.
+
+#. |easy| Write regular expressions to match the following classes of strings:
+
+    a) A single determiner (assume that `a`:lx:, `an`:lx:, and `the`:lx:
+       are the only determiners).
+    #) An arithmetic expression using integers, addition, and
+       multiplication, such as ``2*3+8``.
+
+#. |soso| The above example of extracting (name, domain) pairs from
+   text does not work when there is more than one email address
+   on a line, because the ``+`` operator is "greedy" and consumes
+   too much of the input.
+   
+   a) Experiment with input text containing more than one email address
+      per line, such as that shown below.  What happens?
+   #) Using ``re.findall()``, write another regular expression
+      to extract email addresses, replacing the period character
+      with a range or negated range, such as ``[a-z]+`` or ``[^ >]+``.
+   #) Now try to match email addresses by changing the regular
+      expression ``.+`` to its "non-greedy" counterpart, ``.+?``
+      
+     >>> s = """
+     ... austen-emma.txt:hart@vmd.cso.uiuc.edu  (internet)  hart@uiucvmd (bitnet)
+     ... austen-emma.txt:Internet (72600.2026@compuserve.com); TEL: (212-254-5093)
+     ... austen-persuasion.txt:Editing by Martin Ward (Martin.Ward@uk.ac.durham)
+     ... blake-songs.txt:Prepared by David Price, email ccx074@coventry.ac.uk
+     ... """
+
+#. |soso| Write code to convert text into Pig Latin.  This involves two steps:
+   move any consonant (or consonant cluster) that appears at the start of the word
+   to the end, then append `ay`:lx:, e.g. `string`:lx: |rarr| `ingstray`:lx:,
+   `idle`:lx: |rarr| `idleay`:lx:.  ``http://en.wikipedia.org/wiki/Pig_Latin``
+
+#. |soso| Write code to convert text into *hAck3r* again, this time using regular expressions
+   and substitution, where
+   ``e`` |rarr| ``3``,
+   ``i`` |rarr| ``1``,
+   ``o`` |rarr| ``0``,
+   ``l`` |rarr| ``|``,
+   ``s`` |rarr| ``5``,
+   ``.`` |rarr| ``5w33t!``,
+   ``ate`` |rarr| ``8``.
+   Normalize the text to lowercase before converting it.
+   Add more substitutions of your own.  Now try to map
+   ``s`` to two different values: ``$`` for word-initial ``s``,
+   and ``5`` for word-internal ``s``.
+   
+#. |hard| Read the Wikipedia entry on *Soundex*.  Implement this
+   algorithm in Python.
+
+#. |hard| Define a function ``percent(word, text)`` that calculates
+   how often a given word occurs in a text, and expresses the result
+   as a percentage.
 
 ------------------------------
 Tokenization and Normalization
@@ -1808,6 +2221,10 @@ Summary
   text and their frequency of appearance).
 * WordNet is a semantically-oriented dictionary of English, consisting of synonym sets |mdash| or synsets |mdash|
   and organized into a hierarchical network.
+* Regular expressions are a powerful and flexible method of specifying
+  patterns. Once we have imported the ``re`` module, we can use
+  ``re.findall()`` to find all substrings in a string that match a pattern,
+  and we can use ``re.sub()`` to replace substrings of one sort with another.
 
 ---------------
 Further Reading
@@ -1825,6 +2242,25 @@ A guide on accessing |NLTK| corpora is available at:
 Chapters 2 and 3 of [JurafskyMartin2008]_ contain more advanced
 material on regular expressions and morphology.
 
+Regular Expressions
+-------------------
+
+There are many references for regular expressions, both practical and
+theoretical.  [Friedl2002MRE]_ is a comprehensive and detailed manual
+in using regular expressions, covering their syntax in most major
+programming languages, including Python.
+
+For an introductory
+tutorial to using regular expressions in Python with the ``re``
+module, see A. M. Kuchling, *Regular Expression HOWTO*,
+http://www.amk.ca/python/howto/regex/. 
+
+Chapter 3 of [Mertz2003TPP]_ provides a more extended tutorial on
+Python's facilities for text processing with regular expressions.
+
+http://www.regular-expressions.info/ is a useful online resource,
+providing a tutorial and references to tools and other sources of
+information.
 
 ..
    John Hopkins Center for Language and Speech Processing, 1999
