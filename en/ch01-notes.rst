@@ -67,20 +67,6 @@ comprehensions
 Word frequency
 --------------
 
-* which words are characteristic of a text?
-* which words are frequent/rare in a text?
-* thought experiment: how would you do this?
-  table of counters
-* key concept: FREQDIST = TABLE OF ITEMS AND COUNTS
-
-IDLE session:
-* nltk.FreqDist
-* indexing, max()
-* set.difference()?
-* plotting a zipf curve labeled with words (moby.plot()?)
-
-Forward pointers:
-* dictionaries
 
 --------------
 Changing Tense
