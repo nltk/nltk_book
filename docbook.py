@@ -878,8 +878,6 @@ class DocBookTranslator(nodes.NodeVisitor):
 
     def visit_note(self, node):
         self.body.append(self.starttag(node, 'note'))
-        self.body.append('\n<title>%s</title>\n' 
-            % (self.language.labels[node.tagname],))
 
     def depart_note(self, node):
         self.body.append('</note>\n')
