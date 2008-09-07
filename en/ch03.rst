@@ -30,60 +30,40 @@ In Chapter chap-words_ we dealt with words in their own right.
 We looked at the distribution of `often`:lx:, identifying the words that
 follow it; we noticed that `often`:lx: frequently modifies verbs.
 In fact, it is a member of a whole class of verb-modifying words, the *adverbs*.
-Before we delve into this terminology, let's write a program that takes
-a word and finds other words that appear in the same context (Listing dist_sim_).
-For example, given the word `woman`:lx:, the program will find all
-contexts where `woman`:lx: appears in the corpus, such as `the woman saw`:lx:,
-then searches for other words that appear in those contexts.
+Before we delve into this terminology, let's find other words
+that appear in the same context, using NLTK's ``Text.similar()`` function:
 
-When we run ``dist_sim()`` on a few words, we find other words having
-similar distribution:
-searching for `woman`:lx: finds `man`:lx: and several other *nouns*;
+    >>> text = nltk.Text(word.lower() for word in nltk.corpus.brown.words())
+    >>> text.similar('woman')
+    man number world time end house state matter kind result day door
+    group use way year rest part case problem
+    >>> text.similar('bought')
+    able made been used found was had , done expected given and followed
+    that have seen put told said in
+    >>> text.similar('over')
+    in and of on to . , with at for but `` as is was from that when '' by
+    >>> text.similar('the')
+    a his this and in their an her that no its our however `` any these
+    one ; my ?
+
+This function takes a word `w`:math:, finds all contexts
+`w`:math:\ `1`:subscript:\ `w`:math: `w`:math:\ `2`:subscript:,
+then finds all words `w'`:math: that appear in the same context,
+i.e. `w`:math:\ `1`:subscript:\ `w'`:math: `w`:math:\ `2`:subscript:.
+(You can find the implementation online at ``http://nltk.org/nltk/text.py``)    
+
+Observe that searching for `woman`:lx: finds *nouns*;
 searching for `bought`:lx: finds *verbs*;
-searching for `over`:lx: finds *prepositions*;
-searching for `the`:lx: finds *determiners*.
-These labels |mdash| which may be familiar from grammar lessons |mdash| are
-not just terms invented by grammarians, but labels for groups of words that
-arise directly from the text.  These groups of words are so important that
-they have several names, all in common use:
-`word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
+searching for `over`:lx: generally finds *prepositions*;
+searching for `the`:lx: finds several *determiners*.
+This simple method of finding distributionally similar words is
+not a reliable way of categorizing English words.  However, it
+is a striking demonstration of the fact that categories
+like noun and verb are not just inventions of grammarians but
+labels for groups of words that arise directly from the text.
+These groups of words are so important that they have several names,
+all in common use: `word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
 We'll use these names interchangeably.
-
-.. .. doctest-ignore::
-.. pylisting:: dist_sim
-   :caption: Program for Distributional Similarity
-
-   def build_wc_map():
-       """
-       Return a dictionary mapping words in the brown corpus to lists of
-       local lexical contexts, where a context is encoded as a tuple
-       (prevword, nextword).
-       """
-       wc_map = nltk.defaultdict(list)
-       words = [word.lower() for word in nltk.corpus.brown.words()]
-       for i in range(1, len(words)-1):
-           prevword, word, nextword = words[i-1:i+2]
-           wc_map[word].append( (prevword, nextword) )
-       return wc_map
-
-   def dist_sim(wc_map, word, num=12):
-       if word in wc_map:
-           contexts = set(wc_map[word])
-           fd = nltk.FreqDist(w for w in wc_map for c in wc_map[w] if c in contexts)
-           return fd.sorted()[:num]
-       return []
-    
-   >>> wc_map = build_wc_map()
-   >>> dist_sim(wc_map, 'woman')
-   ['man', 'number', 'woman', 'world', 'time', 'end', 'house', 'state',
-    'matter', 'kind', 'result', 'day']
-   >>> dist_sim(wc_map, 'bought')
-   ['able', 'made', 'been', 'used', 'found', 'was', 'had', 'bought', ',',
-    'done', 'expected', 'given']
-   >>> dist_sim(wc_map, 'over')
-   ['in', 'over', 'and', 'of', 'on', 'to', '.', ',', 'with', 'at', 'for', 'but']
-   >>> dist_sim(wc_map, 'the')
-   ['the', 'a', 'his', 'this', 'and', 'in', 'their', 'an', 'her', 'that', 'no', 'its']
 
 One of the notable features of the Brown corpus is that all the words have
 been `tagged`:dt: for their part-of-speech. Now, instead of just
@@ -97,13 +77,13 @@ each tag.  As we can see, the majority of words following `often`:lx: are verbs.
    ======  ====  ==================================  ===================================
    Tag     Freq  Example                             Comment
    ======  ====  ==================================  ===================================
-   vbn     61    `burnt`:lx:, `gone`:lx:             verb: past participle
-   vb      51    `make`:lx:, `achieve`:lx:           verb: base form
-   vbd     36    `saw`:lx:, `looked`:lx:             verb: simple past tense
-   jj      30    `ambiguous`:lx:, `acceptable`:lx:   adjective
-   vbz     24    `sees`:lx:, `goes`:lx:              verb: third-person singular present
-   in      18    `by`:lx:, `in`:lx:                  preposition
-   at      18    `a`:lx:, `this`:lx:                 article
+   VBN     61    `burnt`:lx:, `gone`:lx:             verb: past participle
+   VB      51    `make`:lx:, `achieve`:lx:           verb: base form
+   VBD     36    `saw`:lx:, `looked`:lx:             verb: simple past tense
+   JJ      30    `ambiguous`:lx:, `acceptable`:lx:   adjective
+   VBZ     24    `sees`:lx:, `goes`:lx:              verb: third-person singular present
+   IN      18    `by`:lx:, `in`:lx:                  preposition
+   AT      18    `a`:lx:, `this`:lx:                 article
    ,       16    `,`:lx:                             comma
    ======  ====  ==================================  ===================================
 
@@ -197,13 +177,7 @@ representation of a tagged token, using the function ``str2tuple()``:
 We can construct a list of tagged tokens directly from a string.  The first
 step is to tokenize the string
 to access the individual ``word/tag`` strings, and then to convert
-each of these into a tuple (using ``str2tuple()``).  We do this in
-two ways.  The first method, starting at line str2tuple1_, initializes
-an empty list ``tagged_words``, loops over the ``word/tag`` tokens, converts them into
-tuples, appends them to ``tagged_words``, and finally displays the result.
-The second method, on line str2tuple2_, uses a list comprehension to do
-the same work in a way that is not only more compact, but also more readable.
-(List comprehensions were introduced in section sec-list-comprehensions_).
+each of these into a tuple (using ``str2tuple()``).
 
     >>> sent = '''
     ... The/AT grand/JJ jury/NN commented/VBD on/IN a/AT number/NN of/IN
@@ -213,13 +187,7 @@ the same work in a way that is not only more compact, but also more readable.
     ... accepted/VBN practices/NNS which/WDT inure/VB to/IN the/AT best/JJT
     ... interest/NN of/IN both/ABX governments/NNS ''/'' ./.
     ... '''
-    >>> tagged_words = []                                   # [_str2tuple1]
-    >>> for t in sent.split():
-    ...     tagged_words.append(nltk.tag.str2tuple(t))
-    >>> tagged_words
-    [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
-    ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
-    >>> [nltk.tag.str2tuple(t) for t in sent.split()]   # [_str2tuple2]
+    >>> [nltk.tag.str2tuple(t) for t in sent.split()]
     [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
     ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
 
@@ -356,10 +324,9 @@ we will focus on the nouns and verbs.
 What are the 10 most common verbs?  We can write a program to find all
 words tagged with `VB`:gc:, `VBZ`:gc:, `VBG`:gc:, `VBD`:gc: or `VBN`:gc:.
 
-    >>> fd = nltk.FreqDist()
-    >>> for (wd, tg) in nltk.corpus.brown.tagged_words(categories='a'):
-    ...     if tg[:2] == 'VB':
-    ...         fd.inc(wd + "/" + tg)
+    >>> brown_a = nltk.corpus.brown.tagged_words(categories='a')
+    >>> fd = nltk.FreqDist(word + "/" + tag
+                           for (word, tag) in brown_a if tag[:2] == 'VB')
     >>> fd.sorted()[:20]
     ['said/VBD', 'get/VB', 'made/VBN', 'United/VBN-TL', 'take/VB',
      'took/VBD', 'told/VBD', 'made/VBD', 'make/VB', 'got/VBD',
@@ -377,15 +344,11 @@ nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
    :caption: Program to Find the Most Frequent Noun Tags
 
    def findtags(tag_prefix, tagged_text):
-       cfd = nltk.ConditionalFreqDist()
-       for (wd, tg) in tagged_text:
-           if tg.startswith(tag_prefix):
-               cfd[tg].inc(wd)
-       tagdict = {}
-       for tg in cfd.conditions():
-           tagdict[tg] = cfd[tg].sorted()[:5]
-       return tagdict
-    
+       cfd = nltk.ConditionalFreqDist((word, tag) for (word, tag) in tagged_text
+                                      if tg.startswith(tag_prefix))
+       return dict((tag, cfd[tag].sorted()[:5]
+                   for tag in cfd.conditions())
+
    >>> tagdict = findtags('NN', nltk.corpus.brown.tagged_words(categories='a'))
    >>> for tg in sorted(tagdict):
    ...     print tg, tagdict[tg]
@@ -418,12 +381,9 @@ may seem to be a rather banal step, but it establishes an important
 baseline for tagger performance.  In order to get the best result, we
 tag each word with the most likely word.  (This kind of tagger is
 known as a `majority class classifier`:dt:).  What then, is the most
-frequent tag?  We can find out using a simple program:
+frequent tag?  We can find out using a one-line program:
 
-    >>> fd = nltk.FreqDist()
-    >>> for (wd, tg) in nltk.corpus.brown.tagged_words(categories='a'):
-    ...     fd.inc(tg)
-    >>> fd.max()
+    >>> nltk.FreqDist(tag for (word, tag) in brown_a).max()
     'NN'
 
 Now we can create a tagger, called ``default_tagger``, that
@@ -826,7 +786,7 @@ pairs for words other than nouns.
        cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words(categories='a'))
        sizes = 2 ** pylab.arange(15)
        perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
-       pylab.plot(sizes, perfs, '-bo')
+       pylab.semilogx(sizes, perfs, '-bo')
        pylab.title('Lookup Tagger Performance with Varying Model Size')
        pylab.xlabel('Model Size')
        pylab.ylabel('Performance')
