@@ -1131,11 +1131,15 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
             return []
 
     def label_node(self, node, label, refuri=None, cls='caption-label'):
+        # OReilly Docbook do their own numbering.
+        if OUTPUT_FORMAT == 'docbook':
+            return
+
         if not isinstance(node[-1], docutils.nodes.caption):
             node.append(docutils.nodes.caption())
         caption = node[-1]
 
-        if OUTPUT_FORMAT == 'html' or OUTPUT_FORMAT == 'docbook':
+        if OUTPUT_FORMAT == 'html':
             cap = docutils.nodes.inline('', label, classes=[cls])
             if refuri:
                 cap = docutils.nodes.reference('', '', cap, refuri=refuri,
