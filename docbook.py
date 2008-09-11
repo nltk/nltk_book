@@ -1074,7 +1074,7 @@ class DocBookTranslator(nodes.NodeVisitor):
     visit_system_message = depart_system_message = lambda self, node: None
 
     def visit_table(self, node):
-        atts = {'frame':'all'}
+        atts = dict()
         if 'ids' in node.attributes and node.attributes['ids']:
             atts['id'] = node.attributes['ids'][0]
         elif node.parent and \
