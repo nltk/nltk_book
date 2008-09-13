@@ -1810,28 +1810,44 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         self.body.append('\n')
     
     def visit_example(self, node):
-        # if a child is a non-empty title then make this an example
-        # rather than an informal example.
+
         title_child_idx, title_child = \
             docbook.child_of_instance(node, docbook.nodes.caption)
 
+        # example with a title
         if title_child and title_child.children != []:
-            example_tag = "example"
+            self.stack_push(self.example_tag_stack, "example")
+            atts = {}
+            if 'ids' in node.attributes and node.attributes['ids']:
+                atts['id'] = node.attributes['ids'][-1]
+            self.body.append(self.starttag(node, "example", **atts))
             node.children = \
                 docbook.item_to_front(node.children, title_child_idx)
+
+        # linguistic examples (no title)
         else:
-            example_tag = "informalexample"
-
-        atts = {"role": "linguistic"}
-    
-        if 'ids' in node.attributes and node.attributes['ids']:
-            atts['id'] = node.attributes['ids'][-1]
-        self.body.append(self.starttag(node, example_tag, **atts))
-        self.stack_push(self.example_tag_stack, example_tag)
-
+            if len(self.example_tag_stack) == 0:
+                self.stack_push(self.example_tag_stack, "example")
+                atts = {"role": "linguistic"}
+                if 'ids' in node.attributes and node.attributes['ids']:
+                    atts['id'] = node.attributes['ids'][-1]
+                self.body.append(self.starttag(node, "example", **atts))
+                self.body.append("<title/>")
+            else:
+                self.stack_push(self.example_tag_stack, "orderedlist")
+                if self.body[-1] != "</listitem>": 
+                    self.body.append('<orderedlist numeration="loweralpha">')
+                self.body.append("<listitem>")
+            
     def depart_example(self, node):
         example_tag = self.stack_pop(self.example_tag_stack)
-        self.body.append("</%s>\n" % example_tag)
+        self.example_tag_stack = self.example_tag_stack[:-1]  # manual update of stack
+        if example_tag == "orderedlist":
+            self.body.append("</listitem>")
+        elif example_tag == "example":
+            if self.body[-1] == "</listitem>":
+                self.body.append("</orderedlist>")
+            self.body.append("</%s>\n" % example_tag)
 
     def visit_image(self, node):
         if isinstance(node.parent, example):
