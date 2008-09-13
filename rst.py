@@ -1814,14 +1814,16 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         # rather than an informal example.
         title_child_idx, title_child = \
             docbook.child_of_instance(node, docbook.nodes.caption)
-        if title_child and title_child.children != []:
-            example_tag = "example"
-            node.children = \
-                docbook.item_to_front(node.children, title_child_idx)
-        else:
-            example_tag = "informalexample"
 
-        atts = {}
+        example_tag = "example"
+#        if title_child and title_child.children != []:
+#            example_tag = "example"
+#            node.children = \
+#                docbook.item_to_front(node.children, title_child_idx)
+#        else:
+#            example_tag = "informalexample"
+
+        atts = {"role": "linguistic"}
         if 'ids' in node.attributes and node.attributes['ids']:
             atts['id'] = node.attributes['ids'][-1]
         self.body.append(self.starttag(node, example_tag, **atts))
