@@ -782,7 +782,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         # NLTK specific:
         if atts['fileref'][:10] == '../images/':
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][10:]
-        if atts['fileref'][:11] == 'tree_images/':
+        if atts['fileref'][:12] == 'tree_images/':
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][12:]
 
         # Scale images by specifying their width.  The sizes of the image files
