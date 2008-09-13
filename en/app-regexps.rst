@@ -90,10 +90,10 @@ use the notation |patt|\ . The first thing to say
 about regular expressions is that most letters match themselves. For
 example, the pattern |l|\ ``sing``\ |r| exactly matches the
 string ``sing``. In addition, regular expressions provide us with a
-set of *special characters* [#]_ which give us a way to match *sets of
+set of *special characters* which give us a way to match *sets of
 strings*, and we will now look at these.
 
-.. [#] These are often called *meta-characters*; that is,
+.. note:: These "special characters" are often called *meta-characters*; that is,
        characters which express properties of (ordinary) characters.
 
 The Wildcard

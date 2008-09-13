@@ -782,7 +782,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         # NLTK specific:
         if atts['fileref'][:10] == '../images/':
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][10:]
-        if atts['fileref'][:10] == 'tree_images/':
+        if atts['fileref'][:11] == 'tree_images/':
             atts['fileref'] = 'figs/incoming/' + atts['fileref'][11:]
 
         # Scale images by specifying their width.  The sizes of the image files
@@ -951,30 +951,35 @@ class DocBookTranslator(nodes.NodeVisitor):
         raise node.SkipNode
 
     def visit_reference(self, node):
+        pass
         # if parent is a section, 
         # wrap link in a para
-        if isinstance(node.parent, nodes.section):
-            self.body.append('<para>')
-        atts = {}
-        if node.has_key('refuri'):
-            self.context.append('ulink')
-            self.body.append(self.starttag(node, 'ulink', '', url=node['refuri']))
-        elif node.has_key('refid'):
-            self.context.append('link')
-            self.body.append(self.starttag(node, 'link', '', linkend=node['refid']))
-        elif node.has_key('refname'):
-            self.context.append('link')
-            self.body.append(self.starttag(node, 'link', '',
-                    linkend=self.document.nameids[node['refname']]))
-        else:
-            raise ValueError('Unidentified reference type:' + node.__str__())
+#        if isinstance(node.parent, nodes.section):
+#            self.body.append('<para>')
+#
+#        atts = {}
+#        if node.has_key('refuri'):
+#            self.context.append('ulink')
+#            self.body.append(self.starttag(node, 'ulink', '', url=node['refuri']))
+#        elif node.has_key('refid'):
+#            self.context.append('xref')
+#            self.body.append(self.starttag(node, 'xref', '', linkend=node['refid']))
+#        elif node.has_key('refname'):
+#            self.context.append('link')
+#            self.body.append(self.starttag(node, 'link', '',
+#                    linkend=self.document.nameids[node['refname']]))
+#             self.body.append(node.astext())
+#        else:
+#            raise ValueError('Unidentified reference type:' + node.__str__())
             
     def depart_reference(self, node):
-        self.body.append('</%s>' % (self.context.pop(),))
+        pass
+#       self.body.append('</%s>' % (self.context.pop(),))
+
         # if parent is a section, 
         # wrap link in a para
-        if isinstance(node.parent, nodes.section):
-            self.body.append('</para>')
+#        if isinstance(node.parent, nodes.section):
+#            self.body.append('</para>')
 
     # revision is handled in ``visit_docinfo()``
     def visit_revision(self, node):

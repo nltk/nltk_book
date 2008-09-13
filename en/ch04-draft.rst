@@ -593,14 +593,8 @@ Supervised Classification
 One of the most basic tasks in data modeling is `classification`:dt:.
 In classification tasks, we wish to choose the correct `class
 label`:dt: for a given input.  Each input is considered in isolation
-from all other inputs, and set of labels is defined in advanced. [#]_
+from all other inputs, and set of labels is defined in advance.
 Some examples of classification tasks are:
-
-.. [#] The basic classification task has a number of interesting
-  variants: for example, in multi-class classification, each instance
-  may be assigned multiple labels; in open-class classification, the
-  set of labels is not defined in advance; and in sequence
-  classification, a list of inputs are jointly classified.
 
 .. better examples here:?
 
@@ -609,6 +603,12 @@ Some examples of classification tasks are:
   - Classify a name as "male" or "female."
   - Classify an occurrence of the word "bank" as "Noun-seaside,"
     "Noun-financial," "Verb-tilt," or "Verb-financial."
+
+.. note:: The basic classification task has a number of interesting
+  variants: for example, in multi-class classification, each instance
+  may be assigned multiple labels; in open-class classification, the
+  set of labels is not defined in advance; and in sequence
+  classification, a list of inputs are jointly classified.
 
 Classification models are typically trained using a corpus that
 contains the correct label for each input.  This `training corpus`:dt:

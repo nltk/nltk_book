@@ -1814,12 +1814,15 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         title_child_idx, title_child = \
             docbook.child_of_instance(node, docbook.nodes.caption)
 
+        atts = {}
+
+#        No need to deliver these ids through to docbook
+#        if 'ids' in node.attributes and node.attributes['ids']:
+#            atts['id'] = node.attributes['ids'][-1]
+            
         # example with a title
         if title_child and title_child.children != []:
             self.stack_push(self.example_tag_stack, "example")
-            atts = {}
-            if 'ids' in node.attributes and node.attributes['ids']:
-                atts['id'] = node.attributes['ids'][-1]
             self.body.append(self.starttag(node, "example", **atts))
             node.children = \
                 docbook.item_to_front(node.children, title_child_idx)
@@ -1828,16 +1831,14 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         else:
             if len(self.example_tag_stack) == 0:
                 self.stack_push(self.example_tag_stack, "example")
-                atts = {"role": "linguistic"}
-                if 'ids' in node.attributes and node.attributes['ids']:
-                    atts['id'] = node.attributes['ids'][-1]
+                atts["role"] = "linguistic"
                 self.body.append(self.starttag(node, "example", **atts))
                 self.body.append("<title/>")
             else:
                 self.stack_push(self.example_tag_stack, "orderedlist")
-                if self.body[-1] != "</listitem>": 
+                if self.body[-1] != "</listitem>":
                     self.body.append('<orderedlist numeration="loweralpha">')
-                self.body.append("<listitem>")
+                self.body.append(self.starttag(node, "listitem", **atts))
             
     def depart_example(self, node):
         example_tag = self.stack_pop(self.example_tag_stack)
