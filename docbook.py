@@ -796,8 +796,8 @@ class DocBookTranslator(nodes.NodeVisitor):
                     "docbook.py doesn't handle specifying image width in ReST")
             scale = node.attributes['scale']
             im = Image.open(node.attributes['uri'])
-            atts['contentwidth'] = "%fcm" % docbook_scale_image(im.size[0], scale)
-            atts['contentdepth'] = "%fcm" % docbook_scale_image(im.size[1], scale)
+            atts['width'] = atts['contentwidth'] = "%fcm" % docbook_scale_image(im.size[0], scale)
+            atts['depth'] = atts['contentdepth'] = "%fcm" % docbook_scale_image(im.size[1], scale)
 
         # Don't wrap the image in a para, this breaks when the image
         # is in a figure tag.  I don't know if it breaks anywhere
