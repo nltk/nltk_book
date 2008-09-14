@@ -11,6 +11,8 @@ Redistribution and use in source and binary forms, with or without modification,
 * Neither the name of None nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+(Minor modifications by Steven Bird)
 """
 import sys
 
@@ -20,9 +22,7 @@ USAGE: python %s <filename> or use stdin as input\n""" % this_file
 
 def pprint(indent_level, line):
     if line.strip():
-        for l in range(indent_level):
-            sys.stdout.write(" ")
-        sys.stdout.write(line + "\n")
+        sys.stdout.write(" " * indent_level +  line + "\n")
 
 def get_next_elem(data):
     start_pos = data.find("<")
@@ -59,32 +59,27 @@ if __name__ == "__main__":
         sys.stderr.write(usage(sys.argv[0]))
         sys.exit(1)
     if len(sys.argv) < 2:
-        fh = sys.stdin
+        data = sys.stdin.read()
     else:
         filename = sys.argv[1]
-        fh = open(filename)
+        data = open(filename).read()
 
     INDENT = 2
     
-    data = ""    
-    
     indent_level = 0
 
-    for line in fh:
-        data = data + line
-        start_pos, end_pos, is_stop, no_indent  = get_next_elem(data)
-        while ((start_pos > -1 and end_pos > -1)):
-            pprint(indent_level, data[:start_pos].strip())
-            data = data[start_pos:]
-            if is_stop and not no_indent:
-                indent_level = indent_level - INDENT
-            pprint(indent_level, data[:end_pos - start_pos])
-            data = data[end_pos - start_pos:]
-            if not is_stop and not no_indent :
-                indent_level = indent_level + INDENT
+    start_pos, end_pos, is_stop, no_indent  = get_next_elem(data)
+    while ((start_pos > -1 and end_pos > -1)):
+        pprint(indent_level, data[:start_pos].strip())
+        data = data[start_pos:]
+        if is_stop and not no_indent:
+            indent_level = indent_level - INDENT
+        pprint(indent_level, data[:end_pos - start_pos])
+        data = data[end_pos - start_pos:]
+        if not is_stop and not no_indent :
+            indent_level = indent_level + INDENT
 
-            if not data:
-                break
-            else:
-                start_pos, end_pos, is_stop, no_indent  = get_next_elem(data)
-
+        if not data:
+            break
+        else:
+            start_pos, end_pos, is_stop, no_indent  = get_next_elem(data)
