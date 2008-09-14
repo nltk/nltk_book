@@ -764,7 +764,7 @@ class DocBookTranslator(nodes.NodeVisitor):
     def visit_image(self, node, element=None):
 
         def docbook_scale_image(dimension, scale):
-            # 1/64 is 12/768 which fits the description of scaleing below.
+            # 1/64 is 12/768 which fits the description of scaling below.
             # Divide by 100.0 also since the scaling factor is expressed in a
             # percentage.
             return float(dimension) * scale / 100.0 / 64.0
@@ -788,7 +788,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         # Scale images by specifying their width.  The sizes of the image files
         # and the scale values given in the RST source describe how much of the
         # page they should take up, 768 = Width * Scale is the whole width of
-        # the page, just under 13cm in the O'Reily rendered docbook output, (we
+        # the page, just under 13cm in the O'Reilly rendered docbook output, (we
         # round this down to 12cm).
         if 'scale' in node.attributes:
             if ('height' in node.attributes) and ('width' in node.attributes):

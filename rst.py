@@ -203,8 +203,8 @@ def tree_directive(name, arguments, options, content, lineno,
         return []
     elif OUTPUT_FORMAT == 'docbook':
         warning('TREE DIRECTIVE -- CHECK THIS')
-        density, scale = 300, 150 # <-- are these good?
-        density = density * options.get('scale', 100) / 100
+        scale = options.get('scale', 25)
+        density = 300 * scale / 100
         filename = '%s-tree-%s.png' % (OUTPUT_BASENAME, _treenum)
         align = 'top'
     else:
