@@ -6,12 +6,6 @@
 
     >>> import nltk, re, pprint
 
-.. _chap-applied-programming:
-
-================================
-9. Applied Programming in Python
-================================
-
 .. TODO: transformation based learning?
 .. TODO: indexing and space-time trade-offs (more efficient concordancing, fuzzy spelling)
 .. TODO: persistent storage (shelve)
@@ -24,6 +18,11 @@
 .. TODO: multicomponent systems and APIs: spelling correction, web search
 .. TODO: explain why a program should not usually import all of NLTK.
 
+.. _chap-applied-programming:
+
+================================
+9. Applied Programming in Python
+================================
 
 This chapter introduces concepts in algorithms, data structures,
 program design, and applied Python programming. It also contains

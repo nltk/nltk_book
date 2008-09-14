@@ -13,6 +13,8 @@
 4. Data-Intensive Language Processing
 =====================================
 
+.. _ch04-introduction:
+
 ------------
 Introduction
 ------------
