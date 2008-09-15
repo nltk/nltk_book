@@ -6,7 +6,7 @@
 
     >>> import nltk, re, pprint
 
-.. _appendix-regexps:
+.. _app-regexps:
 
 =============================
 Appendix: Regular Expressions

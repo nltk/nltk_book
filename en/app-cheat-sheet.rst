@@ -1,6 +1,8 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
+.. _app-cheat-sheet:
+
 =============================================
 Appendix: Python and NLTK Cheat Sheet (Draft)
 =============================================

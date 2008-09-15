@@ -5,7 +5,7 @@
 
     >>> import nltk, re, pprint
 
-.. _appendix-unicode:
+.. _app-unicode:
 
 ======================================
 Appendix: Text Processing with Unicode 

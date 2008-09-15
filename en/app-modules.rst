@@ -1,6 +1,8 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
+.. _app-modules:
+
 ==================================
 Appendix: NLTK Modules and Corpora
 ==================================

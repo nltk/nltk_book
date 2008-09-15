@@ -1,6 +1,8 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
+.. _app-nlp-python:
+
 ======================================================
 Appendix: NLP in Python vs other Programming Languages
 ======================================================
