@@ -98,7 +98,7 @@ SENSEVAL 2 Corpus            Ted Pedersen           600k words, part-of-speech a
 Shakespeare XML texts (sel)  Jon Bosak              8 books
 Stopwords Corpus             Porter et al           2,400 stopwords for 11 languages
 Switchboard Corpus (sel)     LDC                    36 phonecalls, transcribed, parsed
-Univ Decl of Human Rights    -                      480k words, 300+ languages
+Univ Decl of Human Rights    United Nations         480k words, 300+ languages
 US Pres Addr Corpus          Ahrens                 480k words
 Penn Treebank (sel)          LDC                    40k words, tagged and parsed
 TIMIT Corpus (sel)           NIST/LDC               audio files and transcripts for 16 speakers
