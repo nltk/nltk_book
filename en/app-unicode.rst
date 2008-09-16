@@ -225,7 +225,7 @@ string like ``'latin-1'``, ``'big5'`` or ``'utf-8'``.
 The following screenshot illustrates the use of UTF-8 encoded string
 literals within the IDLE editor:
 
-.. image:: ../../doc/images/polish-utf8.png
+.. image:: ../images/polish-utf8.png
 
 .. Note:: The above example requires that an appropriate font is set in
    IDLE's preferences. In this case, we chose Courier CE.
