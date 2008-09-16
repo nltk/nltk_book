@@ -921,14 +921,21 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     #////////////////////////////////////////////////////////////
 
     def visit_pylisting(self, node):
-        self.listing_num += 1
-        num = '%s.%s' % (self.format_section_num(1), self.listing_num)
-        for node_id in self.get_ids(node):
-            self.reference_labels[node_id] = '%s' % num
+        self.visit_figure(node)
         pyfile = re.sub('\W', '_', node['name']) + PYLISTING_EXTENSION
-        self.label_node(node, 'Listing %s (%s)' % (num, pyfile),
+        num = '%s.%s' % (self.format_section_num(1), self.figure_num)
+        self.label_node(node, 'Figure %s (%s)' % (num, pyfile),
                       PYLISTING_DIR + pyfile)
         self.callout_labels.update(node['callouts'])
+        
+#        self.listing_num += 1
+#        num = '%s.%s' % (self.format_section_num(1), self.listing_num)
+#        for node_id in self.get_ids(node):
+#            self.reference_labels[node_id] = '%s' % num
+#        pyfile = re.sub('\W', '_', node['name']) + PYLISTING_EXTENSION
+#        self.label_node(node, 'Listing %s (%s)' % (num, pyfile),
+#                      PYLISTING_DIR + pyfile)
+#        self.callout_labels.update(node['callouts'])
 
     def visit_doctest_block(self, node):
         if isinstance(node.parent, pylisting):
@@ -1793,10 +1800,10 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             DocBookTranslator.depart_caption(self, node)
 
     def visit_pylisting(self, node):
-        self.visit_example(node)
+        self.visit_figure(node)
 
     def depart_pylisting(self, node):
-        self.depart_example(node)
+        self.depart_figure(node)
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):
@@ -2094,11 +2101,13 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         raise docutils.nodes.SkipNode()
 
     def visit_pylisting(self, node):
-        self.body.append('\n\\begin{pylisting}\n')
-        self.context.append('\n\\vspace{1ex}\n\\hrule\n\\end{pylisting}\n')
+        self.visit_figure(node)
+#        self.body.append('\n\\begin{pylisting}\n')
+#        self.context.append('\n\\vspace{1ex}\n\\hrule\n\\end{pylisting}\n')
 
     def depart_pylisting(self, node):
-        self.body.append( self.context.pop() )
+        self.depart_figure(node)
+#        self.body.append( self.context.pop() )
 
 #     def visit_pysrc_block(self, node):
 #         self.literal = True
