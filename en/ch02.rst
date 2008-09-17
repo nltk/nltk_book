@@ -16,7 +16,7 @@
    - invocation of pprint.pprint is a little clunky
    - regexp_tokenize() doesn't work when it is given a compiled pattern
 .. TODO: dealing with binary files (e.g. MSWord)
-.. TODO: dealing with PDF files (using pyPdf library)
+.. TODO: explain str.find, used in opening section
 
 .. _chap-words:
 
@@ -30,45 +30,88 @@
 Introduction
 ------------
 
-The most important source of texts is undoubtedly the Web.  Its nice to have
-existing text collections to explore, such as the corpora we saw in
-Chapter chap-introduction_.  However, you probably have your own text sources
-in mind.
+The most important source of texts is undoubtedly the Web.  Its convenient
+to have existing text collections to explore, such as the corpora we saw
+in Chapter chap-introduction_.  However, you probably have your own text sources
+in mind, and need to learn how to access them.
 
 The goal of this chapter is to answer the following questions:
 
-#. how can we write programs to access text on the web, in order
-   to get hold of an unlimited range of language material?
+#. how can we write programs to access text from local files and
+   from the web, in order to get hold of an unlimited range of
+   language material?
 #. how can we split documents up into individual words and
-   punctuation symbols, in order to do the same kinds of
+   punctuation symbols, so we can do the same kinds of
    analysis we did with text corpora in Chapter chap-introduction_?
-#. what new features of the Python programming language are
+#. what features of the Python programming language are
    needed to do this?
 
-In order to address these questions, we will look at more
+In order to address these questions, we will be covering
 key concepts in NLP, including tokenization and stemming.
 Along the way you will consolidate your Python knowledge and
 learn about strings, files, and regular expressions.  Since
-so much text on the web is in HTML format, we will see how to
-dispense with markup.
+so much text on the web is in |HTML| format, we will also
+see how to dispense with markup.
+
+.. Note:: From this chapter onwards, our program samples will assume you
+   begin your interactive session or your program with: ``import nltk, re, pprint``
 
 -------------------------
 Accessing Text on the Web
 -------------------------
 
-http://www.gutenberg.org/catalog/
+Electronic Books
+----------------
 
-    >>> import urllib
+A small sample of texts from Project Gutenberg appears in the |NLTK| corpus collection.
+However, you may be interested in analyzing other texts from Project Gutenberg.
+You can browse the catalog of 25,000 free online books at
+``http://www.gutenberg.org/catalog/``, and obtain a URL to an ASCII text file.
+90% of the texts in Project Gutenberg are in English.  However, it
+includes material in over 50 other languages, including Catalan, Chinese, Dutch,
+Finnish, French, German, Italian, Portuguese and Spanish (with more than
+100 texts each).
+
+Text number 2554 is an English translation of *Crime and Punishment*,
+and we can access it as follows:
+
+    >>> from urllib import urlopen
     >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
-    >>> raw = urllib.urlopen(url).read()
+    >>> raw = urlopen(url).read()
+    >>> type(raw)
+    <type 'str'>
+    >>> len(raw)
+    1176831
     >>> raw[:75]
     'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
 
-The read() process will take a few seconds as it downloads a large book.
+.. note:: The read() process will take a few seconds as it downloads this large book.
+   If you're using an internet proxy which is not correctly detected by Python,
+   you may need to specify the proxy manually as follows:
+   
+       >>> proxies = {'http': 'http://www.someproxy.com:3128'}
+       >>> raw = urllib.urlopen(url, proxies=proxies).read()
+   
+The variable ``raw`` contains a string with 1,176,831 characters.  This is the raw
+content of the book, including many details we are not interested in, such as
+whitespace, line breaks and blank lines.  Instead, we want to break it up into
+words and punctuation, as we saw in Chapter chap-introduction_.  This step is
+called `tokenization`:dt:, and it produces our familiar structure, a list of words
+and punctuation.  From now on we will call these `tokens`:dt:.
 
-    >>> text = nltk.Text(nltk.wordpunct_tokenize(raw))
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> type(tokens)
+    <type 'list'>
+    >>> text[:10]
+    ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
     >>> len(text)
     255809
+
+If we now take the further step of creating an |NLTK| text from this list, we can do
+all of the other linguistic processing we saw in Chapter chap-introduction_, along with
+the regular list operations like slicing:
+
+    >>> text = nltk.Text(tokens)
     >>> text[1020:1060]
     ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
     'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
@@ -81,73 +124,121 @@ The read() process will take a few seconds as it downloads a large book.
     Semyonovitch; old woman; Literary Archive; Dmitri Prokofitch; great
     deal; United States; Praskovya Pavlovna; Porfiry Petrovitch; ear rings
 
+Notice that "Project Gutenberg" appears as a collocation in this text.
+Each text downloaded from Project Gutenberg contains a header with the
+name of the text, the author, the names of people who scanned and
+corrected the text, a license, and so on.  Sometimes this information
+appears in a footer at the end of the file.  We cannot reliably detect
+where the content begins and ends, and so have to resort to manual
+inspection of the file, to discover unique strings that mark the beginning
+and the end, before trimming ``raw`` to be just the content and nothing else:
+
+    >>> raw.find("PART I")
+    5303
+    >>> raw.find("End of Project Gutenberg's Crime")
+    1157681
+    >>> raw = raw[5303:1157681]
+
+Now the raw text begins with "PART I", and goes up to (but not including) the
+phrase that marks the end of the content.
+This was our first brush with reality: texts found on the web may contain
+unwanted material, and there may not be an automatic way to remove it.
+With a small amount of extra work we can extract the material we need.
+
 Dealing with HTML
 -----------------
 
-Opening a web page is not much different to opening a file, except that
-we use ``urlopen()``:
+A large amount of text on the web is in the form of |HTML| documents.
+Its possible to use a web browser to save a page as text to a local
+file, then access this as described in Section sec-reading-local-files_.
+However, if we're going to do this a lot, its easiest to get Python
+to do the work directly.  The first step is the same as before,
+using ``urlopen``.  For fun we'll pick a BBC News story
+called *Blondes to die out in 200 years*, an entertaining
+example of an urban legend reported as established scientific
+fact (as noted on languagelog.org).
 
-    >>> from urllib import urlopen
-    >>> page = urlopen("http://news.bbc.co.uk/").read()
-    >>> print page[:60]
-    <!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN
+    >>> url = "http://news.bbc.co.uk/2/hi/health/2284783.stm"
+    >>> html = urlopen(url).read()
+    >>> html[:60]
+    '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN'
 
-|nopar| 
-Web pages are usually in |HTML| format.  To extract the text, we
-need to strip out the |HTML| markup, i.e. remove all material enclosed in
-angle brackets. Let's digress briefly to consider how to carry out
-this task using regular expressions. Our first attempt might look as
-follows:
+You can type ``print html`` to see the |HTML| content in all its glory,
+including meta tags, an image map, JavaScript, forms, and tables.
 
-    >>> line = '<title>BBC NEWS | News Front Page</title>'
-    >>> new = re.sub(r'<.*>', '', line)
+.. note:: Remember that there's nothing special about the names of our variables,
+   such as ``url`` and ``html``; we chose them to make the code easier to follow.
+   If we called them ``var1`` and ``var2`` the result would be the same.
 
-|nopar| 
-So the regular expression ``'<.*>'`` is intended to match a
-pair of left and right angle brackets, with a string of any characters
-intervening. However, look at what the result is:
+Getting text out of |HTML| is a sufficiently common task that |NLTK| provides
+a helper function ``nltk.clean_html()``, which takes an |HTML| string and
+returns text.
 
-    >>> new
-    '' 
+    >>> raw = nltk.clean_html(html)
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> tokens
+    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'", 'to', 'die', 'out', ...]
 
-|nopar| 
-What has happened here? The problem is twofold. First,
-the wildcard ``'.'`` matches any character other than ``'\n'``,
-so it will match ``'>'`` and ``'<'``.
-Second, the ``'*'`` operator is "greedy", in the sense that it matches
-as many characters as it can. In the above example,
-``'.*'`` will return not the shortest match, namely
-``'title'``, but the longest match, ``'title>BBC NEWS | News Front
-Page</title'``.   To get the *shortest* match we have to use the ``'*?'`` operator.
-We will also normalize whitespace, replacing any sequence
-of spaces, tabs or newlines (``'\s+'``) with a single space character.
+This still contains lots of unwanted material concerning site navigation and related
+stories.  With some trial and error you can find the start and end indexes of the
+content and trim the text, and initialize a text as before.
 
-    >>> page = re.sub('<.*?>', '', page)
-    >>> page = re.sub('\s+', ' ', page)
-    >>> print page[:60]
-     BBC NEWS | News Front Page News Sport Weather World Service
+    >>> tokens = tokens[96:399]
+    >>> text = nltk.Text(tokens)
+    >>> text.concordance('gene')
+     they say too few people now carry the gene for blondes to last beyond the next tw
+    t blonde hair is caused by a recessive gene . In order for a child to have blonde 
+    to have blonde hair , it must have the gene on both sides of the family in the gra
+    there is a disadvantage of having that gene or by chance . They don ' t disappear 
+    ondes would disappear is if having the gene was a disadvantage and I do not think 
 
-.. Note:: Note that your output for the above code may differ from ours,
-   because the BBC home page may have been changed since this
-   example was created.
 
-.. TODO: fix above example?  (make it current; issue with script on BBC site)
+Processing Google Results
+-------------------------
 
-You will probably find it useful to borrow the structure of the above code
-snippet for future tasks involving regular expressions: each time
-through a series of substitutions, the result of operating on ``page``
-gets assigned as the new value of ``page``. This approach allows us to
-decompose the transformations we need into a series of simple regular
-expression substitutions, each of which can be tested and debugged on its own.
+[how to extract google hits]
 
-.. Note:: Getting text out of HTML is a sufficiently common task that NLTK provides
-   a helper function ``nltk.clean_html()``, which takes an HTML string and returns text.
+languagelog example
 
 
 
+Extracting Text from PDF, MSWord and other Binary Formats
+---------------------------------------------------------
 
-.. Note:: From this chapter onwards, our program samples will assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
+ASCII text and |HTML| text are human readable formats.  Text often comes in binary
+formats |mdash| like PDF and MSWord |mdash| that can only be opened using specialized
+software.  Third-party libraries such as ``pypdf`` and ``pywin32`` can be used to access
+these formats [appendix section on this?].  For once-off conversion of a few documents,
+it is simpler to open the document with a suitable application, then save it as text
+to the local drive, and access it as described in Section sec-reading-local-files_.
+If the document is already on the web, you can enter its URL in Google's search box.
+This often includes a link to an |HTML| version of the document, which you can save
+as text.  
+
+.. _sec-reading-local-files:
+
+Reading Local Files
+-------------------
+
+* open
+* finding the file, pathnames
+
+The Processing Pipeline
+-----------------------
+
+
+
+.. _pipeline1:
+.. figure:: ../images/pipeline1.png
+   :scale: 40
+
+   The Processing Pipeline
+
+
+Exercises
+---------
+
+[to be written]
 
 -------------------------------
 Lemmatization and Normalization
@@ -1645,6 +1736,57 @@ and sequences that are commonly used in natural language processing.
 
    Commonly-used Operators and Sequences
 
+
+Stripping HTML with Regular Expressions
+---------------------------------------
+
+Web pages are usually in |HTML| format.  To extract the text, we
+need to strip out the |HTML| markup, i.e. remove all material enclosed in
+angle brackets. Let's digress briefly to consider how to carry out
+this task using regular expressions. Our first attempt might look as
+follows:
+
+    >>> line = '<title>BBC NEWS | News Front Page</title>'
+    >>> new = re.sub(r'<.*>', '', line)
+
+So the regular expression ``'<.*>'`` is intended to match a
+pair of left and right angle brackets, with a string of any characters
+intervening. However, look at what the result is:
+
+    >>> new
+    '' 
+
+|nopar| 
+What has happened here? The problem is twofold. First,
+the wildcard ``'.'`` matches any character other than ``'\n'``,
+so it will match ``'>'`` and ``'<'``.
+Second, the ``'*'`` operator is "greedy", in the sense that it matches
+as many characters as it can. In the above example,
+``'.*'`` will return not the shortest match, namely
+``'title'``, but the longest match, ``'title>BBC NEWS | News Front
+Page</title'``.   To get the *shortest* match we have to use the ``'*?'`` operator.
+We will also normalize whitespace, replacing any sequence
+of spaces, tabs or newlines (``'\s+'``) with a single space character.
+
+    >>> page = re.sub('<.*?>', '', page)
+    >>> page = re.sub('\s+', ' ', page)
+    >>> print page[:60]
+     BBC NEWS | News Front Page News Sport Weather World Service
+
+.. Note:: Note that your output for the above code may differ from ours,
+   because the BBC home page may have been changed since this
+   example was created.
+
+.. TODO: fix above example?  (make it current; issue with script on BBC site)
+
+You will probably find it useful to borrow the structure of the above code
+snippet for future tasks involving regular expressions: each time
+through a series of substitutions, the result of operating on ``page``
+gets assigned as the new value of ``page``. This approach allows us to
+decompose the transformations we need into a series of simple regular
+expression substitutions, each of which can be tested and debugged on its own.
+
+
 Exercises
 ---------
 
@@ -2323,6 +2465,8 @@ Summary
   ``'/'.join(['Hello', 'World'])`` gives ``'Hello/World'``.
 * we can read text from a file ``f`` using ``text = open(f).read()``
 * we can read text from a URL ``u`` using ``text = urlopen(u).read()``
+* texts found on the web may contain unwanted material (such as headers, footers, markup),
+  that need to be removed before we do any linguistic processing.
 * Some functions are not available by default, but must be accessed using
   Python's ``import`` statement.
 * a word token is an individual occurrence of a word in a particular context
