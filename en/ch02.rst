@@ -5,7 +5,6 @@
 
     >>> import nltk, re, pprint
 
-.. TODO: cleaning web text
 .. TODO: more on regular expressions, including ()
 .. TODO: add some literature references (esp to other intro linguistics textbooks)
 .. TODO: talk about fact that English lexicon is open set (e.g. malware = malicious software)
@@ -15,8 +14,6 @@
    - nltk.corpus.brown.items returns a tuple, not a list (cf discussion in ch 6)
    - invocation of pprint.pprint is a little clunky
    - regexp_tokenize() doesn't work when it is given a compiled pattern
-.. TODO: dealing with binary files (e.g. MSWord)
-.. TODO: explain str.find, used in opening section
 
 .. _chap-words:
 
@@ -220,13 +217,111 @@ as text.
 Reading Local Files
 -------------------
 
-* open
-* finding the file, pathnames
+.. _reading-files:
+
+Extracting Text from Files
+--------------------------
+
+.. Monkey-patching to fake the file/web examples in this section:
+
+    >>> from StringIO import StringIO
+    >>> def fake_open(filename, mode=None):
+    ...     return StringIO('Hello World!\nThis is a test file.\n')
+    >>> def fake_urlopen(url):
+    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
+    >>> open = fake_open
+    >>> import urllib
+    >>> urllib.urlopen = fake_urlopen
+
+It is easy to access local files in Python.  As an exercise, create a
+file called ``corpus.txt`` using a text editor, and enter the
+following text::
+
+   Hello World!
+   This is a test file.
+
+
+|nopar| 
+Be sure to save the file as plain text. You also need to make sure
+that you have saved the file in the same directory or folder in which
+you are running the Python interactive interpreter.
+
+.. Note:: If you are using |IDLE|, you can easily create this file by
+   selecting the *New Window* command in the *File* menu, typing
+   the required text into this window, and then saving the file as
+   ``corpus.txt`` in the first directory that |IDLE| offers in the
+   pop-up dialogue box.
+
+
+|nopar| 
+The next step is to `open`:dt: a file using the built-in function ``open()``
+which takes two arguments, the name of the file, here ``corpus.txt``, and the
+mode to open the file with (``'r'`` means to open the file for reading,
+and ``'U'`` stands for "Universal", which lets us ignore the different
+conventions used for marking newlines).
+
+.. doctest-ignore::
+    >>> f = open('corpus.txt', 'rU')
+
+.. Note:: If the interpreter cannot find your file, it will give an
+   error like this:
+
+   .. doctest-ignore::
+      >>> f = open('corpus.txt', 'rU')
+      Traceback (most recent call last):
+      File "<pyshell#7>", line 1, in -toplevel-
+      f = open('corpus.txt', 'rU')
+      IOError: [Errno 2] No such file or directory: 'corpus.txt'
+
+   To check that the file that you are trying to open is really in the
+   right directory, use |IDLE|\ 's *Open* command in the *File* menu;
+   this will display a list of all the files in the directory where
+   |IDLE| is running. An alternative is to examine the current
+   directory from within Python:
+
+.. doctest-ignore::
+      >>> import os
+      >>> os.listdir('.')
+
+|nopar| 
+There are several methods for reading the file.
+The following uses the method ``read()`` on the file object
+``f``; this reads the entire contents of a file into a string.
+
+.. doctest-ignore::
+    >>> f.read() 
+    'Hello World!\nThis is a test file.\n'
+
+|nopar|
+Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
+is equivalent to pressing *Enter* on a keyboard and starting a new line. 
+Note that we can open and read a file in one step:
+
+    >>> text = open('corpus.txt', 'rU').read()
+
+|nopar|
+We can also read a file one line at a time using the ``for`` loop construct:
+
+    >>> f = open('corpus.txt', 'rU')
+    >>> for line in f:
+    ...     print line[:-1]
+    Hello world!
+    This is a test file.
+
+|nopar| 
+Here we use the slice ``[:-1]`` to remove the newline character at the end of
+the input line.
+
+.. note:: It is possible to use the methods described above
+   with ``nltk.data.find()`` method to access and read NLTK's corpus files
+   directly.
 
 The Processing Pipeline
 -----------------------
 
-
+Figure pipeline1_ summarizes what we have covered in this section, including the process
+of building a vocabulary that we saw in Chapter chap-introduction_.  (One step, normalization,
+will be discussed later in this chapter.)
 
 .. _pipeline1:
 .. figure:: ../images/pipeline1.png
@@ -239,229 +334,6 @@ Exercises
 ---------
 
 [to be written]
-
--------------------------------
-Lemmatization and Normalization
--------------------------------
-
-Earlier we talked about counting word tokens, and completely ignored
-the rest of the sentence in which these tokens appeared.  Thus, for an
-example like `I saw the saw`:lx:, we would have treated both `saw`:lx:
-tokens as instances of the same type.  However, one is a form of the
-verb `see`:lx:, and the other is the name of a cutting instrument.
-How do we know that these two forms of `saw`:lx: are unrelated?  One
-answer is that as speakers of English, we know that these would appear
-as different entries in a dictionary. Another, more empiricist, answer
-is that if we looked at a large enough number of texts, it would
-become clear that the two forms have very different distributions. For
-example, only the noun `saw`:lx: will occur immediately after
-determiners such as `the`:lx:.  Distinct words that have the same
-written form are called `homographs`:dt:. We can distinguish
-homographs with the help of context; often the previous word suffices.
-We will explore this idea of context briefly, before addressing the
-main topic of this section.
-
-As a first approximation to discovering the distribution of a word, we
-can look at all the bigrams it occurs in.
-A `bigram`:dt: is simply a pair of words.
-For example, in the sentence `She sells sea shells by the sea shore`:lx:,
-the bigrams are
-`She sells`:lx:,
-`sells sea`:lx:,
-`sea shells`:lx:,
-`shells by`:lx:,
-`by the`:lx:,
-`the sea`:lx:,
-`sea shore`:lx:.
-Let's consider all bigrams from the Brown Corpus that have the
-word `often`:lx: as first element.
-Here is a small selection, ordered by their counts::
-
-    often ,		16
-    often a		10
-    often in		8
-    often than		7
-    often the		7
-    often been		6
-    often do		5
-    often called  	4
-    often appear	3
-    often were		3
-    often appeared	2
-    often are		2
-    often did		2
-    often is		2
-    often appears	1
-    often call   	1
-
-|nopar|
-In the topmost entry, we see that `often`:lx: is frequently followed
-by a comma.  This suggests that `often`:lx: is common at the end of
-phrases. We also see that `often`:lx: precedes verbs, presumably as an
-adverbial modifier.  We might conclude that when `saw`:lx:
-appears in the context `often saw`:lx:, then `saw`:lx: is being used
-as a verb.
-
-You will also see that this list includes different grammatical forms
-of the same verb. We can form separate groups consisting of
-`appear`:lx: |tilde| `appears`:lx: |tilde| `appeared`:lx:; `call`:lx:
-|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and `been`:lx:
-|tilde| `were`:lx: |tilde| `are`:lx: |tilde| `is`:lx:.  It is common
-in linguistics to say that two forms such as `appear`:lx: and
-`appeared`:lx: belong to a more abstract notion of a word called a
-`lexeme`:dt:; by contrast, `appeared`:lx: and `called`:lx: belong to
-different lexemes. You can think of a lexeme as corresponding to an
-entry in a dictionary, and a `lemma`:dt: as the headword for that entry.
-By convention, small capitals are used when referring to a lexeme or lemma: `appear`:lex:.
-
-Although `appeared`:lx: and `called`:lx: belong to different lexemes,
-they do have something in common: they are both past tense forms. This
-is signaled by the segment `-ed`:lx:, which we call a morphological
-`suffix`:dt:. We also say that such morphologically complex forms are
-`inflected`:dt:.  If we strip off the suffix, we get something called
-the `stem`:dt:, namely `appear`:lx: and `call`:lx: respectively. While
-`appeared`:lx:, `appears`:lx: and `appearing`:lx: are all
-morphologically inflected, `appear`:lx: lacks any morphological
-inflection and is therefore termed the `base`:dt: form. In English,
-the base form is conventionally used as the `lemma`:dt: for a word.
-
-Our notion of context would be more compact if we could group
-different forms of the various verbs into their lemmas; then we could
-study which verb lexemes are typically modified by a particular
-adverb. `Lemmatization`:dt: |mdash| the process of mapping words
-to their lemmas |mdash| would yield the
-following picture of the distribution of `often`:lx:.
-Here, the counts for `often appear`:lx: (3),
-`often appeared`:lx: (2) and `often appears`:lx: (1)
-are combined into a single line.
-
-::
-
-    often ,		16
-    often a		10
-    often be		13
-    often in		8
-    often than		7
-    often the		7
-    often do		7
-    often appear	6
-    often call		5
-
-Lemmatization is a rather sophisticated process that uses rules
-for the regular word patterns, and table look-up for
-the irregular patterns. Within |NLTK|, we can use off-the-shelf
-stemmers, such as the `Porter Stemmer`:dt:, the `Lancaster Stemmer`:dt:,
-and the stemmer that comes with WordNet, e.g.:
-
-    >>> stemmer = nltk.PorterStemmer()
-    >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
-    >>> stems = [stemmer.stem(verb) for verb in verbs]
-    >>> sorted(set(stems))
-    ['appear', 'call']
-
-Stemmers for other languages are added to NLTK as they are contributed,
-e.g. the RSLP Portuguese Stemmer, ``nltk.RSLPStemmer()``.
-
-Lemmatization and stemming are special cases of `normalization`:dt:.
-They identify a canonical representative for a set of related word forms.
-Normalization collapses distinctions.  Exactly how we normalize words depends
-on the application.  Often, we convert everything into lower
-case so that we can ignore the written distinction between sentence-initial
-words and the rest of the words in the sentence.
-The Python string method ``lower()`` will accomplish this for us:
-
-    >>> str = 'This is the time'
-    >>> str.lower()
-    'this is the time'
-
-.. We need to be careful, however; case normalization will also collapse the `New`:lx:
-   of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
-   [SB: this mixes the issue with named entity detection, and should probably
-   be left to the engineering chapter]
-
-A final issue for normalization is the presence of contractions, such
-as `didn't`:lx:.  If we are analyzing the meaning
-of a sentence, it would probably be more useful to normalize this
-form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
-
-More Examples
--------------
-
-Lemmatization and normalization involve applying the same operation to
-each word token in a text.  `List comprehensions`:dt: are a convenient
-Python construct for doing this.  Here we lowercase each word:
-
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> [word.lower() for word in sent]
-    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
-
-|nopar|
-A list comprehension usually has the form
-``[item.foo() for item in sequence]``,
-or ``[foo(item) for item in sequence]``.
-It creates a list but applying an operation to every item in
-the supplied sequence.
-Here we rewrite the loop for identifying verb stems that we saw in
-the previous section:
-
-    >>> [stemmer.stem(verb) for verb in verbs]
-    ['appear', 'appear', 'appear', 'call', 'call']
-
-Now we can eliminate repeats using ``set()``, by passing
-the list comprehension as an argument.  We can actually
-leave out the square brackets, as will be explained further
-in Chapter chap-applied-programming_.
-
-    >>> set(stemmer.stem(verb) for verb in verbs)
-    set(['call', 'appear'])
-
-|nopar|
-This syntax might be reminiscent of the notation used for building
-sets, e.g. {(x,y) | x\ :superscript:`2` + y\ :superscript:`2` = 1}.
-
-Just as this set definition incorporates a constraint, list
-comprehensions can constrain the items they include.  In the next
-example we remove some non-content words from a list of words:
-
-    >>> def is_lexical(word):
-    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
-    >>> [word for word in sent if is_lexical(word)]
-    ['dog', 'gave', 'John', 'newspaper']
-
-|nopar|
-Now we can combine the two ideas (constraints and normalization),
-to pull out the content words and normalize them.
-
-    >>> [word.lower() for word in sent if is_lexical(word)]
-    ['dog', 'gave', 'john', 'newspaper']
-
-List comprehensions can build nested structures too.  For example,
-the following code builds a list of tuples, where each tuple consists
-of a word and its stem.
-
-    >>> sent = nltk.corpus.brown.sents(categories='a')[0]
-    >>> [(x, stemmer.stem(x).lower()) for x in sent]
-    [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
-    ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
-    ('an', 'an'), ('investigation', 'investig'), ('of', 'of'),
-    ("Atlanta's", "atlanta'"), ('recent', 'recent'), ('primary', 'primari'),
-    ('election', 'elect'), ('produced', 'produc'), ('``', '``'), ('no', 'no'),
-    ('evidence', 'evid'), ("''", "''"), ('that', 'that'), ('any', 'ani'),
-    ('irregularities', 'irregular'), ('took', 'took'), ('place', 'place'), ('.', '.')]
-
-
-Indexing Texts
---------------
-
-(Discussion of the use of normalization in indexing a text collection; better concordancing)
-
-Exercises
----------
-
-#. |soso| Use the Porter Stemmer to normalize some tokenized text, calling
-   the stemmer on each word.  Do the same thing with the Lancaster Stemmer
-   and see if you observe any differences.
-
 
 -----------------
 Strings and Files
@@ -689,10 +561,52 @@ The first example above selects the first three characters from the string,
 and the second example selects from the character with index 6, namely ``'W'``,
 to the end of the string.
 
+We can also find the position of a substring within a string, using ``find()``:
+
+    >>> msg.find('World')
+    6
+
 Lists vs Strings
 ----------------
 
-Now, lists and strings do not have exactly the same functionality.
+Strings and lists are both kind of `sequence`:dt:. As such, they can
+both be indexed and sliced:
+
+    >>> query = 'Who knows?'
+    >>> beatles = ['john', 'paul', 'george', 'ringo']
+    >>> query[2]
+    'o'
+    >>> beatles[2]
+    'george'
+    >>> query[:2]
+    'Wh'
+    >>> beatles[:2]
+    ['john', 'paul']
+    >>>
+
+Similarly, strings can be concatenated and so can lists (though not
+with each other!): 
+
+    >>> newstring = query + " I don't"
+    >>> newlist = beatles + ['brian', 'george']
+
+What's the difference between strings and lists as far as NLP is
+concerned?  When we open a file
+for reading into a Python program, what we get initially is a string,
+corresponding to the contents of the whole file. If we try to use a ``for`` loop to
+process the elements of this string, all we can pick out are the
+individual characters in the string |mdash| we don't get to choose the
+granularity. By contrast, the elements of a list can be as big or
+small as we like: for example, they could be paragraphs, sentence,
+phrases, words, characters. So lists have this huge advantage, that we
+can be really flexible about the elements they contain, and
+correspondingly flexible about what the downstream processing will act
+on. So one of the first things we are likely to do in a piece of NLP
+code is convert a string into a list (of strings). Conversely, when we
+want to write our results to a file, or to a terminal, we will usually
+convert them to a string.
+
+Lists and strings do not have exactly the same functionality.
 Lists have the added power that you can change their elements. Let's
 imagine that we want to change the 0th element of ``cgi`` to
 ``'colorful'``, we can do that by assigning the new value
@@ -755,204 +669,6 @@ not a good idea, as we will explain in Section sec-back-to-the-basics_).
 
     >>> bat = ['bat', [[1, 'n', 'flying mammal'], [2, 'n', 'striking instrument']]]
     >>>
-
-.. _reading-files:
-
-Extracting Text from Files
---------------------------
-
-.. Monkey-patching to fake the file/web examples in this section:
-
-    >>> from StringIO import StringIO
-    >>> def fake_open(filename, mode=None):
-    ...     return StringIO('Hello World!\nThis is a test file.\n')
-    >>> def fake_urlopen(url):
-    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
-    >>> open = fake_open
-    >>> import urllib
-    >>> urllib.urlopen = fake_urlopen
-
-It is easy to access local files in Python.  As an exercise, create a
-file called ``corpus.txt`` using a text editor, and enter the
-following text::
-
-   Hello World!
-   This is a test file.
-
-
-|nopar| 
-Be sure to save the file as plain text. You also need to make sure
-that you have saved the file in the same directory or folder in which
-you are running the Python interactive interpreter.
-
-.. Note:: If you are using |IDLE|, you can easily create this file by
-   selecting the *New Window* command in the *File* menu, typing
-   the required text into this window, and then saving the file as
-   ``corpus.txt`` in the first directory that |IDLE| offers in the
-   pop-up dialogue box.
-
-
-|nopar| 
-The next step is to `open`:dt: a file using the built-in function ``open()``
-which takes two arguments, the name of the file, here ``corpus.txt``, and the
-mode to open the file with (``'r'`` means to open the file for reading,
-and ``'U'`` stands for "Universal", which lets us ignore the different
-conventions used for marking newlines).
-
-.. doctest-ignore::
-    >>> f = open('corpus.txt', 'rU')
-
-.. Note:: If the interpreter cannot find your file, it will give an
-   error like this:
-
-   .. doctest-ignore::
-      >>> f = open('corpus.txt', 'rU')
-      Traceback (most recent call last):
-	  File "<pyshell#7>", line 1, in -toplevel-
-	  f = open('corpus.txt', 'rU')
-      IOError: [Errno 2] No such file or directory: 'corpus.txt'
-
-   To check that the file that you are trying to open is really in the
-   right directory, use |IDLE|\ 's *Open* command in the *File* menu;
-   this will display a list of all the files in the directory where
-   |IDLE| is running. An alternative is to examine the current
-   directory from within Python:
-
-.. doctest-ignore::
-      >>> import os
-      >>> os.listdir('.')
-
-|nopar| 
-There are several methods for reading the file.
-The following uses the method ``read()`` on the file object
-``f``; this reads the entire contents of a file into a string.
-
-.. doctest-ignore::
-    >>> f.read() 
-    'Hello World!\nThis is a test file.\n'
-
-|nopar|
-Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
-is equivalent to pressing *Enter* on a keyboard and starting a new line. 
-Note that we can open and read a file in one step:
-
-    >>> text = open('corpus.txt', 'rU').read()
-
-|nopar|
-We can also read a file one line at a time using the ``for`` loop construct:
-
-    >>> f = open('corpus.txt', 'rU')
-    >>> for line in f:
-    ...     print line[:-1]
-    Hello world!
-    This is a test file.
-
-|nopar| 
-Here we use the slice ``[:-1]`` to remove the newline character at the end of
-the input line.
-
-.. note:: It is possible to use the methods described above
-   with ``nltk.data.find()`` method to access and read NLTK's corpus files
-   directly.
-
-Exercises
----------
-
-#. |easy| Try the examples in this section, then try the following.
-
-   a) Create a variable called ``msg`` and put a message
-      of your own in this variable.  Remember that strings need
-      to be quoted, so you will need to type something like:
-      ``msg = "I like NLP!"``
-   b) Now print the contents of this variable in two ways, first
-      by simply typing the variable name and pressing enter, then
-      by using the ``print`` command.
-   c) Try various arithmetic expressions using this string, e.g.
-      ``msg + msg``, and ``5 * msg``.
-   d) Define a new string ``hello``, and then try ``hello + msg``.
-      Change the ``hello`` string so that it ends with a space
-      character, and then try ``hello + msg`` again.
-
-#. |easy| Define a string ``s = 'colorless'``.  Write a Python statement
-   that changes this to "colourless" using only the slice and
-   concatenation operations.
-
-#. |easy| Try the slice examples from this section using the interactive
-   interpreter.  Then try some more of your own.  Guess what the result
-   will be before executing the command.
-
-
-#. |easy| We can use the slice notation to remove morphological endings on
-   words.  For example, ``'dogs'[:-1]`` removes the last character of
-   ``dogs``, leaving ``dog``.  Use slice notation to remove the
-   affixes from these words (we've inserted a hyphen to
-   indicate the affix boundary, but omit this from your strings):
-   ``dish-es``, ``run-ning``, ``nation-ality``, ``un-do``,
-   ``pre-heat``.
-
-#. |easy| We saw how we can generate an ``IndexError`` by indexing beyond the end
-   of a string.  Is it possible to construct an index that goes too far to
-   the left, before the start of the string?
-
-#. |easy| We can also specify a "step" size for the slice. The following
-   returns every second character within the slice: ``msg[6:11:2]``.
-   It also works in the reverse direction: ``msg[10:5:-2]``
-   Try these for yourself, then experiment with different step values.
-
-#. |easy| What happens if you ask the interpreter to evaluate ``msg[::-1]``?
-   Explain why this is a reasonable result.
-
-#. |easy| Write code to abbreviate text by removing all the vowels.
-   Define ``sentence`` to hold any string you like, then initialize
-   a new string ``result`` to hold the empty string ``''``.  Now write
-   a ``for`` loop to process the string, one character at a time,
-   and append any non-vowel characters to the result string.
-
-
--------------
-Python Review
--------------
-
-Strings vs Lists
-----------------
-
-Strings and lists are both kind of `sequence`:dt:. As such, they can
-both be indexed and sliced:
-
-    >>> query = 'Who knows?'
-    >>> beatles = ['john', 'paul', 'george', 'ringo']
-    >>> query[2]
-    'o'
-    >>> beatles[2]
-    'george'
-    >>> query[:2]
-    'Wh'
-    >>> beatles[:2]
-    ['john', 'paul']
-    >>>
-
-Similarly, strings can be concatenated and so can lists (though not
-with each other!): 
-
-    >>> newstring = query + " I don't"
-    >>> newlist = beatles + ['brian', 'george']
-
-What's the difference between strings and lists as far as NLP is
-concerned?  When we open a file
-for reading into a Python program, what we get initially is a string,
-corresponding to the contents of the whole file. If we try to use a ``for`` loop to
-process the elements of this string, all we can pick out are the
-individual characters in the string |mdash| we don't get to choose the
-granularity. By contrast, the elements of a list can be as big or
-small as we like: for example, they could be paragraphs, sentence,
-phrases, words, characters. So lists have this huge advantage, that we
-can be really flexible about the elements they contain, and
-correspondingly flexible about what the downstream processing will act
-on. So one of the first things we are likely to do in a piece of NLP
-code is convert a string into a list (of strings). Conversely, when we
-want to write our results to a file, or to a terminal, we will usually
-convert them to a string.
-
 
 A Review of Data Types
 ----------------------
@@ -1077,32 +793,357 @@ continue to expand it, and finally save the program
 in a file so that you don't have to retype it in again later.
 
 
+Exercises
+---------
+
+#. |easy| Try the examples in this section, then try the following.
+
+   a) Create a variable called ``msg`` and put a message
+      of your own in this variable.  Remember that strings need
+      to be quoted, so you will need to type something like:
+      ``msg = "I like NLP!"``
+   b) Now print the contents of this variable in two ways, first
+      by simply typing the variable name and pressing enter, then
+      by using the ``print`` command.
+   c) Try various arithmetic expressions using this string, e.g.
+      ``msg + msg``, and ``5 * msg``.
+   d) Define a new string ``hello``, and then try ``hello + msg``.
+      Change the ``hello`` string so that it ends with a space
+      character, and then try ``hello + msg`` again.
+
+#. |easy| Define a string ``s = 'colorless'``.  Write a Python statement
+   that changes this to "colourless" using only the slice and
+   concatenation operations.
+
+#. |easy| Try the slice examples from this section using the interactive
+   interpreter.  Then try some more of your own.  Guess what the result
+   will be before executing the command.
+
+#. |easy| We can use the slice notation to remove morphological endings on
+   words.  For example, ``'dogs'[:-1]`` removes the last character of
+   ``dogs``, leaving ``dog``.  Use slice notation to remove the
+   affixes from these words (we've inserted a hyphen to
+   indicate the affix boundary, but omit this from your strings):
+   ``dish-es``, ``run-ning``, ``nation-ality``, ``un-do``,
+   ``pre-heat``.
+
+#. |easy| We saw how we can generate an ``IndexError`` by indexing beyond the end
+   of a string.  Is it possible to construct an index that goes too far to
+   the left, before the start of the string?
+
+#. |easy| We can also specify a "step" size for the slice. The following
+   returns every second character within the slice: ``msg[6:11:2]``.
+   It also works in the reverse direction: ``msg[10:5:-2]``
+   Try these for yourself, then experiment with different step values.
+
+#. |easy| What happens if you ask the interpreter to evaluate ``msg[::-1]``?
+   Explain why this is a reasonable result.
+
+#. |easy| Write code to abbreviate text by removing all the vowels.
+   Define ``sentence`` to hold any string you like, then initialize
+   a new string ``result`` to hold the empty string ``''``.  Now write
+   a ``for`` loop to process the string, one character at a time,
+   and append any non-vowel characters to the result string.
+
+-------------------------------
+Lemmatization and Normalization
+-------------------------------
+
+Earlier we talked about counting word tokens, and completely ignored
+the rest of the sentence in which these tokens appeared.  Thus, for an
+example like `I saw the saw`:lx:, we would have treated both `saw`:lx:
+tokens as instances of the same type.  However, one is a form of the
+verb `see`:lx:, and the other is the name of a cutting instrument.
+How do we know that these two forms of `saw`:lx: are unrelated?  One
+answer is that as speakers of English, we know that these would appear
+as different entries in a dictionary. Another, more empiricist, answer
+is that if we looked at a large enough number of texts, it would
+become clear that the two forms have very different distributions. For
+example, only the noun `saw`:lx: will occur immediately after
+determiners such as `the`:lx:.  Distinct words that have the same
+written form are called `homographs`:dt:. We can distinguish
+homographs with the help of context; often the previous word suffices.
+We will explore this idea of context briefly, before addressing the
+main topic of this section.
+
+As a first approximation to discovering the distribution of a word, we
+can look at all the bigrams it occurs in.
+A `bigram`:dt: is simply a pair of words.
+For example, in the sentence `She sells sea shells by the sea shore`:lx:,
+the bigrams are
+`She sells`:lx:,
+`sells sea`:lx:,
+`sea shells`:lx:,
+`shells by`:lx:,
+`by the`:lx:,
+`the sea`:lx:,
+`sea shore`:lx:.
+Let's consider all bigrams from the Brown Corpus that have the
+word `often`:lx: as first element.
+Here is a small selection, ordered by their counts::
+
+    often ,		16
+    often a		10
+    often in		8
+    often than		7
+    often the		7
+    often been		6
+    often do		5
+    often called  	4
+    often appear	3
+    often were		3
+    often appeared	2
+    often are		2
+    often did		2
+    often is		2
+    often appears	1
+    often call   	1
+
+|nopar|
+In the topmost entry, we see that `often`:lx: is frequently followed
+by a comma.  This suggests that `often`:lx: is common at the end of
+phrases. We also see that `often`:lx: precedes verbs, presumably as an
+adverbial modifier.  We might conclude that when `saw`:lx:
+appears in the context `often saw`:lx:, then `saw`:lx: is being used
+as a verb.
+
+You will also see that this list includes different grammatical forms
+of the same verb. We can form separate groups consisting of
+`appear`:lx: |tilde| `appears`:lx: |tilde| `appeared`:lx:; `call`:lx:
+|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and `been`:lx:
+|tilde| `were`:lx: |tilde| `are`:lx: |tilde| `is`:lx:.  It is common
+in linguistics to say that two forms such as `appear`:lx: and
+`appeared`:lx: belong to a more abstract notion of a word called a
+`lexeme`:dt:; by contrast, `appeared`:lx: and `called`:lx: belong to
+different lexemes. You can think of a lexeme as corresponding to an
+entry in a dictionary, and a `lemma`:dt: as the headword for that entry.
+By convention, small capitals are used when referring to a lexeme or lemma: `appear`:lex:.
+
+Although `appeared`:lx: and `called`:lx: belong to different lexemes,
+they do have something in common: they are both past tense forms. This
+is signaled by the segment `-ed`:lx:, which we call a morphological
+`suffix`:dt:. We also say that such morphologically complex forms are
+`inflected`:dt:.  If we strip off the suffix, we get something called
+the `stem`:dt:, namely `appear`:lx: and `call`:lx: respectively. While
+`appeared`:lx:, `appears`:lx: and `appearing`:lx: are all
+morphologically inflected, `appear`:lx: lacks any morphological
+inflection and is therefore termed the `base`:dt: form. In English,
+the base form is conventionally used as the `lemma`:dt: for a word.
+
+Our notion of context would be more compact if we could group
+different forms of the various verbs into their lemmas; then we could
+study which verb lexemes are typically modified by a particular
+adverb. `Lemmatization`:dt: |mdash| the process of mapping words
+to their lemmas |mdash| would yield the
+following picture of the distribution of `often`:lx:.
+Here, the counts for `often appear`:lx: (3),
+`often appeared`:lx: (2) and `often appears`:lx: (1)
+are combined into a single line.
+
+::
+
+    often ,		16
+    often a		10
+    often be		13
+    often in		8
+    often than		7
+    often the		7
+    often do		7
+    often appear	6
+    often call		5
+
+Lemmatization is a rather sophisticated process that uses rules
+for the regular word patterns, and table look-up for
+the irregular patterns. Within |NLTK|, we can use off-the-shelf
+stemmers, such as the `Porter Stemmer`:dt:, the `Lancaster Stemmer`:dt:,
+and the stemmer that comes with WordNet, e.g.:
+
+    >>> stemmer = nltk.PorterStemmer()
+    >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
+    >>> stems = [stemmer.stem(verb) for verb in verbs]
+    >>> sorted(set(stems))
+    ['appear', 'call']
+
+Stemmers for other languages are added to NLTK as they are contributed,
+e.g. the RSLP Portuguese Stemmer, ``nltk.RSLPStemmer()``.
+
+Lemmatization and stemming are special cases of `normalization`:dt:.
+They identify a canonical representative for a set of related word forms.
+Normalization collapses distinctions.  Exactly how we normalize words depends
+on the application.  Often, we convert everything into lower
+case so that we can ignore the written distinction between sentence-initial
+words and the rest of the words in the sentence.
+The Python string method ``lower()`` will accomplish this for us:
+
+    >>> str = 'This is the time'
+    >>> str.lower()
+    'this is the time'
+
+.. We need to be careful, however; case normalization will also collapse the `New`:lx:
+   of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
+   [SB: this mixes the issue with named entity detection, and should probably
+   be left to the engineering chapter]
+
+A final issue for normalization is the presence of contractions, such
+as `didn't`:lx:.  If we are analyzing the meaning
+of a sentence, it would probably be more useful to normalize this
+form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
+
+More Examples
+-------------
+
+Lemmatization and normalization involve applying the same operation to
+each word token in a text.  `List comprehensions`:dt: are a convenient
+Python construct for doing this.  Here we lowercase each word:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> [word.lower() for word in sent]
+    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
+
+|nopar|
+A list comprehension usually has the form
+``[item.foo() for item in sequence]``,
+or ``[foo(item) for item in sequence]``.
+It creates a list but applying an operation to every item in
+the supplied sequence.
+Here we rewrite the loop for identifying verb stems that we saw in
+the previous section:
+
+    >>> [stemmer.stem(verb) for verb in verbs]
+    ['appear', 'appear', 'appear', 'call', 'call']
+
+Now we can eliminate repeats using ``set()``, by passing
+the list comprehension as an argument.  We can actually
+leave out the square brackets, as will be explained further
+in Chapter chap-applied-programming_.
+
+    >>> set(stemmer.stem(verb) for verb in verbs)
+    set(['call', 'appear'])
+
+|nopar|
+This syntax might be reminiscent of the notation used for building
+sets, e.g. {(x,y) | x\ :superscript:`2` + y\ :superscript:`2` = 1}.
+
+Just as this set definition incorporates a constraint, list
+comprehensions can constrain the items they include.  In the next
+example we remove some non-content words from a list of words:
+
+    >>> def is_lexical(word):
+    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
+    >>> [word for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'John', 'newspaper']
+
+|nopar|
+Now we can combine the two ideas (constraints and normalization),
+to pull out the content words and normalize them.
+
+    >>> [word.lower() for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'john', 'newspaper']
+
+List comprehensions can build nested structures too.  For example,
+the following code builds a list of tuples, where each tuple consists
+of a word and its stem.
+
+    >>> sent = nltk.corpus.brown.sents(categories='a')[0]
+    >>> [(x, stemmer.stem(x).lower()) for x in sent]
+    [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
+    ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
+    ('an', 'an'), ('investigation', 'investig'), ('of', 'of'),
+    ("Atlanta's", "atlanta'"), ('recent', 'recent'), ('primary', 'primari'),
+    ('election', 'elect'), ('produced', 'produc'), ('``', '``'), ('no', 'no'),
+    ('evidence', 'evid'), ("''", "''"), ('that', 'that'), ('any', 'ani'),
+    ('irregularities', 'irregular'), ('took', 'took'), ('place', 'place'), ('.', '.')]
+
+The Lexicon
+-----------
+
+* type vs token distinction; connection of types to lemmas
+* concept of "word", many-to-many mapping between forms and meanings
+* why the lexicon is an open set, lexical productivity and challenge for NLP
+* morphology
+
+.. _fig-lexicon:
+.. figure:: ../images/lexicon.png
+   :scale: 40
+   
+   Lexicon Terminology
+
+
+String Similarity
+-----------------
+
+* spelling correction (a kind of normalization)
+* stemming (``nltk.stem``)
+
+Semantic Similarity
+-------------------
+
+.. TODO: discuss WSD, mention Semcor, give pine cone example
+
+.. It is often useful to be able to tell whether two lexical concepts are
+   `semantically related`:dt:. For example, in order to check whether a
+   particular instance of the word `bank`:lx: means
+   *financial institution*, we can count the number of nearby words
+   that are semantically related to this sense.  Using WordNet, we can
+   investigate whether semantic relatedness can be
+   expressed in terms of the graph structure of the concept hierarchy. 
+
+We would expect that the semantic similarity of two concepts
+would correlate with the length of the path between them in WordNet.
+The ``wordnet`` package includes a variety of measures
+that incorporate this basic insight.  For example,
+``path_similarity`` assigns a score in the range 0\ |ndash|\
+1, based on the shortest path that connects the concepts in the hypernym
+hierarchy (-1 is returned in those cases where a path cannot be
+found).  A score of 1 represents identity, i.e., comparing a sense with
+itself will return 1.
+
+    >>> wordnet.N['poodle'][0].path_similarity(wordnet.N['dalmatian'][1])
+    0.33333333333333331
+    >>> wordnet.N['dog'][0].path_similarity(wordnet.N['cat'][0])
+    0.20000000000000001
+    >>> wordnet.V['run'][0].path_similarity(wordnet.V['walk'][0])
+    0.25
+    >>> wordnet.V['run'][0].path_similarity(wordnet.V['think'][0])
+    -1
+
+Several other similarity measures are provided in ``wordnet``:
+Leacock-Chodorow, Wu-Palmer, Resnik, Jiang-Conrath, and Lin.
+For a detailed comparison of various measures, see [Budanitsky2006EWB]_.
+
+Indexing Texts
+--------------
+
+(Discussion of the use of normalization in indexing a text collection; better concordancing)
+
+Exercises
+---------
+
+#. |soso| Use the Porter Stemmer to normalize some tokenized text, calling
+   the stemmer on each word.  Do the same thing with the Lancaster Stemmer
+   and see if you observe any differences.
+
+
 -----------------------------------
 Tokenization: From Strings to Lists
 -----------------------------------
 
-In Chapter chap-introduction_, we showed how a string could be split into a
-list of words.  Once we have derived a list, the ``len()`` function
-will count the number of words it contains:
+Consider the following code, which splits a string into a list of words: 
 
     >>> sentence = "This is the time -- and this is the record of the time."
     >>> words = sentence.split()
+    >>> words
+    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
     >>> len(words)
     13
+    >>> len(set(words))
+    10
 
 |nopar| This process of segmenting a string of characters into words
 is known as `tokenization`:dt:. Tokenization is a prelude to pretty
-much everything else we might want to do in |NLP|, since it tells our
+much everything else we do in |NLP|, since it tells our
 processing software what our basic units are. We will discuss
 tokenization in more detail shortly.
-
-
-We also pointed out that we could compile a list of the unique
-vocabulary items in a string by using ``set()`` to eliminate
-duplicates:
-
-    >>> len(set(words))
-    10
 
 |nopar| So if we ask how many words there are in ``sentence``, we get
 different answers depending on whether we count duplicates. 
@@ -1178,15 +1219,11 @@ consider a variety of factors in determining what counts as
 the same word, and we need to be careful in how we
 identify tokens in the first place. 
 
-Up till now, we have relied on getting our source texts by defining a string in
-a fragment of Python code. However, this is impractical
-for all but the simplest of texts, and makes it hard to present
-realistic examples. So how do we get larger chunks of
-text into our programs?  In the rest of this section, we will see how
-to extract text from files, from the web, and from the corpora
-distributed with |NLTK|.
+Tokenization with Regular Expressions
+-------------------------------------
 
-Tokenization, as we saw, is the task of extracting a sequence of elementary tokens
+Tokenization, as we saw, is the task of cutting a string into
+identifiable linguistic units.
 that constitute a piece of language data. In our first attempt to
 carry out this task, we started off with a string of characters, and
 used the ``split()`` method to break the string at whitespace
@@ -1197,9 +1234,6 @@ based solely on whitespace is too simplistic for most applications.
 In this section we will take a more sophisticated approach, using
 regular expressions to specify which character sequences should be
 treated as words.  We will also look at ways to normalize tokens.
-
-Tokenization with Regular Expressions
--------------------------------------
 
 The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
 regular expression, and returns the list of substrings that match the
@@ -1426,7 +1460,12 @@ a list of consecutive integers from 0 up to, but not including, ``n``:
 |nopar| However, such an approach is not very flexible or convenient. In this
 section, we will present Python's `regular expression`:dt: module
 ``re``, which supports powerful search and substitution inside
-strings.  As a gentle introduction, we will start out using a utility
+strings.
+
+Searching Strings with Regular Expressions
+------------------------------------------
+
+As a gentle introduction, we will start out using a utility
 function ``re_show()`` to illustrate how regular expressions match
 against substrings. ``re_show()`` takes two arguments, a pattern that
 it is looking for, and a string in which the pattern might occur.
@@ -1512,6 +1551,9 @@ matched by ``'\s'``.
     }{very }happy
     >>>
 
+Finding all Occurrences
+-----------------------
+
 Python's ``re.findall(``\ `patt`:ph:, `s`:ph:\ ``)`` function is a useful
 way to find all the substrings in `s`:ph: that are matched by `patt`:ph:.
 Before illustrating, let's introduce  two further
@@ -1570,6 +1612,9 @@ disjunction operator ``|``.
 In addition to the matches just illustrated, the regular expression
 ``'((very|really)\s)+'`` will also match cases where the two disjuncts
 occur with each other, such as the string ``'really very really '``. 
+
+Substitutions
+-------------
 
 Let's now look at how to perform substitutions, using the ``re.sub()``
 function.  In the first instance we replace
@@ -1857,7 +1902,6 @@ Exercises
 
 .. _sentence-segmentation:
 
----------------------
 Sentence Segmentation
 ---------------------
 
@@ -2368,42 +2412,6 @@ Exercises
       build a list ``phrase`` consisting of all the words up to (but not
       including) ``in`` in ``silly``.
 
--------------------
-Semantic Similarity
--------------------
-
-.. TODO: discuss WSD, mention Semcor, give pine cone example
-
-.. It is often useful to be able to tell whether two lexical concepts are
-   `semantically related`:dt:. For example, in order to check whether a
-   particular instance of the word `bank`:lx: means
-   *financial institution*, we can count the number of nearby words
-   that are semantically related to this sense.  Using WordNet, we can
-   investigate whether semantic relatedness can be
-   expressed in terms of the graph structure of the concept hierarchy. 
-
-We would expect that the semantic similarity of two concepts
-would correlate with the length of the path between them in WordNet.
-The ``wordnet`` package includes a variety of measures
-that incorporate this basic insight.  For example,
-``path_similarity`` assigns a score in the range 0\ |ndash|\
-1, based on the shortest path that connects the concepts in the hypernym
-hierarchy (-1 is returned in those cases where a path cannot be
-found).  A score of 1 represents identity, i.e., comparing a sense with
-itself will return 1.
-
-    >>> wordnet.N['poodle'][0].path_similarity(wordnet.N['dalmatian'][1])
-    0.33333333333333331
-    >>> wordnet.N['dog'][0].path_similarity(wordnet.N['cat'][0])
-    0.20000000000000001
-    >>> wordnet.V['run'][0].path_similarity(wordnet.V['walk'][0])
-    0.25
-    >>> wordnet.V['run'][0].path_similarity(wordnet.V['think'][0])
-    -1
-
-Several other similarity measures are provided in ``wordnet``:
-Leacock-Chodorow, Wu-Palmer, Resnik, Jiang-Conrath, and Lin.
-For a detailed comparison of various measures, see [Budanitsky2006EWB]_.
 
 Exercises
 ---------
