@@ -1745,6 +1745,8 @@ import docbook
 
 DOCBOOK_ROOT_NODE = "chapter"
 
+APPENDIX_TITLE_RE = re.compile("^Appendix: (.*)$")
+
 class CustomizedDocBookWriter(DocBookWriter):
     def translate(self):
         # what's the correct way to generate this??  why isn't it
@@ -1868,6 +1870,16 @@ class CustomizedDocBookTranslator(DocBookTranslator):
 
     def depart_callout_marker(self, node):
         pass
+
+    def visit_title(self, node):
+        # Remove the '^Appendix: ' string from titles within real
+        # appendixes.  The name of the title seems to be the second
+        # element in the node.
+        match = APPENDIX_TITLE_RE.match(docbook.node_to_str(node[-1]))
+        if match and DOCBOOK_ROOT_NODE == "appendix":
+            del node[1]
+            node.append(docutils.nodes.Text(match.group(1)))
+        DocBookTranslator.visit_title(self, node)
 
     _not_handled = set()
     def unknown_visit(self, node):
@@ -2646,6 +2658,8 @@ def main():
             global DOCBOOK_ROOT_NODE
             if in_file == "ch00.rst":
                 DOCBOOK_ROOT_NODE="preface"
+            if in_file.startswith("app"):
+                DOCBOOK_ROOT_NODE="appendix"
             docutils.core.publish_file(source_path=in_file, writer=writer,
                                        destination_path=out_file,
                                        reader=CustomizedReader(),
