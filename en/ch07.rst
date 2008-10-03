@@ -5,1270 +5,118 @@
 
     >>> import nltk, re, pprint
 
-.. TODO: explain that cfg grammars must not mix lexical and phrasal RHS
-.. TODO: explain why RHS can't have a sequence of terminals
-.. TODO: motivate or omit mathematical notation for formalizing CFGs
-.. TODO: include overview of cfg.Grammar and cfg.Production in 8.4
-.. TODO: put dependency grammar material in later chapter?
-.. TODO: make URLs clickable in the HTML version
+.. TODO: More Abney references
+.. TODO: introduce trees more here, rather than in parsing chapter (e.g. t.node)
 
-.. _chap-parse:
+.. _chap-chunk:
 
-====================================
-7. Context Free Grammars and Parsing
-====================================
+=====================================
+6. Partial Parsing and Interpretation
+=====================================
 
-.. _ch07-introduction:
+.. _ch06-introduction:
 
 ------------
 Introduction
 ------------
 
-Early experiences with the kind of grammar taught in school are sometimes perplexing.
-Your written work might have been graded by a teacher who red-lined all
-the grammar errors they wouldn't put up with.
-Like the plural pronoun or the dangling preposition in the last sentence,
-or sentences like this one that lack a main verb.
-If you learnt English as a second language, you might have found it difficult
-to discover which of these errors need to be fixed (or *needs* to be fixed?).
-Correct punctuation is an obsession for many writers and editors.
-It is easy to find cases where changing punctuation changes meaning.
-In the following example, the interpretation of a relative clause as
-restrictive or non-restrictive depends on the presence of commas alone:
+In processing natural language, we are looking for structure and meaning.
+Two of the most common methods are
+`segmentation`:dt: and `labeling`:dt:.  Recall that in tokenization, we
+`segment`:em: a sequence of characters into tokens, while in tagging we
+`label`:em: each of these tokens.  Moreover, these two operations of
+segmentation and labeling go hand in hand.  We break up a stream of
+characters into linguistically meaningful segments (e.g., words) so
+that we can classify those segments with their part-of-speech
+categories.  The result of such classification is represented by
+adding a label (e.g., part-of-speech tag) to the segment in question.
 
+We will see that many tasks can be construed as a combination of
+segmentation and labeling. However, this involves generalizing our
+notion of segmentation to encompass `sequences`:em: of tokens. Suppose
+that we are trying to recognize the names of people, locations and
+organizations in a piece of text (a task that is usually called `Named
+Entity Recognition`:dt:). Many of these names will involve more than
+one token: `Cecil H. Green`:lx:, `Escondido Village`:lx:, `Stanford
+University`:lx:; indeed, some names may have sub-parts that are also
+names: `Cecil H. Green Library`:lx:, `Escondido Village Conference
+Service Center`:lx:. In Named Entity Recognition, therefore, we need
+to be able to identify the beginning and end of multi-token
+sequences.  
+
+Identifying the boundaries of specific types of word sequences is also
+required when we want to recognize pieces of syntactic
+structure. Suppose for example that as a preliminary to Named Entity
+Recognition, we have decided that it would be useful to just pick out
+noun phrases from a piece of text. To carry this out in a complete
+way, we would probably want to use a proper syntactic parser. But
+parsing can be quite challenging and computationally expensive |mdash|
+is there an easier alternative? The answer is Yes: we can look for
+sequences of part-of-speech tags in a tagged text, using one or more
+patterns that capture the typical ingredients of a noun phrase. 
+
+For example, here is some Wall Street Journal text with noun phrases
+marked using brackets:
+
+.. _wsj-nx:
 .. ex::
-  .. _rest:
-  .. ex:: The presidential candidate, who was extremely popular,
-          smiled broadly.
-  .. _nonrest:
-  .. ex:: The presidential candidate who was extremely popular smiled broadly.
-
-In rest_, we assume there is just one presidential candidate, and say
-two things about her: that she was popular and that she smiled. In
-nonrest_, on the other hand, we use the description `who was extremely
-popular`:lx: as a means of identifying which of several possible
-candidates we are referring to. 
-
-It is clear that some of these rules are important.
-However, others seem to be vestiges of antiquated style.
-Consider the injunction that :lx:`however`
-|mdash| when used to mean *nevertheless* |mdash|
-must not appear at the start of a sentence.
-Pullum argues that Strunk and White [StrunkWhite1999]_ were
-merely insisting that English usage should conform to "an utterly
-unimportant minor statistical detail of style concerning adverb
-placement in the literature they knew" [Pullum2005However]_.
-This is a case where, a `descriptive`:em: observation about language use became
-a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
-and use grammar to formalize observations about language as it is used,
-particularly as it is used in corpora.
-
-In this chapter we present the fundamentals of syntax, focusing on constituency
-and tree representations, before describing the formal notation of context free
-grammar.  Next we present parsers as an automatic way to associate syntactic
-structures with sentences.  Finally, we give a detailed presentation of simple
-top-down and bottom-up parsing algorithms available in |NLTK|.
-Before launching into the theory we present some more naive observations about
-grammar, for the benefit of readers who do not have a background in linguistics.
-
-.. _sec-more-observations-about-grammar:
-
--------------------------------
-More Observations about Grammar
--------------------------------
-
-Another function of a grammar is to explain our observations
-about ambiguous sentences.  Even when the individual words are
-unambiguous, we can put them together to create ambiguous sentences,
-as in ambiguous_.
-
-.. _ambiguous:
-.. ex::
-  .. ex:: Fighting animals could be dangerous.
-  .. ex:: Visiting relatives can be tiresome.
-
-A grammar will be able to assign two structures to each sentence,
-accounting for the two possible interpretations.
-
-Perhaps another kind of syntactic variation, word order, is easier to
-understand.  We know that the two sentences `Kim likes Sandy`:lx: and
-`Sandy likes Kim`:lx: have different meanings, and that `likes Sandy
-Kim`:lx: is simply ungrammatical.  Similarly, we know that the
-following two sentences are equivalent:
-
-.. ex::
-  .. ex:: The farmer *loaded* the cart with sand
-  .. ex:: The farmer *loaded* sand into the cart
-
-However, consider the semantically similar verbs `filled`:lx: and `dumped`:lx:.
-Now the word order cannot be altered (ungrammatical sentences are
-prefixed with an asterisk.)
-
-.. ex::
-  .. ex:: The farmer *filled* the cart with sand
-  .. ex:: \*The farmer *filled* sand into the cart
-  .. ex:: \*The farmer *dumped* the cart with sand
-  .. ex:: The farmer *dumped* sand into the cart
-
-A further notable fact is that we have no difficulty accessing the meaning of
-sentences we have never encountered before.  It is not difficult to concoct an
-entirely novel sentence, one that has probably never been used before
-in the history of the language, and yet all speakers of the language
-will agree about its meaning.  In fact, the set of possible sentences is
-infinite, given that there is no upper bound on length.
-Consider the following passage from a children's story, containing a
-rather impressive sentence:
-
-   You can imagine Piglet's joy when at last the ship came in sight of
-   him. In after-years he liked to think that he had been in Very
-   Great Danger during the Terrible Flood, but the only danger he had
-   really been in was the last half-hour of his imprisonment, when
-   Owl, who had just flown up, sat on a branch of his tree to comfort
-   him, and told him a very long story about an aunt who had once laid
-   a seagull's egg by mistake, and the story went on and on, rather
-   like this sentence, until Piglet who was listening out of his
-   window without much hope, went to sleep quietly and naturally,
-   slipping slowly out of the window towards the water until he was
-   only hanging on by his toes, at which moment, luckily, a sudden
-   loud squawk from Owl, which was really part of the story, being
-   what his aunt said, woke the Piglet up and just gave him time to
-   jerk himself back into safety and say, "How interesting, and did
-   she?"  when -- well, you can imagine his joy when at last he saw
-   the good ship, Brain of Pooh (Captain, C. Robin; 1st Mate, P. Bear)
-   coming over the sea to rescue him...  (from A.A. Milne *In which
-   Piglet is Entirely Surrounded by Water*)
-
-Our ability to produce and understand entirely new sentences, of
-arbitrary length, demonstrates that the set of well-formed sentences in
-English is infinite.  The same case can be made for any human language.
-
-This chapter presents grammars and parsing, as the formal and
-computational methods for investigating and modeling the linguistic
-phenomena we have been touching on (or tripping over).
-As we shall see, patterns of well-formedness and ill-formedness in a
-sequence of words can be understood with respect to the underlying
-:dt:`phrase structure` of the sentences.  We can develop formal
-models of these structures using grammars and parsers.
-As before, the motivation is natural language *understanding*.  How
-much more of the meaning of a text can we access when we can reliably
-recognize the linguistic structures it contains?  Having read in a
-text, can a program 'understand' it enough to be able to answer simple
-questions about "what happened" or "who did what to whom."  Also as
-before, we will develop simple programs to process annotated corpora
-and perform useful tasks.
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
-
--------------------------
-What's the Use of Syntax?
--------------------------
-
-Earlier chapters focused on words: how to identify them, how to
-analyze their morphology, and how to assign them to classes via
-part-of-speech tags. We have also seen how to identify recurring
-sequences of words (i.e. n-grams). Nevertheless, there seem to be
-linguistic regularities that cannot be described simply in terms of
-n-grams.
-
-In this section we will see why it is useful to have some
-kind of syntactic representation of sentences.  In particular, we will
-see that there are systematic aspects of meaning that are much easier
-to capture once we have established a level of syntactic structure.
-
-.. _sec-syntactic-ambiguity:
-
-Syntactic Ambiguity
--------------------
-
-We have seen that sentences can be ambiguous.  If we overheard someone
-say :lx:`I went to the bank`, we wouldn't know whether it was
-a river bank or a financial institution.  This ambiguity concerns
-the meaning of the word :lx:`bank`, and is a kind of :dt:`lexical
-ambiguity`.
-
-However, other kinds of ambiguity cannot be explained in terms of
-ambiguity of specific words.  Consider a phrase involving
-an adjective with a conjunction:
-`old men and women`:lx:.
-Does `old`:lx: have wider scope than `and`:lx:, or is it the other way
-round? In fact, both interpretations are possible, and we can
-represent the different scopes using parentheses:
-
-.. ex::
-  .. ex::  old (men and women)
-  .. ex::  (old men) and women
-
-One convenient way of representing this scope difference at a structural
-level is by means of a `tree diagram`:dt:, as shown in tree-diagram_.
-
-.. _tree-diagram:
-.. ex::
-  .. ex::
-    .. tree:: (NP (Adj old)
-                  (NP
-                     (N men)
-                     (Conj and)
-                     (N women)))
-  .. ex::
-    .. tree:: (NP (NP
-                     (Adj old)
-                     (N men))
-                  (Conj and)
-                  (NP
-                     (N women)))
-
-Note that linguistic trees grow upside down: the node labeled `s`:gc:
-is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
-labeled with the words.
-
-In NLTK, you can easily produce trees like this yourself with the
-following commands:
-
-    >>> tree = nltk.bracket_parse('(NP (Adj old) (NP (N men) (Conj and) (N women)))')
-    >>> tree.draw()                 # doctest: +SKIP
-
-We can construct other examples of syntactic ambiguity
-involving the coordinating conjunctions `and`:lx: and `or`:lx:, e.g.
-`Kim left or Dana arrived and everyone cheered`:lx:.
-We can describe this ambiguity in terms of the relative
-semantic `scope`:dt: of `or`:lx: and `and`:lx:.
-
-For our third illustration of ambiguity, we look at
-prepositional phrases.
-Consider a sentence like: :lx:`I saw the man with a telescope`.  Who
-has the telescope?  To clarify what is going on here, consider the
-following pair of sentences:
-
-.. ex::
-  .. ex:: The policeman saw a burglar *with a gun*.
-         (not some other burglar)
-  .. ex:: The policeman saw a burglar *with a telescope*.
-         (not with his naked eye)
-
-In both cases, there is a prepositional phrase introduced by
-:lx:`with`.  In the first case this phrase modifies the noun
-:lx:`burglar`, and in the second case it modifies the verb :lx:`saw`.
-We could again think of this in terms of scope: does the prepositional
-phrase (`pp`:gc:) just have scope over the `np`:gc:
-`a burglar`:lx:, or does it have scope over
-the whole verb phrase? As before, we can represent the difference in terms
-of tree structure:
-
-.. _burglar:
-.. ex::
-  .. ex::
-    .. tree:: (S <NP the policeman>
-                 (VP (V saw)
-                     (NP <NP the burglar>
-                         <PP with a gun>)))
-  .. ex::
-    .. tree:: (S <NP the policeman>
-                 (VP (V saw)
-                     <NP the burglar>
-                     <PP with a telescope>))
-
-|nopar|
-In burglar_\ a, the `pp`:gc: attaches to the `np`:gc:,
-while in burglar_\ b, the `pp`:gc: attaches to the `vp`:gc:.
-
-We can generate these trees in Python as follows:
-
-    >>> s1 = '(S (NP the policeman) (VP (V saw) (NP (NP the burglar) (PP with a gun))))'
-    >>> s2 = '(S (NP the policeman) (VP (V saw) (NP the burglar) (PP with a telescope)))'
-    >>> tree1 = nltk.bracket_parse(s1)
-    >>> tree2 = nltk.bracket_parse(s2)
-
-We can discard the structure to get the list of `leaves`:dt:, and
-we can confirm that both trees have the same leaves (except for the last word).
-We can also see that the trees have different `heights`:dt: (given by the
-number of nodes in the longest branch of the tree, starting at `s`:gc:
-and descending to the words):
-
-    >>> tree1.leaves()
-    ['the', 'policeman', 'saw', 'the', 'burglar', 'with', 'a', 'gun']
-    >>> tree1.leaves()[:-1] == tree2.leaves()[:-1]
-    True
-    >>> tree1.height() == tree2.height()
-    False
-
-In general, how can we determine whether a prepositional phrase
-modifies the preceding noun or verb? This problem is known as
-`prepositional phrase attachment ambiguity`:dt:.
-The `Prepositional Phrase Attachment Corpus`:dt: makes it
-possible for us to study this question systematically.  The corpus is
-derived from the IBM-Lancaster Treebank of Computer Manuals and from
-the Penn Treebank, and distills out only the essential information
-about `pp`:gc: attachment. Consider the sentence from the WSJ
-in ppattach-a_.  The corresponding line in the Prepositional Phrase
-Attachment Corpus is shown in ppattach-b_.
-
-.. ex::
-  .. _ppattach-a:
-  .. ex::
-     Four of the five surviving workers have asbestos-related diseases,
-     including three with recently diagnosed cancer.
-  .. _ppattach-b:
-  .. ex::
-     ::
-
-       16 including three with cancer N
-
-|nopar|
-That is, it includes an identifier for the original sentence, the
-head of the relevant verb phrase (i.e., `including`:lx:), the head of
-the verb's `np`:gc: object (`three`:lx:), the preposition
-(`with`:lx:), and the head noun within the prepositional phrase
-(`cancer`:lx:). Finally, it contains an "attachment" feature (``N`` or
-``V``) to indicate whether the prepositional phrase attaches to
-(modifies) the noun phrase or the verb phrase. 
-Here are some further examples:
-
-.. _ppattachments:
-.. ex::
-   :: 
-
-     47830 allow visits between families N
-     47830 allow visits on peninsula V
-     42457 acquired interest in firm N
-     42457 acquired interest in 1986 V
-
-|nopar|
-The PP attachments in ppattachments_ can also be made explicit by
-using phrase groupings as in phrase-groupings_.
-
-.. _phrase-groupings:
-.. ex::
-   :: 
-
-     allow (NP visits (PP between families))
-     allow (NP visits) (PP on peninsula)
-     acquired (NP interest (PP in firm))
-     acquired (NP interest) (PP in 1986)
-
-Observe in each case that the argument of the verb is either a single
-complex expression ``(visits (between families))`` or a pair of
-simpler expressions ``(visits) (on peninsula)``.
-
-We can access the Prepositional Phrase Attachment Corpus from NLTK as follows:
-
-    >>> nltk.corpus.ppattach.tuples('training')[9]
-    ('16', 'including', 'three', 'with', 'cancer', 'N')
-
-If we go back to our first examples of `pp`:gc: attachment ambiguity,
-it appears as though it is the `pp`:gc: itself (e.g., `with a gun`:lx:
-versus `with a telescope`:lx:) that determines the attachment. However,
-we can use this corpus to find examples where other factors come into play.
-For example, it appears that the verb is the key factor in ppattach-verb_.
-
-.. _ppattach-verb:
-.. ex::
-   :: 
-
-     8582 received offer from group V
-     19131 rejected offer from group N
-
-Constituency
-------------
-
-We claimed earlier that one of the motivations for building syntactic
-structure was to help make explicit how a sentence says "who did what
-to whom". Let's just focus for a while on the "who" part of this
-story: in other words, how can syntax tell us what the subject of a
-sentence is? At first, you might think this task is rather simple
-|mdash| so simple indeed that we don't need to bother with syntax. In
-a sentence such as `The fierce dog bit the man`:lx:
-we know that it is the dog that is doing the biting. So we could
-say that the noun phrase immediately preceding the verb is the
-subject of the sentence. And we might try to make this more explicit
-in terms of sequences part-of-speech tags.  Let's try to come up with a simple
-definition of `noun phrase`:idx:; we might start off with something
-like this, based on our knowledge of noun phrase chunking (Chapter chap-chunk_):
-
-.. ex::
-    `dt jj* nn`:gc:
-
-|nopar|
-We're using regular expression notation here in the form of
-`jj*`:gc: to indicate a sequence of zero or more `jj`:gc:\s. So this
-is intended to say that a noun phrase can consist of a
-determiner, possibly followed by some adjectives, followed by a
-noun. Then we can go on to say that if we can find a sequence of
-tagged words like this that precedes a word tagged as a verb, then
-we've identified the subject. But now think about this sentence:
-
-.. ex:: The child with a fierce dog bit the man.
-
-|nopar|
-This time, it's the child that is doing the biting. But the tag
-sequence preceding the verb is:
-
-.. ex::
-    `dt nn in dt jj nn`:gc:
-
-Our previous attempt at identifying the subject would have
-incorrectly come up with `the fierce dog`:lx: as the subject.
-So our next hypothesis would have to be a bit more complex. For
-example, we might say that the subject can be identified as any string
-matching the following pattern before the verb:
-
-.. ex::
-     `dt jj* nn (in dt jj* nn)*`:gc:
-
-In other words, we need to find a noun phrase followed by zero or more
-sequences consisting of a preposition followed by a noun phrase. Now
-there are two unpleasant aspects to this proposed solution. The first
-is esthetic: we are forced into repeating the sequence of tags (`dt
-jj* nn`:gc:) that constituted our initial notion of noun phrase, and
-our initial notion was in any case a drastic simplification. More
-worrying, this approach still doesn't work! For consider the following
-example:
-
-.. _seagull:
-.. ex:: The seagull that attacked the child with the fierce dog bit the man.
-
-|nopar|
-This time the seagull is the culprit, but it won't be detected as subject by our
-attempt to match sequences of tags. So it seems that we need a
-richer account of how words are *grouped* together into patterns, and
-a way of referring to these groupings at different points in the
-sentence structure. This idea of grouping is often called
-syntactic `constituency`:dt:.
-
-As we have just seen, a well-formed sentence of a language is more
-than an arbitrary sequence of words from the language.  Certain kinds
-of words usually go together.  For instance, determiners like `the`:lx:
-are typically followed by adjectives or nouns, but not by verbs.
-Groups of words form intermediate structures called phrases or
-:dt:`constituents`.  These constituents can be identified using
-standard syntactic tests, such as substitution, movement and
-coordination.  For example, if a sequence of words can be replaced
-with a pronoun, then that sequence is likely to be a constituent.
-According to this test, we can infer that the italicized string in the
-following example is a constituent, since it can be replaced by
-`they`:lx:\:
-
-.. ex::
-  .. ex:: *Ordinary daily multivitamin and mineral supplements* could 
-         help adults with diabetes fight off some minor infections.
-  .. ex:: *They* could help adults with diabetes fight off some minor
-         infections.
-
-In order to identify whether a phrase is the subject of a sentence, we
-can use the construction called `Subject-Auxiliary Inversion`:dt: in
-English. This construction allows us to form so-called Yes-No
-Questions. That is, corresponding to the statement in have1_, we have
-the question in have2_:
-
-.. ex::
-  .. _have1:
-  .. ex:: All the cakes have been eaten.
-  .. _have2:
-  .. ex:: Have *all the cakes* been eaten?
-
-Roughly speaking, if a sentence already contains an auxiliary verb,
-such as `has`:lx: in have1_, then we can turn it into a Yes-No
-Question by moving the auxiliary verb 'over' the subject noun phrase
-to the front of the sentence. If there is no auxiliary in the
-statement, then we insert the appropriate form of `do`:lx: as the
-fronted auxiliary and replace the tensed main verb by its base form:
-
-.. ex::
-  .. ex:: The fierce dog bit the man.
-  .. ex:: Did *the fierce dog* bite the man?
-
-As we would hope, this test also confirms our earlier claim about the
-subject constituent of seagull_:
-
-.. ex:: Did *the seagull that attacked the child with the fierce dog* bite
-       the man?
-
-To sum up then, we have seen that the notion of constituent brings a
-number of benefits. By having a constituent labeled `noun phrase`:gc:,
-we can provide a unified statement of the classes of word that
-constitute that phrase, and reuse this statement in describing noun
-phrases wherever they occur in the sentence. Second, we can use the
-notion of a noun phrase in defining the subject of sentence, which in
-turn is a crucial ingredient in determining the "who does what to
-whom" aspect of meaning.
-
-More on Trees
--------------
-
-A tree is a set of connected nodes, each of which is labeled with a
-category.  It common to use a 'family' metaphor to talk about the
-relationships of nodes in a tree: for example, `s`:gc: is the
-`parent`:dt: of `vp`:gc:; conversely `vp`:gc: is a `daughter`:dt: (or
-`child`:dt:) of `s`:gc:.  Also, since `np`:gc: and `vp`:gc: are both
-daughters of `s`:gc:, they are also `sisters`:dt:. 
-Here is an example of a tree:
-
-.. ex::
-  .. tree:: (S (NP Lee) (VP (V saw) (NP the dog)))
-
-Although it is helpful to represent trees in a graphical format, for
-computational purposes we usually need a more text-oriented
-representation.  We will use the same format as the Penn Treebank,
-a combination of brackets and labels:
-
-.. doctest-ignore::
-      (S 
-         (NP Lee)
-         (VP 
-            (V saw)
-            (NP 
-               (Det the)
-               (N dog))))
-
-Here, the node value is a constituent type (e.g., `np`:gc: or `vp`:gc:),
-and the children encode the hierarchical contents of the tree.
-
-Although we will focus on syntactic trees, trees can be used to encode
-`any`:em: homogeneous hierarchical structure that spans a sequence
-of linguistic forms (e.g. morphological structure, discourse structure).
-In the general case, leaves and node values do not have to be strings.
-
-In NLTK, trees are created with the ``Tree`` constructor, which takes a
-node value and a list of zero or more children.  Here's a couple of
-simple trees:
-
-    >>> tree1 = nltk.Tree('NP', ['John'])
-    >>> print tree1
-    (NP John)
-    >>> tree2 = nltk.Tree('NP', ['the', 'man'])
-    >>> print tree2
-    (NP the man)
-
-|nopar|
-We can incorporate these into successively larger trees as follows:
-
-    >>> tree3 = nltk.Tree('VP', ['saw', tree2])
-    >>> tree4 = nltk.Tree('S', [tree1, tree3])
-    >>> print tree4
-    (S (NP John) (VP saw (NP the man)))
-
-|nopar|
-Here are some of the methods available for tree objects:
-
-    >>> print tree4[1]
-    (VP saw (NP the man))
-    >>> tree4[1].node
-    'VP'
-    >>> tree4.leaves()
-    ['John', 'saw', 'the', 'man']
-    >>> tree4[1,1,1]
-    'man'
-
-The printed representation for complex trees can be difficult to read.
-In these cases, the ``draw`` method can be very useful. 
-It opens a new window, containing a graphical representation
-of the tree.  The tree display window allows you to zoom in and out;
-to collapse and expand subtrees; and to print the graphical
-representation to a postscript file (for inclusion in a document).
-
-    >>> tree3.draw()                           # doctest: +SKIP
-
-.. image:: ../images/parse_draw.png
-   :scale: 70
-
-
-Treebanks (notes)
------------------
-
-The ``corpus`` module defines the ``treebank`` corpus reader,
-which contains a 10% sample of the Penn Treebank corpus.
-
-    >>> print nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
-    (S
-      (NP-SBJ
-        (NP (NNP Pierre) (NNP Vinken))
-        (, ,)
-        (ADJP (NP (CD 61) (NNS years)) (JJ old))
-        (, ,))
-      (VP
-        (MD will)
-        (VP
-          (VB join)
-          (NP (DT the) (NN board))
-          (PP-CLR
-            (IN as)
-            (NP (DT a) (JJ nonexecutive) (NN director)))
-          (NP-TMP (NNP Nov.) (CD 29))))
-      (. .))
-
-The program in Figure indent-tree_ prints a tree object using whitespace formatting.
-
-.. pylisting:: indent-tree
-
-   def indent_tree(t, level=0, first=False, width=8):
-       if not first:
-           print ' '*(width+1)*level,
-       try:
-           print "%-*s" % (width, t.node),
-           indent_tree(t[0], level+1, first=True)
-           for child in t[1:]:
-               indent_tree(child, level+1, first=False)
-       except AttributeError:
-           print t
-
-   >>> t = nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
-   >>> indent_tree(t)
-    S        NP-SBJ   NP       NNP      Pierre
-                               NNP      Vinken
-                      ,        ,
-                      ADJP     NP       CD       61
-                                        NNS      years
-                               JJ       old
-                      ,        ,
-             VP       MD       will
-                      VP       VB       join
-                               NP       DT       the
-                                        NN       board
-                               PP-CLR   IN       as
-                                        NP       DT       a
-                                                 JJ       nonexecutive
-                                                 NN       director
-                               NP-TMP   NNP      Nov.
-                                        CD       29
-             .        .
-
-
-NLTK also includes a sample from the *Sinica Treebank Corpus*,
-consisting of 10,000 parsed sentences drawn from the
-*Academia Sinica Balanced Corpus of Modern Chinese*.
-Here is a code fragment to read and display one of the trees in this corpus.
-
-    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
-
-
-.. _sinica-tree:
-.. ex::
-    .. image:: ../images/sinica-tree.png
-       :scale: 70
-
-Note that we can read tagged text from a Treebank corpus, using the ``tagged()`` method:
-
-    >>> print nltk.corpus.treebank.tagged_sents('wsj_0001.mrg')[0]
-    [('Pierre', 'NNP'), ('Vinken', 'NNP'), (',', ','), ('61', 'CD'), ('years', 'NNS'),
-    ('old', 'JJ'), (',', ','), ('will', 'MD'), ('join', 'VB'), ('the', 'DT'),
-    ('board', 'NN'), ('as', 'IN'), ('a', 'DT'), ('nonexecutive', 'JJ'),
-    ('director', 'NN'), ('Nov.', 'NNP'), ('29', 'CD'), ('.', '.')]
-
-Exercises
----------
-
-#. |easy| Can you come up with grammatical sentences that have probably never
-   been uttered before?  (Take turns with a partner.)  What does this tell you
-   about human language?
-
-#. |easy| Recall Strunk and White's prohibition against sentence-initial
-   `however`:lx: used to mean "although".
-   Do a web search for `however`:lx: used at the start of the sentence.
-   How widely used is this construction?
-
-#. |easy| Consider the sentence `Kim arrived or Dana left and everyone cheered`.
-   Write down the parenthesized forms to show the relative scope of `and`:lx:
-   and `or`:lx:.  Generate tree structures corresponding to both of these interpretations.
-
-#. |easy| The ``Tree`` class implements a variety of other useful methods.
-   See the ``Tree`` help documentation for more details, i.e. import
-   the Tree class and then type ``help(Tree)``.
-
-#. |easy| **Building trees:**
-
-   a) Write code to produce two trees, one for each reading of the phrase
-      `old men and women`:lx:
-
-   #) Encode any of the trees presented in this chapter as a labeled
-      bracketing and use ``nltk.bracket_parse()`` to check that it is well-formed.
-      Now use ``draw()`` to display the tree.
-
-   #) As in (a) above, draw a tree for `The woman saw a man last Thursday`:lx:.
-
-#. |easy| Write a recursive function to traverse a tree and return the
-   depth of the tree, such that a tree with a single node would have
-   depth zero.  (Hint: the depth of a subtree is the maximum depth
-   of its children, plus one.)
-
-#. |easy| Analyze the A.A. Milne sentence about Piglet, by underlining all
-   of the sentences it contains then replacing these with `s`:gc:
-   (e.g. the first sentence becomes `s`:gc: `when`:lx` `s`:gc:).
-   Draw a tree structure for this "compressed" sentence.  What are
-   the main syntactic constructions used for building such a long
-   sentence?
-
-#. |soso| To compare multiple trees in a single window, we can use the
-   ``draw_trees()`` method.  Define some trees and try it out:
-
-    >>> from nltk.draw.tree import draw_trees
-    >>> draw_trees(tree1, tree2, tree3)                    # doctest: +SKIP
-
-#. |soso| Using tree positions, list the subjects of the first 100
-   sentences in the Penn treebank; to make the results easier to view,
-   limit the extracted subjects to subtrees whose height is 2.
-
-#. |soso| Inspect the Prepositional Phrase Attachment Corpus
-   and try to suggest some factors that influence `pp`:gc: attachment.
-
-#. |soso| In this section we claimed that there are linguistic regularities
-   that cannot be described simply in terms of n-grams.
-   Consider the following sentence, particularly the position of the phrase
-   `in his turn`:lx:.  Does this illustrate a problem for an approach based
-   on n-grams?
-
-     `What was more, the in his turn somewhat youngish Nikolay Parfenovich
-     also turned out to be the only person in the entire world to acquire a
-     sincere liking to our "discriminated-against" public procurator.`
-     (Dostoevsky: The Brothers Karamazov)
-
-#. |soso| Write a recursive function that produces a nested bracketing for
-   a tree, leaving out the leaf nodes, and displaying the non-terminal
-   labels after their subtrees.  So the above example about Pierre
-   Vinken would produce:
-   ``[[[NNP NNP]NP , [ADJP [CD NNS]NP JJ]ADJP ,]NP-SBJ MD [VB [DT NN]NP [IN [DT JJ NN]NP]PP-CLR [NNP CD]NP-TMP]VP .]S``
-   Consecutive categories should be separated by space.
-
-.. recurse over tree to look for coordinate constructions (cf 4th
-   example in chapter 1.1); (possible extension: callback function for Tree.subtrees())
-
-#. |soso| Download several electronic books from Project Gutenberg.
-   Write a program to scan these texts for any extremely long sentences.
-   What is the longest sentence you can find?  What syntactic construction(s)
-   are responsible for such long sentences?
-
-#. |hard| One common way of defining the subject of a sentence `s`:gc: in
-   English is as *the noun phrase that is the daughter of* `s`:gc: *and
-   the sister of* `vp`:gc:.   Write a function that takes the tree for
-   a sentence and returns the subtree corresponding to the subject of the
-   sentence.  What should it do if the root node of the tree passed to
-   this function is not `s`:gc:, or it lacks a subject?
-
---------------------
-Context Free Grammar
---------------------
-
-As we have seen, languages are infinite |mdash| there is no principled
-upper-bound on the length of a sentence.  Nevertheless, we would like
-to write (finite) programs that can process well-formed sentences.  It turns
-out that we can characterize what we mean by well-formedness using a
-grammar.  The way that finite grammars are able to describe an
-infinite set uses `recursion`:dt:.  (We already came across this idea
-when we looked at regular expressions: the finite expression ``a+`` is
-able to describe the infinite set ``{a, aa, aaa, aaaa, ...}``).  Apart
-from their compactness, grammars usually capture important structural
-and distributional properties of the language, and can be used to map
-between sequences of words and abstract representations of meaning.
-Even if we were to impose an upper bound on sentence length to ensure
-the language was finite, we would probably still want to come up with
-a compact representation in the form of a grammar.
-
-A `grammar`:dt: is a formal system that specifies which sequences of
-words are well-formed in the language, and that provides one or more
-phrase structures for well-formed sequences.  We will be looking at
-:dt:`context-free grammar` (CFG), which is a collection of
-`productions`:dt: of the form `s`:gc: |rarr| `np vp`:gc:.  This says
-that a constituent `s`:gc: can consist of sub-constituents `np`:gc:
-and `vp`:gc:. Similarly, the production `v`:gc: |rarr| ``'saw' | ``'walked'``
-means that the constituent `v`:gc: can consist of the string
-`saw`:lx: or `walked`:lx:.
-For a phrase structure tree to be well-formed relative to
-a grammar, each non-terminal node and its children must correspond to
-a production in the grammar.
-
-
-A Simple Grammar
-----------------
-
-Let's start off by looking at a simple context-free grammar.
-By convention, the left-hand-side of the first production is
-the `start-symbol`:dt: of the grammar, and all well-formed trees
-must have this symbol as their root label.
-
-.. _grammar1:
-.. ex::
-
- | S |rarr| NP VP
- | NP |rarr| Det N | Det N PP
- | VP |rarr| V | V NP | V NP PP
- | PP |rarr| P NP
- |
- | Det |rarr| 'the' | 'a'
- | N |rarr| 'man' | 'park' | 'dog' | 'telescope'
- | V |rarr| 'saw' | 'walked'
- | P |rarr| 'in' | 'with'
-
-This grammar contains productions involving various syntactic categories,
-as laid out in Table syncat_.
-
-.. table:: syncat
-
-   ======    ====================    =====================
-   Symbol    Meaning                 Example
-   ======    ====================    =====================
-   S         sentence                `the man walked`:lx:
-   NP        noun phrase             `a dog`:lx:
-   VP        verb phrase             `saw a park`:lx:
-   PP        prepositional phrase    `with a telescope`:lx:
-   ...       ...                     ...
-   Det       determiner              `the`:lx:
-   N         noun                    `dog`:lx:
-   V         verb                    `walked`:lx:
-   P         preposition             `in`:lx:
-   ======    ====================    =====================
-
-   Syntactic Categories
-
-In our following discussion of grammar, we will use the following terminology.
-The grammar consists of productions, where each production involves a
-single `non-terminal`:dt: (e.g. `s`:gc:, `np`:gc:), an arrow, and one
-or more non-terminals and `terminals`:dt: (e.g. `walked`:lx:).
-The productions are often divided into two main groups.
-The `grammatical productions`:dt: are those without a terminal on
-the right hand side.  The `lexical productions`:dt: are those having
-a terminal on the right hand side.
-A special case of non-terminals are the `pre-terminals`:dt:, which
-appear on the left-hand side of lexical productions.
-We will say that a grammar `licenses`:dt: a tree if each non-terminal
-`x`:gc: with children `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`
-corresponds to a production in the grammar of the form:
-`x`:gc: |rarr| `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`.
-
-In order to get started with developing simple grammars of your own, you
-will probably find it convenient to play with the recursive descent
-parser demo, ``nltk.draw.rdparser.demo()``.
-The demo opens a window that displays a list of grammar productions in the
-left hand pane and the current parse diagram in the central pane:
-
-.. image:: ../images/parse_rdparsewindow.png
-   :scale: 100
-
-The demo comes with the grammar in grammar1_ already loaded. We will
-discuss the parsing algorithm in greater detail below, but for the
-time being you can get an idea of how it works by using the *autostep* button.
-If we parse the string `The dog saw a man in the park` using
-the grammar in grammar1_, we end up with two trees:
-
-.. ex::
-  .. ex::
-    .. tree:: (S (NP (Det the) (N dog))
-                 (VP (V saw)
-                     (NP (Det a) (N man))
-                     (PP (P in) (NP (Det the) (N park)))))
-  .. ex::
-    .. tree:: (S (NP (Det the) (N dog))
-                 (VP (V saw)
-                     (NP (Det a)
-                         (N man)
-                         (PP (P in) (NP (Det the) (N park))))))
-
-Since our grammar licenses two trees for this sentence, the sentence is
-said to be :dt:`structurally ambiguous`.  The ambiguity in question is called
-a `prepositional phrase attachment ambiguity`:idx:, as we saw earlier in this chapter.
-As you may recall, it is an ambiguity about attachment since the
-`pp`:gc: `in the park`:lx: needs to be attached to one of two places
-in the tree: either as a daughter of `VP`:gc: or else as a daughter of
-`np`:gc:.
-When the `pp`:gc: is attached to `vp`:gc:, the seeing event happened
-in the park.  However, if the `pp`:gc: is attached to `np`:gc:,
-then the man was in the park, and the agent of the seeing (the dog)
-might have been sitting on the balcony of an apartment overlooking the park.
-As we will see, dealing with ambiguity is a key challenge in parsing.
-
-Recursion in Syntactic Structure
---------------------------------
-
-Observe that sentences can be nested within sentences, with no limit
-to the depth:
-
-.. ex::
-  .. ex:: Jodie won the 100m freestyle
-  .. ex:: "The Age" reported that Jodie won the 100m freestyle
-  .. ex:: Sandy said "The Age" reported that Jodie won the 100m freestyle
-  .. ex::  I think Sandy said "The Age" reported that Jodie won the 100m freestyle
-
-|nopar|
-This nesting is explained in terms of :dt:`recursion`. A grammar is
-said to be :dt:`recursive` if a category occurring on the left hand
-side of a production (such as `s`:gc: in this case) also appears on
-the right hand side of a production. If this dual occurrence takes
-place in *one and the same production*, then we have :dt:`direct
-recursion`; otherwise we have :dt:`indirect recursion`. There is no
-recursion in grammar1_. However, the grammar in grammar2_ illustrates both kinds of
-recursive production:
-
-.. _grammar2:
-.. ex::
-     .. parsed-literal::
-
-        S  |rarr| NP VP
-        NP |rarr| Det Nom | Det Nom PP | PropN
-        Nom |rarr| Adj Nom | N
-        VP |rarr| V | V NP | V NP PP | V S
-        PP |rarr| P NP
-
-        PropN |rarr| 'John' | 'Mary' 
-        Det |rarr| 'the' | 'a'
-        N |rarr| 'man' | 'woman' | 'park' | 'dog' | 'lead' | 'telescope' | 'butterfly'
-        Adj  |rarr| 'fierce' | 'black' |  'big' | 'European'
-        V |rarr| 'saw' | 'chased' | 'barked'  | 'disappeared' | 'said' | 'reported' 
-        P |rarr| 'in' | 'with' 
-
-Notice that the production `Nom`:gc: |rarr| `Adj Nom`:gc: (where
-`Nom`:gc: is the category of nominals) involves direct
-recursion on the category `Nom`:gc:, whereas indirect recursion on `s`:gc:
-arises from the combination of two productions, namely `s`:gc: |rarr|
-`np vp`:gc: and `vp`:gc: |rarr| `v s`:gc:.  
-
-To see how recursion is handled in this grammar, consider the following
-trees.  Example nested-nominals_ involves nested nominal phrases,
-while nested-sentences_ contains nested sentences.
-
-.. ex::
-  .. ex::
-    .. _nested-nominals:
-    .. tree::
-     (S (NP (Det a) (Nom (Adj fierce)(Nom (Adj black) (N dog))))
-         (VP (V chased)
-            (NP (Det the) (Nom (Adj big)(Nom (Adj European) (N butterfly))))))
-  .. ex::
-    .. _nested-sentences:
-    .. tree::
-      (S (NP (Det the) (N man))
-         (VP (V said)
-             (S (NP (Det the) (N woman))
-                (VP (V thought)
-                    (S (NP (Det the) (N dog))
-                             (VP (V barked)))))))
-
-
-If you did the exercises for the last section, you will have noticed
-that the recursive descent parser fails to deal properly with the
-following production: `np`:gc: |rarr| `np pp`:gc:.
-From a linguistic point of view, this production is perfectly respectable,
-and will allow us to derive trees like this:
-
-.. ex::
-  .. tree::
-    (S (NP 
-           (NP 
-               (NP (Det the) (N man))
-               (PP (P with) (NP  (Det a) (N dog))))
-            (PP (P in  (NP  (Det the) (N park)))))
-         (VP (V disappeared)))
-
-More schematically, the trees for these compound noun phrases will be
-of the following shape:
-
-.. _leftrec:
-.. ex::
-  .. tree::
-    (NP (NP (NP (NP Det N) PP) PP) PP)
-
-The structure in leftrec_ is called a `left recursive`:dt: structure.
-These occur frequently in analyses of English, and
-the failure of recursive descent parsers to deal adequately with left
-recursion means that we will need to find alternative approaches.
-
-Heads, Complements and Modifiers
---------------------------------
-
-Let us take a closer look at verbs.
-The grammar grammar2_ correctly generates examples like subcat1_,
-corresponding to the four productions with `vp`:gc: on the left hand side:
-
-.. _subcat1:
-.. ex::
-   .. ex:: The woman gave the telescope to the dog
-   .. ex:: The woman saw a man
-   .. ex:: A man said that the woman disappeared
-   .. ex:: The dog barked
-
-That is, `gave`:lx: can occur with a following `np`:gc: and `pp`:gc:; 
-`saw`:lx: can occur with a following `np`:gc:; 
-`said`:lx: can occur with a following `s`:gc:; 
-and `barked`:lx: can occur with no following phrase.
-In these cases, `np`:gc:, `pp`:gc: and `s`:gc: are called :dt:`complements`
-of the respective verbs, and the verbs themselves are called
-:dt:`heads` of the verb phrase.
-
-However, there are fairly strong constraints on what verbs can occur
-with what complements. Thus, we would like our grammars to mark the
-following examples as ungrammatical:
-
-.. _subcat2:
-.. ex:: 
-   .. ex:: \*The woman disappeared the telescope to the dog
-   .. ex:: \*The dog barked a man
-   .. ex:: \*A man gave that the woman disappeared
-   .. ex:: \*A man said
-
-.. note:: It is possible to create examples that involve 'non-standard'
-   but interpretable combinations of verbs and complements. Thus,
-   we can, at a stretch, interpret `the man disappeared the dog`:lx:
-   to mean that the man made the dog disappear. We will ignore such examples here.
-
-How can we ensure that our grammar correctly excludes the
-ungrammatical examples in subcat2_?  We need some way of constraining
-grammar productions which expand `vp`:gc: so that verbs *only* co-occur
-with their correct complements. We do this by dividing the class of
-verbs into `subcategories`:dt:, each of which is associated with a
-different set of complements. For example, `transitive verbs`:dt: such
-as `saw`:lx:, `kissed`:lx: and `hit`:lx: require a following `np`:gc:
-object complement. Borrowing from the terminology of chemistry, we
-sometimes refer to the `valency`:dt: of a verb, that is, its capacity
-to combine with a sequence of arguments and thereby compose a verb
-phrase.
-
-Let's introduce a new category label for such verbs, namely
-`tv`:gc: (for Transitive Verb), and use it in the following productions:
-
-.. ex::
-   .. parsed-literal::
-
-     `vp`:gc: |rarr| `tv np`:gc:
-     `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit'
-
-Now `*the dog barked the man`:lx: is excluded since we haven't listed
-`barked`:lx: as a `V_tr`:gc:, but `the woman saw a man`:lx: is still allowed.
-Table verbcat_ provides more examples of labels for verb subcategories.
-
-.. table:: verbcat
-
-   ======    ====================    ========================
-   Symbol    Meaning                 Example
-   ======    ====================    ========================
-   IV        intransitive verb       *barked*
-   TV        transitive verb         *saw a man*
-   DatV      dative verb             *gave a dog to a man*
-   SV        sentential verb         *said that a dog barked*
-   ======    ====================    ========================
-
-   Verb Subcategories
-
-The revised grammar for `vp`:gc: will now look like this:
-
-.. _subcat3:
-.. ex::
-   .. parsed-literal:: 
-
-      `vp`:gc: |rarr| `datv np pp`:gc:
-      `vp`:gc: |rarr| `tv np`:gc:
-      `vp`:gc: |rarr| `sv s`:gc:
-      `vp`:gc: |rarr| `iv`:gc: 
-
-      `datv`:gc: |rarr| 'gave' | 'donated' | 'presented'
-      `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
-      `sv`:gc: |rarr| 'said' | 'knew' | 'alleged'
-      `iv`:gc: |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
-
-Notice that according to subcat3_, a given lexical item can belong to more
-than one subcategory. For example, `sang`:lx: can occur both with and
-without a following `np`:gc: complement.
-
-Dependency Grammar
-------------------
-
-Although we concentrate on phrase structure grammars in this chapter,
-we should mention an alternative approach, namely `dependency
-grammar`:dt:. Rather than taking starting from the grouping of words
-into constituents, dependency grammar takes as basic the notion that
-one word can be dependent on another (namely, its head). The root of a
-sentence is usually taken to be the main verb, and every other word is
-either dependent on the root, or connects to it through a path of
-dependencies. Figure depgraph0_ illustrates a dependency graph, where
-the head of the arrow points to the head of a dependency. 
-
-.. _depgraph0:
-.. ex::
-    .. image:: ../images/depgraph0.png
-       :scale: 30
-
-As you will see, the arcs in Figure depgraph0_ are labeled with the
-particular dependency relation that holds between a dependent and its
-head. For example, `Esso`:lx: bears the subject relation to `said`:lx:
-(which is the head of the whole sentence), and `Tuesday`:lx: bears a
-verbal modifier (`vmod`:gc:) relation to `started`:lx:.
-
-An alternative way of representing the dependency relationships is illustrated
-in the tree depgraph1_,
-where dependents are shown as daughters of their heads.
-
-.. _depgraph1:
-.. ex::
-    .. tree:: (said Esso (started (field the Whiting) production Tuesday))
-
-One format for encoding dependency information places each word on a
-line, followed by its part-of-speech tag, the index of its head, and
-the label of the dependency relation (cf. [Nivre2006MP]_). The index
-of a word is implicitly given by the ordering of the lines (with 1 as the
-first index). This is illustrated in the following code snippet:
-
-    >>> from nltk_contrib.dependency import DepGraph
-    >>> dg = DepGraph().read("""Esso	NNP	2	SUB
-    ... said	VBD	0	ROOT
-    ... the 	DT	5	NMOD
-    ... Whiting	NNP	5	NMOD
-    ... field	NN	6	SUB
-    ... started	VBD	2	VMOD
-    ... production	NN	6	OBJ
-    ... Tuesday	NNP	6	VMOD""")
-
-As you will see, this format also adopts the convention that the head
-of the sentence is dependent on an empty node, indexed as 0. We can
-use the ``deptree()`` method of a ``DepGraph()`` object to build an |NLTK|
-tree like that illustrated earlier in depgraph1_.
-
-    >>> tree = dg.deptree()
-    >>> tree.draw()                                 # doctest: +SKIP
-
-Formalizing Context Free Grammars
----------------------------------
-
-We have seen that a CFG contains terminal and nonterminal symbols, and
-productions that dictate how constituents are expanded into other
-constituents and words. In this section, we provide some formal definitions.
-
-A CFG is a 4-tuple |langle|\ `N`:math:, |Sigma|, `P`:math:, `S`:math:\
-|rangle|\ , where:
-
-*  |Sigma| is a set of *terminal* symbols (e.g., lexical items);
-
-*  `N`:math: is a set of *non-terminal* symbols (the category labels); 
-
-*  `P`:math: is a set of *productions* of the form `A`:math: |rarr| |alpha|, where
-
-   * `A`:math: is a non-terminal, and 
-
-   * |alpha| is a string of symbols from (`N`:math: |cup| |Sigma|)*
-     (i.e., strings of either terminals or non-terminals);
-
-*  `S`:math: is the *start symbol*.
-
-A `derivation`:dt: of a string from a non-terminal `A`:math:
-in grammar `G`:math: is the result of successively applying
-productions from  `G`:math: to `A`:math:.  For example, deriv1_ is a
-derivation of `the dog with a telescope`:lx: for the grammar in grammar1_.
-
-.. _deriv1:
-.. ex::
-  ::
-
-     NP
-     Det N PP
-     the N PP
-     the dog PP
-     the dog P NP
-     the dog with NP
-     the dog with Det N
-     the dog with a N
-     the dog with a telescope
-
-Although we have chosen here to expand the leftmost non-terminal
-symbol at each stage, this is not obligatory; productions can be
-applied in any order. Thus,  derivation deriv1_
-could equally have started off in the following manner:
-
-.. _deriv2:
-.. ex::
-  ::
-
-     NP
-     Det N PP
-     Det N P NP
-     Det N with NP
-     ...
-
-We can also write derivation deriv1_ as:
-
-.. _deriv3:
-.. ex::
-   `np`:gc: |DoubleRightArrow| `det n pp`:gc:
-   |DoubleRightArrow| `the`:lx: `n pp`:gc:
-   |DoubleRightArrow| `the dog`:lx: `pp`:gc:
-   |DoubleRightArrow| `the dog`:lx: `p np`:gc:
-   |DoubleRightArrow| `the dog with`:lx: `np`:gc:
-   |DoubleRightArrow| `the dog with a`:lx: `n`:gc:
-   |DoubleRightArrow| `the dog with a telescope`:lx:
-
-where |DoubleRightArrow| means "derives in one step". 
-We use |DoubleRightArrow|\ * to mean "derives in zero or more steps":
-
-* |alpha| |DoubleRightArrow|\ * |alpha| for any string |alpha|, and
-
-* if |alpha| |DoubleRightArrow|\ * |beta| and |beta|
-  |DoubleRightArrow| |gamma|, then |alpha| |DoubleRightArrow|\ *
-  |gamma|.
-
-We write `A`:math: |DoubleRightArrow|\ * |alpha| to indicate that
-|alpha| can be derived from  `A`:math:.
-
-In NLTK, context free grammars are defined in the ``parse.cfg`` module.  The easiest
-way to construct a grammar object is from the standard string representation
-of grammars.  In Figure cfg_ we define a grammar and use it to parse a simple
-sentence.  You will learn more about parsing in the next section.
-
-.. pylisting:: cfg
-   :caption: Context Free Grammars in NLTK
-
-   grammar = nltk.parse_cfg("""
-     S -> NP VP
-     VP -> V NP | V NP PP
-     V -> "saw" | "ate"
-     NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
-     Det -> "a" | "an" | "the" | "my"
-     N -> "dog" | "cat" | "cookie" | "park"
-     PP -> P NP
-     P -> "in" | "on" | "by" | "with"
-     """)
-   >>> sent = "Mary saw Bob".split()
-   >>> rd_parser = nltk.RecursiveDescentParser(grammar)
-   >>> for p in rd_parser.nbest_parse(sent):
-   ...      print p
-   (S (NP Mary) (VP (V saw) (NP Bob)))
-
-
-
-Exercises
----------
-
-1. |easy| In the recursive descent parser demo, experiment with changing the
-   sentence to be parsed by selecting *Edit Text* in the *Edit* menu.
-
-#. |easy| Can the grammar in grammar1_ be used to describe sentences that are
-   more than 20 words in length?
-
-#. |soso| You can modify the grammar in the recursive descent parser demo
-   by selecting *Edit Grammar*  in the *Edit* menu. Change
-   the first expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
-   PP``. Using the *Step* button, try to build a parse tree. What happens?
-
-#. |soso| Extend the grammar in grammar2_ with productions that expand prepositions as
-   intransitive, transitive and requiring a `pp`:gc:
-   complement. Based on these productions, use the method of the
-   preceding exercise to draw a tree for the sentence `Lee ran away home`:lx:\.
-
-#. |soso| Pick some common verbs and complete the following tasks:
-
-   a) Write a program to find those verbs in the Prepositional Phrase Attachment Corpus
-      ``nltk.corpus.ppattach``.  Find any cases where the same verb
-      exhibits two different attachments, but where the first noun,
-      or second noun, or preposition, stay unchanged (as we saw in
-      Section sec-syntactic-ambiguity_).
-
-   b) Devise CFG grammar productions to cover some of these cases.
-
-#. |hard| Write a function that takes a grammar (such as the one defined in
-   Figure cfg_) and returns a random sentence generated by the grammar.
-   (Use ``grammar.start()`` to find the start symbol of the grammar;
-   ``grammar.productions(lhs)`` to get the list of productions from the grammar
-   that have the specified left-hand side; and ``production.rhs()`` to get
-   the right-hand side of a production.)
-
-#. |hard| **Lexical Acquisition:**
-   As we saw in Chapter chap-chunk_, it is possible 
-   to collapse chunks down to their chunk label.  When we do this
-   for sentences involving the word `gave`:lx:, we find patterns
-   such as the following::
+  [ The/DT market/NN ] for/IN [ system-management/NN software/NN ]
+  for/IN [ Digital/NNP ] [ 's/POS hardware/NN ] is/VBZ fragmented/JJ
+  enough/RB that/IN [ a/DT giant/NN ] such/JJ as/IN [ Computer/NNP
+  Associates/NNPS ] should/MD do/VB well/RB there/RB ./.
+
+From the point of view of theoretical linguistics, we seem to have
+been rather unorthodox in our use of the term "noun phrase"; although
+all the bracketed strings are noun phrases, not every noun phrase has
+been captured. We will discuss this issue in more detail shortly. For
+the moment, let's say that we are identifying noun "chunks" rather
+than full noun phrases.
+
+
+In chunking, we carry out segmentation and labeling of multi-token sequences,
+as illustrated in Figure chunk-segmentation_.  The smaller boxes show
+word-level segmentation and labeling, while the large boxes show 
+higher-level segmentation and labeling.  It is these larger pieces
+that we will call `chunks`:dt:, and the process of identifying them is called
+`chunking`:dt:.
+
+.. _chunk-segmentation:
+.. figure:: ../images/chunk-segmentation.png
+   :scale: 30
+
+   Segmentation and Labeling at both the Token and Chunk Levels
+
+Like tokenization, chunking can skip over material in the input.  Tokenization
+omits white space and punctuation characters.  Chunking uses only a subset of
+the tokens and leaves others out.
+
+In this chapter, we will explore chunking in some depth, beginning
+with the definition and representation of chunks.  We will see regular
+expression and n-gram approaches to chunking, and will develop and
+evaluate chunkers using the CoNLL-2000 chunking corpus.  Towards the
+end of the chapter, we will look more briefly at Named Entity
+Recognition and related tasks.
+
+.. 
+    Chunking is an efficient and robust method for identifying short
+    phrases in text, or "chunks".  Chunks are `non-overlapping spans of
+    text`:em:, usually consisting of a head word (such as a noun) and the
+    adjacent modifiers and function words (such as adjectives and
+    determiners).  
+
+    There are other motivations for chunking: to locate information, and
+    to ignore information.  In the former case, we may want to extract
+    all noun phrases so they can be indexed.  A text retrieval system
+    could use such an index to support efficient retrieval for queries
+    involving terminological expressions.
+
+    The reverse side of the coin is to *ignore* information.  Suppose that
+    we want to study syntactic patterns, finding particular verbs in a
+    corpus and displaying their arguments.  For instance, here are some
+    uses of the verb `gave`:lx: in the Wall Street Journal (in the Penn
+    Treebank corpus sample).  After `np`:gc:\ -chunking, the internal
+    details of each noun phrase have been suppressed, allowing us to see
+    some higher-level patterns::
 
       gave NP
       gave up NP in NP
@@ -1276,468 +124,1361 @@ Exercises
       gave NP NP
       gave NP to NP
 
-   a) Use this method to study the complementation patterns of a verb
-      of interest, and write suitable grammar productions.
+    |nopar|
+    In this way we can acquire information about the complementation
+    patterns of a verb like `gave`:lx:, for use in the development of a
+    grammar (see Chapter chap-parse_).
 
-   b) Identify some English verbs that are near-synonyms, such as the
-      :lx:`dumped/filled/loaded` example from earlier in this chapter.
-      Use the chunking method to study the complementation patterns of
-      these verbs.  Create a grammar to cover these cases.  Can the verbs
-      be freely substituted for each other, or are their constraints?
-      Discuss your findings.
 
--------
-Parsing
--------
 
-A :dt:`parser` processes input sentences according to the
-productions of a grammar, and builds one or more
-constituent structures that conform to the grammar.
-A grammar is a declarative specification of well-formedness.
-In NLTK, it is just a multi-line string; it is not itself a
-program that can be used for anything.
-A parser is a procedural interpretation of the grammar.
-It searches through the space of trees licensed by a grammar
-to find one that has the required sentence along its fringe.
+--------------------------------
+Defining and Representing Chunks
+--------------------------------
 
-Parsing is important in both linguistics and natural language processing.
-A parser permits a grammar to be evaluated against
-a potentially large collection of test sentences,
-helping linguists to find any problems in their grammatical analysis.
-A parser can serve as a model of psycholinguistic processing,
-helping to explain the difficulties that humans have with processing
-certain syntactic constructions.
-Many natural language applications involve parsing at some point;
-for example, we would expect the natural language questions
-submitted to a question-answering system to undergo parsing as an initial step.
 
-In this section we see two simple parsing algorithms,
-a top-down method called recursive descent parsing,
-and a bottom-up method called shift-reduce parsing.
+Chunking vs Parsing
+-------------------
 
-.. _sec-recursive-descent:
+Chunking is akin to parsing in the sense that it can be used to build
+hierarchical structure over text.  There are several important
+differences, however.  First, as noted above, chunking is not
+exhaustive, and typically ignores some items in the surface string. In
+fact, chunking is sometimes called `partial parsing`:dt:. Second,
+where parsing constructs nested structures that are arbitrarily deep,
+chunking creates structures of fixed depth (typically depth 2).  These
+chunks often correspond to the lowest level of grouping identified in
+the full parse tree. This is illustrated in parsing-chunking_ below,
+which shows an `np`:gc: chunk structure and a completely parsed
+counterpart:
 
-Recursive Descent Parsing 
--------------------------
-
-The simplest kind of parser interprets a grammar as a specification
-of how to break a high-level goal into several lower-level subgoals.
-The top-level goal is to find an `s`:gc:.  The `s`:gc: |rarr| `np vp`:gc:
-production permits the parser to replace this goal with two subgoals:
-find an `np`:gc:, then find a `vp`:gc:.  Each of these subgoals can be
-replaced in turn by sub-sub-goals, using productions that have `np`:gc:
-and `vp`:gc: on their left-hand side.  Eventually, this expansion
-process leads to subgoals such as: find the word `telescope`:lx:.  Such
-subgoals can be directly compared against the input string, and
-succeed if the next word is matched.  If there is no match the parser
-must back up and try a different alternative.
-
-The recursive descent parser builds a parse tree during the above
-process.  With the initial goal (find an `s`:gc:), the `s`:gc: root node
-is created.  As the above process recursively expands its goals using
-the productions of the grammar, the parse tree is extended downwards
-(hence the name *recursive descent*).  We can see this in action using
-the parser demonstration ``nltk.draw.rdparser.demo()``.
-Six stages of the execution of this parser are shown in Table rdparser_.
-
-.. table:: rdparser
-
-   +---------------------------+--------------------------+---------------------------+
-   | |rdparser1|               | |rdparser2|              | |rdparser3|               |
-   |                           |                          |                           |
-   | a. Initial stage          | b. 2nd production        | c. Matching `the`:lx:     |
-   +---------------------------+--------------------------+---------------------------+
-   | |rdparser4|               | |rdparser5|              | |rdparser6|               |
-   |                           |                          |                           |
-   | d. Cannot match `man`:lx: | e. Completed parse       | f. Backtracking           |
-   +---------------------------+--------------------------+---------------------------+
-
-   Six Stages of a Recursive Descent Parser
-
-.. |rdparser1| image:: ../images/rdparser1.png
-.. |rdparser2| image:: ../images/rdparser2.png
-.. |rdparser3| image:: ../images/rdparser3.png
-.. |rdparser4| image:: ../images/rdparser4.png
-.. |rdparser5| image:: ../images/rdparser5.png
-.. |rdparser6| image:: ../images/rdparser6.png
-
-During this process, the parser is often forced to choose between several
-possible productions.  For example, in going from step 3 to step 4, it
-tries to find productions with `n`:gc: on the left-hand side.  The
-first of these is `n`:gc: |rarr| `man`:lx:.  When this does not work
-it `backtracks`:idx:, and tries other `n`:gc: productions in order, under it
-gets to `n`:gc: |rarr| `dog`:lx:, which matches the next word in the
-input sentence.  Much later, as shown in step 5, it finds a complete
-parse.  This is a tree that covers the entire sentence, without any
-dangling edges.  Once a parse has been found, we can get the parser to
-look for additional parses.  Again it will backtrack and explore other
-choices of production in case any of them result in a parse.
-
-NLTK provides a recursive descent parser:
-
-    >>> rd_parser = nltk.RecursiveDescentParser(grammar)
-    >>> sent = 'Mary saw a dog'.split()
-    >>> for t in rd_parser.nbest_parse(sent):
-    ...     print t
-    (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
-
-.. Note:: ``RecursiveDescentParser()`` takes an optional parameter ``trace``. 
-   If ``trace`` is greater than zero, then the parser will report the steps
-   that it takes as it parses a text.
-
-Recursive descent parsing has three key shortcomings.  First,
-left-recursive productions like `np`:gc: |rarr| `np pp`:gc: send it
-into an infinite loop.  Second, the parser wastes a lot of time
-considering words and structures that do not correspond to the input
-sentence.  Third, the backtracking process may discard parsed
-constituents that will need to be rebuilt again later.  For example,
-backtracking over `vp`:gc: |rarr| `v np`:gc: will discard the subtree
-created for the `np`:gc:.  If the parser then proceeds with `vp`:gc:
-|rarr| `v np pp`:gc:, then the `np`:gc: subtree must be created all
-over again.
-
-Recursive descent parsing is a kind of `top-down parsing`:dt:.
-Top-down parsers use a grammar to *predict* what the input will be,
-before inspecting the input!  However, since the input is available to
-the parser all along, it would be more sensible to consider the input
-sentence from the very beginning.  This approach is called
-`bottom-up parsing`:dt:, and we will see an example in the next section.
-
-.. _sec-shift-reduce:
-
-Shift-Reduce Parsing 
---------------------
-
-A simple kind of bottom-up parser is the `shift-reduce parser`:dt:.
-In common with all bottom-up parsers, a shift-reduce
-parser tries to find sequences of words and phrases that correspond
-to the *right hand* side of a grammar production, and replace them
-with the left-hand side, until the whole sentence is reduced to
-an `s`:gc:.
-
-The shift-reduce parser repeatedly pushes the next input word onto a
-stack (Section stacks-and-queues_); this is the `shift`:dt: operation.
-If the top *n* items on the stack match
-the *n* items on the right hand side of some production,
-then they are all popped off the stack, and the item on the left-hand
-side of the production is pushed on the stack.  This replacement of
-the top *n* items with a single item is the `reduce`:dt: operation.
-(This reduce operation may only be applied to the top of the stack;
-reducing items lower in the stack must be done before later items are
-pushed onto the stack.)  The parser finishes when all the input is
-consumed and there is only one item remaining on the stack, a parse
-tree with an `s`:gc: node as its root.
-
-The shift-reduce parser builds a parse tree during the above process.
-If the top of stack holds the word `dog`:lx:, and if the grammar has a
-production `n`:gc: |rarr| `dog`:lx:, then the reduce operation causes the word
-to be replaced with the parse tree for this production.  For
-convenience we will represent this tree as ``N(dog)``.  At a later
-stage, if the top of the stack holds two items ``Det(the) N(dog)`` and
-if the grammar has a production `np`:gc: |rarr| `det n`:gc: then the reduce
-operation causes these two items to be replaced with ``NP(Det(the),
-N(dog))``.  This process continues until a parse tree for the entire
-sentence has been constructed.  We can see this in action using the
-parser demonstration ``nltk.draw.srparser.demo()``.
-Six stages of the execution of this parser are shown in Figure srparser_.
-
-.. table:: srparser
-
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser1.png | .. image:: ../images/srparser2.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 1. Initial State                   | 2. After one shift                 |
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser3.png | .. image:: ../images/srparser4.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 3. After reduce shift reduce       | 4. After recognizing the second NP |
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser5.png | .. image:: ../images/srparser6.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 5. Complex NP                      | 6. Final Step                      |
-   +------------------------------------+------------------------------------+
-
-   Six Stages of a Shift-Reduce Parser
-
-NLTK provides ``ShiftReduceParser()``, a simple
-implementation of a shift-reduce parser.  This parser does not
-implement any backtracking, so it is not guaranteed to find a parse
-for a text, even if one exists.  Furthermore, it will only find at
-most one parse, even if more parses exist.  We can provide an
-optional ``trace`` parameter that controls how verbosely the
-parser reports the steps that it takes as it parses a text: 
-
-    >>> sr_parse = nltk.ShiftReduceParser(grammar, trace=2)
-    >>> sent = 'Mary saw a dog'.split()
-    >>> print sr_parse.parse(sent)
-    Parsing 'Mary saw a dog'
-        [ * Mary saw a dog]
-      S [ 'Mary' * saw a dog]
-      R [ <NP> * saw a dog]
-      S [ <NP> 'saw' * a dog]
-      R [ <NP> <V> * a dog]
-      S [ <NP> <V> 'a' * dog]
-      R [ <NP> <V> <Det> * dog]
-      S [ <NP> <V> <Det> 'dog' * ]
-      R [ <NP> <V> <Det> <N> * ]
-      R [ <NP> <V> <NP> * ]
-      R [ <NP> <VP> * ]
-      R [ <S> * ]
-      (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
-
-Shift-reduce parsers have a number of problems.
-A shift-reduce parser may fail to parse the sentence, even though the
-sentence is well-formed according to the grammar.  In such cases,
-there are no remaining input words to shift, and there is no way to
-reduce the remaining items on the stack, as exemplified in Table conflict_\ 1.
-The parser entered this blind alley at an earlier
-stage shown in Table conflict_\ 2, when it reduced instead of
-shifted.  This situation is called a `shift-reduce conflict`:dt:.  At
-another possible stage of processing shown in Table conflict_\ 3,
-the parser must choose between two possible reductions, both matching
-the top items on the stack: `vp`:gc: |rarr| `vp np pp`:gc: or `np`:gc: |rarr|
-`np pp`:gc:.  This situation is called a `reduce-reduce conflict`:dt:.
-
-.. table:: conflict
-
-   +------------------------------------------+
-   | .. image:: ../images/srparser7.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 1. Dead end                              |
-   +------------------------------------------+
-   | .. image:: ../images/srparser8.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 2. Shift-reduce conflict                 |
-   +------------------------------------------+
-   | .. image:: ../images/srparser9.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 3. Reduce-reduce conflict                |
-   +------------------------------------------+
-
-   Conflict in Shift-Reduce Parsing
-
-.. To do: diagram showing search tree with success and failure.
-
-Shift-reduce parsers may implement policies for resolving such
-conflicts.  For example, they may address shift-reduce conflicts by
-shifting only when no reductions are possible, and they may address
-reduce-reduce conflicts by favoring the reduction operation that removes
-the most items from the stack.  No such policies are failsafe however.
-
-The advantages of shift-reduce parsers over recursive descent parsers
-is that they only build structure that corresponds to the words in the
-input.  Furthermore, they only build each sub-structure once,
-e.g. ``NP(Det(the), N(man))`` is only built and pushed onto the stack
-a single time, regardless of whether it will later be used by the `vp`:gc:
-|rarr| `v np pp`:gc: reduction or the `np`:gc: |rarr| `np pp`:gc: reduction.
-
-The Left-Corner Parser
-----------------------
-
-One of the problems with the recursive descent parser is that it can
-get into an infinite loop.  This is because it applies the grammar
-productions blindly, without considering the actual input sentence.
-A left-corner parser is a hybrid between the bottom-up and top-down
-approaches we have seen.
-
-Grammar grammar2_ allows us to produce the following parse of `John saw
-Mary`:lx:\ :
-
-.. _jmtree:
+.. _parsing-chunking:
 .. ex::
-  .. tree::
-   (S (NP John) 
-      (VP (V saw)
-         (NP Mary)))
+  .. ex::
+     .. tree:: (S (NP (CD one) (JJ congressional) (NN aide)) (WP who) (VBD attended)
+                     (NP (DT the) (JJ two-hour) (NN meeting)) (VBD said) \.\.\. )
 
-Recall that the grammar in grammar2_ has the following productions for expanding `np`:gc:\ :
+  .. ex::
+     .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
+                     (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
 
-.. ex::
-   .. _r1:
-   .. ex:: `np`:gc: |rarr| `dt nom`:gc:
-   .. _r2:
-   .. ex:: `np`:gc: |rarr| `dt nom pp`:gc:
-   .. _r3:
-   .. ex:: `np`:gc: |rarr| `propn`:gc: 
+A significant motivation for chunking is its robustness and efficiency
+relative to parsing.  As we will see in Chapter chap-parse_, parsing has problems with robustness,
+given the difficulty in gaining broad coverage while minimizing
+ambiguity.  Parsing is also relatively inefficient: the time taken to
+parse a sentence grows with the cube of the length of the sentence,
+while the time taken to chunk a sentence only grows linearly.
 
-Suppose we ask you to first look at tree jmtree_, and then decide
-which of the `np`:gc: productions you'd want a recursive descent parser to
-apply first |mdash| obviously, r3_ is the right choice! How do you
-know that it would be pointless to apply r1_ or r2_ instead? Because
-neither of these productions will derive a string whose first word is
-`John`:lx:.  That is, we can easily tell that in a successful
-parse of `John saw Mary`:lx:, the parser has to expand `np`:gc: in
-such a way that `np`:gc: derives the string `John`:lx: |alpha|. More
-generally, we say that a category `B`:math: is a `left-corner`:dt: of
-a tree rooted in `A`:math: if  `A`:math: |DoubleRightArrow|\ *
-`B`:math: |alpha|.
+Representing Chunks: Tags vs Trees
+----------------------------------
 
-.. ex::
-  .. tree:: <A B a>
+As befits its intermediate status between tagging and parsing, chunk
+structures can be represented using either tags or trees.  The most
+widespread file representation uses so-called `IOB tags`:dt:.  In this
+scheme, each token is tagged with one of three special chunk tags,
+``I`` (inside), ``O`` (outside), or ``B`` (begin).  A token is tagged
+as ``B`` if it marks the beginning of a chunk.  Subsequent tokens
+within the chunk are tagged ``I``.  All other tokens are tagged ``O``.
+The ``B`` and ``I`` tags are suffixed with the chunk type,
+e.g. ``B-NP``, ``I-NP``.  Of course, it is not necessary to specify a
+chunk type for tokens that appear outside a chunk, so these are just
+labeled ``O``. An example of this scheme is shown in Figure
+chunk-tagrep_.
 
-A `left-corner parser`:dt: is a top-down parser with bottom-up filtering.
-Unlike an ordinary recursive descent parser, it does not get trapped
-in left recursive productions. 
-Before starting its work, a left-corner parser preprocesses the
-context-free grammar to build a table where each row contains two
-cells, the first holding a non-terminal, and the second holding the
-collection of possible left corners of that non-terminal. Table lc_
-illustrates this for the grammar from grammar2_.
+.. _chunk-tagrep:
+.. figure:: ../images/chunk-tagrep.png
+   :scale: 30
 
-.. table:: lc
+   Tag Representation of Chunk Structures
 
-   ========  ============================
-   Category  Left-Corners (pre-terminals)
-   ========  ============================
-   S         NP
-   NP        Det, PropN
-   VP        V
-   PP        P
-   ========  ============================
+IOB tags have become the standard way to represent chunk structures in
+files, and we will also be using this format.  Here is an example of
+the file representation of the information in Figure chunk-tagrep_::
 
-   Left-Corners in grammar2_
+  We PRP B-NP
+  saw VBD O
+  the DT B-NP
+  little JJ I-NP
+  yellow JJ I-NP
+  dog NN I-NP
 
-Each time a production is considered by the parser, it checks that the
-next input word is compatible with at least one of the pre-terminal
-categories in the left-corner table.
+.. Give example with a verb group?
 
-[TODO: *explain how this effects the action of the parser, and why this solves the problem.*]
+|nopar| In this representation, there is one token per line, each with
+its part-of-speech tag and its chunk tag.  We will see later that this
+format permits us to represent more than one chunk type, so long as
+the chunks do not overlap.  
+
+As we saw earlier, chunk structures can also be represented using
+trees.  These have the benefit that each chunk is a constituent that
+can be manipulated directly.  An example is shown in Figure
+chunk-treerep_:
+
+.. _chunk-treerep:
+.. figure:: ../images/chunk-treerep.png
+   :scale: 30
+
+   Tree Representation of Chunk Structures
+
+|nopar|
+|NLTK| uses trees for its internal representation of chunks, and
+provides methods for reading and writing such trees to the IOB
+format.  By now you should understand what chunks are, and how they
+are represented.  In the next section, you will see how to build a
+simple chunker.
+
+--------
+Chunking
+--------
+
+A `chunker`:dt: finds contiguous, non-overlapping spans of related
+tokens and groups them together into chunks.  Chunkers often operate
+on tagged texts, and use the tags to make chunking decisions.  In this
+section we will see how to write a special type of regular expression
+over part-of-speech tags, and then how to combine these into a chunk
+grammar.  Then we will set up a chunker to chunk some tagged text
+according to the grammar.
+
+Chunking in |NLTK| begins with tagged tokens.
+
+.. doctest-ignore::
+    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
+    ... ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
+
+Next, we write regular expressions over tag sequences.  The
+following example identifies noun phrases that consist of an
+optional determiner, followed by any number of adjectives, then a
+noun.
+
+    >>> cp = nltk.RegexpParser("NP: {<DT>?<JJ>*<NN>}")
+
+|nopar| We create a chunker ``cp`` that can then be used
+repeatedly to parse tagged input.  The result of chunking is 
+a tree.
+
+.. doctest-ignore::
+    >>> cp.parse(tagged_tokens).draw()
+
+.. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
+            (VBD barked) (IN at) (NP (DT the) (NN cat)))
+
+
+
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``import nltk, re, pprint``
+
+Tag Patterns
+------------
+
+A `tag pattern`:dt: is a sequence of part-of-speech tags delimited
+using angle brackets, e.g. ``<DT><JJ><NN>``.  Tag patterns are
+the same as the regular expression patterns we have already seen,
+except for two differences that make them easier to use for chunking.
+First, angle brackets group their contents into atomic
+units, so "``<NN>+``" matches one or more repetitions of the tag
+``NN``; and "``<NN|JJ>``" matches the ``NN`` or ``JJ``.  Second, the period wildcard operator is
+constrained not to cross tag delimiters, so that "``<N.*>``" matches
+any single tag starting with ``N``, e.g. ``NN``, ``NNS``.
+
+Now, consider the following noun phrases from the Wall Street
+Journal::
+
+  another/DT sharp/JJ dive/NN
+  trade/NN figures/NNS
+  any/DT new/JJ policy/NN measures/NNS
+  earlier/JJR stages/NNS
+  Panamanian/JJ dictator/NN Manuel/NNP Noriega/NNP
+
+.. TODO: how are they to view this CoNLL data?
+
+We can match these using a slight refinement of the first tag pattern
+above: ``<DT>?<JJ.*>*<NN.*>+``.  This can be used to chunk any sequence
+of tokens beginning with an optional determiner ``DT``, followed by
+zero or more adjectives of any type ``JJ.*`` (including relative
+adjectives like ``earlier/JJR``), followed by one or more nouns of any
+type ``NN.*``.  It is easy to find many more difficult examples::
+
+  his/PRP$ Mansion/NNP House/NNP speech/NN
+  the/DT price/NN cutting/VBG
+  3/CD %/NN to/TO 4/CD %/NN
+  more/JJR than/IN 10/CD %/NN
+  the/DT fastest/JJS developing/VBG trends/NNS
+  's/POS skill/NN
+
+Your challenge will be to come up with tag patterns to cover these and
+other examples.  A good way to learn about tag patterns is via a
+graphical interface ``nltk.draw.rechunkparser.demo()``.
+
+Chunking with Regular Expressions
+---------------------------------
+
+The chunker begins with a flat structure in which no tokens are
+chunked.  Patterns are applied in turn, successively updating the
+chunk structure.  Once all of the patterns have been applied, the
+resulting chunk structure is returned.  Figure chunker1_ shows a
+simple chunk grammar consisting of two patterns.  The first pattern
+matches an optional determiner or possessive pronoun (recall that
+``|`` indicates disjunction), zero or more adjectives, then a
+noun. The second rule matches one or more proper nouns.  We also
+define some tagged tokens to be chunked, and run the chunker on this input.
+
+.. pylisting:: chunker1
+   :caption: Simple Noun Phrase Chunker
+
+   grammar = r"""
+     NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and nouns
+         {<NNP>+}                # chunk sequences of proper nouns
+   """
+   cp = nltk.RegexpParser(grammar)
+   tagged_tokens = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"), ("her", "PP$"), ("long", "JJ"),
+                ("golden", "JJ"), ("hair", "NN")]
+   >>> print cp.parse(tagged_tokens)
+   (S
+     (NP Rapunzel/NNP)
+     let/VBD
+     down/RP
+     (NP her/PP$ long/JJ golden/JJ hair/NN))
+
+.. note:: The ``$`` symbol is a special character in regular
+          expressions, and therefore needs to be escaped with the
+          backslash ``\`` in order to match the tag ``PP$``.
+
+
+If a tag pattern matches at overlapping locations, the first
+match takes precedence.  For example, if we apply a rule that matches
+two consecutive nouns to a text containing three consecutive nouns,
+then only the first two nouns will be chunked:
+
+    >>> nouns = [("money", "NN"), ("market", "NN"), ("fund", "NN")]
+    >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> print cp.parse(nouns)
+    (S (NP money/NN market/NN) fund/NN)
+
+Once we have created the chunk for `money market`:lx:, we have
+removed the context that would have permitted `fund`:lx: to be
+included in a chunk.  This issue would have been avoided with
+a more permissive chunk rule, e.g. ``NP: {<NN>+}``.
+
+Developing Chunkers
+-------------------
+
+Creating a good chunker usually requires several rounds of
+development and testing, during which existing rules are refined and
+new rules are added.  In order to diagnose any problems, it often
+helps to trace the execution of a chunker, using its ``trace`` argument.
+The tracing output shows the rules that are
+applied, and uses braces to show the chunks that are created at each
+stage of processing.
+In Figure chunker2_, two chunk patterns are applied to the input
+sentence.  The first rule finds all sequences of three tokens whose
+tags are ``DT``, ``JJ``, and ``NN``, and the second rule finds any
+sequence of tokens whose tags are either ``DT`` or ``NN``.  We
+set up two chunkers, one for each rule ordering, and test them on
+the same input.
+
+.. pylisting:: chunker2
+   :Caption: Two Noun Phrase Chunkers Having Identical Rules in Different Orders
+
+   tagged_tokens = [("The", "DT"), ("enchantress", "NN"),
+               ("clutched", "VBD"), ("the", "DT"), ("beautiful", "JJ"), ("hair", "NN")]
+   cp1 = nltk.RegexpParser(r"""
+     NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
+         {<DT|NN>+}          # Chunk sequences of NN and DT
+     """)
+   cp2 = nltk.RegexpParser(r"""
+     NP: {<DT|NN>+}          # Chunk sequences of NN and DT
+         {<DT><JJ><NN>}      # Chunk det+adj+noun
+     """)
+
+   >>> print cp1.parse(tagged_tokens, trace=1)
+   # Input:
+    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
+   # Chunk det+adj+noun:
+    <DT>  <NN>  <VBD> {<DT>  <JJ>  <NN>}
+   # Chunk sequences of NN and DT:
+   {<DT>  <NN>} <VBD> {<DT>  <JJ>  <NN>}
+   (S
+     (NP The/DT enchantress/NN)
+     clutched/VBD
+     (NP the/DT beautiful/JJ hair/NN))
+   >>> print cp2.parse(tagged_tokens, trace=1)
+   # Input:
+    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
+   # Chunk sequences of NN and DT:
+   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
+   # Chunk det+adj+noun:
+   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
+   (S
+     (NP The/DT enchantress/NN)
+     clutched/VBD
+     (NP the/DT)
+     beautiful/JJ
+     (NP hair/NN))
+
+Observe that when we chunk material that is already partially chunked,
+the chunker will only create chunks that do not partially overlap
+existing chunks.  In the case of ``cp2``, the second rule
+did not find any chunks, since all chunks that matched
+its tag pattern overlapped with existing chunks.  As you can see,
+you need to be careful to put chunk rules in the right order. 
+
+You may have noted that we have added explanatory comments, preceded
+by ``#``, to each of our tag rules. Although it is not strictly
+necessary to do this, it's a helpful reminder of what a rule is meant
+to do, and it is used as a header line for the output of a rule
+application when tracing is on.
+
+You might want to test out some of your rules on a corpus. One option
+is to use the Brown corpus. However, you need to  remember that the
+Brown tagset is different from the Penn Treebank tagset that we
+have been using for our examples so far in this chapter; see Table
+brown-tags_ in Chapter chap-tag_ for a refresher. Because the Brown tagset
+uses ``NP`` for proper nouns, in this example we have followed Abney
+in labeling noun chunks as ``NX``.
+
+    >>> grammar = (r"""
+    ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}  # Chunk article/numeral/possessive+adj+noun
+    ...        {<NP>+}                       # Chunk one or more proper nouns                   
+    ... """)
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> sent = nltk.corpus.brown.tagged_sents(categories='a')[112]
+    >>> print cp.parse(sent)
+    (S
+      (NX His/PP$ contention/NN)
+      was/BEDZ
+      denied/VBN
+      by/IN
+      (NX several/AP bankers/NNS)
+      ,/,
+      including/IN
+      (NX Scott/NP Hudson/NP)
+      of/IN
+      (NX Sherman/NP)
+      ,/,
+      (NX Gaynor/NP B./NP Jones/NP)
+      of/IN
+      (NX Houston/NP)
+      ,/,
+      (NX J./NP B./NP Brady/NP)
+      of/IN
+      (NX Harlingen/NP)
+      and/CC
+      (NX Howard/NP Cox/NP)
+      of/IN
+      (NX Austin/NP)
+      ./.)
 
 Exercises
 ---------
 
-#. |easy| With pen and paper, manually trace the execution of a recursive descent
-   parser and a shift-reduce parser, for a CFG you have already seen, or one
-   of your own devising.
+#. |easy| **Chunk Grammar Development:**
+   Try developing a series of chunking rules using the graphical
+   interface accessible via ``nltk.draw.rechunkparser.demo()``
 
-#. |soso| Compare the performance of the top-down, bottom-up, and left-corner
-   parsers using the same grammar and three grammatical test
-   sentences. Use ``timeit`` to log the amount of time each
-   parser takes on the same sentence (Section sec-timing_).  Write a function that runs all
-   three parsers on all three sentences, and prints a 3-by-3 grid of
-   times, as well as row and column totals. Discuss your findings.
+#. |easy| **Chunking Demonstration:**
+   Run the chunking demonstration: ``nltk.chunk.demo()``
 
-#. |soso| Read up on "garden path" sentences.  How might the computational
-   work of a parser relate to the difficulty humans have with
-   processing these sentences?
-   ``http://en.wikipedia.org/wiki/Garden_path_sentence``
+#. |easy| **IOB Tags:**
+   The IOB format categorizes tagged tokens as ``I``,
+   ``O`` and ``B``.  Why are three tags necessary?  What
+   problem would be caused if we used ``I`` and ``O`` tags
+   exclusively?
 
-#. |hard| **Left-corner parser:** Develop a left-corner parser
-   based on the recursive descent parser, and inheriting from ``ParseI``.
-   (Note, this exercise requires knowledge of Python classes, covered
-   in Chapter chap-applied-programming_.)
+#. |easy| Write a tag pattern to match noun phrases containing plural head nouns,
+   e.g. "many/JJ researchers/NNS", "two/CD weeks/NNS", "both/DT new/JJ positions/NNS".
+   Try to do this by generalizing the tag pattern that handled singular
+   noun phrases.
 
-#. |hard| Extend NLTK's shift-reduce parser to incorporate backtracking, so
-   that it is guaranteed to find all parses that exist (i.e. it is `complete`:dt:).
+#. |soso| Write a tag pattern to cover noun phrases that contain gerunds,
+   e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
+   Add these patterns to the grammar, one per line.  Test your work using
+   some tagged sentences of your own devising.
+
+#. |soso| Write one or more tag patterns to handle coordinated noun phrases,
+   e.g. "July/NNP and/CC August/NNP",
+   "all/DT your/PRP$ managers/NNS and/CC supervisors/NNS",
+   "company/NN courts/NNS and/CC adjudicators/NNS".
+
+
+----------
+Scaling Up
+----------
+
+Now you have a taste of what chunking can do, but we have not
+explained how to carry out a quantitative evaluation of chunkers.  For
+this, we need to get access to a corpus that has been annotated not
+only with parts-of-speech, but also with chunk information.  We will
+begin by looking at the mechanics of converting IOB format into an
+|NLTK| tree, then at how this is done on a larger scale using a
+chunked corpus directly.  We will see how to use the corpus to score
+the accuracy of a chunker, then look some more flexible ways to
+manipulate chunks.  Our focus throughout will be on scaling up the
+coverage of a chunker.
+
+Reading IOB Format and the CoNLL 2000 Corpus
+--------------------------------------------
+
+Using the ``corpora`` module we can load Wall Street Journal
+text that has been tagged, then chunked using the IOB notation.  The
+chunk categories provided in this corpus are `np`:gc:, `vp`:gc: and `pp`:gc:.  As we
+have seen, each sentence is represented using multiple lines, as shown
+below::
+
+  he PRP B-NP
+  accepted VBD B-VP
+  the DT B-NP
+  position NN I-NP
+  ...
+
+|nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
+representation from one of these multi-line strings.  Moreover, it
+permits us to choose any subset of the three chunk types to use.  The
+example below produces only `np`:gc: chunks:
+
+.. doctest-ignore::
+    >>> text = '''
+    ... he PRP B-NP
+    ... accepted VBD B-VP
+    ... the DT B-NP
+    ... position NN I-NP
+    ... of IN B-PP
+    ... vice NN B-NP
+    ... chairman NN I-NP
+    ... of IN B-PP
+    ... Carlyle NNP B-NP
+    ... Group NNP I-NP
+    ... , , O
+    ... a DT B-NP
+    ... merchant NN I-NP
+    ... banking NN I-NP
+    ... concern NN I-NP
+    ... . . O
+    ... '''
+    >>> nltk.chunk.conllstr2tree(text, chunk_types=('NP',)).draw()
+
+.. tree:: (S (NP (PRP he))
+             (VBD accepted)
+             (NP (DT the) (NN position))
+             (IN of)
+             (NP (NN vice) (NN chairman))
+             (IN of)
+             (NP (NNP Carlyle) (NNP Group))
+             (, ,)
+             (NP (DT a) (NN merchant) (NN banking) (NN concern))
+             (. .))
+   :scale: 80
+
+
+We can use the NLTK corpus module to access a larger amount of chunked
+text.  The CoNLL 2000 corpus contains 270k words of Wall Street
+Journal text, divided into "train" and "test" portions, annotated with
+part-of-speech tags and chunk tags in the IOB format.  We can access
+the data using an NLTK corpus reader called ``conll2000``.  Here is an
+example that reads the 100th sentence of the "train" portion of the corpus:
+
+    >>> print nltk.corpus.conll2000.chunked_sents('train.txt')[99]
+    (S
+      (PP Over/IN)
+      (NP a/DT cup/NN)
+      (PP of/IN)
+      (NP coffee/NN)
+      ,/,
+      (NP Mr./NNP Stone/NNP)
+      (VP told/VBD)
+      (NP his/PRP$ story/NN)
+      ./.)
+
+
+|nopar|
+This  showed three chunk types, for `np`:gc:, `vp`:gc: and `pp`:gc:.
+We can also select which chunk types to read:
+
+    >>> print nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))[99]
+    (S
+      Over/IN
+      (NP a/DT cup/NN)
+      of/IN
+      (NP coffee/NN)
+      ,/,
+      (NP Mr./NNP Stone/NNP)
+      told/VBD
+      (NP his/PRP$ story/NN)
+      ./.)
+
+
+Simple Evaluation and Baselines
+-------------------------------
+
+Armed with a corpus, it is now possible to carry out some simple evaluation.
+We start off by establishing a baseline for the trivial chunk parser
+``cp`` that creates no chunks:
+
+    >>> cp = nltk.RegexpParser("")
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',)))
+    0.440845995079
+
+This indicates that more than a third of the words are tagged with
+``O`` (i.e., not in an `np`:gc: chunk).  Now let's try a naive regular
+expression chunker that looks for tags (e.g., ``CD``, ``DT``, ``JJ``,
+etc.) beginning with letters that are typical of noun phrase tags:
+
+    >>> grammar = r"NP: {<[CDJNP].*>+}"
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',)))
+    0.874479872666
+
+As you can see, this approach achieves pretty good results. In
+order to develop a more data-driven approach, let's define a function
+``chunked_tags()`` that takes some chunked data
+and sets up a conditional frequency distribution.
+For each tag, it counts up the number of times the tag
+occurs inside an `np`:gc: chunk (the ``True`` case, where ``chtag`` is
+``B-NP`` or ``I-NP``), or outside a chunk (the ``False`` case, where
+``chtag`` is ``O``).  It returns a list of those tags that occur
+inside chunks more often than outside chunks.
+
+.. pylisting:: chunker3
+   :caption: Capturing the conditional frequency of NP Chunk Tags
+
+   def chunked_tags(train):
+       """Generate a list of tags that tend to appear inside chunks"""
+       cfdist = nltk.ConditionalFreqDist()
+       for t in train:
+           for word, tag, chtag in nltk.chunk.tree2conlltags(t):
+               if chtag == "O":
+                   cfdist[tag].inc(False)
+               else:
+                   cfdist[tag].inc(True)
+       return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
+   >>> train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))
+   >>> print chunked_tags(train_sents)
+   ['PRP$', 'WDT', 'JJ', 'WP', 'DT', '#', '$', 'NN', 'FW', 'POS',
+   'PRP', 'NNS', 'NNP', 'PDT', 'RBS', 'EX', 'WP$', 'CD', 'NNPS', 'JJS', 'JJR']
+
+The next step is to convert this list of tags into a tag pattern.  To
+do this we need to "escape" all non-word characters, by preceding them
+with a backslash.  Then we need to join them into a disjunction.  This
+process would convert a tag list ``['NN', 'NN\$']`` into the tag pattern
+``<NN|NN\$>``.  The following function does this work, and returns a
+regular expression chunker:
+
+.. pylisting:: chunker4
+   :caption: Deriving a Regexp Chunker from Training Data
+
+   def baseline_chunker(train):
+       chunk_tags = [re.sub(r'(\W)', r'\\\1', tag)
+                     for tag in chunked_tags(train)]
+       grammar = 'NP: {<%s>+}' % '|'.join(chunk_tags)
+       return nltk.RegexpParser(grammar)
+
+|nopar|
+The final step is to train this chunker and test its accuracy (this
+time on the "test" portion of the corpus, i.e., data not seen during training):
+
+   >>> train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))
+   >>> test_sents  = nltk.corpus.conll2000.chunked_sents('test.txt', chunk_types=('NP',))
+   >>> cp = baseline_chunker(train_sents)
+   >>> print nltk.chunk.accuracy(cp, test_sents)
+   0.914262194736
+
+
+Splitting and Merging (incomplete)
+----------------------------------
+
+[Notes: the above approach creates chunks that are too large,
+e.g. `the cat the dog chased`:lx: would be given a single `np`:gc: chunk
+because it does not detect that determiners introduce new chunks.
+For this we would need a rule to split an `np`:gc: chunk
+prior to any determiner, using a pattern like:
+``"NP: <.*>}{<DT>"``.  We can also merge chunks, e.g.
+``"NP: <NN>{}<NN>"``.]
+
+Chinking
+--------
+
+Sometimes it is easier to define what we *don't* want to include in a
+chunk than it is to define what we *do* want to include.  In these
+cases, it may be easier to build a chunker using a method called
+`chinking`:dt:.
+
+
+Following [Abney1996PST]_, we define a `chink`:dt: as a sequence
+of tokens that is not included in a chunk.
+In the following example, ``barked/VBD at/IN`` is a chink::
+
+  [ the/DT little/JJ yellow/JJ dog/NN ] barked/VBD at/IN [ the/DT cat/NN ]
+
+Chinking is the process of removing a sequence of tokens from a
+chunk.  If the sequence of tokens spans an entire chunk, then the
+whole chunk is removed; if the sequence of tokens appears in the
+middle of the chunk, these tokens are removed, leaving two chunks
+where there was only one before.  If the sequence is at the beginning
+or end of the chunk, these tokens are removed, and a smaller chunk
+remains.  These three possibilities are illustrated in Table chinking_.
+
+.. table:: chinking
+
+   +-------------+---------------------+-------------------+------------------+
+   |             | Entire chunk        | Middle of a chunk | End of a chunk   |
+   +-------------+---------------------+-------------------+------------------+
+   | *Input*     | [a/DT little/JJ     | [a/DT little/JJ   | [a/DT little/JJ  | 
+   |             | dog/NN]             | dog/NN]           | dog/NN]          |
+   +-------------+---------------------+-------------------+------------------+
+   | *Operation* | Chink "DT JJ NN"    | Chink "JJ"        | Chink "NN"       |
+   +-------------+---------------------+-------------------+------------------+
+   | *Pattern*   | "}DT JJ NN{"        | "}JJ{"            | "}NN{"           |
+   +-------------+---------------------+-------------------+------------------+
+   | *Output*    | a/DT little/JJ      | [a/DT] little/JJ  | [a/DT little/JJ] |
+   |             | dog/NN              | [dog/NN]          | dog/NN           |
+   +-------------+---------------------+-------------------+------------------+
+
+   Three chinking rules applied to the same chunk
+
+In the following grammar, we put the entire sentence into a single
+chunk, then excise the chink:
+
+.. pylisting:: chinker
+   :caption: Simple Chinker
+
+   grammar = r"""
+     NP:
+       {<.*>+}          # Chunk everything
+       }<VBD|IN>+{      # Chink sequences of VBD and IN
+     """
+   tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
+          ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
+   cp = nltk.RegexpParser(grammar)
+   >>> print cp.parse(tagged_tokens)
+   (S
+     (NP the/DT little/JJ yellow/JJ dog/NN)
+     barked/VBD
+     at/IN
+     (NP the/DT cat/NN))
+   >>> test_sents = nltk.corpus.conll2000.chunked_sents('test.txt', chunk_types=('NP',))
+   >>> print nltk.chunk.accuracy(cp, test_sents)
+   0.581041433607
+
+|nopar|
+A chunk grammar can use any number of chunking and chinking patterns
+in any order.
+
+Multiple Chunk Types (incomplete)
+---------------------------------
+
+So far we have only developed `np`:gc: chunkers.  However, as we saw earlier
+in the chapter, the CoNLL chunking data is also annotated for `pp`:gc: and
+`vp`:gc: chunks.  Here is an example, to show the structure we get from the
+corpus and the flattened version that will be used as input to the parser.
+
+    >>> example = nltk.corpus.conll2000.chunked_sents('train.txt')[99]
+    >>> print example
+    (S
+      (PP Over/IN)
+      (NP a/DT cup/NN)
+      (PP of/IN)
+      (NP coffee/NN)
+      ,/,
+      (NP Mr./NNP Stone/NNP)
+      (VP told/VBD)
+      (NP his/PRP$ story/NN)
+      ./.)
+    >>> print example.flatten()
+    (S
+      Over/IN
+      a/DT
+      cup/NN
+      of/IN
+      coffee/NN
+      ,/,
+      Mr./NNP
+      Stone/NNP
+      told/VBD
+      his/PRP$
+      story/NN
+      ./.)
+
+Now we can set up a multi-stage chunk grammar, as shown in
+Figure multistage-chunker_.  It has a stage for each of the chunk types.
+
+.. pylisting:: multistage-chunker
+   :caption: A Multistage Chunker
+
+   cp = nltk.RegexpParser(r"""
+     NP: {<DT>?<JJ>*<NN.*>+}	# noun phrase chunks
+     VP: {<TO>?<VB.*>}       	# verb phrase chunks
+     PP: {<IN>}              	# prepositional phrase chunks
+     """)
+   >>> example = nltk.corpus.conll2000.chunked_sents('train.txt')[99]
+   >>> print cp.parse(example.flatten(), trace=1)
+   # Input:
+    <IN>  <DT>  <NN>  <IN>  <NN>  <,>  <NNP>  <NNP>  <VBD>  <PRP$>  <NN>  <.> 
+   # noun phrase chunks:
+    <IN> {<DT>  <NN>} <IN> {<NN>} <,> {<NNP>  <NNP>} <VBD>  <PRP$> {<NN>} <.> 
+   # Input:
+    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VBD>  <PRP$>  <NP>  <.> 
+   # verb phrase chunks:
+    <IN>  <NP>  <IN>  <NP>  <,>  <NP> {<VBD>} <PRP$>  <NP>  <.> 
+   # Input:
+    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
+   # prepositional phrase chunks:
+   {<IN>} <NP> {<IN>} <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
+   (S
+     (PP Over/IN)
+     (NP a/DT cup/NN)
+     (PP of/IN)
+     (NP coffee/NN)
+     ,/,
+     (NP Mr./NNP Stone/NNP)
+     (VP told/VBD)
+     his/PRP$
+     (NP story/NN)
+     ./.)
+
+Evaluating Chunk Parsers
+------------------------
+
+An easy way to evaluate a chunk parser is to take some already chunked
+text, strip off the chunks, rechunk it, and compare the result with
+the original chunked text.  The ``ChunkScore.score()`` function takes
+the correctly chunked sentence as its first argument, and the newly
+chunked version as its second argument, and compares them.  It reports
+the fraction of actual chunks that were found (recall), the fraction
+of hypothesized chunks that were correct (precision), and a combined
+score, the F-measure (the harmonic mean of precision and recall).
+
+A number of different metrics can be used to evaluate chunk parsers.
+We will concentrate on a class of metrics that can be derived from two
+sets:
+
+* **guessed**: The set of chunks returned by the chunk parser. 
+* **correct**: The correct set of chunks, as defined in the test corpus.
+
+We will set up
+an analogy between the correct set of chunks and a user's so-called "information need",
+and between the set of returned chunks and a system's returned documents
+(cf precision and recall, from Chapter chap-data-intensive_).
+
+During evaluation of a chunk parser, it is useful to flatten a chunk
+structure into a tree consisting only of a root node and leaves:
+
+    >>> correct = nltk.chunk.tagstr2tree(
+    ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
+    >>> print correct.flatten()
+    (S the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN)
+
+We run a chunker over this flattened data, and compare the
+resulting chunked sentences with the originals, as follows:
+
+
+    >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
+    ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    >>> chunkscore = nltk.chunk.ChunkScore()
+    >>> guess = cp.parse(correct.flatten())
+    >>> chunkscore.score(correct, guess)
+    >>> print chunkscore
+    ChunkParse score:
+        Precision: 100.0%
+        Recall:    100.0%
+        F-Measure: 100.0%
+
+``ChunkScore`` is a class for scoring chunk parsers.  It can be used
+to evaluate the output of a chunk parser, using precision, recall,
+f-measure, missed chunks, and incorrect chunks.  It can also be used
+to combine the scores from the parsing of multiple texts.  This is
+quite useful if we are parsing a text one sentence at a time.  The
+following program listing shows a typical use of the ``ChunkScore``
+class.  In this example, ``chunkparser`` is being tested on each
+sentence from the Wall Street Journal tagged files.
+
+    >>> grammar = r"NP: {<DT|JJ|NN>+}"
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> chunkscore = nltk.chunk.ChunkScore()
+    >>> for file in nltk.corpus.treebank_chunk.files()[:5]:
+    ...     for chunk_struct in nltk.corpus.treebank_chunk.chunked_sents(file):
+    ...         test_sent = cp.parse(chunk_struct.flatten())
+    ...         chunkscore.score(chunk_struct, test_sent)
+    >>> print chunkscore
+    ChunkParse score:
+        Precision:  42.3%
+        Recall:     29.9%
+        F-Measure:  35.0%
+
+The overall results of the evaluation can be viewed by printing the
+``ChunkScore``.  Each evaluation metric is also returned by an
+accessor method: ``precision()``, ``recall``, ``f_measure``,
+``missed``, and ``incorrect``.  The ``missed`` and ``incorrect``
+methods can be especially useful when trying to improve the
+performance of a chunk parser.  Here are the missed chunks:
+
+.. doctest-ignore::
+    >>> from random import shuffle
+    >>> missed = chunkscore.missed()
+    >>> shuffle(missed)
+    >>> print missed[:10]
+    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
+     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
+     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
+     (('30', 'CD'), ('years', 'NNS')),
+     (('workers', 'NNS'),),
+     (('preliminary', 'JJ'), ('findings', 'NNS')),
+     (('Medicine', 'NNP'),),
+     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
+     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
+     (('researchers', 'NNS'),)]
+
+Here are the incorrect chunks:
+
+.. doctest-ignore::
+    >>> incorrect = chunkscore.incorrect()
+    >>> shuffle(incorrect)
+    >> print incorrect[:10]
+    [(('New', 'JJ'), ('York-based', 'JJ')),
+     (('Micronite', 'NN'), ('cigarette', 'NN')),
+     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
+     (('later', 'JJ'),),
+     (('preliminary', 'JJ'),),
+     (('New', 'JJ'), ('York-based', 'JJ')),
+     (('resilient', 'JJ'),),
+     (('group', 'NN'),),
+     (('the', 'DT'),),
+     (('Micronite', 'NN'), ('cigarette', 'NN'))]
+
+.. Note: By default, only the first 100 missed chunks and the first
+   100 incorrect chunks will be remembered by the ``ChunkScore``.  You
+   can tell ``ChunkScore`` to record more chunk examples with the
+   ``max_fp_examples`` (maximum false positive examples) and the
+   ``max_fn_examples`` (maximum false negative examples) keyword
+   arguments to the ``ChunkScore`` constructor:
+
+    >>> chunkscore = nltk.chunk.ChunkScore(max_fp_examples=1000,
+    ...                                    max_fn_examples=1000)
+
+Exercises
+---------
+
+#. |soso| **Chunker Evaluation:**
+   Carry out the following evaluation tasks for
+   any of the chunkers you have developed earlier.
+   (Note that most chunking corpora contain some internal
+   inconsistencies, such that any reasonable rule-based approach
+   will produce errors.)
+
+   a) Evaluate your chunker on 100 sentences from a chunked corpus,
+      and report the precision, recall and F-measure.
+   b) Use the ``chunkscore.missed()`` and ``chunkscore.incorrect()``
+      methods to identify the errors made by your chunker.  Discuss.
+   c) Compare the performance of your chunker to the baseline chunker
+      discussed in the evaluation section of this chapter.
+
+#. |hard| **Transformation-Based Chunking:**
+   Apply the n-gram and Brill tagging methods to IOB chunk tagging.
+   Instead of assigning POS tags to words, here we will assign IOB tags
+   to the POS tags.  E.g. if the tag ``DT`` (determiner) often occurs
+   at the start of a chunk, it will be tagged ``B`` (begin).  Evaluate
+   the performance of these chunking methods relative to the regular
+   expression chunking methods covered in this chapter.
+
+.. TODO: amplify following example
+
+
+
+
+Exercises
+---------
+
+#. |easy|
+   Pick one of the three chunk types in the CoNLL corpus.
+   Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
+   that make up this kind of chunk.  Develop a simple chunker using
+   the regular expression chunker ``nltk.RegexpParser``.
+   Discuss any tag sequences that are difficult to chunk reliably.
+
+#. |easy|
+   An early definition of *chunk* was the material that occurs between chinks.
+   Develop a chunker that starts by putting the whole sentence in a single
+   chunk, and then does the rest of its work solely by chinking.
+   Determine which tags (or tag sequences) are most likely to make up chinks
+   with the help of your own utility program.  Compare the performance and
+   simplicity of this approach relative to a chunker based entirely on
+   chunk rules.
+
+#. |soso|
+   Develop a chunker for one of the chunk types in the CoNLL corpus using a
+   regular-expression based chunk grammar ``RegexpChunk``.  Use any
+   combination of rules for chunking, chinking, merging or splitting.
+
+#. |soso| Sometimes a word is incorrectly tagged, e.g. the head noun in
+   "12/CD or/CC so/RB cases/VBZ".  Instead of requiring manual correction of
+   tagger output, good chunkers are able to work with the erroneous
+   output of taggers.  Look for other examples of correctly chunked
+   noun phrases with incorrect tags.
+
+#. |hard|
+   We saw in the tagging chapter that it is possible to establish
+   an upper limit to tagging performance by looking for ambiguous n-grams,
+   n-grams that are tagged in more than one possible way in the training data.
+   Apply the same method to determine an upper bound on the performance
+   of an n-gram chunker.
+
+#. |hard|
+   Pick one of the three chunk types in the CoNLL corpus.  Write functions
+   to do the following tasks for your chosen type:
+
+   a) List all the tag sequences that occur with each instance of this chunk type.
+   b) Count the frequency of each tag sequence, and produce a ranked list in
+      order of decreasing frequency; each line should consist of an integer (the frequency)
+      and the tag sequence.
+   c) Inspect the high-frequency tag sequences.  Use these as the basis for
+      developing a better chunker.
+
+#. |hard|
+   The baseline chunker presented in the evaluation section tends to
+   create larger chunks than it should.  For example, the
+   phrase:
+   ``[every/DT time/NN] [she/PRP] sees/VBZ [a/DT newspaper/NN]``
+   contains two consecutive chunks, and our baseline chunker will
+   incorrectly combine the first two: ``[every/DT time/NN she/PRP]``.
+   Write a program that finds which of these chunk-internal tags
+   typically occur at the start of a chunk, then
+   devise one or more rules that will split up these chunks.
+   Combine these with the existing baseline chunker and
+   re-evaluate it, to see if you have discovered an improved baseline.
+
+#. |hard|
+   Develop an `np`:gc: chunker that converts POS-tagged text into a list of
+   tuples, where each tuple consists of a verb followed by a sequence of
+   noun phrases and prepositions,
+   e.g. ``the little cat sat on the mat`` becomes ``('sat', 'on', 'NP')``...
+
+#. |hard|
+   The Penn Treebank contains a section of tagged Wall Street Journal text
+   that has been chunked into noun phrases.  The format uses square brackets,
+   and we have encountered it several times during this chapter.
+   The Treebank corpus can be accessed using:
+   ``for sent in nltk.corpus.treebank_chunk.chunked_sents(file)``.  These are flat trees,
+   just as we got using ``nltk.corpus.conll2000.chunked_sents()``.
+
+   a) The functions ``nltk.tree.pprint()`` and ``nltk.chunk.tree2conllstr()``
+      can be used to create Treebank and IOB strings from a tree.
+      Write functions ``chunk2brackets()`` and ``chunk2iob()`` that take a single
+      chunk tree as their sole argument, and return the required multi-line string
+      representation.
+   b) Write command-line conversion utilities ``bracket2iob.py`` and ``iob2bracket.py``
+      that take a file in Treebank or CoNLL format (resp) and convert it to the other
+      format.  (Obtain some raw Treebank or CoNLL data from the NLTK Corpora, save it
+      to a file, and then use ``for line in open(filename)`` to access it from Python.)
+
+.. _n-gram-chunking:
+
+---------------
+N-Gram Chunking
+---------------
+
+Our approach to chunking has been to try to detect structure based on
+the part-of-speech tags.  We have seen that the IOB format represents
+this extra structure using another kind of tag.  The question arises
+as to whether we could use the same *n*-gram tagging methods we saw in
+Chapter chap-tag_, applied to a different vocabulary. In this case,
+rather than trying to determine the correct part-of-speech tag, given
+a word, we are trying to determine the correct chunk tag, given a
+part-of-speech tag.
+
+The first step is to get the ``word,tag,chunk`` triples from the
+CoNLL 2000 corpus and map these to ``tag,chunk`` pairs:
+
+    >>> chunk_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(chtree)]
+    ...              for chtree in nltk.corpus.conll2000.chunked_sents('train.txt')]
+
+We will now train two *n*-gram taggers over this data.
+
+A Unigram Chunker
+-----------------
+
+To start off, we train and score a `unigram chunker`:dt: on the above data, just as if
+it was a tagger:
+
+    >>> unigram_chunker = nltk.UnigramTagger(chunk_data)
+    >>> print nltk.tag.accuracy(unigram_chunker, chunk_data)
+    0.781378851068
+
+This chunker does reasonably well.  Let's look at the errors it makes.
+Consider the opening phrase of the first sentence of the CONLL chunking
+data, here shown with part-of-speech tags:
+
+  Confidence/NN in/IN the/DT pound/NN is/VBZ widely/RB expected/VBN
+  to/TO take/VB another/DT sharp/JJ dive/NN
+
+We can try out the unigram chunker on this first sentence by creating
+some "tokens" using ``[t for t,c in chunk_data[0]]``, then running
+our chunker over them using ``list(unigram_chunker.tag(tokens))``.
+The unigram chunker only looks at the tags, and tries to add chunk
+tags.  Here is what it comes up with:
+
+  NN/I-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/O VBN/I-VP TO/B-PP
+  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
+
+Notice that it tags all instances of ``NN`` with ``I-NP``, because
+nouns usually do not appear at the beginning of noun phrases in
+the training data.  Thus, the first noun ``Confidence/NN`` is
+tagged incorrectly.  However, ``pound/NN`` and ``dive/NN`` are
+correctly tagged as ``I-NP``; they are not in the initial position
+that should be tagged ``B-NP``.  The chunker incorrectly tags
+``widely/RB`` as ``O``, and it incorrectly tags the
+infinitival ``to/TO`` as ``B-PP``, as if it was a preposition starting a
+prepositional phrase.
+
+A Bigram Chunker (incomplete)
+-----------------------------
+
+[Why these problems might go away if we look at the previous chunk tag?]
+
+Let's run a bigram chunker:
+
+    >>> bigram_chunker = nltk.BigramTagger(chunk_data, backoff=unigram_chunker)
+    >>> print nltk.tag.accuracy(bigram_chunker, chunk_data)
+    0.893220987404
+
+We can run the bigram chunker over the same sentence as before
+using ``list(bigram_chunker.tag(tokens))``.
+Here is what it comes up with:
+
+  NN/B-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/I-VP VBN/I-VP TO/I-VP
+  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
+
+This is 100% correct.
+
+Exercises
+---------
+
+#. |soso|
+   The bigram chunker scores about 90% accuracy.
+   Study its errors and try to work out why it doesn't get 100% accuracy.
+
+#. |soso|
+   Experiment with trigram chunking.  Are you
+   able to improve the performance any more?
+
+#. |hard|
+   An n-gram chunker can use information other than the current
+   part-of-speech tag and the `n-1`:math: previous chunk tags.
+   Investigate other models of the context, such as
+   the `n-1`:math: previous part-of-speech tags, or some combination of
+   previous chunk tags along with previous and following part-of-speech tags.
+
+#. |hard|
+   Consider the way an n-gram tagger uses recent tags to inform its tagging choice.
+   Now observe how a chunker may re-use this sequence information.  For example,
+   both tasks will make use of the information that nouns tend to follow adjectives
+   (in English).  It would appear that the same information is being maintained in
+   two places.  Is this likely to become a problem as the size of the rule sets grows?
+   If so, speculate about any ways that this problem might be addressed.
+
+-----------------
+Cascaded Chunkers
+-----------------
+
+So far, our chunk structures have been relatively flat.  Trees consist
+of tagged tokens, optionally grouped under a chunk node such as
+``NP``.  However, it is possible to build chunk structures of
+arbitrary depth, simply by creating a multi-stage chunk grammar.
+These stages are processed in the order
+that they appear.  The patterns in later stages can refer to a mixture
+of part-of-speech tags and chunk types.  Figure cascaded-chunker_ has
+patterns for noun phrases, prepositional phrases, verb phrases, and
+sentences.
+This is a four-stage chunk grammar, and can be used to create
+structures having a depth of at most four.
+
+.. pylisting:: cascaded-chunker
+   :caption: A Chunker that Handles NP, PP, VP and S
+
+   grammar = r"""
+     NP: {<DT|JJ|NN.*>+}       # Chunk sequences of DT, JJ, NN
+     PP: {<IN><NP>}            # Chunk prepositions followed by NP
+     VP: {<VB.*><NP|PP|S>+$}   # Chunk rightmost verbs and arguments/adjuncts
+     S:  {<NP><VP>}            # Chunk NP, VP
+     """
+   cp = nltk.RegexpParser(grammar)
+   tagged_tokens = [("Mary", "NN"), ("saw", "VBD"), ("the", "DT"), ("cat", "NN"),
+       ("sit", "VB"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+
+   >>> print cp.parse(tagged_tokens)
+   (S
+     (NP Mary/NN)
+     saw/VBD
+     (S
+       (NP the/DT cat/NN)
+       (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
+
+Unfortunately this result misses the `vp`:gc: headed by `saw`:lx:.  It has
+other shortcomings too.  Let's see what happens when we apply this
+chunker to a sentence having deeper nesting.
+
+    >>> tagged_tokens = [("John", "NNP"), ("thinks", "VBZ"), ("Mary", "NN"),
+    ...     ("saw", "VBD"), ("the", "DT"), ("cat", "NN"), ("sit", "VB"),
+    ...     ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    >>> print cp.parse(tagged_tokens)
+    (S
+      (NP John/NNP)
+      thinks/VBZ
+      (NP Mary/NN)
+      saw/VBD
+      (S
+        (NP the/DT cat/NN)
+        (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
+
+The solution to these problems is to get the chunker to loop over its
+patterns: after trying all of them, it repeats the process.
+We add an optional second argument ``loop`` to specify the number
+of times the set of patterns should be run:
+
+    >>> cp = nltk.RegexpParser(grammar, loop=2)
+    >>> print cp.parse(tagged_tokens)
+    (S
+      (NP John/NNP)
+      thinks/VBZ
+      (S
+        (NP Mary/NN)
+        (VP
+          saw/VBD
+          (S
+            (NP the/DT cat/NN)
+            (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))))
+
+This cascading process enables us to create deep structures.  However,
+creating and debugging a cascade is quite difficult, and there comes
+a point where it is more effective to do full parsing (see Chapter chap-parse_).
+
+
+----------------------
+Shallow Interpretation
+----------------------
+
+The main form of shallow semantic interpretation that we will consider
+is `Information Extraction`:dt:. This refers to the task of converting
+`unstructured data`:dt: (e.g., unrestricted text) or `semi-structured
+data`:dt: (e.g., web pages marked up with |HTML|) into `structured
+data`:dt: (e.g., tables in a relational database). For example, let's
+suppose we are given a text containing the fragment ie1_, and let's
+also suppose we are trying to find pairs of entities *X* and *Y* that
+stand in the relation 'organization *X* is located in location *Y*'.
+
+.. _ie1:
+.. ex:: ... said William Gale, an economist at the Brookings Institution,
+        the research group in Washington. 
+
+|nopar| As a result of processing this text, we should be able to add
+the pair |langle|\ *Brookings Institution*, *Washington*\ |rangle| to
+this relation. As we will see shortly, Information Extraction proceeds
+on the assumption that we are only looking for specific sorts of
+information, and these have been decided in advance. This limitation
+has been a necessary concession to allow the robust processing of
+unrestricted text.
+
+Potential applications of Information Extraction are
+many, and include business intelligence, resume harvesting, media
+analysis, sentiment detection, patent search, and email scanning. A
+particularly important area of current research involves the attempt
+to extract structured data out of electronically-available scientific
+literature, most notably in the domain of biology and medicine. 
+
+Information Extraction is usually broken down into at least two major
+steps: `Named Entity Recognition`:dt: and `Relation
+Extraction`:dt:. Named Entities (|NE|\ s) are usually taken to be noun phrases
+that denote specific types of individuals such as organizations,
+persons, dates, and so on. Thus, we
+might use the following |XML| annotations to mark-up the |NE|\ s in ie1_:
+
+.. _ie2:
+.. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
+        the <ne type='ORGANIZATION'>Brookings Institution</ne>,
+        the research group in <ne type='LOCATION'>Washington<ne>. 
+
+How do we go about identifying |NE|\ s? Our first thought might be
+that we could look up candidate expressions in an appropriate list of
+names. For example, in the case of locations, we might  try using a
+resource such as the `Alexandria Gazetteer
+<http://www.alexandria.ucsb.edu/gazetteer/>`_. Depending on the nature
+of our input data, this may be adequate |mdash| such a gazetteer is likely
+to have good coverage of international cities and many locations in
+the U.S.A., but will probably be missing the names of obscure villages
+in remote regions. However, a list of names for people or organizations
+will probably have poor coverage. New organizations, and new names for
+them, are coming into existence every day, so if we are trying to deal
+with contemporary newswire or blog entries, say, it is unlikely that
+we will be able to recognize many of the |NE|\ s by using gazetteer lookup. 
+
+A second consideration is that many |NE| terms are ambiguous. Thus
+`May`:lx: and `North`:lx: are likely to be parts of |NE|\ s for DATE
+and LOCATION, respectively, but could both be part of a PERSON |NE|;
+conversely `Christian Dior`:lx: looks like a PERSON |NE| but is more
+likely to be of type ORGANIZATION. A term like `Yankee`:lx: will be
+ordinary modifier in some contexts, but will be marked as an |NE| of
+type ORGANIZATION in the phrase `Yankee infielders`:lx:. To summarize,
+we cannot reliably detect |NE|\ s by looking them up in a gazetteer,
+and it is also hard to develop rules that will correctly recognize
+ambiguous |NE|\ s on the basis of their context of
+occurrence. Although lookup may contribute to a solution, most
+contemporary approaches to Named Entity Recognition treat it as a
+statistical classification task that requires training data for good
+performance. This task is facilitated by adopting an appropriate data
+representation, such as the IOB tags that we saw being deployed in
+the |CoNLL| chunk data. For example, here are a
+representative few lines from the CONLL 2002 (``conll2002``) Dutch
+training data::
+
+    Eddy N B-PER
+    Bonte N I-PER
+    is V O
+    woordvoerder N O
+    van Prep O
+    diezelfde Pron O
+    Hogeschool N B-ORG
+    . Punc O
+
+|nopar| As noted before, in this representation, there is one token
+per line, each with its part-of-speech tag and its |NE| tag.  When
+|NE|\ s have been identified in a text, we then want to extract
+relations that hold between them. As indicated earlier, we will
+typically be looking for relations between specified types of
+|NE|. One way of approaching this task is to initially look for all
+triples of the form *X*, |alpha|, *Y*, where *X* and *Y* are |NE|\ s
+of the required types, and |alpha| is the string of words that
+intervenes between *X* and *Y*. We can then use regular expressions to
+pull out just those instances of |alpha| that express the relation
+that we are looking for. The following example searches for strings
+that contain the word `in`:lx:. The special character expression
+``(?!\b.+ing\b)`` is a negative lookahead condition that allows us to
+disregard strings such as `success in supervising the transition
+of`:lx:, where `in`:lx: is followed by a gerundive verb.
+
+    >>> IN = re.compile(r'.*\bin\b(?!\b.+ing\b)')
+    >>> for doc in nltk.corpus.ieer.parsed_docs('NYT_19980315'):
+    ...     for rel in nltk.sem.extract_rels('ORG', 'LOC', doc, pattern = IN):
+    ...         print nltk.sem.show_raw_rtuple(rel)
+    [ORG: 'WHYY'] 'in' [LOC: 'Philadelphia']
+    [ORG: 'McGlashan &AMP; Sarrail'] 'firm in' [LOC: 'San Mateo']
+    [ORG: 'Freedom Forum'] 'in' [LOC: 'Arlington']
+    [ORG: 'Brookings Institution'] ', the research group in' [LOC: 'Washington']
+    [ORG: 'Idealab'] ', a self-described business incubator based in' [LOC: 'Los Angeles']
+    [ORG: 'Open Text'] ', based in' [LOC: 'Waterloo']
+    [ORG: 'WGBH'] 'in' [LOC: 'Boston']
+    [ORG: 'Bastille Opera'] 'in' [LOC: 'Paris']
+    [ORG: 'Omnicom'] 'in' [LOC: 'New York']
+    [ORG: 'DDB Needham'] 'in' [LOC: 'New York']
+    [ORG: 'Kaplan Thaler Group'] 'in' [LOC: 'New York']
+    [ORG: 'BBDO South'] 'in' [LOC: 'Atlanta']
+    [ORG: 'Georgia-Pacific'] 'in' [LOC: 'Atlanta']
+
+|nopar| Searching for the keyword works `in`:lx: reasonably well,
+though it will also retrieve false positives such as ``[ORG: House
+Transportation Committee] , secured the most money in the [LOC: New
+York]``; there is unlikely to be simple string-based method of
+excluding filler strings such as this.
+
+.. TODO fix processing of tagged corpora
+.. 
+ As shown above, the ``conll2002`` corpus contains not just |NE|
+ annotation but also part-of-speech tags. In principle, this allows us
+ to devise patterns that are sensitive to these tags.
+
+.. doctest-ignore::
+     >>> vnv = """
+     ... (
+     ... is/V|
+     ... was/V|
+     ... werd/V|
+     ... wordt/V
+     ... )
+     ... .*
+     ... van/Prep
+     ... """
+     >>> VAN = re.compile(vnv, re.VERBOSE)
+     >>> for r in nltk.sem.extract_rels('PER', 'ORG', corpus='conll2002-ned', pattern=VAN): 
+     ...     print show_tuple(r)
+
 
 ----------
 Conclusion
 ----------
 
-We began this chapter talking about confusing encounters with grammar
-at school.  We just wrote what we wanted to say, and our work was
-handed back with red marks showing all our grammar mistakes.  If this
-kind of "grammar" seems like secret knowledge, the linguistic approach
-we have taken in this chapter is quite the opposite: grammatical
-structures are made explicit as we build trees on top of sentences.
-We can write down the grammar productions, and parsers can build the
-trees automatically.  This thoroughly objective approach
-is widely referred to as `generative grammar`:dt:.
+In this chapter we have explored efficient and robust methods that can
+identify linguistic structures in text.  Using only part-of-speech
+information for words in the local context, a "chunker" can
+successfully identify simple structures such as noun phrases and verb
+groups.  We have seen how chunking methods extend the same lightweight
+methods that were successful in tagging.  The resulting structured
+information is useful in information extraction tasks and in the
+description of the syntactic environments of words.  The latter will
+be invaluable as we move to full parsing.
 
-Note that we have only considered "toy grammars," small grammars that
-illustrate the key aspects of parsing.  But there is an obvious
-question as to whether the general approach can be scaled up to cover
-large corpora of natural languages. How hard would it be to construct
-such a set of productions by hand? In general, the answer is: *very
-hard*. Even if we allow ourselves to use various formal devices that
-give much more succinct representations of grammar productions (some
-of which will be discussed in Chapter chap-advanced-parsing_), it is still extremely
-difficult to keep control of the complex interactions between the many
-productions required to cover the major constructions of a
-language. In other words, it is hard to modularize grammars so that
-one portion can be developed independently of the other parts. This in
-turn means that it is difficult to distribute the task of grammar
-writing across a team of linguists. Another difficulty is that as the
-grammar expands to cover a wider and wider range of constructions,
-there is a corresponding increase in the number of analyses which are
-admitted for any one sentence. In other words, ambiguity increases
-with coverage.
+There are a surprising number of ways to chunk a sentence using
+regular expressions.  The patterns can add, shift and remove chunks in
+many ways, and the patterns can be sequentially ordered in many ways.
+One can use a small number of very complex rules, or a long sequence
+of much simpler rules.  One can hand-craft a collection of rules, and
+one can write programs to analyze a chunked corpus to help in the
+development of such rules.  The process is painstaking, but generates
+very compact chunkers that perform well and that transparently encode
+linguistic knowledge.
 
-Despite these problems, there are a number of large collaborative
-projects that have achieved interesting and impressive results in
-developing rule-based grammars for several languages. Examples are the
-Lexical Functional Grammar (LFG) Pargram project
-(http://www2.parc.com/istl/groups/nltt/pargram/), the Head-Driven
-Phrase Structure Grammar (HPSG) LinGO Matrix framework
-(http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
-Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
+It is also possible to chunk a sentence using the techniques of n-gram
+tagging.  Instead of assigning part-of-speech tags to words, we assign
+IOB tags to the part-of-speech tags.  Bigram tagging turned out to be
+particularly effective, as it could be sensitive to the chunk tag on
+the previous word.  This statistical approach requires far less effort
+than rule-based chunking, but creates large models and delivers few
+linguistic insights.
 
----------------
-Summary (notes)
----------------
+Like tagging, chunking cannot be done perfectly.  For example, as
+pointed out by [Abney1996PST]_, we cannot correctly analyze the structure
+of the sentence *I turned off the spectroroute* without knowing the
+meaning of *spectroroute*; is it a kind of road or a type of device?
+Without knowing this, we cannot tell whether *off* is part of a
+prepositional phrase indicating direction (tagged ``B-PP``), or
+whether *off* is part of the verb-particle construction *turn off*
+(tagged ``I-VP``).
 
-* Sentences have internal organization, or constituent structure,
-  that can be represented using a tree; notable features of constituent
-  structure are: recursion, heads, complements, modifiers
-
-* A grammar is a compact characterization of a potentially infinite set of sentences;
-  we say that a tree is well-formed according to a grammar, or that a grammar licenses a tree.
-
-* Syntactic ambiguity arises when one sentence has more than one syntactic structure
-  (e.g. prepositional phrase attachment ambiguity).
-
-* A parser is a procedure for finding one or more trees corresponding to a grammatically
-  well-formed sentence.
-
-* A simple top-down parser is the recursive descent parser (summary, problems)
-
-* A simple bottom-up parser is the shift-reduce parser (summary, problems)
-
-* It is difficult to develop a broad-coverage grammar...
+A recurring theme of this chapter has been `diagnosis`:dt:.  The simplest
+kind is manual, when we inspect the tracing output of a chunker and
+observe some undesirable behavior that we would like to fix.
+Sometimes we discover cases where we cannot hope to get the correct
+answer because the part-of-speech tags are too impoverished and do not
+give us sufficient information about the lexical item.  A second
+approach is to write utility programs to analyze the training data,
+such as counting the number of times a given part-of-speech tag occurs
+inside and outside an `np`:gc: chunk.  A third approach is to evaluate the
+system against some gold standard data to obtain an overall
+performance score.  We can even use this to parameterize the system,
+specifying which chunk rules are used on a given run, and tabulating
+performance for different parameter combinations.  Careful use of
+these diagnostic methods permits us to optimize the performance of our
+system.  We will see this theme emerge again later in chapters dealing
+with other topics in natural language processing.
 
 ---------------
 Further Reading
 ---------------
 
-For more examples of parsing with |NLTK|, please see the
-guide at ``http://nltk.org/doc/guides/parse.html``.
+For more examples of chunking with |NLTK|, please see the
+guide at ``http://nltk.org/doc/guides/chunk.html``.
 
-There are many introductory books on syntax. [O'Grady1989LI]_ is a
-general introduction to linguistics, while [Radford1988TG]_ provides a
-gentle introduction to transformational grammar, and can be
-recommended for its coverage of transformational approaches to
-unbounded dependency constructions. 
+The popularity of chunking is due in great part to pioneering work by
+Abney e.g., [Abney1996PST]_. Abney's Cass chunker is available at
+`<http://www.vinartus.net/spa/97a.pdf>`_
 
-[BurtonRoberts1997AS]_ is very practically oriented textbook on how to
-analyze constituency in English, with extensive exemplification and
-exercises. [Huddleston2002CGE]_ provides an up-to-date and comprehensive analysis of
-syntactic phenomena in English.
+The word `chink`:dt: initially meant a sequence of stopwords,
+according to a 1975 paper by Ross and Tukey [Abney1996PST]_.
 
-Chapter 12 of [JurafskyMartin2008]_ covers formal grammars of English;
-Sections 13.1-3 cover simple parsing algorithms and techniques
-for dealing with ambiguity;
-Chapter 16 covers the Chomsky hierarchy and the formal complexity
-of natural language.
+The IOB format (or sometimes  `BIO Format`:dt:) was developed for
+`np`:gc: chunking by [Ramshaw1995TCU]_, and was used for the shared `np`:gc:
+bracketing task run by the *Conference on Natural Language Learning*
+(|CoNLL|) in 1999.  The same format was
+adopted by |CoNLL| 2000 for annotating a section of Wall Street
+Journal text as part of a shared task on `np`:gc: chunking.
 
-* LALR(1)
-
-* Marcus parser
-
-* Lexical Functional Grammar (LFG) 
-
-  * `Pargram project <http://www2.parc.com/istl/groups/nltt/pargram/>`_
-
-  * `LFG Portal <http://www.essex.ac.uk/linguistics/lfg/>`_
-
-* Head-Driven Phrase Structure Grammar (HPSG) `LinGO Matrix framework <http://www.delph-in.net/matrix/>`_
-
-* Lexicalized Tree Adjoining Grammar `XTAG Project <http://www.cis.upenn.edu/~xtag/>`_
+Section 13.5 of [JurafskyMartin2008]_ contains a discussion of chunking.
 
 .. include:: footer.rst
-

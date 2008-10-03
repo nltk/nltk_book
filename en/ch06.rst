@@ -1,1484 +1,2014 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
+.. include:: regexp-defns.rst
 
 .. standard global imports
 
     >>> import nltk, re, pprint
 
-.. TODO: More Abney references
-.. TODO: introduce trees more here, rather than in parsing chapter (e.g. t.node)
+.. TODO: introduce the concept of search, backtracking
+.. TODO: introduce diagnostic print statements
+.. TODO: timeit()
+.. TODO: cover yield statement, as promised in words chapter
+.. TODO: exercise based on word squares http://itre.cis.upenn.edu/~myl/languagelog/archives/002679.html
+.. TODO: docstrings, commenting practice
 
-.. _chap-chunk:
+.. _chap-structured-programming:
 
-=====================================
-6. Partial Parsing and Interpretation
-=====================================
+===================================
+5. Structured Programming in Python
+===================================
 
-.. _ch06-introduction:
+.. _ch05-introduction:
 
 ------------
 Introduction
 ------------
 
-In processing natural language, we are looking for structure and meaning.
-Two of the most common methods are
-`segmentation`:dt: and `labeling`:dt:.  Recall that in tokenization, we
-`segment`:em: a sequence of characters into tokens, while in tagging we
-`label`:em: each of these tokens.  Moreover, these two operations of
-segmentation and labeling go hand in hand.  We break up a stream of
-characters into linguistically meaningful segments (e.g., words) so
-that we can classify those segments with their part-of-speech
-categories.  The result of such classification is represented by
-adding a label (e.g., part-of-speech tag) to the segment in question.
+In Part I you had an introduction to Python (Chapter chap-introduction_)
+followed by chapters on tokenization, tagging, and chunking (Chapters chap-words_\ -\ chap-chunk_).
+These chapters contain many examples and exercises
+that should have helped you consolidate your Python skills
+and apply them to simple NLP tasks.  So far our programs |mdash| and the data we have 
+been processing |mdash| have been relatively unstructured.
+In Part II we will focus on `structure`:em:\ : i.e. structured programming
+with structured data.
 
-We will see that many tasks can be construed as a combination of
-segmentation and labeling. However, this involves generalizing our
-notion of segmentation to encompass `sequences`:em: of tokens. Suppose
-that we are trying to recognize the names of people, locations and
-organizations in a piece of text (a task that is usually called `Named
-Entity Recognition`:dt:). Many of these names will involve more than
-one token: `Cecil H. Green`:lx:, `Escondido Village`:lx:, `Stanford
-University`:lx:; indeed, some names may have sub-parts that are also
-names: `Cecil H. Green Library`:lx:, `Escondido Village Conference
-Service Center`:lx:. In Named Entity Recognition, therefore, we need
-to be able to identify the beginning and end of multi-token
-sequences.  
-
-Identifying the boundaries of specific types of word sequences is also
-required when we want to recognize pieces of syntactic
-structure. Suppose for example that as a preliminary to Named Entity
-Recognition, we have decided that it would be useful to just pick out
-noun phrases from a piece of text. To carry this out in a complete
-way, we would probably want to use a proper syntactic parser. But
-parsing can be quite challenging and computationally expensive |mdash|
-is there an easier alternative? The answer is Yes: we can look for
-sequences of part-of-speech tags in a tagged text, using one or more
-patterns that capture the typical ingredients of a noun phrase. 
-
-For example, here is some Wall Street Journal text with noun phrases
-marked using brackets:
-
-.. _wsj-nx:
-.. ex::
-  [ The/DT market/NN ] for/IN [ system-management/NN software/NN ]
-  for/IN [ Digital/NNP ] [ 's/POS hardware/NN ] is/VBZ fragmented/JJ
-  enough/RB that/IN [ a/DT giant/NN ] such/JJ as/IN [ Computer/NNP
-  Associates/NNPS ] should/MD do/VB well/RB there/RB ./.
-
-From the point of view of theoretical linguistics, we seem to have
-been rather unorthodox in our use of the term "noun phrase"; although
-all the bracketed strings are noun phrases, not every noun phrase has
-been captured. We will discuss this issue in more detail shortly. For
-the moment, let's say that we are identifying noun "chunks" rather
-than full noun phrases.
-
-
-In chunking, we carry out segmentation and labeling of multi-token sequences,
-as illustrated in Figure chunk-segmentation_.  The smaller boxes show
-word-level segmentation and labeling, while the large boxes show 
-higher-level segmentation and labeling.  It is these larger pieces
-that we will call `chunks`:dt:, and the process of identifying them is called
-`chunking`:dt:.
-
-.. _chunk-segmentation:
-.. figure:: ../images/chunk-segmentation.png
-   :scale: 30
-
-   Segmentation and Labeling at both the Token and Chunk Levels
-
-Like tokenization, chunking can skip over material in the input.  Tokenization
-omits white space and punctuation characters.  Chunking uses only a subset of
-the tokens and leaves others out.
-
-In this chapter, we will explore chunking in some depth, beginning
-with the definition and representation of chunks.  We will see regular
-expression and n-gram approaches to chunking, and will develop and
-evaluate chunkers using the CoNLL-2000 chunking corpus.  Towards the
-end of the chapter, we will look more briefly at Named Entity
-Recognition and related tasks.
-
-.. 
-    Chunking is an efficient and robust method for identifying short
-    phrases in text, or "chunks".  Chunks are `non-overlapping spans of
-    text`:em:, usually consisting of a head word (such as a noun) and the
-    adjacent modifiers and function words (such as adjectives and
-    determiners).  
-
-    There are other motivations for chunking: to locate information, and
-    to ignore information.  In the former case, we may want to extract
-    all noun phrases so they can be indexed.  A text retrieval system
-    could use such an index to support efficient retrieval for queries
-    involving terminological expressions.
-
-    The reverse side of the coin is to *ignore* information.  Suppose that
-    we want to study syntactic patterns, finding particular verbs in a
-    corpus and displaying their arguments.  For instance, here are some
-    uses of the verb `gave`:lx: in the Wall Street Journal (in the Penn
-    Treebank corpus sample).  After `np`:gc:\ -chunking, the internal
-    details of each noun phrase have been suppressed, allowing us to see
-    some higher-level patterns::
-
-      gave NP
-      gave up NP in NP
-      gave NP up
-      gave NP NP
-      gave NP to NP
-
-    |nopar|
-    In this way we can acquire information about the complementation
-    patterns of a verb like `gave`:lx:, for use in the development of a
-    grammar (see Chapter chap-parse_).
-
-
-
---------------------------------
-Defining and Representing Chunks
---------------------------------
-
-
-Chunking vs Parsing
--------------------
-
-Chunking is akin to parsing in the sense that it can be used to build
-hierarchical structure over text.  There are several important
-differences, however.  First, as noted above, chunking is not
-exhaustive, and typically ignores some items in the surface string. In
-fact, chunking is sometimes called `partial parsing`:dt:. Second,
-where parsing constructs nested structures that are arbitrarily deep,
-chunking creates structures of fixed depth (typically depth 2).  These
-chunks often correspond to the lowest level of grouping identified in
-the full parse tree. This is illustrated in parsing-chunking_ below,
-which shows an `np`:gc: chunk structure and a completely parsed
-counterpart:
-
-.. _parsing-chunking:
-.. ex::
-  .. ex::
-     .. tree:: (S (NP (CD one) (JJ congressional) (NN aide)) (WP who) (VBD attended)
-                     (NP (DT the) (JJ two-hour) (NN meeting)) (VBD said) \.\.\. )
-
-  .. ex::
-     .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
-                     (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
-
-A significant motivation for chunking is its robustness and efficiency
-relative to parsing.  As we will see in Chapter chap-parse_, parsing has problems with robustness,
-given the difficulty in gaining broad coverage while minimizing
-ambiguity.  Parsing is also relatively inefficient: the time taken to
-parse a sentence grows with the cube of the length of the sentence,
-while the time taken to chunk a sentence only grows linearly.
-
-Representing Chunks: Tags vs Trees
-----------------------------------
-
-As befits its intermediate status between tagging and parsing, chunk
-structures can be represented using either tags or trees.  The most
-widespread file representation uses so-called `IOB tags`:dt:.  In this
-scheme, each token is tagged with one of three special chunk tags,
-``I`` (inside), ``O`` (outside), or ``B`` (begin).  A token is tagged
-as ``B`` if it marks the beginning of a chunk.  Subsequent tokens
-within the chunk are tagged ``I``.  All other tokens are tagged ``O``.
-The ``B`` and ``I`` tags are suffixed with the chunk type,
-e.g. ``B-NP``, ``I-NP``.  Of course, it is not necessary to specify a
-chunk type for tokens that appear outside a chunk, so these are just
-labeled ``O``. An example of this scheme is shown in Figure
-chunk-tagrep_.
-
-.. _chunk-tagrep:
-.. figure:: ../images/chunk-tagrep.png
-   :scale: 30
-
-   Tag Representation of Chunk Structures
-
-IOB tags have become the standard way to represent chunk structures in
-files, and we will also be using this format.  Here is an example of
-the file representation of the information in Figure chunk-tagrep_::
-
-  We PRP B-NP
-  saw VBD O
-  the DT B-NP
-  little JJ I-NP
-  yellow JJ I-NP
-  dog NN I-NP
-
-.. Give example with a verb group?
-
-|nopar| In this representation, there is one token per line, each with
-its part-of-speech tag and its chunk tag.  We will see later that this
-format permits us to represent more than one chunk type, so long as
-the chunks do not overlap.  
-
-As we saw earlier, chunk structures can also be represented using
-trees.  These have the benefit that each chunk is a constituent that
-can be manipulated directly.  An example is shown in Figure
-chunk-treerep_:
-
-.. _chunk-treerep:
-.. figure:: ../images/chunk-treerep.png
-   :scale: 30
-
-   Tree Representation of Chunk Structures
-
-|nopar|
-|NLTK| uses trees for its internal representation of chunks, and
-provides methods for reading and writing such trees to the IOB
-format.  By now you should understand what chunks are, and how they
-are represented.  In the next section, you will see how to build a
-simple chunker.
-
---------
-Chunking
---------
-
-A `chunker`:dt: finds contiguous, non-overlapping spans of related
-tokens and groups them together into chunks.  Chunkers often operate
-on tagged texts, and use the tags to make chunking decisions.  In this
-section we will see how to write a special type of regular expression
-over part-of-speech tags, and then how to combine these into a chunk
-grammar.  Then we will set up a chunker to chunk some tagged text
-according to the grammar.
-
-Chunking in |NLTK| begins with tagged tokens.
-
-.. doctest-ignore::
-    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
-    ... ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
-
-Next, we write regular expressions over tag sequences.  The
-following example identifies noun phrases that consist of an
-optional determiner, followed by any number of adjectives, then a
-noun.
-
-    >>> cp = nltk.RegexpParser("NP: {<DT>?<JJ>*<NN>}")
-
-|nopar| We create a chunker ``cp`` that can then be used
-repeatedly to parse tagged input.  The result of chunking is 
-a tree.
-
-.. doctest-ignore::
-    >>> cp.parse(tagged_tokens).draw()
-
-.. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
-            (VBD barked) (IN at) (NP (DT the) (NN cat)))
-
-
+In this chapter we will review key programming concepts and explain
+many of the minor points that could easily trip you up.  More fundamentally,
+we will introduce important concepts in structured programming that
+help you write readable, well-organized programs that you and others will
+be able to re-use.  Each section is independent, so you can easily select
+what you most need to learn and concentrate on that.
+As before, this chapter contains many examples and
+exercises (and as before, some exercises introduce new material).
+Readers new to programming should work through them carefully
+and consult other introductions to programming if necessary;
+experienced programmers can quickly skim this chapter.
 
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
-Tag Patterns
-------------
+.. _sec-back-to-the-basics:
 
-A `tag pattern`:dt: is a sequence of part-of-speech tags delimited
-using angle brackets, e.g. ``<DT><JJ><NN>``.  Tag patterns are
-the same as the regular expression patterns we have already seen,
-except for two differences that make them easier to use for chunking.
-First, angle brackets group their contents into atomic
-units, so "``<NN>+``" matches one or more repetitions of the tag
-``NN``; and "``<NN|JJ>``" matches the ``NN`` or ``JJ``.  Second, the period wildcard operator is
-constrained not to cross tag delimiters, so that "``<N.*>``" matches
-any single tag starting with ``N``, e.g. ``NN``, ``NNS``.
+------------------
+Back to the Basics
+------------------
 
-Now, consider the following noun phrases from the Wall Street
-Journal::
+Let's begin by revisiting some of the fundamental operations and data structures
+required for natural language processing in Python.  It is important to appreciate
+several finer points in order to write Python programs that are not
+only correct but also `idiomatic`:em: |mdash| by this, we mean using the
+features of the Python language in a natural and concise way. To
+illustrate, here is a technique for iterating over the members
+of a list by initializing an index ``i`` and then incrementing the
+index each time we pass through the loop:
 
-  another/DT sharp/JJ dive/NN
-  trade/NN figures/NNS
-  any/DT new/JJ policy/NN measures/NNS
-  earlier/JJR stages/NNS
-  Panamanian/JJ dictator/NN Manuel/NNP Noriega/NNP
+    >>> sent = ['I', 'am', 'the', 'Walrus']
+    >>> i = 0
+    >>> while i < len(sent):
+    ...     print sent[i].lower(),
+    ...     i += 1
+    i am the walrus
 
-.. TODO: how are they to view this CoNLL data?
+Although this does the job, it is not idiomatic Python. By
+contrast, Python's ``for`` statement allows us to achieve the same
+effect much more succinctly:
 
-We can match these using a slight refinement of the first tag pattern
-above: ``<DT>?<JJ.*>*<NN.*>+``.  This can be used to chunk any sequence
-of tokens beginning with an optional determiner ``DT``, followed by
-zero or more adjectives of any type ``JJ.*`` (including relative
-adjectives like ``earlier/JJR``), followed by one or more nouns of any
-type ``NN.*``.  It is easy to find many more difficult examples::
+    >>> sent = ['I', 'am', 'the', 'Walrus']
+    >>> for s in sent:
+    ...     print s.lower(),
+    i am the walrus
 
-  his/PRP$ Mansion/NNP House/NNP speech/NN
-  the/DT price/NN cutting/VBG
-  3/CD %/NN to/TO 4/CD %/NN
-  more/JJR than/IN 10/CD %/NN
-  the/DT fastest/JJS developing/VBG trends/NNS
-  's/POS skill/NN
+We'll start with the most innocuous operation of all: `assignment`:em:.
+Then we will look at sequence types in detail.
 
-Your challenge will be to come up with tag patterns to cover these and
-other examples.  A good way to learn about tag patterns is via a
-graphical interface ``nltk.draw.rechunkparser.demo()``.
+.. _sec-assignment:
 
-Chunking with Regular Expressions
----------------------------------
-
-The chunker begins with a flat structure in which no tokens are
-chunked.  Patterns are applied in turn, successively updating the
-chunk structure.  Once all of the patterns have been applied, the
-resulting chunk structure is returned.  Figure chunker1_ shows a
-simple chunk grammar consisting of two patterns.  The first pattern
-matches an optional determiner or possessive pronoun (recall that
-``|`` indicates disjunction), zero or more adjectives, then a
-noun. The second rule matches one or more proper nouns.  We also
-define some tagged tokens to be chunked, and run the chunker on this input.
-
-.. pylisting:: chunker1
-   :caption: Simple Noun Phrase Chunker
-
-   grammar = r"""
-     NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and nouns
-         {<NNP>+}                # chunk sequences of proper nouns
-   """
-   cp = nltk.RegexpParser(grammar)
-   tagged_tokens = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"), ("her", "PP$"), ("long", "JJ"),
-                ("golden", "JJ"), ("hair", "NN")]
-   >>> print cp.parse(tagged_tokens)
-   (S
-     (NP Rapunzel/NNP)
-     let/VBD
-     down/RP
-     (NP her/PP$ long/JJ golden/JJ hair/NN))
-
-.. note:: The ``$`` symbol is a special character in regular
-          expressions, and therefore needs to be escaped with the
-          backslash ``\`` in order to match the tag ``PP$``.
-
-
-If a tag pattern matches at overlapping locations, the first
-match takes precedence.  For example, if we apply a rule that matches
-two consecutive nouns to a text containing three consecutive nouns,
-then only the first two nouns will be chunked:
-
-    >>> nouns = [("money", "NN"), ("market", "NN"), ("fund", "NN")]
-    >>> grammar = "NP: {<NN><NN>}  # Chunk two consecutive nouns"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> print cp.parse(nouns)
-    (S (NP money/NN market/NN) fund/NN)
-
-Once we have created the chunk for `money market`:lx:, we have
-removed the context that would have permitted `fund`:lx: to be
-included in a chunk.  This issue would have been avoided with
-a more permissive chunk rule, e.g. ``NP: {<NN>+}``.
-
-Developing Chunkers
--------------------
-
-Creating a good chunker usually requires several rounds of
-development and testing, during which existing rules are refined and
-new rules are added.  In order to diagnose any problems, it often
-helps to trace the execution of a chunker, using its ``trace`` argument.
-The tracing output shows the rules that are
-applied, and uses braces to show the chunks that are created at each
-stage of processing.
-In Figure chunker2_, two chunk patterns are applied to the input
-sentence.  The first rule finds all sequences of three tokens whose
-tags are ``DT``, ``JJ``, and ``NN``, and the second rule finds any
-sequence of tokens whose tags are either ``DT`` or ``NN``.  We
-set up two chunkers, one for each rule ordering, and test them on
-the same input.
-
-.. pylisting:: chunker2
-   :Caption: Two Noun Phrase Chunkers Having Identical Rules in Different Orders
-
-   tagged_tokens = [("The", "DT"), ("enchantress", "NN"),
-               ("clutched", "VBD"), ("the", "DT"), ("beautiful", "JJ"), ("hair", "NN")]
-   cp1 = nltk.RegexpParser(r"""
-     NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
-         {<DT|NN>+}          # Chunk sequences of NN and DT
-     """)
-   cp2 = nltk.RegexpParser(r"""
-     NP: {<DT|NN>+}          # Chunk sequences of NN and DT
-         {<DT><JJ><NN>}      # Chunk det+adj+noun
-     """)
-
-   >>> print cp1.parse(tagged_tokens, trace=1)
-   # Input:
-    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
-   # Chunk det+adj+noun:
-    <DT>  <NN>  <VBD> {<DT>  <JJ>  <NN>}
-   # Chunk sequences of NN and DT:
-   {<DT>  <NN>} <VBD> {<DT>  <JJ>  <NN>}
-   (S
-     (NP The/DT enchantress/NN)
-     clutched/VBD
-     (NP the/DT beautiful/JJ hair/NN))
-   >>> print cp2.parse(tagged_tokens, trace=1)
-   # Input:
-    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
-   # Chunk sequences of NN and DT:
-   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
-   # Chunk det+adj+noun:
-   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
-   (S
-     (NP The/DT enchantress/NN)
-     clutched/VBD
-     (NP the/DT)
-     beautiful/JJ
-     (NP hair/NN))
-
-Observe that when we chunk material that is already partially chunked,
-the chunker will only create chunks that do not partially overlap
-existing chunks.  In the case of ``cp2``, the second rule
-did not find any chunks, since all chunks that matched
-its tag pattern overlapped with existing chunks.  As you can see,
-you need to be careful to put chunk rules in the right order. 
-
-You may have noted that we have added explanatory comments, preceded
-by ``#``, to each of our tag rules. Although it is not strictly
-necessary to do this, it's a helpful reminder of what a rule is meant
-to do, and it is used as a header line for the output of a rule
-application when tracing is on.
-
-You might want to test out some of your rules on a corpus. One option
-is to use the Brown corpus. However, you need to  remember that the
-Brown tagset is different from the Penn Treebank tagset that we
-have been using for our examples so far in this chapter; see Table
-brown-tags_ in Chapter chap-tag_ for a refresher. Because the Brown tagset
-uses ``NP`` for proper nouns, in this example we have followed Abney
-in labeling noun chunks as ``NX``.
-
-    >>> grammar = (r"""
-    ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}  # Chunk article/numeral/possessive+adj+noun
-    ...        {<NP>+}                       # Chunk one or more proper nouns                   
-    ... """)
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> sent = nltk.corpus.brown.tagged_sents(categories='a')[112]
-    >>> print cp.parse(sent)
-    (S
-      (NX His/PP$ contention/NN)
-      was/BEDZ
-      denied/VBN
-      by/IN
-      (NX several/AP bankers/NNS)
-      ,/,
-      including/IN
-      (NX Scott/NP Hudson/NP)
-      of/IN
-      (NX Sherman/NP)
-      ,/,
-      (NX Gaynor/NP B./NP Jones/NP)
-      of/IN
-      (NX Houston/NP)
-      ,/,
-      (NX J./NP B./NP Brady/NP)
-      of/IN
-      (NX Harlingen/NP)
-      and/CC
-      (NX Howard/NP Cox/NP)
-      of/IN
-      (NX Austin/NP)
-      ./.)
-
-Exercises
----------
-
-#. |easy| **Chunk Grammar Development:**
-   Try developing a series of chunking rules using the graphical
-   interface accessible via ``nltk.draw.rechunkparser.demo()``
-
-#. |easy| **Chunking Demonstration:**
-   Run the chunking demonstration: ``nltk.chunk.demo()``
-
-#. |easy| **IOB Tags:**
-   The IOB format categorizes tagged tokens as ``I``,
-   ``O`` and ``B``.  Why are three tags necessary?  What
-   problem would be caused if we used ``I`` and ``O`` tags
-   exclusively?
-
-#. |easy| Write a tag pattern to match noun phrases containing plural head nouns,
-   e.g. "many/JJ researchers/NNS", "two/CD weeks/NNS", "both/DT new/JJ positions/NNS".
-   Try to do this by generalizing the tag pattern that handled singular
-   noun phrases.
-
-#. |soso| Write a tag pattern to cover noun phrases that contain gerunds,
-   e.g. "the/DT receiving/VBG end/NN", "assistant/NN managing/VBG editor/NN".
-   Add these patterns to the grammar, one per line.  Test your work using
-   some tagged sentences of your own devising.
-
-#. |soso| Write one or more tag patterns to handle coordinated noun phrases,
-   e.g. "July/NNP and/CC August/NNP",
-   "all/DT your/PRP$ managers/NNS and/CC supervisors/NNS",
-   "company/NN courts/NNS and/CC adjudicators/NNS".
-
-
-----------
-Scaling Up
+Assignment
 ----------
 
-Now you have a taste of what chunking can do, but we have not
-explained how to carry out a quantitative evaluation of chunkers.  For
-this, we need to get access to a corpus that has been annotated not
-only with parts-of-speech, but also with chunk information.  We will
-begin by looking at the mechanics of converting IOB format into an
-|NLTK| tree, then at how this is done on a larger scale using a
-chunked corpus directly.  We will see how to use the corpus to score
-the accuracy of a chunker, then look some more flexible ways to
-manipulate chunks.  Our focus throughout will be on scaling up the
-coverage of a chunker.
+Python's assignment statement operates on `values`:em:.  But what is a value?
+Consider the following code fragment:
 
-Reading IOB Format and the CoNLL 2000 Corpus
---------------------------------------------
+    >>> word1 = 'Monty'
+    >>> word2 = word1              # [_assignment1]
+    >>> word1 = 'Python'           # [_assignment2]
+    >>> word2
+    'Monty'
 
-Using the ``corpora`` module we can load Wall Street Journal
-text that has been tagged, then chunked using the IOB notation.  The
-chunk categories provided in this corpus are `np`:gc:, `vp`:gc: and `pp`:gc:.  As we
-have seen, each sentence is represented using multiple lines, as shown
-below::
+This code shows that when we write ``word2 = word1`` in line assignment1_,
+the value of ``word1`` (the string ``'Monty'``) is assigned to ``word2``.
+That is, ``word2`` is a `copy`:dt: of ``word1``, so when we overwrite
+``word1`` with a new string ``'Python'`` in line assignment2_, the value
+of ``word2`` is not affected.
 
-  he PRP B-NP
-  accepted VBD B-VP
-  the DT B-NP
-  position NN I-NP
-  ...
+However, assignment statements do not always involve making copies in this way.
+An important subtlety of Python is that the "value" of a structured object
+(such as a list) is actually a `reference`:em: to the object.  In the
+following example, line assignment3_
+assigns the reference of ``list1`` to the new variable ``list2``.
+When we modify something inside ``list1`` on line assignment4_, we can see
+that the contents of ``list2`` have also been changed.
 
-|nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
-representation from one of these multi-line strings.  Moreover, it
-permits us to choose any subset of the three chunk types to use.  The
-example below produces only `np`:gc: chunks:
+    >>> list1 = ['Monty', 'Python']
+    >>> list2 = list1             # [_assignment3]
+    >>> list1[1] = 'Bodkin'       # [_assignment4]
+    >>> list2
+    ['Monty', 'Bodkin']
 
-.. doctest-ignore::
-    >>> text = '''
-    ... he PRP B-NP
-    ... accepted VBD B-VP
-    ... the DT B-NP
-    ... position NN I-NP
-    ... of IN B-PP
-    ... vice NN B-NP
-    ... chairman NN I-NP
-    ... of IN B-PP
-    ... Carlyle NNP B-NP
-    ... Group NNP I-NP
-    ... , , O
-    ... a DT B-NP
-    ... merchant NN I-NP
-    ... banking NN I-NP
-    ... concern NN I-NP
-    ... . . O
-    ... '''
-    >>> nltk.chunk.conllstr2tree(text, chunk_types=('NP',)).draw()
+.. _array-memory:
+.. figure:: ../images/array-memory.png
+   :scale: 20
 
-.. tree:: (S (NP (PRP he))
-             (VBD accepted)
-             (NP (DT the) (NN position))
-             (IN of)
-             (NP (NN vice) (NN chairman))
-             (IN of)
-             (NP (NNP Carlyle) (NNP Group))
-             (, ,)
-             (NP (DT a) (NN merchant) (NN banking) (NN concern))
-             (. .))
-   :scale: 80
+   List Assignment and Computer Memory
 
+|nopar|    
+Thus line assignment3_ does not copy the contents of the
+variable, only its "object reference".
+To understand what is going on here, we need to
+know how lists are stored in the computer's memory.
+In Figure array-memory_, we see that a list ``sent1`` is
+a reference to an object stored at location 3133 (which is
+itself a series of pointers to other locations holding strings).
+When we assign ``sent2 = sent1``, it is just the object reference
+3133 that gets copied.
 
-We can use the NLTK corpus module to access a larger amount of chunked
-text.  The CoNLL 2000 corpus contains 270k words of Wall Street
-Journal text, divided into "train" and "test" portions, annotated with
-part-of-speech tags and chunk tags in the IOB format.  We can access
-the data using an NLTK corpus reader called ``conll2000``.  Here is an
-example that reads the 100th sentence of the "train" portion of the corpus:
+Sequences: Strings, Lists and Tuples
+------------------------------------
 
-    >>> print nltk.corpus.conll2000.chunked_sents('train.txt')[99]
-    (S
-      (PP Over/IN)
-      (NP a/DT cup/NN)
-      (PP of/IN)
-      (NP coffee/NN)
-      ,/,
-      (NP Mr./NNP Stone/NNP)
-      (VP told/VBD)
-      (NP his/PRP$ story/NN)
-      ./.)
+We have seen three kinds of sequence object: strings, lists, and tuples.
+As sequences, they have some common properties: they can be indexed and they have
+a length:
 
+    >>> text = 'I turned off the spectroroute'
+    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
+    >>> pair = (6, 'turned')
+    >>> text[2], words[3], pair[1]
+    ('t', 'the', 'turned')
+    >>> len(text), len(words), len(pair)
+    (29, 5, 2)
 
 |nopar|
-This  showed three chunk types, for `np`:gc:, `vp`:gc: and `pp`:gc:.
-We can also select which chunk types to read:
+We can iterate over the items in a sequence ``s`` in a variety of useful ways,
+as shown in Table python-sequence_.
 
-    >>> print nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))[99]
-    (S
-      Over/IN
-      (NP a/DT cup/NN)
-      of/IN
-      (NP coffee/NN)
-      ,/,
-      (NP Mr./NNP Stone/NNP)
-      told/VBD
-      (NP his/PRP$ story/NN)
-      ./.)
+.. table:: python-sequence
+
+   +---------------------------------------------+------------------------------------------------+
+   | Python Expression                           | Comment                                        |
+   +=============================================+================================================+
+   | ``for item in s``                           | iterate over the items of ``s``                |
+   +---------------------------------------------+------------------------------------------------+
+   | ``for item in sorted(s)``                   | iterate over the items of ``s`` in order       |
+   +---------------------------------------------+------------------------------------------------+
+   | ``for item in set(s)``                      | iterate over unique elements of ``s``          |
+   +---------------------------------------------+------------------------------------------------+
+   | ``for item in reversed(s)``                 | iterate over elements of ``s`` in reverse      |
+   +---------------------------------------------+------------------------------------------------+
+   | ``for item in set(s).difference(t)``        | iterate over elements of ``s`` not in ``t``    |
+   +---------------------------------------------+------------------------------------------------+
+   | ``for item in random.shuffle(s)``           | iterate over elements of ``s`` in random order |
+   +---------------------------------------------+------------------------------------------------+
+
+   Various ways to iterate over sequences
 
 
-Simple Evaluation and Baselines
--------------------------------
+The sequence functions illustrated in Table python-sequence_ can be combined
+in various ways; for example, to get unique elements of ``s`` sorted
+in reverse, use ``reversed(sorted(set(s)))``.
 
-Armed with a corpus, it is now possible to carry out some simple evaluation.
-We start off by establishing a baseline for the trivial chunk parser
-``cp`` that creates no chunks:
+We can convert between these sequence types.  For example,
+``tuple(s)`` converts any kind of sequence into a tuple, and
+``list(s)`` converts any kind of sequence into a list.
+We can convert a list of strings to a single string using the
+``join()`` function, e.g. ``':'.join(words)``.
 
-    >>> cp = nltk.RegexpParser("")
-    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',)))
-    0.440845995079
+Notice in the above code sample that we computed multiple values on a
+single line, separated by commas.  These comma-separated expressions
+are actually just tuples |mdash| Python allows us to omit the
+parentheses around tuples if there is no ambiguity. When we print a
+tuple, the parentheses are always displayed. By using tuples in this
+way, we are implicitly aggregating items together.
 
-This indicates that more than a third of the words are tagged with
-``O`` (i.e., not in an `np`:gc: chunk).  Now let's try a naive regular
-expression chunker that looks for tags (e.g., ``CD``, ``DT``, ``JJ``,
-etc.) beginning with letters that are typical of noun phrase tags:
+In the next example, we use tuples to re-arrange the
+contents of our list.  (We can omit the parentheses
+because the comma has higher precedence than assignment.)
 
-    >>> grammar = r"NP: {<[CDJNP].*>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> print nltk.chunk.accuracy(cp, nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',)))
-    0.874479872666
-
-As you can see, this approach achieves pretty good results. In
-order to develop a more data-driven approach, let's define a function
-``chunked_tags()`` that takes some chunked data
-and sets up a conditional frequency distribution.
-For each tag, it counts up the number of times the tag
-occurs inside an `np`:gc: chunk (the ``True`` case, where ``chtag`` is
-``B-NP`` or ``I-NP``), or outside a chunk (the ``False`` case, where
-``chtag`` is ``O``).  It returns a list of those tags that occur
-inside chunks more often than outside chunks.
-
-.. pylisting:: chunker3
-   :caption: Capturing the conditional frequency of NP Chunk Tags
-
-   def chunked_tags(train):
-       """Generate a list of tags that tend to appear inside chunks"""
-       cfdist = nltk.ConditionalFreqDist()
-       for t in train:
-           for word, tag, chtag in nltk.chunk.tree2conlltags(t):
-               if chtag == "O":
-                   cfdist[tag].inc(False)
-               else:
-                   cfdist[tag].inc(True)
-       return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True]
-   >>> train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))
-   >>> print chunked_tags(train_sents)
-   ['PRP$', 'WDT', 'JJ', 'WP', 'DT', '#', '$', 'NN', 'FW', 'POS',
-   'PRP', 'NNS', 'NNP', 'PDT', 'RBS', 'EX', 'WP$', 'CD', 'NNPS', 'JJS', 'JJR']
-
-The next step is to convert this list of tags into a tag pattern.  To
-do this we need to "escape" all non-word characters, by preceding them
-with a backslash.  Then we need to join them into a disjunction.  This
-process would convert a tag list ``['NN', 'NN\$']`` into the tag pattern
-``<NN|NN\$>``.  The following function does this work, and returns a
-regular expression chunker:
-
-.. pylisting:: chunker4
-   :caption: Deriving a Regexp Chunker from Training Data
-
-   def baseline_chunker(train):
-       chunk_tags = [re.sub(r'(\W)', r'\\\1', tag)
-                     for tag in chunked_tags(train)]
-       grammar = 'NP: {<%s>+}' % '|'.join(chunk_tags)
-       return nltk.RegexpParser(grammar)
+    >>> words[2], words[3], words[4] = words[3], words[4], words[2]
+    >>> words    
+    ['I', 'turned', 'the', 'spectroroute', 'off']
 
 |nopar|
-The final step is to train this chunker and test its accuracy (this
-time on the "test" portion of the corpus, i.e., data not seen during training):
+This is an idiomatic and readable way to move items inside a list.
+It is equivalent to the following traditional way of doing such
+tasks that does not use tuples (notice that this method needs a
+temporary variable ``tmp``).
 
-   >>> train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=('NP',))
-   >>> test_sents  = nltk.corpus.conll2000.chunked_sents('test.txt', chunk_types=('NP',))
-   >>> cp = baseline_chunker(train_sents)
-   >>> print nltk.chunk.accuracy(cp, test_sents)
-   0.914262194736
+    >>> tmp = words[2]
+    >>> words[2] = words[3]
+    >>> words[3] = words[4]
+    >>> words[4] = tmp
 
+As we have seen, Python has sequence functions such as ``sorted()`` and ``reversed()``
+that rearrange the items of a sequence.  There are also functions that
+modify the `structure`:em: of a sequence and which can be handy for
+language processing.  Thus, ``zip()`` takes
+the items of two sequences and "zips" them together into a single list of pairs.
+Given a sequence ``s``, ``enumerate(s)`` returns an iterator that
+produces a pair of an index and the item at that index.
 
-Splitting and Merging (incomplete)
+    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
+    >>> tags = ['NNP', 'VBD', 'IN', 'DT', 'NN']
+    >>> zip(words, tags)
+    [('I', 'NNP'), ('turned', 'VBD'), ('off', 'IN'),
+    ('the', 'DT'), ('spectroroute', 'NN')]
+    >>> list(enumerate(words))
+    [(0, 'I'), (1, 'turned'), (2, 'off'), (3, 'the'), (4, 'spectroroute')]
+
+Combining Different Sequence Types
 ----------------------------------
 
-[Notes: the above approach creates chunks that are too large,
-e.g. `the cat the dog chased`:lx: would be given a single `np`:gc: chunk
-because it does not detect that determiners introduce new chunks.
-For this we would need a rule to split an `np`:gc: chunk
-prior to any determiner, using a pattern like:
-``"NP: <.*>}{<DT>"``.  We can also merge chunks, e.g.
-``"NP: <NN>{}<NN>"``.]
+Let's combine our knowledge of these three sequence types, together with list
+comprehensions, to perform the task of sorting the words in a string by
+their length.
 
-Chinking
---------
+    >>> words = 'I turned off the spectroroute'.split()     # [_sequence1]
+    >>> wordlens = [(len(word), word) for word in words]    # [_sequence2]
+    >>> wordlens
+    [(1, 'I'), (6, 'turned'), (3, 'off'), (3, 'the'), (12, 'spectroroute')]
+    >>> wordlens.sort()                                     # [_sequence3]
+    >>> ' '.join([word for (count, word) in wordlens])      # [_sequence4]
+    'I off the turned spectroroute'
 
-Sometimes it is easier to define what we *don't* want to include in a
-chunk than it is to define what we *do* want to include.  In these
-cases, it may be easier to build a chunker using a method called
-`chinking`:dt:.
+Each of the above lines of code contains a significant feature.
+Line sequence1_ demonstrates that a simple string is actually
+an object with methods defined on it, such as ``split()``.
+Line sequence2_ shows the construction of a list of tuples,
+where each tuple consists of a number (the word length) and the
+word, e.g. ``(3, 'the')``.  Line sequence3_ sorts the list,
+modifying the list in-place.  Finally, line sequence4_ discards
+the length information then joins the words back into a single string.
 
+We began by talking about the commonalities in these sequence types,
+but the above code illustrates important differences in their
+roles.  First, strings appear at the beginning and the end: this is
+typical in the context where our program is reading in some text and
+producing output for us to read.  Lists and tuples are used in the
+middle, but for different purposes.  A list is typically a sequence of
+objects all having the `same type`:em:, of `arbitrary length`:em:.  We often
+use lists to hold sequences of words.  In contrast,
+a tuple is typically a collection of objects of `different types`:em:, of
+`fixed length`:em:.  We often use a tuple to hold a `record`:dt:,
+a collection of different `fields`:dt: relating to some entity.
+This distinction between the use of lists and tuples takes some
+getting used to,
+so here is another example:
 
-Following [Abney1996PST]_, we define a `chink`:dt: as a sequence
-of tokens that is not included in a chunk.
-In the following example, ``barked/VBD at/IN`` is a chink::
+    >>> lexicon = [
+    ...     ('the', 'DT', ['Di:', 'D@']),
+    ...     ('off', 'IN', ['Qf', 'O:f'])
+    ... ]
 
-  [ the/DT little/JJ yellow/JJ dog/NN ] barked/VBD at/IN [ the/DT cat/NN ]
+|nopar| Here, a lexicon is represented as a list because it is a
+collection of objects of a single type |mdash| lexical entries |mdash|
+of no predetermined length.  An individual entry is represented as a
+tuple because it is a collection of objects with different
+interpretations, such as the orthographic form, the part of speech,
+and the pronunciations represented in the
+`SAMPA <http://www.phon.ucl.ac.uk/home/sampa/index.html>`_ computer
+readable phonetic alphabet.  Note that these pronunciations are stored
+using a list. (Why?)
 
-Chinking is the process of removing a sequence of tokens from a
-chunk.  If the sequence of tokens spans an entire chunk, then the
-whole chunk is removed; if the sequence of tokens appears in the
-middle of the chunk, these tokens are removed, leaving two chunks
-where there was only one before.  If the sequence is at the beginning
-or end of the chunk, these tokens are removed, and a smaller chunk
-remains.  These three possibilities are illustrated in Table chinking_.
+The distinction between lists and tuples has been described in terms of
+usage.  However, there is a more fundamental difference: in Python,
+lists are `mutable`:dt:, while tuples are `immutable`:dt:.  In other
+words, lists can be modified, while tuples cannot.  Here are some of
+the operations on lists that do in-place modification of the list.
+None of these operations is permitted on a tuple, a fact you should
+confirm for yourself.
 
-.. table:: chinking
+    >>> lexicon.sort()
+    >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
+    >>> del lexicon[0]
 
-   +-------------+---------------------+-------------------+------------------+
-   |             | Entire chunk        | Middle of a chunk | End of a chunk   |
-   +-------------+---------------------+-------------------+------------------+
-   | *Input*     | [a/DT little/JJ     | [a/DT little/JJ   | [a/DT little/JJ  | 
-   |             | dog/NN]             | dog/NN]           | dog/NN]          |
-   +-------------+---------------------+-------------------+------------------+
-   | *Operation* | Chink "DT JJ NN"    | Chink "JJ"        | Chink "NN"       |
-   +-------------+---------------------+-------------------+------------------+
-   | *Pattern*   | "}DT JJ NN{"        | "}JJ{"            | "}NN{"           |
-   +-------------+---------------------+-------------------+------------------+
-   | *Output*    | a/DT little/JJ      | [a/DT] little/JJ  | [a/DT little/JJ] |
-   |             | dog/NN              | [dog/NN]          | dog/NN           |
-   +-------------+---------------------+-------------------+------------------+
+.. _stacks-and-queues:
 
-   Three chinking rules applied to the same chunk
+Stacks and Queues
+-----------------
 
-In the following grammar, we put the entire sentence into a single
-chunk, then excise the chink:
+Lists are a particularly versatile data type.  We can use lists to
+implement higher-level data types such as stacks and queues.
+A `stack`:dt: is a container that has a `last-in-first-out`:dt: policy
+for adding and removing items (see Figure stack-queue_).
 
-.. pylisting:: chinker
-   :caption: Simple Chinker
+.. _stack-queue:
+.. figure:: ../images/stack-queue.png
+   :scale: 30
 
-   grammar = r"""
-     NP:
-       {<.*>+}          # Chunk everything
-       }<VBD|IN>+{      # Chink sequences of VBD and IN
-     """
-   tagged_tokens = [("the", "DT"), ("little", "JJ"), ("yellow", "JJ"), 
-          ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
-   cp = nltk.RegexpParser(grammar)
-   >>> print cp.parse(tagged_tokens)
-   (S
-     (NP the/DT little/JJ yellow/JJ dog/NN)
-     barked/VBD
-     at/IN
-     (NP the/DT cat/NN))
-   >>> test_sents = nltk.corpus.conll2000.chunked_sents('test.txt', chunk_types=('NP',))
-   >>> print nltk.chunk.accuracy(cp, test_sents)
-   0.581041433607
+   Stacks and Queues
 
-|nopar|
-A chunk grammar can use any number of chunking and chinking patterns
-in any order.
+Stacks are used to keep track of the current context in
+computer processing of natural languages (and programming languages too).
+We will seldom have to deal with stacks explicitly, as the implementation
+of |NLTK| parsers, treebank corpus readers, (and even Python functions),
+all use stacks behind the scenes.
+However, it is important to understand what stacks are and how they work.
 
-Multiple Chunk Types (incomplete)
----------------------------------
+.. pylisting:: check-parens
+   :caption: Check parentheses are balanced
 
-So far we have only developed `np`:gc: chunkers.  However, as we saw earlier
-in the chapter, the CoNLL chunking data is also annotated for `pp`:gc: and
-`vp`:gc: chunks.  Here is an example, to show the structure we get from the
-corpus and the flattened version that will be used as input to the parser.
+   def check_parens(tokens):
+       stack = []
+       for token in tokens:
+           if token == '(':     # push
+               stack.append(token)
+           elif token == ')':   # pop
+               stack.pop()
+       return stack
 
-    >>> example = nltk.corpus.conll2000.chunked_sents('train.txt')[99]
-    >>> print example
-    (S
-      (PP Over/IN)
-      (NP a/DT cup/NN)
-      (PP of/IN)
-      (NP coffee/NN)
-      ,/,
-      (NP Mr./NNP Stone/NNP)
-      (VP told/VBD)
-      (NP his/PRP$ story/NN)
-      ./.)
-    >>> print example.flatten()
-    (S
-      Over/IN
-      a/DT
-      cup/NN
-      of/IN
-      coffee/NN
-      ,/,
-      Mr./NNP
-      Stone/NNP
-      told/VBD
-      his/PRP$
-      story/NN
-      ./.)
+   >>> phrase = "( the cat ) ( sat ( on ( the mat )"
+   >>> print check_parens(phrase.split())
+   ['(', '(']
 
-Now we can set up a multi-stage chunk grammar, as shown in
-Figure multistage-chunker_.  It has a stage for each of the chunk types.
+In Python, we can treat a list as a stack by limiting ourselves to the three
+operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
+``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
+item on the top of the stack.  The program in Figure check-parens_ processes a sentence with
+phrase markers, and checks that the parentheses are balanced.
+The loop pushes material onto the stack when it gets an open parenthesis,
+and pops the stack when it gets a close parenthesis.
+We see that two are left on the stack at the end;
+i.e. the parentheses are not balanced.
 
-.. pylisting:: multistage-chunker
-   :caption: A Multistage Chunker
+Although the program in Figure check-parens_ is a useful illustration of stacks,
+it is overkill because we could have done a direct count:
+``phrase.count('(') == phrase.count(')')``.  However, we
+can use stacks for more sophisticated processing of strings
+containing nested structure, as shown in Figure convert-parens_.
+Here we build a (potentially deeply-nested) list of lists.
+Whenever a token other than a parenthesis is encountered,
+we add it to a list at the appropriate level of nesting.
+The stack cleverly keeps track of this level of nesting, exploiting
+the fact that the item at the top of the stack is actually shared with a
+more deeply nested item.  (Hint: add diagnostic print statements to
+the function to help you see what it is doing.)
 
-   cp = nltk.RegexpParser(r"""
-     NP: {<DT>?<JJ>*<NN.*>+}	# noun phrase chunks
-     VP: {<TO>?<VB.*>}       	# verb phrase chunks
-     PP: {<IN>}              	# prepositional phrase chunks
-     """)
-   >>> example = nltk.corpus.conll2000.chunked_sents('train.txt')[99]
-   >>> print cp.parse(example.flatten(), trace=1)
-   # Input:
-    <IN>  <DT>  <NN>  <IN>  <NN>  <,>  <NNP>  <NNP>  <VBD>  <PRP$>  <NN>  <.> 
-   # noun phrase chunks:
-    <IN> {<DT>  <NN>} <IN> {<NN>} <,> {<NNP>  <NNP>} <VBD>  <PRP$> {<NN>} <.> 
-   # Input:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VBD>  <PRP$>  <NP>  <.> 
-   # verb phrase chunks:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP> {<VBD>} <PRP$>  <NP>  <.> 
-   # Input:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
-   # prepositional phrase chunks:
-   {<IN>} <NP> {<IN>} <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
-   (S
-     (PP Over/IN)
-     (NP a/DT cup/NN)
-     (PP of/IN)
-     (NP coffee/NN)
-     ,/,
-     (NP Mr./NNP Stone/NNP)
-     (VP told/VBD)
-     his/PRP$
-     (NP story/NN)
-     ./.)
+.. pylisting:: convert-parens
+   :caption: Convert a nested phrase into a nested list using a stack
 
-Evaluating Chunk Parsers
+   def convert_parens(tokens):
+       stack = [[]]
+       for token in tokens:
+           if token == '(':     # push
+               sublist = []
+               stack[-1].append(sublist)
+               stack.append(sublist)
+           elif token == ')':   # pop
+               stack.pop()
+           else:                # update top of stack
+               stack[-1].append(token)
+       return stack[0]
+
+   >>> phrase = "( the cat ) ( sat ( on ( the mat ) ) )"
+   >>> print convert_parens(phrase.split())
+   [['the', 'cat'], ['sat', ['on', ['the', 'mat']]]]    
+
+Lists can be used to represent another important data structure.
+A `queue`:dt: is a container that has a `first-in-first-out`:dt: policy
+for adding and removing items (see Figure stack-queue_).
+Queues are used for scheduling activities or resources.
+As with stacks, we will seldom have to deal with queues explicitly,
+as the implementation of |NLTK| n-gram taggers (Section n-gram-taggers_)
+and chart parsers (Section chart-parsing_) use queues behind the scenes.
+However, we will take a brief look at how queues are implemented using lists.
+
+    >>> queue = ['the', 'cat', 'sat']
+    >>> queue.append('on')
+    >>> queue.append('the')
+    >>> queue.append('mat')
+    >>> queue.pop(0)
+    'the'
+    >>> queue.pop(0)
+    'cat'
+    >>> queue
+    ['sat', 'on', 'the', 'mat']
+
+.. _sec-more-list-comprehensions:
+
+More List Comprehensions
 ------------------------
 
-An easy way to evaluate a chunk parser is to take some already chunked
-text, strip off the chunks, rechunk it, and compare the result with
-the original chunked text.  The ``ChunkScore.score()`` function takes
-the correctly chunked sentence as its first argument, and the newly
-chunked version as its second argument, and compares them.  It reports
-the fraction of actual chunks that were found (recall), the fraction
-of hypothesized chunks that were correct (precision), and a combined
-score, the F-measure (the harmonic mean of precision and recall).
+You may recall that in Chapter chap-words_, we introduced list
+comprehensions, with examples like the following:
 
-A number of different metrics can be used to evaluate chunk parsers.
-We will concentrate on a class of metrics that can be derived from two
-sets:
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> [word.lower() for word in sent]
+    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
 
-* **guessed**: The set of chunks returned by the chunk parser. 
-* **correct**: The correct set of chunks, as defined in the test corpus.
+List comprehensions are a convenient and readable way to express
+list operations in Python, and they have a wide range of uses in natural language
+processing.  In this section we will see some more examples.
+The first of these takes successive overlapping slices of size
+``n`` (a `sliding window`:dt:) from a list
+(pay particular attention to the range of the variable ``i``).
 
-We will set up
-an analogy between the correct set of chunks and a user's so-called "information need",
-and between the set of returned chunks and a system's returned documents
-(cf precision and recall, from Chapter chap-data-intensive_).
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> n = 3
+    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
+    [['The', 'dog', 'gave'],
+     ['dog', 'gave', 'John'],
+     ['gave', 'John', 'the'],
+     ['John', 'the', 'newspaper']]
 
-During evaluation of a chunk parser, it is useful to flatten a chunk
-structure into a tree consisting only of a root node and leaves:
+You can also use list comprehensions for a kind of multiplication (or `cartesian product`:dt:).
+Here we generate all combinations of two determiners, two adjectives, and two nouns.
+The list comprehension is split across three lines for readability.
 
-    >>> correct = nltk.chunk.tagstr2tree(
-    ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    >>> print correct.flatten()
-    (S the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN)
+    >>> [(dt,jj,nn) for dt in ('two', 'three')
+    ...             for jj in ('old', 'blind')
+    ...             for nn in ('men', 'mice')]
+    [('two', 'old', 'men'), ('two', 'old', 'mice'), ('two', 'blind', 'men'),
+     ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
+     ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
 
-We run a chunker over this flattened data, and compare the
-resulting chunked sentences with the originals, as follows:
+|nopar|
+The above example contains three independent ``for`` loops.
+These loops have no variables in common, and we could have put them in any order.
+We can also have `nested loops`:dt: with shared variables.
+The next example iterates over all sentences in a
+section of the Brown Corpus, and for each sentence, iterates over each word.
+
+    >>> [word for word in nltk.corpus.brown.words(categories='a')
+    ...     if len(word) == 17]
+    ['September-October', 'Sheraton-Biltmore', 'anti-organization',
+     'anti-organization', 'Washington-Oregon', 'York-Pennsylvania',
+     'misunderstandings', 'Sheraton-Biltmore', 'neo-stagnationist',
+     'cross-examination', 'bronzy-green-gold', 'Oh-the-pain-of-it',
+     'Secretary-General', 'Secretary-General', 'textile-importing',
+     'textile-exporting', 'textile-producing', 'textile-producing']
+
+|nopar| As you will see, the list comprehension in this example
+contains a final ``if`` clause that allows us to filter out any words
+that fail to meet the specified condition.
+
+Another way to use loop variables is to ignore them!  This is
+the standard method for building multidimensional structures.
+For example, to build an array with *m* rows and *n* columns,
+where each cell is a set, we would use a nested list comprehension,
+as shown in line two-d-array_ below.  Observe that the loop variables
+``i`` and ``j`` are not used anywhere in the expressions preceding the
+``for`` clauses.
+
+    >>> m, n = 3, 7
+    >>> array = [[set() for i in range(n)] for j in range(m)]     # [_two-d-array]
+    >>> array[2][5].add('foo')
+    >>> pprint.pprint(array)
+    [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set(['foo']), set([])]]
+
+Sometimes we use a list comprehension as part of a larger aggregation task.
+In the following example we calculate the average length of words in part of the Brown Corpus.
+Notice that we don't bother storing the list comprehension in a temporary
+variable, but use it directly as an argument to the ``average()`` function.
+
+    >>> from numpy import average
+    >>> average([len(word) for word in nltk.corpus.brown.words(categories='a')])
+    4.40154543827
+
+Now that we have reviewed the sequence types, we have one more fundamental data type
+to revisit.
+
+Dictionaries
+------------
+
+As you have already seen, the dictionary data type can be used in a variety
+of language processing tasks (e.g. Section getting-organized_).
+However, we have only scratched the surface.
+Dictionaries have many more applications than you might have imagined.
+
+.. note:: The dictionary data type is often known by the name
+   `associative array`:dt:.  A normal array maps from integers (the keys)
+   to arbitrary data types (the values), while an associative array places
+   no such constraint on keys.  Keys can be strings, tuples, or other
+   more deeply nested structure.  Python places the constraint that
+   keys must be `immutable`:idx:.
+
+Let's begin by comparing dictionaries with tuples.  Tuples allow
+`access by position`:em:; to access the part-of-speech of the following
+lexical entry we just have to know it is found at index position ``1``.
+However, dictionaries allow `access by name`:em:\ :
+
+    >>> entry_tuple = ('turned', 'VBD', ['t3:nd', 't3`nd'])
+    >>> entry_tuple[1]
+    'VBD'
+    >>> entry_dict = {'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']}
+    >>> entry_dict['pos']
+    'VBD'
+
+In this case, dictionaries are little more than a convenience.  We can
+even simulate access by name using well-chosen constants, e.g.:
+
+    >>> LEXEME = 0; POS = 1; PRON = 2
+    >>> entry_tuple[POS]
+    'VBD'
+
+This method works when there is a closed set of keys and the keys are known
+in advance.  Dictionaries come into their own when we are mapping from
+an open set of keys, which happens when the keys are drawn from an unrestricted
+vocabulary or where they are generated by some procedure.  Figure mystery_
+illustrates the first of these.  The function ``mystery()``
+begins by initializing a dictionary called ``groups``, then populates it
+with words.  We leave it as an exercise for the reader to work out what
+this function computes.  For now, it's enough to note that the keys of
+this dictionary are an open set, and it would not be feasible to use
+a integer keys, as would be required if we used lists or tuples for the
+representation.
+
+.. TODO: discussion ''.join() vs join()
+
+.. pylisting:: mystery
+   :caption: Mystery program
+
+   def mystery(input):
+       groups = {}
+       for word in input:
+           key = ' '.join(sorted(list(word)), '')
+           if key not in groups:               # [_mystery-key]
+               groups[key] = set()             # [_mystery-add]
+           groups[key].add(word)               # [_mystery-update]
+       return sorted(' '.join(sorted(v)) for v in groups.values() if len(v) > 1)
+
+   >>> words = nltk.corpus.words.words()
+   >>> print mystery(words)                         # doctest: +SKIP
+
+Figure mystery_ illustrates two important idioms, which we already
+touched on in Chapter chap-introduction_.  First, dictionary keys
+are unique; in order to store multiple items in a single entry we
+define the value to be a list or a set, and simply update the value each
+time we want to store another item (line mystery-update_).  Second, if a key does
+not yet exist in a dictionary (line mystery-key_) we must explicitly add it
+and give it an initial value (line mystery-add_).
+
+The second important use of dictionaries is for mappings that involve `compound keys`:dt:.
+Suppose we want to categorize a series of linguistic observations according
+to two or more properties.  We can combine the properties using a tuple
+and build up a dictionary in the usual way, as exemplified in Figure compound-keys_.
+
+.. pylisting:: compound-keys
+   :caption: Illustration of compound keys
+
+   attachment = nltk.defaultdict(lambda:[0,0])
+   V, N = 0, 1
+   for entry in nltk.corpus.ppattach.attachments('training'):
+       key = entry.verb, entry.prep
+       if entry.attachment == 'V':
+           attachment[key][V] += 1
+       else:
+           attachment[key][N] += 1
+
+Back in Chapter chap-introduction_ we saw NLTK's ``FreqDist`` class, which is
+useful for counting word and letter frequencies.  ``FreqDist`` is actually
+a special kind of dictionary, whose keys are the items of interest, and
+whose values are counts.
+
+    >>> phrase = 'colorless green ideas sleep furiously'
+    >>> count = nltk.FreqDist(phrase)
+    >>> print count
+    <FreqDist: 'e': 6, 's': 5, ' ': 4, 'l': 4, 'o': 3, 'r': 3, 'i': 2,
+    'u': 2, 'a': 1, 'c': 1, 'd': 1, 'g': 1, 'f': 1, 'n': 1, 'p': 1, 'y': 1>
+
+It is instructive to see how the same computation is done using
+dictionaries directly.  We begin by initializing a dictionary,
+then iterate over the items, adding them to dictionary and increment
+their counts as we go:    
+
+    >>> count = {}
+    >>> for letter in phrase:
+    ...     if letter not in count:
+    ...         count[letter] = 0
+    ...     count[letter] += 1
+    >>> count
+    {'a': 1, ' ': 4, 'c': 1, 'e': 6, 'd': 1, 'g': 1, 'f': 1, 'i': 2,
+     'l': 4, 'o': 3, 'n': 1, 'p': 1, 's': 5, 'r': 3, 'u': 2, 'y': 1}
+    >>>
+
+Observe that ``in`` is used here in two different ways:
+``for letter in phrase`` iterates over every letter, running
+the body of the ``for`` loop.  Inside this loop, the
+conditional expression ``if letter not in count`` checks whether the letter is missing
+from the dictionary.  If it is missing, we create a new entry and
+set its value to zero: ``count[letter] = 0``.  Now we are sure
+that the entry exists, and it may have a zero or non-zero value.
+We finish the body of the ``for`` loop by incrementing this particular
+counter using the ``+=`` assignment operator.
+Finally, we print the dictionary, to see the letters and their counts.
+This method of maintaining many counters will find many uses, and you
+will become very familiar with it.  To make counting much easier, we
+can use ``defaultdict``, a special kind of container introduced in Python 2.5.
+This is also included in NLTK for the benefit of readers who are using
+Python 2.4, and can be imported as shown below.
+
+    >>> from nltk import defaultdict
+    >>> count = defaultdict(int)
+    >>> for letter in phrase:
+    ...     count[letter] += 1
+    >>> count
+    {'a': 1, ' ': 4, 'c': 1, 'e': 6, 'd': 1, 'g': 1, 'f': 1, 'i': 2,
+     'l': 4, 'o': 3, 'n': 1, 'p': 1, 's': 5, 'r': 3, 'u': 2, 'y': 1}
+    >>>
+
+.. note:: Calling ``defaultdict(int)`` creates a special kind of dictionary.
+   When that dictionary is accessed with a non-existent key
+   |mdash| i.e. the first time a particular letter is encountered |mdash|
+   then ``int()`` is called to produce the initial value for this key (i.e. ``0``).
+   You can test this by running the above code, then typing ``count['X']``
+   and seeing that it returns a zero value (and not a ``KeyError`` as in the
+   case of normal Python dictionaries).
+   The function defaultdict is very handy and will be used in many places later on.
+
+Sorted Output from Dictionaries
+-------------------------------
+
+There are other useful ways to display the result, such as sorting
+alphabetically by the letter:
+
+    >>> sorted(count.items())
+    [(' ', 4), ('a', 1), ('c', 1), ('d', 1), ('e', 6), ('f', 1), ...,
+    ...('y', 1)]
+    >>>
+
+.. Note:: The function ``sorted()`` is similar to the ``sort()``
+   method on sequences, but rather than sorting in-place, it produces
+   a new sorted copy of its argument. Moreover, as we will see very
+   soon, ``sorted()`` will work on a wider variety of data types,
+   including dictionaries.
 
 
-    >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> tagged_tokens = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-    ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> guess = cp.parse(correct.flatten())
-    >>> chunkscore.score(correct, guess)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision: 100.0%
-        Recall:    100.0%
-        F-Measure: 100.0%
+Now a ``FreqDist`` object is just a kind of dictionary, so we can easily get
+its key-value pairs and sort them by decreasing values, as follows:
 
-``ChunkScore`` is a class for scoring chunk parsers.  It can be used
-to evaluate the output of a chunk parser, using precision, recall,
-f-measure, missed chunks, and incorrect chunks.  It can also be used
-to combine the scores from the parsing of multiple texts.  This is
-quite useful if we are parsing a text one sentence at a time.  The
-following program listing shows a typical use of the ``ChunkScore``
-class.  In this example, ``chunkparser`` is being tested on each
-sentence from the Wall Street Journal tagged files.
+    >>> from operator import itemgetter
+    >>> sorted_word_counts = sorted(fd.items(), key=itemgetter(1), reverse=True)  # [_sorted-args]
+    >>> [token for (token, freq) in sorted_word_counts[:20]]
+    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that',
+    '``', 'is', 'was', "''", 'on', 'at', 'with', 'be', 'by']
 
-    >>> grammar = r"NP: {<DT|JJ|NN>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> for file in nltk.corpus.treebank_chunk.files()[:5]:
-    ...     for chunk_struct in nltk.corpus.treebank_chunk.chunked_sents(file):
-    ...         test_sent = cp.parse(chunk_struct.flatten())
-    ...         chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
-    ChunkParse score:
-        Precision:  42.3%
-        Recall:     29.9%
-        F-Measure:  35.0%
+Note the arguments of the ``sorted()`` function (line sorted-args_): ``itemgetter(1)``
+returns a function that can be called on any sequence object to return the item at position ``1``;
+``reverse=True`` performs the sort in reverse order.  Together, these ensure that the
+word with the highest frequency is listed first.  This reversed sort by frequency is
+such a common requirement that it is built into the ``FreqDist`` object.
+Figure print-freq_ demonstrates this, and also prints rank and cumulative frequency.
 
-The overall results of the evaluation can be viewed by printing the
-``ChunkScore``.  Each evaluation metric is also returned by an
-accessor method: ``precision()``, ``recall``, ``f_measure``,
-``missed``, and ``incorrect``.  The ``missed`` and ``incorrect``
-methods can be especially useful when trying to improve the
-performance of a chunk parser.  Here are the missed chunks:
+.. pylisting:: print-freq
+   :caption: Words and Cumulative Frequencies, in Order of Decreasing Frequency
 
-.. doctest-ignore::
-    >>> from random import shuffle
-    >>> missed = chunkscore.missed()
-    >>> shuffle(missed)
-    >>> print missed[:10]
-    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
-     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('30', 'CD'), ('years', 'NNS')),
-     (('workers', 'NNS'),),
-     (('preliminary', 'JJ'), ('findings', 'NNS')),
-     (('Medicine', 'NNP'),),
-     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('researchers', 'NNS'),)]
+   def print_freq(tokens, num=50):
+       fd = nltk.FreqDist(tokens)
+       cumulative = 0.0
+       rank = 0
+       for word in fd.sorted()[:num]:
+           rank += 1
+           cumulative += fd[word] * 100.0 / fd.N()
+           print "%3d %3.2d%% %s" % (rank, cumulative, word)
 
-Here are the incorrect chunks:
+   >>> print_freq(nltk.corpus.brown.words(categories='a'), 20)
+     1  05% the
+     2  10% ,
+     3  14% .
+     4  17% of
+     5  19% and
+     6  21% to
+     7  23% a
+     8  25% in
+     9  26% for
+    10  27% The
+    11  28% that
+    12  28% ``
+    13  29% is
+    14  30% was
+    15  31% ''
+    16  31% on
+    17  32% at
+    18  32% with
+    19  33% be
+    20  33% by
 
-.. doctest-ignore::
-    >>> incorrect = chunkscore.incorrect()
-    >>> shuffle(incorrect)
-    >> print incorrect[:10]
-    [(('New', 'JJ'), ('York-based', 'JJ')),
-     (('Micronite', 'NN'), ('cigarette', 'NN')),
-     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
-     (('later', 'JJ'),),
-     (('preliminary', 'JJ'),),
-     (('New', 'JJ'), ('York-based', 'JJ')),
-     (('resilient', 'JJ'),),
-     (('group', 'NN'),),
-     (('the', 'DT'),),
-     (('Micronite', 'NN'), ('cigarette', 'NN'))]
 
-.. Note: By default, only the first 100 missed chunks and the first
-   100 incorrect chunks will be remembered by the ``ChunkScore``.  You
-   can tell ``ChunkScore`` to record more chunk examples with the
-   ``max_fp_examples`` (maximum false positive examples) and the
-   ``max_fn_examples`` (maximum false negative examples) keyword
-   arguments to the ``ChunkScore`` constructor:
+Sets
+----
 
-    >>> chunkscore = nltk.chunk.ChunkScore(max_fp_examples=1000,
-    ...                                    max_fn_examples=1000)
+Sometimes, we don't want to count at all, but just want to make a
+record of the items that we have seen, regardless of repeats.  For
+example, we might want to compile a vocabulary from a document.  As
+we saw in Chapter chap-introduction_, this is just
+a sorted list of the words that appeared, regardless of frequency.
+Python provides a ``set`` type, which is basically a dictionary
+with keys but no values:
+
+    >>> sentence = "she sells sea shells by the sea shore".split()
+    >>> set(sentence)
+    set(['shells', 'sells', 'shore', 'she', 'sea', 'the', 'by'])
+    >>> sorted(set(sentence))
+    ['by', 'sea', 'sells', 'she', 'shells', 'shore', 'the']
+
+The order of items in a set is not significant, and they will usually
+appear in a different order to the one they were entered (as we see above).
+If necessary we can sort the words using the ``sorted()`` function,
+an operation which creates a list (not a set).  The
+main point here is that converting a list to a set removes any duplicates.
+We convert it back into a list, sort it, and print.
+
+We can do the same thing without the help of sets, simply by
+iterating through the words and accumulating new words into
+a list:
+
+    >>> words = []
+    >>> for word in sentence:
+    ...     if word not in words:
+    ...         words.append(word)
+    >>> sorted(words)
+    ['by', 'sea', 'sells', 'she', 'shells', 'shore', 'the']
+
+We can implement this task using a dictionary, counting up the
+words, but only printing the dictionary keys:
+
+    >>> words = defaultdict(int)
+    >>> for word in sentence:
+    ...     words[word] += 1
+    >>> sorted(words)
+    ['by', 'sea', 'sells', 'she', 'shells', 'shore', 'the']
+
+Here we have seen that there is sometimes more than one way to solve a
+problem with a program.  In this case, we used three different
+built-in data types, a set, a list, and a dictionary.  The ``set`` data type
+mostly closely modeled our task, so it required the least amount of work.
+
+Conditionals
+------------
+
+In the condition part of an ``if`` statement, a
+nonempty string or list is evaluated as true, while an empty string or
+list evaluates as false. 
+
+    >>> mixed = ['cat', '', ['dog'], []]
+    >>> for element in mixed:
+    ...     if element: 
+    ...         print element
+    ... 
+    cat
+    ['dog']
+
+That is, we *don't* need to say ``if len(element) > 0:`` in the
+condition.
+
+What's the difference between using ``if...elif`` as opposed to using
+a couple of ``if`` statements in a row? Well, consider the following
+situation:
+
+    >>> animals = ['cat', 'dog']
+    >>> if 'cat' in animals:
+    ...     print 1
+    ... elif 'dog' in animals:
+    ...     print 2
+    ... 
+    1
+    >>>
+
+Since the ``if`` clause of the statement is satisfied, Python never
+tries to evaluate the ``elif`` clause, so we never get to print out
+``2``. By contrast, if we replaced the ``elif`` by an ``if``, then we
+would print out both ``1`` and ``2``. So an ``elif`` clause
+potentially gives us more information than a bare ``if`` clause; when
+it evaluates to true, it tells us not only that the condition is
+satisfied, but also that the condition of the main ``if`` clause was
+*not* satisfied.
 
 Exercises
 ---------
 
-#. |soso| **Chunker Evaluation:**
-   Carry out the following evaluation tasks for
-   any of the chunkers you have developed earlier.
-   (Note that most chunking corpora contain some internal
-   inconsistencies, such that any reasonable rule-based approach
-   will produce errors.)
+#. |easy| Find out more about sequence objects using Python's help facility.
+   In the interpreter, type ``help(str)``, ``help(list)``, and ``help(tuple)``.
+   This will give you a full list of the functions supported by each type.
+   Some functions have special names flanked with underscore; as the
+   help documentation shows, each such function corresponds to something
+   more familiar.  For example ``x.__getitem__(y)`` is just a long-winded
+   way of saying ``x[y]``.
 
-   a) Evaluate your chunker on 100 sentences from a chunked corpus,
-      and report the precision, recall and F-measure.
-   b) Use the ``chunkscore.missed()`` and ``chunkscore.incorrect()``
-      methods to identify the errors made by your chunker.  Discuss.
-   c) Compare the performance of your chunker to the baseline chunker
-      discussed in the evaluation section of this chapter.
+#. |easy| Identify three operations that can be performed on both tuples
+   and lists.  Identify three list operations that cannot be performed on
+   tuples.  Name a context where using a list instead of a tuple generates
+   a Python error.
 
-#. |hard| **Transformation-Based Chunking:**
-   Apply the n-gram and Brill tagging methods to IOB chunk tagging.
-   Instead of assigning POS tags to words, here we will assign IOB tags
-   to the POS tags.  E.g. if the tag ``DT`` (determiner) often occurs
-   at the start of a chunk, it will be tagged ``B`` (begin).  Evaluate
-   the performance of these chunking methods relative to the regular
-   expression chunking methods covered in this chapter.
+#. |easy| Find out how to create a tuple consisting of a single item.
+   There are at least two ways to do this.
 
-.. TODO: amplify following example
+#. |easy| Create a list ``words = ['is', 'NLP', 'fun', '?']``.  Use
+   a series of assignment statements (e.g. ``words[1] = words[2]``)
+   and a temporary variable ``tmp`` to transform this list into the
+   list ``['NLP', 'is', 'fun', '!']``.  Now do the same transformation
+   using tuple assignment.
+
+#. |easy| Does the method for creating a sliding window of n-grams
+   behave correctly for the two limiting cases: `n`:math: = 1, and `n`:math: = ``len(sent)``?
+
+#. |easy| Create two dictionaries, ``d1`` and ``d2``, and add some entries to
+   each.  Now issue the command ``d1.update(d2)``.  What did this do?
+   What might it be useful for?
+
+#. |easy| We pointed out that when empty strings and empty lists occur
+   in the condition part of an ``if`` clause, they evaluate to
+   false. In this case, they are said to be occuring in a `Boolean
+   context`:dt:.
+   Experiment with different kind of non-Boolean expressions in Boolean
+   contexts, and see whether they evaluate as true or false.
+
+#. |soso| Create a list of words and store it in a variable ``sent1``.
+   Now assign ``sent2 = sent1``.  Modify one of the items in ``sent1``
+   and verify that ``sent2`` has changed.
+
+   a) Now try the same exercise but instead assign ``sent2 = sent1[:]``.
+      Modify ``sent1`` again and see what happens to ``sent2``.  Explain.
+   b) Now define ``text1`` to be a list of lists of strings (e.g. to
+      represent a text consisting of multiple sentences.  Now assign
+      ``text2 = text1[:]``, assign a new value to one of the words,
+      e.g. ``text1[1][1] = 'Monty'``.  Check what this did to ``text2``.
+      Explain.
+   c) Load Python's ``deepcopy()`` function (i.e. ``from copy import deepcopy``),
+      consult its documentation, and test that it makes a fresh copy of any
+      object.
+
+#. |soso| Write code that starts with a string of words and
+   results in a new string consisting of the same words, but where
+   the first word swaps places with the second, and so on. For
+   example, ``'the cat sat on the mat'`` will be converted into ``'cat
+   the on sat mat the'``.
+
+#. |soso| Initialize an *n*\ -by-*m* list of lists of empty strings using list
+   multiplication, e.g. ``word_table = [[''] * n] * m``.  What happens
+   when you set one of its values, e.g. ``word_table[1][2] = "hello"``?
+   Explain why this happens.  Now write an expression using ``range()``
+   to construct a list of lists, and show that it does not have this problem.
+
+#. |soso| Write code to initialize a two-dimensional array of sets called
+   ``word_vowels`` and process a list of words, adding each
+   word to ``word_vowels[l][v]`` where ``l`` is the length of the word and ``v`` is
+   the number of vowels it contains.
+
+#. |soso| Write a function ``novel10(text)`` that prints any word that
+   appeared in the last 10% of a text that had not been encountered earlier.
+
+#. |soso| Write a program that takes a sentence expressed as a single string,
+   splits it and counts up the words.  Get it to print out each word and the
+   word's frequency, one per line, in alphabetical order.
+
+#. |soso| Write code that builds a dictionary of dictionaries of sets.
+
+#. |soso| Use ``sorted()`` and ``set()`` to get a sorted list of tags used in the Brown
+   corpus, removing duplicates.
+
+#. |soso| Write code to convert text into *hAck3r*, where characters are
+   mapped according to the following table:
+
+   +---------+---+---+---+----+---+--------+-----+
+   | Input:  | e | i | o | l  | s | .      | ate |
+   +---------+---+---+---+----+---+--------+-----+
+   | Output: | 3 | 1 | 0 | \| | 5 | 5w33t! | 8   |
+   +---------+---+---+---+----+---+--------+-----+
+
+#. |soso| Read up on Gematria, a method for assigning numbers to words, and for
+   mapping between words having the same number to discover the hidden meaning of
+   texts (``http://en.wikipedia.org/wiki/Gematria``, ``http://essenes.net/gemcal.htm``).
+
+   a) Write a function ``gematria()`` that sums the numerical values of
+      the letters of a word, according to the letter values in ``letter_vals``:
+
+      letter_vals = {'a':1, 'b':2, 'c':3, 'd':4, 'e':5, 'f':80, 'g':3, 'h':8,
+       'i':10, 'j':10, 'k':20, 'l':30, 'm':40, 'n':50, 'o':70, 'p':80, 'q':100,
+       'r':200, 's':300, 't':400, 'u':6, 'v':6, 'w':800, 'x':60, 'y':10, 'z':7}
+
+   b) Use the method from Figure mystery_ to index English words according to their values.
+
+   c) Process a corpus (e.g. ``nltk.corpus.state_union``) and for each document, count how
+      many of its words have the number 666.
+
+   d) Write a function ``decode()`` to process a text, randomly replacing words with
+      their Gematria equivalents, in order to discover the "hidden meaning" of the text.
+
+#. |soso| Write a function ``shorten(text, n)`` to process a text, omitting the ``n``
+   most frequently occurring words of the text.  How readable is it?
+
+#. |hard| Extend the example in Figure compound-keys_ in the following ways:
+
+   a) Define two sets ``verbs`` and ``preps``, and add each verb and preposition
+      as they are encountered.  (Note that you can add an item to a set without
+      bothering to check whether it is already present.)
+
+   b) Create nested loops to display the results, iterating over verbs and
+      prepositions in sorted order.  Generate one line of output per verb,
+      listing prepositions and attachment ratios as follows:
+      ``raised: about 0:3, at 1:0, by 9:0, for 3:6, from 5:0, in 5:5...``
+
+   c) We used a tuple to represent a compound key consisting of two strings.
+      However, we could have simply concatenated the strings, e.g.
+      ``key = verb + ":" + prep``, resulting in a simple string key.
+      Why is it better to use tuples for compound keys?
+
+------------------
+Presenting Results
+------------------
+
+Often we write a program to report a single datum, such as a particular element
+in a corpus that meets some complicated criterion, or a single summary statistic
+such as a word-count or the performance of a tagger.  More often, we write a program
+to produce a structured result, such as a tabulation of numbers or linguistic forms,
+or a reformatting of the original data.  When the results to be presented are linguistic,
+textual output is usually the most natural choice.  However, when the results are numerical,
+it may be preferable to produce graphical output.  In this section you will learn about
+a variety of ways to present program output.
+
+Strings and Formats
+-------------------
+
+We have seen that there are two ways to display the contents of an object:
+
+    >>> word = 'cat'
+    >>> sentence = """hello
+    ... world"""
+    >>> print word
+    cat
+    >>> print sentence
+    hello
+    world
+    >>> word
+    'cat'
+    >>> sentence
+    'hello\nworld'
+
+The ``print`` command yields Python's attempt to produce the most human-readable form of an object.
+The second method |mdash| naming the variable at a prompt |mdash| shows us a string
+that can be used to recreate this object.  It is important to keep in mind that both of
+these are just strings, displayed for the benefit of you, the user.  They do not give
+us any clue as to the actual internal representation of the object.
+
+There are many other useful ways to display an object as a string of
+characters.  This may be for the benefit of a human reader, or because
+we want to `export`:dt: our data to a particular file format for use
+in an external program.
+
+Formatted output typically contains a combination of variables and
+pre-specified strings, e.g. given a dictionary ``wordcount``
+consisting of words and their frequencies we could do:
+
+    >>> wordcount = {'cat':3, 'dog':4, 'snake':1}
+    >>> for word in sorted(wordcount):
+    ...     print word, '->', wordcount[word], ';',
+    cat -> 3 ; dog -> 4 ; snake -> 1 ;
+
+Apart from the problem of unwanted whitespace, print statements
+that contain alternating variables and constants can be difficult to read and
+maintain.  A better solution is to use formatting strings:
+
+    >>> for word in sorted(wordcount):
+    ...    print '%s->%d;' % (word, wordcount[word]),
+    cat->3; dog->4; snake->1;
+
+.. TODO: describe textwrap package
+
+.. _sec-lining-things-up:
+
+Lining Things Up
+----------------
+
+So far our formatting strings have contained specifications of fixed width, such
+as ``%6s``, a string that is padded to width 6 and right-justified.
+We can include a minus sign to make it left-justified.
+In case we don't know in advance how wide a displayed value should be,
+the width value can be replaced with a star in the formatting string,
+then specified using a variable:
+
+    >>> '%6s' % 'dog'
+    '   dog'
+    >>> '%-6s' % 'dog'
+    'dog   '
+    >>> width = 6
+    >>> '%-*s' % (width, 'dog')
+    'dog   '
+
+Other control characters are used for decimal integers and floating point numbers.
+Since the percent character ``%`` has a special interpretation in formatting strings,
+we have to precede it with another ``%`` to get it in the output:
+
+    >>> "accuracy for %d words: %2.4f%%" % (9375, 100.0 * 3205/9375)
+    'accuracy for 9375 words: 34.1867%'
+
+An important use of formatting strings is for tabulating data.
+The program in Figure modal-tabulate_ iterates over five genres of the Brown Corpus.
+For each token having the ``md`` tag we increment a count.  To do this we
+have used ``ConditionalFreqDist()``, where the condition is the current genre
+and the event is the modal, i.e. this constructs a frequency distribution of
+the modal verbs in each genre.
+Line modals-of-interest_
+identifies a small set of modals of interest, and calls
+the function ``tabulate()`` that
+processes the data structure to output the required counts.
+Note that we have been careful to separate the language processing
+from the tabulation of results.
+
+.. pylisting:: modal-tabulate
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+   def count_words_by_tag(t, genres):
+       cfdist = nltk.ConditionalFreqDist()
+       for genre in genres:
+           for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
+               if tag == t:
+                    cfdist[genre].inc(word.lower())
+       return cfdist
+
+   def tabulate(cfdist, words):
+       print 'Genre ', ' '.join([('%6s' % w) for w in words])
+       for genre in sorted(cfdist.conditions()):           # for each genre
+           print '%-6s' % genre,                           # print row heading
+           for w in words:                                 # for each word
+               print '%6d' % cfdist[genre][w],             # print table cell
+           print                                           # end the row
+
+   >>> genres = ['a', 'd', 'e', 'h', 'n']
+   >>> cfdist = count_words_by_tag('MD', genres)
+   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']   # [_modals-of-interest]
+   >>> tabulate(cfdist, modals)
+   Genre     can  could    may  might   must   will
+   a          94     86     66     36     50    387
+   d          84     59     79     12     54     64
+   e         273     59    130     22     83    259
+   h         115     37    152     13     99    237
+   n          48    154      6     58     27     48
+
+There are some interesting patterns in the table produced by
+the program in Figure modal-tabulate_.  For instance,
+compare row d (government literature) with row n (adventure literature);
+the former is dominated by the use of ``can, may, must, will`` while
+the latter is characterized by the use of ``could`` and ``might``.
+With some further work it might be possible to guess the genre of a
+new text automatically, simply using information about the distribution of modal
+verbs.
+
+Our next example, in Figure concordance_, generates a concordance display.
+We use the left/right justification of strings and the variable width
+to get vertical alignment of a variable-width window.
+
+[TODO: explain ValueError exception]
+
+.. TODO: the following would be better if the corpus was an argument, and if
+   brown.raw() behaved like other raw() methods and generated words not lists
 
 
+.. pylisting:: concordance
+   :caption: Simple Concordance Display
 
+   def concordance(word, context):
+       "Generate a concordance for the word with the specified context window"
+       for sent in nltk.corpus.brown.sents(categories='a'):
+           try:
+               pos = sent.index(word)
+               left = ' '.join(sent[:pos])
+               right = ' '.join(sent[pos+1:])
+               print '%*s %s %-*s' %\
+                   (context, left[-context:], word, context, right[:context])
+           except ValueError:
+               pass
+
+    >>> concordance('line', 32)
+    ce , is today closer to the NATO line .                               
+    n more activity across the state line in Massachusetts than in Rhode I
+     , gained five yards through the line and then uncorked a 56-yard touc
+                     `` Our interior line and out linebackers played excep
+    k then moved Cooke across with a line drive to left .                 
+    chal doubled down the rightfield line and Cooke singled off Phil Shart
+                  -- Billy Gardner's line double , which just eluded the d
+               -- Nick Skorich , the line coach for the football champion 
+                         Maris is in line for a big raise .               
+    uld be impossible to work on the line until then because of the large 
+             Murray makes a complete line of ginning equipment except for 
+        The company sells a complete line of gin machinery all over the co
+    tter Co. of Sherman makes a full line of gin machinery and equipment .
+    fred E. Perlman said Tuesday his line would face the threat of bankrup
+     sale of property disposed of in line with a plan of liquidation .    
+     little effort spice up any chow line .                               
+    es , filed through the cafeteria line .                               
+    l be particularly sensitive to a line between first and second class c
+    A skilled worker on the assembly line , for example , earns $37 a week
+
+Writing Results to a File
+-------------------------
+
+We have seen how to read text from files (Section sec-reading-files_).
+It is often useful to write output to files as well.  The following
+code opens a file ``output.txt`` for writing, and saves the program
+output to the file.
+
+    >>> file = open('output.txt', 'w')
+    >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
+    >>> for word in sorted(words):
+    ...     file.write(word + "\n")
+
+When we write non-text data to a file we must convert it to a string first.
+We can do this conversion using formatting strings, as we saw above.
+We can also do it using Python's backquote notation, which converts any
+object into a string.  Let's write the total number of words to our
+file, before closing it.
+
+    >>> len(words)
+    2789
+    >>> `len(words)`
+    '2789'
+    >>> file.write(`len(words)` + "\n")
+    >>> file.close()
+
+.. _sec-graphics:
+
+Graphical Presentation
+----------------------
+
+So far we have focused on textual presentation and the use of formatted print
+statements to get output lined up in columns.  It is often very useful to display
+numerical data in graphical form, since this often makes it easier to detect
+patterns.  For example, in Figure modal-tabulate_ we saw a table of numbers
+showing the frequency of particular modal verbs in the Brown Corpus, classified
+by genre.  The program in Figure modal-plot_ presents the same information in graphical
+format.  The output is shown in Figure modal-genre_ (a color figure in the online version).
+
+.. Note:: The program in Figure modal-plot_ uses the PyLab package which supports sophisticated
+   plotting functions with a MATLAB-style interface.  For more information about
+   this package please see ``http://matplotlib.sourceforge.net/``.
+
+.. pylisting:: modal-plot
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+   colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
+   def bar_chart(categories, words, counts):
+       "Plot a bar chart showing counts for each word by category"
+       import pylab
+       ind = pylab.arange(len(words))
+       width = 1.0 / (len(categories) + 1)
+       bar_groups = []
+       for c in range(len(categories)):
+           bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
+           bar_groups.append(bars)
+       pylab.xticks(ind+width, words)
+       pylab.legend([b[0] for b in bar_groups], categories, loc='upper left')
+       pylab.ylabel('Frequency')
+       pylab.title('Frequency of Six Modal Verbs by Genre')
+       pylab.show()
+
+   >>> genres = ['a', 'd', 'e', 'h', 'n']
+   >>> cfdist = count_words_by_tag('MD', genres)
+   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+   >>> counts = {}
+   >>> for genre in genres:
+   ...     counts[genre] = [cfdist[genre][word] for word in modals]
+   >>> bar_chart(genres, modals, counts)
+
+.. _modal-genre:
+.. figure:: ../images/modal_genre.png
+   :scale: 25
+
+   Bar Chart Showing Frequency of Modals in Different Sections of Brown Corpus
+
+From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
+almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
 
 Exercises
 ---------
 
-#. |easy|
-   Pick one of the three chunk types in the CoNLL corpus.
-   Inspect the CoNLL corpus and try to observe any patterns in the POS tag sequences
-   that make up this kind of chunk.  Develop a simple chunker using
-   the regular expression chunker ``nltk.RegexpParser``.
-   Discuss any tag sequences that are difficult to chunk reliably.
+#. |easy| Write code that removes whitespace at the beginning and end of a
+   string, and normalizes whitespace between words to be a single
+   space character.
 
-#. |easy|
-   An early definition of *chunk* was the material that occurs between chinks.
-   Develop a chunker that starts by putting the whole sentence in a single
-   chunk, and then does the rest of its work solely by chinking.
-   Determine which tags (or tag sequences) are most likely to make up chinks
-   with the help of your own utility program.  Compare the performance and
-   simplicity of this approach relative to a chunker based entirely on
-   chunk rules.
+   #) do this task using ``split()`` and ``join()``
 
-#. |soso|
-   Develop a chunker for one of the chunk types in the CoNLL corpus using a
-   regular-expression based chunk grammar ``RegexpChunk``.  Use any
-   combination of rules for chunking, chinking, merging or splitting.
+   #) do this task using regular expression substitutions
 
-#. |soso| Sometimes a word is incorrectly tagged, e.g. the head noun in
-   "12/CD or/CC so/RB cases/VBZ".  Instead of requiring manual correction of
-   tagger output, good chunkers are able to work with the erroneous
-   output of taggers.  Look for other examples of correctly chunked
-   noun phrases with incorrect tags.
+#. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
+   are used to display strings that are longer than six characters?
 
-#. |hard|
-   We saw in the tagging chapter that it is possible to establish
-   an upper limit to tagging performance by looking for ambiguous n-grams,
-   n-grams that are tagged in more than one possible way in the training data.
-   Apply the same method to determine an upper bound on the performance
-   of an n-gram chunker.
+#. |easy| We can use a dictionary to specify the values to be
+   substituted into a formatting string.  Read Python's library
+   documentation for formatting strings
+   (`http://docs.python.org/lib/typesseq-strings.html
+   <http://docs.python.org/lib/typesseq-strings.html>`_),
+   and use this method to display today's date in two
+   different formats.
 
-#. |hard|
-   Pick one of the three chunk types in the CoNLL corpus.  Write functions
-   to do the following tasks for your chosen type:
+#. |soso| Figure baseline-tagger_ in Chapter chap-tag_ plotted a curve showing
+   change in the performance of a lookup tagger as the model size was increased.
+   Plot the performance curve for a unigram tagger, as the amount of training
+   data is varied.
 
-   a) List all the tag sequences that occur with each instance of this chunk type.
-   b) Count the frequency of each tag sequence, and produce a ranked list in
-      order of decreasing frequency; each line should consist of an integer (the frequency)
-      and the tag sequence.
-   c) Inspect the high-frequency tag sequences.  Use these as the basis for
-      developing a better chunker.
+.. _sec-functions:
 
-#. |hard|
-   The baseline chunker presented in the evaluation section tends to
-   create larger chunks than it should.  For example, the
-   phrase:
-   ``[every/DT time/NN] [she/PRP] sees/VBZ [a/DT newspaper/NN]``
-   contains two consecutive chunks, and our baseline chunker will
-   incorrectly combine the first two: ``[every/DT time/NN she/PRP]``.
-   Write a program that finds which of these chunk-internal tags
-   typically occur at the start of a chunk, then
-   devise one or more rules that will split up these chunks.
-   Combine these with the existing baseline chunker and
-   re-evaluate it, to see if you have discovered an improved baseline.
+---------
+Functions
+---------
 
-#. |hard|
-   Develop an `np`:gc: chunker that converts POS-tagged text into a list of
-   tuples, where each tuple consists of a verb followed by a sequence of
-   noun phrases and prepositions,
-   e.g. ``the little cat sat on the mat`` becomes ``('sat', 'on', 'NP')``...
+Once you have been programming for a while, you will find that you need
+to perform a task that you have done in the past.  In fact, over time,
+the number of completely novel things you have to do in creating a program
+decreases significantly.  Half of the work may involve simple tasks that
+you have done before.  Thus it is important for your code to be `re-usable`:em:.
+One effective way to do this is to abstract commonly used sequences of steps
+into a `function`:dt:.
 
-#. |hard|
-   The Penn Treebank contains a section of tagged Wall Street Journal text
-   that has been chunked into noun phrases.  The format uses square brackets,
-   and we have encountered it several times during this chapter.
-   The Treebank corpus can be accessed using:
-   ``for sent in nltk.corpus.treebank_chunk.chunked_sents(file)``.  These are flat trees,
-   just as we got using ``nltk.corpus.conll2000.chunked_sents()``.
+For example, suppose we find that we often want to read text from an HTML file.
+This involves several steps: opening the file, reading it in, normalizing
+whitespace, and stripping HTML markup.  We can collect these steps into a
+function, and give it a name such as ``get_text()``:
 
-   a) The functions ``nltk.tree.pprint()`` and ``nltk.chunk.tree2conllstr()``
-      can be used to create Treebank and IOB strings from a tree.
-      Write functions ``chunk2brackets()`` and ``chunk2iob()`` that take a single
-      chunk tree as their sole argument, and return the required multi-line string
-      representation.
-   b) Write command-line conversion utilities ``bracket2iob.py`` and ``iob2bracket.py``
-      that take a file in Treebank or CoNLL format (resp) and convert it to the other
-      format.  (Obtain some raw Treebank or CoNLL data from the NLTK Corpora, save it
-      to a file, and then use ``for line in open(filename)`` to access it from Python.)
+.. pylisting:: get_text
+   :caption: Read text from a file
 
-.. _n-gram-chunking:
+   import re
+   def get_text(file):
+       """Read text from a file, normalizing whitespace
+       and stripping HTML markup."""
+       text = open(file).read()
+       text = re.sub('\s+', ' ', text)
+       text = re.sub(r'<.*?>', ' ', text)
+       return text
 
----------------
-N-Gram Chunking
----------------
+Now, any time we want to get cleaned-up text from an HTML file, we can just call
+``get_text()`` with the name of the file as its only argument.  It will return
+a string, and we can assign this to a variable, e.g.:
+``contents = get_text("test.html")``.  Each time we want to use this series of
+steps we only have to call the function.
 
-Our approach to chunking has been to try to detect structure based on
-the part-of-speech tags.  We have seen that the IOB format represents
-this extra structure using another kind of tag.  The question arises
-as to whether we could use the same *n*-gram tagging methods we saw in
-Chapter chap-tag_, applied to a different vocabulary. In this case,
-rather than trying to determine the correct part-of-speech tag, given
-a word, we are trying to determine the correct chunk tag, given a
-part-of-speech tag.
+Notice that a function definition consists of the keyword ``def`` (short for "define"), followed
+by the function name, followed by a sequence of parameters enclosed in parentheses, then
+a colon.  The following lines contain an indented block of code, the `function body`:dt:.
 
-The first step is to get the ``word,tag,chunk`` triples from the
-CoNLL 2000 corpus and map these to ``tag,chunk`` pairs:
+Using functions has the benefit of saving space in our program.  More
+importantly, our choice of name for the function helps make the program *readable*.
+In the case of the above example, whenever our program needs to read cleaned-up
+text from a file we don't have to clutter the program with four lines of code, we
+simply need to call ``get_text()``.  This naming helps to provide some "semantic
+interpretation" |mdash| it helps a reader of our program to see what the program "means".
 
-    >>> chunk_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(chtree)]
-    ...              for chtree in nltk.corpus.conll2000.chunked_sents('train.txt')]
+Notice that the above function definition contains a string.  The first string inside
+a function definition is called a `docstring`:dt:.  Not only does it document the
+purpose of the function to someone reading the code, it is accessible to a programmer
+who has loaded the code from a file:
 
-We will now train two *n*-gram taggers over this data.
+    >>> help(get_text)
+    Help on function get_text:
 
-A Unigram Chunker
+    get_text(file)
+        Read text from a file, normalizing whitespace
+        and stripping HTML markup.
+
+We have seen that functions help to make our work reusable and readable.  They
+also help make it *reliable*.  When we re-use code that has already been developed
+and tested, we can be more confident that it handles a variety of cases correctly.
+We also remove the risk that we forget some important step, or introduce a bug.
+The program that calls our function also has increased reliability.  The author
+of that program is dealing with a shorter program, and its components behave
+transparently.
+
+* [More: overview of section]
+
+Function Arguments
+------------------
+
+* multiple arguments
+* named arguments
+* default values
+
+Python is a `dynamically typed`:dt: language.  It does not force us to
+declare the type of a variable when we write a program.  This feature
+is often useful, as it permits us to define functions that are flexible
+about the type of their arguments.  For example, a tagger might expect
+a sequence of words, but it wouldn't care whether this sequence is expressed
+as a list, a tuple, or an iterator.
+
+However, often we want to write programs for later use by others, and want
+to program in a defensive style, providing useful warnings when functions
+have not been invoked correctly.  Observe that the ``tag()``
+function in Figure tag1_ behaves sensibly for string arguments,
+but that it does not complain when it is passed a dictionary.
+
+.. pylisting:: tag1
+   :caption: A tagger that tags anything
+
+   def tag(word):
+       if word in ['a', 'the', 'all']:
+           return 'DT'
+       else:
+           return 'NN'
+
+   >>> tag('the')
+   'DT'
+   >>> tag('dog')
+   'NN'
+   >>> tag({'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']})
+   'NN'
+
+It would be helpful if the author of this function took some extra steps to
+ensure that the ``word`` parameter of the ``tag()`` function is a string.
+A naive approach would be to check the type of the argument and return
+a diagnostic value, such as Python's special empty value, ``None``,
+as shown in Figure tag2_.
+
+.. pylisting:: tag2
+   :caption: A tagger that only tags strings
+
+   def tag(word):
+       if not type(word) is str:
+           return None
+       if word in ['a', 'the', 'all']:
+           return 'DT'
+       else:
+           return 'NN'
+
+However, this approach is dangerous because the calling program
+may not detect the error, and the diagnostic return value may be
+propagated to later parts of the program with unpredictable consequences.
+A better solution is shown in Figure tag3_.
+
+.. pylisting:: tag3
+   :caption: A tagger that generates an error message when not passed a string
+
+   def tag(word):
+       if not type(word) is str:
+           raise ValueError, "argument to tag() must be a string"
+       if word in ['a', 'the', 'all']:
+           return 'DT'
+       else:
+           return 'NN'
+
+This produces an error that cannot be ignored, since it halts program execution.
+Additionally, the error message is easy to interpret.  (We will see an even
+better approach, known as "duck typing" in Chapter chap-applied-programming_.)
+
+Another aspect of defensive programming concerns the return statement of a function.
+In order to be confident that all execution paths through a function lead to a
+return statement, it is best to have a single return statement at the end of
+the function definition.
+This approach has a further benefit: it makes it more likely that the
+function will only return a single type.
+Thus, the following version of our ``tag()`` function is safer:
+
+    >>> def tag(word):
+    ...     result = 'NN'                       # default value, a string
+    ...     if word in ['a', 'the', 'all']:     # in certain cases...
+    ...         result = 'DT'                   #   overwrite the value
+    ...     return result                       # all paths end here
+
+A return statement can be used to pass multiple values back to the calling
+program, by packing them into a tuple.
+Here we define a function that returns a tuple
+consisting of the average word length of a sentence, and the inventory
+of letters used in the sentence.  It would have been clearer to write
+two separate functions.
+
+    >>> def proc_words(words):
+    ...     avg_wordlen = sum(len(word) for word in words)/len(words)
+    ...     chars_used = ''.join(sorted(set(''.join(words))))
+    ...     return avg_wordlen, chars_used
+    >>> proc_words(['Not', 'a', 'good', 'way', 'to', 'write', 'functions'])
+    (3, 'Nacdefginorstuwy')
+
+.. EK: wouldn't it be better to use an example which isn't then open to criticism?
+
+Functions do not need to have a return statement at all.
+Some functions do their work as a side effect, printing a result,
+modifying a file, or updating the contents of a parameter to the function.
+Consider the following three sort functions; the last approach is dangerous
+because a programmer could use it without realizing that it had modified
+its input.
+
+    >>> def my_sort1(l):      # good: modifies its argument, no return value
+    ...     l.sort()
+    >>> def my_sort2(l):      # good: doesn't touch its argument, returns value
+    ...     return sorted(l)
+    >>> def my_sort3(l):      # bad: modifies its argument and also returns it
+    ...     l.sort()
+    ...     return l
+
+An Important Subtlety
+---------------------
+
+Back in Section sec-assignment_ you saw that in Python, assignment works on values,
+but that the value of a structured object is a reference to that object.  The same
+is true for functions.  Python interprets function parameters as values (this is
+known as `call-by-value`:dt:).  Consider Figure call-by-value_.
+Function ``set_up()`` has two parameters,
+both of which are modified inside the function.  We begin by assigning an empty string
+to ``w`` and an empty dictionary to ``p``.  After calling the function, ``w`` is unchanged,
+while ``p`` is changed:
+
+.. pylisting:: call-by-value
+
+   def set_up(word, properties):
+       word = 'cat'
+       properties['pos'] = 'noun'
+
+   >>> w = ''
+   >>> p = {}
+   >>> set_up(w, p)
+   >>> w
+   ''
+   >>> p
+   {'pos': 'noun'}
+
+|nopar|
+To understand why ``w`` was not changed, it is necessary to understand call-by-value.
+When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
+a new variable ``word``.  Inside the function, the value of ``word`` was modified.
+However, that had no effect on the external value of ``w``.  This parameter passing is
+identical to the following sequence of assignments:
+
+    >>> w = ''
+    >>> word = w
+    >>> word = 'cat'
+    >>> w
+    ''
+
+|nopar|
+In the case of the structured object, matters are quite different.
+When we called ``set_up(w, p)``, the value of ``p`` (an empty
+dictionary) was assigned to a new local variable ``properties``.  Since the
+value of ``p`` is an object reference, both variables now reference the same
+memory location.  Modifying something inside ``properties`` will also
+change ``p``, just as if we had done the following sequence of assignments:
+
+    >>> p = {}
+    >>> properties = p
+    >>> properties['pos'] = 'noun'
+    >>> p
+    {'pos': 'noun'}
+
+Thus, to understand Python's call-by-value parameter passing,
+it is enough to understand Python's assignment operation.
+We will address some closely related issues in our later discussion
+of variable scope (Section sec-variable-scope_).
+
+Functional Decomposition
+------------------------
+
+Well-structured programs usually make extensive use of functions.
+When a block of program code grows longer than 10-20 lines, it is a
+great help to readability if the code is broken up into one or more
+functions, each one having a clear purpose.  This is analogous to
+the way a good essay is divided into paragraphs, each expressing one main idea.
+
+Functions provide an important kind of *abstraction*.
+They allow us to group multiple actions into a single, complex action,
+and associate a name with it.
+(Compare this with the way we combine the actions of
+`go`:lx: and `bring back`:lx: into a single more complex action `fetch`:lx:.)
+When we use functions, the main program can be written at a higher level
+of abstraction, making its structure transparent, e.g.
+
+.. doctest-ignore::
+    >>> data = load_corpus()
+    >>> results = analyze(data)
+    >>> present(results)
+
+Appropriate use of functions makes programs more readable and maintainable.
+Additionally, it becomes possible to reimplement a function
+|mdash| replacing the function's body with more efficient code |mdash|
+without having to be concerned with the rest of the program.
+
+Consider the ``freq_words`` function in Figure freq-words1_.
+It updates the contents of a frequency distribution that is
+passed in as a parameter, and it also prints a list of the
+`n`:math: most frequent words.
+
+.. pylisting:: freq-words1
+
+   def freq_words(url, freqdist, n):
+       text = nltk.clean_url(url)
+       for word in nltk.wordpunct_tokenize(text):
+           freqdist.inc(word.lower())
+       print freqdist.sorted()[:n]
+
+   >>> constitution = "http://www.archives.gov/national-archives-experience/charters/constitution_transcript.html"
+   >>> fd = nltk.FreqDist()
+   >>> freq_words(constitution, fd, 20)
+   ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
+   'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+
+This function has a number of problems.
+The function has two side-effects: it modifies the contents of its second
+parameter, and it prints a selection of the results it has computed.
+The function would be easier to understand and to reuse elsewhere if we
+initialize the ``FreqDist()`` object inside the function (in the same place
+it is populated), and if we moved the selection and display of results to the
+calling program.  In Figure freq-words2_ we `refactor`:dt: this function,
+and simplify its interface by providing a single ``url`` parameter.
+
+.. pylisting:: freq-words2
+
+   def freq_words(url):
+       freqdist = nltk.FreqDist()
+       text = nltk.clean_url(url)
+       for word in nltk.wordpunct_tokenize(text):
+           freqdist.inc(word.lower())
+       return freqdist
+
+   >>> fd = freq_words(constitution)
+   >>> print fd.sorted()[:20]
+   ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
+   'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+
+Note that we have now simplified the work of ``freq_words``
+to the point that we can do its work with three lines of code:
+
+    >>> words = nltk.wordpunct_tokenize(nltk.clean_url(constitution))
+    >>> fd = nltk.FreqDist(word.lower() for word in words)
+    >>> fd.sorted()[:20]
+    ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
+    'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+
+Documentation (notes)
+---------------------
+
+* some guidelines for literate programming (e.g. variable and function naming)
+* documenting functions (user-level and developer-level documentation)
+
+.. _functions-as-arguments:
+
+Functions as Arguments
+----------------------
+
+So far the arguments we have passed into functions have been simple objects like
+strings, or structured objects like lists.  These arguments allow us to parameterize
+the behavior of a function.  As a result, functions are very flexible and powerful
+abstractions, permitting us to repeatedly apply the `same operation`:em: on `different data`:em:.
+Python also lets us pass a function as
+an argument to another function.  Now we can abstract out the operation, and apply
+a `different operation`:em: on the `same data`:em:.  As the following examples show,
+we can pass the built-in function ``len()`` or a user-defined function ``last_letter()``
+as parameters to another function:
+
+    >>> def extract_property(prop):
+    ...     words = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    ...     return [prop(word) for word in words]
+    >>> extract_property(len)
+    [3, 3, 4, 4, 3, 9]
+    >>> def last_letter(word):
+    ...     return word[-1]
+    >>> extract_property(last_letter)
+    ['e', 'g', 'e', 'n', 'e', 'r']
+
+Surprisingly, ``len`` and ``last_letter`` are objects that can be
+passed around like lists and dictionaries.  Notice that parentheses
+are only used after a function name if we are invoking the function;
+when we are simply passing the function around as an object these are
+not used.
+
+Python provides us with one more way to define functions as arguments
+to other functions, so-called `lambda expressions`:dt:.  Supposing there
+was no need to use the above ``last_letter()`` function in multiple places,
+and thus no need to give it a name.  We can equivalently write the following:
+
+    >>> extract_property(lambda w: w[-1])
+    ['e', 'g', 'e', 'n', 'e', 'r']
+
+Our next example illustrates passing a function to the ``sorted()`` function.
+When we call the latter with a single argument (the list to be sorted),
+it uses the built-in lexicographic comparison function ``cmp()``.
+However, we can supply our own sort function, e.g. to sort by decreasing
+length.
+
+    >>> words = 'I turned off the spectroroute'.split()
+    >>> sorted(words)
+    ['I', 'off', 'spectroroute', 'the', 'turned']
+    >>> sorted(words, cmp)
+    ['I', 'off', 'spectroroute', 'the', 'turned']
+    >>> sorted(words, lambda x, y: cmp(len(y), len(x)))
+    ['spectroroute', 'turned', 'off', 'the', 'I']
+
+In sec-more-list-comprehensions_ we saw an example of filtering out
+some items in a list comprehension, using an ``if`` test.
+Similarly, we can restrict a list to just the lexical words, using
+``[word for word in sent if is_lexical(word)]``.  This is a little cumbersome
+as it mentions the ``word`` variable three times.  A more compact way to express
+the same thing is as follows.
+
+    >>> def is_lexical(word):
+    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> filter(is_lexical, sent)
+    ['dog', 'gave', 'John', 'newspaper']
+
+|nopar| The function ``is_lexical(word)`` returns ``True`` just in case
+``word``, when normalized to lowercase, is not in the given list.
+This function is itself used as an argument to ``filter()``.
+The ``filter()`` function applies its first argument (a function) to each
+item of its second (a sequence), only passing it through if the
+function returns true for that item.  Thus ``filter(f, seq)`` is
+equivalent to ``[item for item in seq if apply(f,item) == True]``.
+
+Another helpful function, which like ``filter()`` applies a function
+to a sequence, is ``map()``.  Here is a simple
+way to find the average length of a sentence in a section of the Brown Corpus:
+
+    >>> average(map(len, nltk.corpus.brown.sents(categories='a')))
+    21.7508111616
+
+|nopar|
+Instead of ``len()``, we could have passed in any other function we liked:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> def is_vowel(letter):
+    ...     return letter in "AEIOUaeiou"
+    >>> def vowelcount(word):
+    ...     return len(filter(is_vowel, word))
+    >>> map(vowelcount, sent)
+    [1, 1, 2, 1, 1, 3]
+
+|nopar|
+Instead of using ``filter()`` to call a named function ``is_vowel``, we can
+define a lambda expression as follows:
+
+    >>> map(lambda w: len(filter(lambda c: c in "AEIOUaeiou", w)), sent)
+    [1, 1, 2, 1, 1, 3]
+
+Exercises
+---------
+
+#. |easy| Review the answers that you gave for the exercises in sec-back-to-the-basics_,
+   and rewrite the code as one or more functions.
+
+#. |soso| In this section we saw examples of some special functions such as ``filter()`` and
+   ``map()``.  Other functions in this family are ``zip()`` and ``reduce()``.
+   Find out what these do, and write some code to try them out.
+   What uses might they have in language processing?
+
+#. |soso| Write a function that takes a list of words (containing duplicates) and
+   returns a list of words (with no duplicates) sorted by decreasing frequency.
+   E.g. if the input list contained 10 instances of the word ``table`` and 9 instances
+   of the word ``chair``, then ``table`` would appear before ``chair`` in the output
+   list.
+
+#. |soso| Write a function that takes a text and a vocabulary as its arguments
+   and returns the set of words that appear in the text but not in the
+   vocabulary.  Both arguments can be represented as lists of strings.
+   Can you do this in a single line, using ``set.difference()``?
+
+#. |soso| As you saw, ``zip()`` combines two lists into a single list
+   of pairs. What happens when the lists are of unequal lengths?
+   Define a function ``myzip()`` that does something different with
+   unequal lists.
+
+#. |soso| Import the ``itemgetter()`` function from the ``operator`` module in Python's
+   standard library (i.e. ``from operator import itemgetter``).  Create a list
+   ``words`` containing several words.  Now try calling:
+   ``sorted(words, key=itemgetter(1))``, and ``sorted(words, key=itemgetter(-1))``.
+   Explain what ``itemgetter()`` is doing.
+
+.. _sec-algorithm-design-strategies:
+
+---------------------------
+Algorithm Design Strategies
+---------------------------
+
+A major part of algorithmic problem solving is selecting or adapting
+an appropriate algorithm for the problem at hand.  Whole books are written
+on this topic (e.g. [Levitin2004]_) and we only have space to introduce
+some key concepts and elaborate on the approaches that are most prevalent
+in natural language processing.
+
+The best known strategy is known as `divide-and-conquer`:dt:.
+We attack a problem of size *n* by dividing it into two problems of size *n/2*,
+solve these problems, and combine their results into a solution of the original problem.
+Figure mergesort_ illustrates this approach for sorting a list of words.
+
+.. _mergesort:
+.. figure:: ../images/mergesort.png
+   :scale: 35
+
+   Sorting by Divide-and-Conquer (Mergesort)
+
+Another strategy is `decrease-and-conquer`:dt:.  In this approach, a small amount
+of work on a problem of size *n* permits us to reduce it to a problem of
+size *n/2*.  Figure binary-search_ illustrates this approach for the problem
+of finding the index of an item in a sorted list.
+
+.. _binary-search:
+.. figure:: ../images/binary-search.png
+   :scale: 35
+
+   Searching by Decrease-and-Conquer (Binary Search)
+
+A third well-known strategy is `transform-and-conquer`:dt:.  We attack a problem
+by transforming it into an instance of a problem we already know how to solve.
+For example, in order to detect duplicates entries in a list, we can `pre-sort`:dt:
+the list, then look for adjacent identical items, as shown in Figure presorting_.
+Our approach to n-gram chunking in Section n-gram-chunking_ is another case of
+transform and conquer (why?).
+
+.. pylisting:: presorting
+   :caption: Presorting a list for duplicate detection
+
+   def duplicates(words):
+       prev = None
+       dup = [None]
+       for word in sorted(words):
+           if word == prev and word != dup[-1]:
+               dup.append(word)
+           else:
+               prev = word
+       return dup[1:]
+
+   >>> duplicates(['cat', 'dog', 'cat', 'pig', 'dog', 'cat', 'ant', 'cat'])
+   ['cat', 'dog']        
+
+Recursion (notes)
 -----------------
 
-To start off, we train and score a `unigram chunker`:dt: on the above data, just as if
-it was a tagger:
+We first saw recursion in Chapter chap-words_, in a function that navigated
+the hypernym hierarchy of WordNet...
 
-    >>> unigram_chunker = nltk.UnigramTagger(chunk_data)
-    >>> print nltk.tag.accuracy(unigram_chunker, chunk_data)
-    0.781378851068
+Iterative solution:
 
-This chunker does reasonably well.  Let's look at the errors it makes.
-Consider the opening phrase of the first sentence of the CONLL chunking
-data, here shown with part-of-speech tags:
+    >>> def factorial(n):
+    ...     result = 1
+    ...     for i in range(n):
+    ...         result *= (i+1)
+    ...     return result
 
-  Confidence/NN in/IN the/DT pound/NN is/VBZ widely/RB expected/VBN
-  to/TO take/VB another/DT sharp/JJ dive/NN
+Recursive solution (base case, induction step)
 
-We can try out the unigram chunker on this first sentence by creating
-some "tokens" using ``[t for t,c in chunk_data[0]]``, then running
-our chunker over them using ``list(unigram_chunker.tag(tokens))``.
-The unigram chunker only looks at the tags, and tries to add chunk
-tags.  Here is what it comes up with:
+    >>> def factorial(n):
+    ...     if n == 1:
+    ...         return n
+    ...     else:
+    ...         return n * factorial(n-1)
 
-  NN/I-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/O VBN/I-VP TO/B-PP
-  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
+[Simple example of recursion on strings.]
 
-Notice that it tags all instances of ``NN`` with ``I-NP``, because
-nouns usually do not appear at the beginning of noun phrases in
-the training data.  Thus, the first noun ``Confidence/NN`` is
-tagged incorrectly.  However, ``pound/NN`` and ``dive/NN`` are
-correctly tagged as ``I-NP``; they are not in the initial position
-that should be tagged ``B-NP``.  The chunker incorrectly tags
-``widely/RB`` as ``O``, and it incorrectly tags the
-infinitival ``to/TO`` as ``B-PP``, as if it was a preposition starting a
-prepositional phrase.
+Generating all permutations of words, to check which ones are
+grammatical:
 
-A Bigram Chunker (incomplete)
+    >>> def perms(seq):
+    ...     if len(seq) <= 1:
+    ...         yield seq
+    ...     else:
+    ...         for perm in perms(seq[1:]):
+    ...             for i in range(len(perm)+1):
+    ...                 yield perm[:i] + seq[0:1] + perm[i:]
+    >>> list(perms(['police', 'fish', 'cream']))
+    [['police', 'fish', 'cream'], ['fish', 'police', 'cream'],
+     ['fish', 'cream', 'police'], ['police', 'cream', 'fish'],
+     ['cream', 'police', 'fish'], ['cream', 'fish', 'police']]
+
+Deeply Nested Objects (notes)
 -----------------------------
 
-[Why these problems might go away if we look at the previous chunk tag?]
+We can use recursive functions to build deeply-nested objects.
+Building a letter trie, Figure trie_.
 
-Let's run a bigram chunker:
+.. pylisting:: trie
+   :caption: Building a Letter Trie
 
-    >>> bigram_chunker = nltk.BigramTagger(chunk_data, backoff=unigram_chunker)
-    >>> print nltk.tag.accuracy(bigram_chunker, chunk_data)
-    0.893220987404
+   def insert(trie, key, value):
+       if key:
+           first, rest = key[0], key[1:]
+           if first not in trie:
+               trie[first] = {}
+           insert(trie[first], rest, value)
+       else:
+           trie['value'] = value
 
-We can run the bigram chunker over the same sentence as before
-using ``list(bigram_chunker.tag(tokens))``.
-Here is what it comes up with:
+   >>> trie = {}
+   >>> insert(trie, 'chat', 'cat')
+   >>> insert(trie, 'chien', 'dog')
+   >>> trie['c']['h']
+   {'a': {'t': {'value': 'cat'}}, 'i': {'e': {'n': {'value': 'dog'}}}}
+   >>> trie['c']['h']['a']['t']['value']
+   'cat'
+   >>> pprint.pprint(trie)
+   {'c': {'h': {'a': {'t': {'value': 'cat'}},
+                'i': {'e': {'n': {'value': 'dog'}}}}}}
 
-  NN/B-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/I-VP VBN/I-VP TO/I-VP
-  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
 
-This is 100% correct.
+.. _sec-dynamic-programming:
+
+Dynamic Programming
+-------------------
+
+Dynamic programming is a general technique for designing algorithms
+which is widely used in natural language processing.  The term
+'programming' is used in a different sense to what you might expect,
+to mean planning or scheduling.  Dynamic programming is used when a
+problem contains overlapping sub-problems.  Instead of computing
+solutions to these sub-problems repeatedly, we simply store them in a
+lookup table.
+In the remainder of this section we will introduce dynamic programming,
+but in a rather different context to syntactic parsing.
+
+Pingala was an Indian author who lived around the 5th century B.C.,
+and wrote a treatise on Sanskrit prosody called the *Chandas Shastra*.
+Virahanka extended this work around the 6th century A.D., studying the
+number of ways of combining short and long syllables to create a meter
+of length *n*.  He found, for example, that there are five ways to
+construct a meter of length 4: *V*\ :subscript:`4` = *{LL, SSL, SLS,
+LSS, SSSS}*.  Observe that we can split *V*\ :subscript:`4` into two
+subsets, those starting with *L* and those starting with
+*S*, as shown in v4_.
+
+
+.. _v4:
+.. ex::
+   .. parsed-literal::
+
+    *V*\ :subscript:`4` =
+      LL, LSS
+        i.e. L prefixed to each item of *V*\ :subscript:`2` = {L, SS}
+      SSL, SLS, SSSS
+        i.e. S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
+
+.. pylisting:: virahanka
+   :caption: Three Ways to Compute Sanskrit Meter
+
+   def virahanka1(n):
+       if n == 0:
+           return [""]
+       elif n == 1:
+           return ["S"]
+       else:
+           s = ["S" + prosody for prosody in virahanka1(n-1)]
+           l = ["L" + prosody for prosody in virahanka1(n-2)]
+           return s + l
+
+   def virahanka2(n):
+       lookup = [[""], ["S"]]
+       for i in range(n-1):
+           s = ["S" + prosody for prosody in lookup[i+1]]
+           l = ["L" + prosody for prosody in lookup[i]]
+           lookup.append(s + l)
+       return lookup[n]
+
+   def virahanka3(n, lookup={0:[""], 1:["S"]}):
+       if n not in lookup:
+           s = ["S" + prosody for prosody in virahanka3(n-1)]
+           l = ["L" + prosody for prosody in virahanka3(n-2)]
+           lookup[n] = s + l
+       return lookup[n]
+
+   from nltk import memoize
+   @memoize
+   def virahanka4(n):
+       if n == 0:
+           return [""]
+       elif n == 1:
+           return ["S"]
+       else:
+           s = ["S" + prosody for prosody in virahanka4(n-1)]
+           l = ["L" + prosody for prosody in virahanka4(n-2)]
+           return s + l
+
+   >>> virahanka1(4)
+   ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+   >>> virahanka2(4)
+   ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+   >>> virahanka3(4)
+   ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+   >>> virahanka4(4)
+   ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
+
+|nopar| 
+With this observation, we can write a little recursive function called
+``virahanka1()`` to compute these meters, shown in Figure virahanka_.
+Notice that, in order to compute *V*\ :subscript:`4` we first compute
+*V*\ :subscript:`3` and *V*\ :subscript:`2`.  But to compute *V*\ :subscript:`3`,
+we need to first compute *V*\ :subscript:`2` and *V*\ :subscript:`1`.  This `call
+structure`:dt: is depicted in call-structure_.
+
+.. _call-structure:
+.. ex:: 
+   .. tree:: (V4 (V3 (V2 V1 V0) V1) (V2 V1 V0))
+
+|nopar| 
+As you can see, *V*\ :subscript:`2` is computed twice.
+This might not seem like a significant problem, but 
+it turns out to be rather wasteful as *n* gets large:
+to compute *V*\ :subscript:`20` using this recursive technique, we
+would compute *V*\ :subscript:`2` 4,181 times;
+and for *V*\ :subscript:`40` we would compute *V*\ :subscript:`2` 63,245,986 times!
+A much better alternative is to store the value of *V*\ :subscript:`2` in a table
+and look it up whenever we need it.  The same goes for other values, such
+as *V*\ :subscript:`3` and so on.  Function ``virahanka2()`` implements a
+dynamic programming approach to the problem.  It works by filling up a
+table (called ``lookup``) with solutions to *all* smaller instances of the
+problem, stopping as soon as we reach the value we're interested in.
+At this point we read off the value and return it.  Crucially, each
+sub-problem is only ever solved once.
+
+Notice that the approach taken in ``virahanka2()`` is to solve smaller
+problems on the way to solving larger problems.  Accordingly, this is known as the
+`bottom-up`:dt: approach to dynamic programming.  Unfortunately it turns out
+to be quite wasteful for some applications, since it
+may compute solutions to sub-problems that are never required for
+solving the main problem.  This wasted computation can be avoided
+using the `top-down`:dt: approach to dynamic programming, which is
+illustrated in the function ``virahanka3()`` in Figure virahanka_.
+Unlike the bottom-up approach, this approach is recursive.  It avoids
+the huge wastage of ``virahanka1()`` by checking whether it has
+previously stored the result.  If not, it computes the result
+recursively and stores it in the table.  The last step is to return
+the stored result.  The final method is to use a Python `decorator`:dt:
+called ``memoize``, which takes care of the housekeeping work done
+by ``virahanka3()`` without cluttering up the program.
+
+This concludes our brief introduction to dynamic programming.
+We will encounter it again in Chapter chap-advanced-parsing_.
+
+.. note:: Dynamic programming is a kind of `memoization`:dt:.
+   A memoized function stores results of previous calls to the
+   function along with the supplied parameters.  If the function is
+   subsequently called with those parameters, it returns the
+   stored result instead of recalculating it.
+
+.. _sec-timing:
+
+Timing (notes)
+--------------
+
+We can easily test the efficiency gains made by the use of dynamic programming,
+or any other putative performance enhancement, using the ``timeit`` module:
+
+.. doctest-ignore::
+    >>> from timeit import Timer
+    >>> Timer("PYTHON CODE", "INITIALIZATION CODE").timeit()
+
+[MORE]
 
 Exercises
 ---------
 
-#. |soso|
-   The bigram chunker scores about 90% accuracy.
-   Study its errors and try to work out why it doesn't get 100% accuracy.
+#. |soso| Write a recursive function ``lookup(trie, key)`` that looks up a key in a trie,
+   and returns the value it finds.  Extend the function to return a word when it is uniquely
+   determined by its prefix (e.g. ``vanguard`` is the only word that starts with ``vang-``,
+   so ``lookup(trie, 'vang')`` should return the same thing as ``lookup(trie, 'vanguard')``).
 
-#. |soso|
-   Experiment with trigram chunking.  Are you
-   able to improve the performance any more?
+#. |soso| Read about string edit distance and the Levenshtein Algorithm.
+   Try the implementation provided in ``nltk.edit_dist()``.
+   How is this using dynamic programming?  Does it use the bottom-up or
+   top-down approach?
+   [See also ``http://norvig.com/spell-correct.html``]
 
-#. |hard|
-   An n-gram chunker can use information other than the current
-   part-of-speech tag and the `n-1`:math: previous chunk tags.
-   Investigate other models of the context, such as
-   the `n-1`:math: previous part-of-speech tags, or some combination of
-   previous chunk tags along with previous and following part-of-speech tags.
+#. |soso| The Catalan numbers arise in many applications of combinatorial mathematics,
+   including the counting of parse trees (Chapter chap-advanced-parsing_).  The series
+   can be defined as follows: C\ :subscript:`0` = 1, and
+   C\ :subscript:`n+1` = |Sigma|\ :subscript:`0..n` (C\ :subscript:`i`\ C\ :subscript:`n-i`).
 
-#. |hard|
-   Consider the way an n-gram tagger uses recent tags to inform its tagging choice.
-   Now observe how a chunker may re-use this sequence information.  For example,
-   both tasks will make use of the information that nouns tend to follow adjectives
-   (in English).  It would appear that the same information is being maintained in
-   two places.  Is this likely to become a problem as the size of the rule sets grows?
-   If so, speculate about any ways that this problem might be addressed.
+   a) Write a recursive function to compute `n`:math:\ th Catalan number C\ :subscript:`n`
 
------------------
-Cascaded Chunkers
------------------
+   b) Now write another function that does this computation using dynamic programming
 
-So far, our chunk structures have been relatively flat.  Trees consist
-of tagged tokens, optionally grouped under a chunk node such as
-``NP``.  However, it is possible to build chunk structures of
-arbitrary depth, simply by creating a multi-stage chunk grammar.
-These stages are processed in the order
-that they appear.  The patterns in later stages can refer to a mixture
-of part-of-speech tags and chunk types.  Figure cascaded-chunker_ has
-patterns for noun phrases, prepositional phrases, verb phrases, and
-sentences.
-This is a four-stage chunk grammar, and can be used to create
-structures having a depth of at most four.
+   c) Use the ``timeit`` module to compare the performance of these functions as `n`:math:
+      increases.
 
-.. pylisting:: cascaded-chunker
-   :caption: A Chunker that Handles NP, PP, VP and S
+#. |hard| **Authorship identification:**
+   Reproduce some of the results of [Zhao07]_.
 
-   grammar = r"""
-     NP: {<DT|JJ|NN.*>+}       # Chunk sequences of DT, JJ, NN
-     PP: {<IN><NP>}            # Chunk prepositions followed by NP
-     VP: {<VB.*><NP|PP|S>+$}   # Chunk rightmost verbs and arguments/adjuncts
-     S:  {<NP><VP>}            # Chunk NP, VP
-     """
-   cp = nltk.RegexpParser(grammar)
-   tagged_tokens = [("Mary", "NN"), ("saw", "VBD"), ("the", "DT"), ("cat", "NN"),
-       ("sit", "VB"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-
-   >>> print cp.parse(tagged_tokens)
-   (S
-     (NP Mary/NN)
-     saw/VBD
-     (S
-       (NP the/DT cat/NN)
-       (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
-
-Unfortunately this result misses the `vp`:gc: headed by `saw`:lx:.  It has
-other shortcomings too.  Let's see what happens when we apply this
-chunker to a sentence having deeper nesting.
-
-    >>> tagged_tokens = [("John", "NNP"), ("thinks", "VBZ"), ("Mary", "NN"),
-    ...     ("saw", "VBD"), ("the", "DT"), ("cat", "NN"), ("sit", "VB"),
-    ...     ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-    >>> print cp.parse(tagged_tokens)
-    (S
-      (NP John/NNP)
-      thinks/VBZ
-      (NP Mary/NN)
-      saw/VBD
-      (S
-        (NP the/DT cat/NN)
-        (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
-
-The solution to these problems is to get the chunker to loop over its
-patterns: after trying all of them, it repeats the process.
-We add an optional second argument ``loop`` to specify the number
-of times the set of patterns should be run:
-
-    >>> cp = nltk.RegexpParser(grammar, loop=2)
-    >>> print cp.parse(tagged_tokens)
-    (S
-      (NP John/NNP)
-      thinks/VBZ
-      (S
-        (NP Mary/NN)
-        (VP
-          saw/VBD
-          (S
-            (NP the/DT cat/NN)
-            (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))))
-
-This cascading process enables us to create deep structures.  However,
-creating and debugging a cascade is quite difficult, and there comes
-a point where it is more effective to do full parsing (see Chapter chap-parse_).
+#. |hard| **Gender-specific lexical choice:**
+   Reproduce some of the results of ``http://www.clintoneast.com/articles/words.php``
 
 
-----------------------
-Shallow Interpretation
-----------------------
+#. |hard| Write a recursive function that pretty prints a trie in alphabetically
+   sorted order, as follows
 
-The main form of shallow semantic interpretation that we will consider
-is `Information Extraction`:dt:. This refers to the task of converting
-`unstructured data`:dt: (e.g., unrestricted text) or `semi-structured
-data`:dt: (e.g., web pages marked up with |HTML|) into `structured
-data`:dt: (e.g., tables in a relational database). For example, let's
-suppose we are given a text containing the fragment ie1_, and let's
-also suppose we are trying to find pairs of entities *X* and *Y* that
-stand in the relation 'organization *X* is located in location *Y*'.
+   chat: 'cat'
+   --ien: 'dog'
+   -???: ???
 
-.. _ie1:
-.. ex:: ... said William Gale, an economist at the Brookings Institution,
-        the research group in Washington. 
-
-|nopar| As a result of processing this text, we should be able to add
-the pair |langle|\ *Brookings Institution*, *Washington*\ |rangle| to
-this relation. As we will see shortly, Information Extraction proceeds
-on the assumption that we are only looking for specific sorts of
-information, and these have been decided in advance. This limitation
-has been a necessary concession to allow the robust processing of
-unrestricted text.
-
-Potential applications of Information Extraction are
-many, and include business intelligence, resume harvesting, media
-analysis, sentiment detection, patent search, and email scanning. A
-particularly important area of current research involves the attempt
-to extract structured data out of electronically-available scientific
-literature, most notably in the domain of biology and medicine. 
-
-Information Extraction is usually broken down into at least two major
-steps: `Named Entity Recognition`:dt: and `Relation
-Extraction`:dt:. Named Entities (|NE|\ s) are usually taken to be noun phrases
-that denote specific types of individuals such as organizations,
-persons, dates, and so on. Thus, we
-might use the following |XML| annotations to mark-up the |NE|\ s in ie1_:
-
-.. _ie2:
-.. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
-        the <ne type='ORGANIZATION'>Brookings Institution</ne>,
-        the research group in <ne type='LOCATION'>Washington<ne>. 
-
-How do we go about identifying |NE|\ s? Our first thought might be
-that we could look up candidate expressions in an appropriate list of
-names. For example, in the case of locations, we might  try using a
-resource such as the `Alexandria Gazetteer
-<http://www.alexandria.ucsb.edu/gazetteer/>`_. Depending on the nature
-of our input data, this may be adequate |mdash| such a gazetteer is likely
-to have good coverage of international cities and many locations in
-the U.S.A., but will probably be missing the names of obscure villages
-in remote regions. However, a list of names for people or organizations
-will probably have poor coverage. New organizations, and new names for
-them, are coming into existence every day, so if we are trying to deal
-with contemporary newswire or blog entries, say, it is unlikely that
-we will be able to recognize many of the |NE|\ s by using gazetteer lookup. 
-
-A second consideration is that many |NE| terms are ambiguous. Thus
-`May`:lx: and `North`:lx: are likely to be parts of |NE|\ s for DATE
-and LOCATION, respectively, but could both be part of a PERSON |NE|;
-conversely `Christian Dior`:lx: looks like a PERSON |NE| but is more
-likely to be of type ORGANIZATION. A term like `Yankee`:lx: will be
-ordinary modifier in some contexts, but will be marked as an |NE| of
-type ORGANIZATION in the phrase `Yankee infielders`:lx:. To summarize,
-we cannot reliably detect |NE|\ s by looking them up in a gazetteer,
-and it is also hard to develop rules that will correctly recognize
-ambiguous |NE|\ s on the basis of their context of
-occurrence. Although lookup may contribute to a solution, most
-contemporary approaches to Named Entity Recognition treat it as a
-statistical classification task that requires training data for good
-performance. This task is facilitated by adopting an appropriate data
-representation, such as the IOB tags that we saw being deployed in
-the |CoNLL| chunk data. For example, here are a
-representative few lines from the CONLL 2002 (``conll2002``) Dutch
-training data::
-
-    Eddy N B-PER
-    Bonte N I-PER
-    is V O
-    woordvoerder N O
-    van Prep O
-    diezelfde Pron O
-    Hogeschool N B-ORG
-    . Punc O
-
-|nopar| As noted before, in this representation, there is one token
-per line, each with its part-of-speech tag and its |NE| tag.  When
-|NE|\ s have been identified in a text, we then want to extract
-relations that hold between them. As indicated earlier, we will
-typically be looking for relations between specified types of
-|NE|. One way of approaching this task is to initially look for all
-triples of the form *X*, |alpha|, *Y*, where *X* and *Y* are |NE|\ s
-of the required types, and |alpha| is the string of words that
-intervenes between *X* and *Y*. We can then use regular expressions to
-pull out just those instances of |alpha| that express the relation
-that we are looking for. The following example searches for strings
-that contain the word `in`:lx:. The special character expression
-``(?!\b.+ing\b)`` is a negative lookahead condition that allows us to
-disregard strings such as `success in supervising the transition
-of`:lx:, where `in`:lx: is followed by a gerundive verb.
-
-    >>> IN = re.compile(r'.*\bin\b(?!\b.+ing\b)')
-    >>> for doc in nltk.corpus.ieer.parsed_docs('NYT_19980315'):
-    ...     for rel in nltk.sem.extract_rels('ORG', 'LOC', doc, pattern = IN):
-    ...         print nltk.sem.show_raw_rtuple(rel)
-    [ORG: 'WHYY'] 'in' [LOC: 'Philadelphia']
-    [ORG: 'McGlashan &AMP; Sarrail'] 'firm in' [LOC: 'San Mateo']
-    [ORG: 'Freedom Forum'] 'in' [LOC: 'Arlington']
-    [ORG: 'Brookings Institution'] ', the research group in' [LOC: 'Washington']
-    [ORG: 'Idealab'] ', a self-described business incubator based in' [LOC: 'Los Angeles']
-    [ORG: 'Open Text'] ', based in' [LOC: 'Waterloo']
-    [ORG: 'WGBH'] 'in' [LOC: 'Boston']
-    [ORG: 'Bastille Opera'] 'in' [LOC: 'Paris']
-    [ORG: 'Omnicom'] 'in' [LOC: 'New York']
-    [ORG: 'DDB Needham'] 'in' [LOC: 'New York']
-    [ORG: 'Kaplan Thaler Group'] 'in' [LOC: 'New York']
-    [ORG: 'BBDO South'] 'in' [LOC: 'Atlanta']
-    [ORG: 'Georgia-Pacific'] 'in' [LOC: 'Atlanta']
-
-|nopar| Searching for the keyword works `in`:lx: reasonably well,
-though it will also retrieve false positives such as ``[ORG: House
-Transportation Committee] , secured the most money in the [LOC: New
-York]``; there is unlikely to be simple string-based method of
-excluding filler strings such as this.
-
-.. TODO fix processing of tagged corpora
-.. 
- As shown above, the ``conll2002`` corpus contains not just |NE|
- annotation but also part-of-speech tags. In principle, this allows us
- to devise patterns that are sensitive to these tags.
-
-.. doctest-ignore::
-     >>> vnv = """
-     ... (
-     ... is/V|
-     ... was/V|
-     ... werd/V|
-     ... wordt/V
-     ... )
-     ... .*
-     ... van/Prep
-     ... """
-     >>> VAN = re.compile(vnv, re.VERBOSE)
-     >>> for r in nltk.sem.extract_rels('PER', 'ORG', corpus='conll2002-ned', pattern=VAN): 
-     ...     print show_tuple(r)
-
+#. |hard| Write a recursive function that processes text, locating the uniqueness point in
+   each word, and discarding the remainder of each word.  How much compression does this
+   give?  How readable is the resulting text?
 
 ----------
 Conclusion
 ----------
 
-In this chapter we have explored efficient and robust methods that can
-identify linguistic structures in text.  Using only part-of-speech
-information for words in the local context, a "chunker" can
-successfully identify simple structures such as noun phrases and verb
-groups.  We have seen how chunking methods extend the same lightweight
-methods that were successful in tagging.  The resulting structured
-information is useful in information extraction tasks and in the
-description of the syntactic environments of words.  The latter will
-be invaluable as we move to full parsing.
+[TO DO]
 
-There are a surprising number of ways to chunk a sentence using
-regular expressions.  The patterns can add, shift and remove chunks in
-many ways, and the patterns can be sequentially ordered in many ways.
-One can use a small number of very complex rules, or a long sequence
-of much simpler rules.  One can hand-craft a collection of rules, and
-one can write programs to analyze a chunked corpus to help in the
-development of such rules.  The process is painstaking, but generates
-very compact chunkers that perform well and that transparently encode
-linguistic knowledge.
-
-It is also possible to chunk a sentence using the techniques of n-gram
-tagging.  Instead of assigning part-of-speech tags to words, we assign
-IOB tags to the part-of-speech tags.  Bigram tagging turned out to be
-particularly effective, as it could be sensitive to the chunk tag on
-the previous word.  This statistical approach requires far less effort
-than rule-based chunking, but creates large models and delivers few
-linguistic insights.
-
-Like tagging, chunking cannot be done perfectly.  For example, as
-pointed out by [Abney1996PST]_, we cannot correctly analyze the structure
-of the sentence *I turned off the spectroroute* without knowing the
-meaning of *spectroroute*; is it a kind of road or a type of device?
-Without knowing this, we cannot tell whether *off* is part of a
-prepositional phrase indicating direction (tagged ``B-PP``), or
-whether *off* is part of the verb-particle construction *turn off*
-(tagged ``I-VP``).
-
-A recurring theme of this chapter has been `diagnosis`:dt:.  The simplest
-kind is manual, when we inspect the tracing output of a chunker and
-observe some undesirable behavior that we would like to fix.
-Sometimes we discover cases where we cannot hope to get the correct
-answer because the part-of-speech tags are too impoverished and do not
-give us sufficient information about the lexical item.  A second
-approach is to write utility programs to analyze the training data,
-such as counting the number of times a given part-of-speech tag occurs
-inside and outside an `np`:gc: chunk.  A third approach is to evaluate the
-system against some gold standard data to obtain an overall
-performance score.  We can even use this to parameterize the system,
-specifying which chunk rules are used on a given run, and tabulating
-performance for different parameter combinations.  Careful use of
-these diagnostic methods permits us to optimize the performance of our
-system.  We will see this theme emerge again later in chapters dealing
-with other topics in natural language processing.
+.. Revisit your solutions to exercises in earlier chapters, and try to improve
+   them, applying your new understanding of structured programming.
 
 ---------------
 Further Reading
 ---------------
 
-For more examples of chunking with |NLTK|, please see the
-guide at ``http://nltk.org/doc/guides/chunk.html``.
+[Harel2004]_
 
-The popularity of chunking is due in great part to pioneering work by
-Abney e.g., [Abney1996PST]_. Abney's Cass chunker is available at
-`<http://www.vinartus.net/spa/97a.pdf>`_
+[Levitin2004]_
 
-The word `chink`:dt: initially meant a sequence of stopwords,
-according to a 1975 paper by Ross and Tukey [Abney1996PST]_.
-
-The IOB format (or sometimes  `BIO Format`:dt:) was developed for
-`np`:gc: chunking by [Ramshaw1995TCU]_, and was used for the shared `np`:gc:
-bracketing task run by the *Conference on Natural Language Learning*
-(|CoNLL|) in 1999.  The same format was
-adopted by |CoNLL| 2000 for annotating a section of Wall Street
-Journal text as part of a shared task on `np`:gc: chunking.
-
-Section 13.5 of [JurafskyMartin2008]_ contains a discussion of chunking.
+http://docs.python.org/lib/typesseq-strings.html
 
 .. include:: footer.rst

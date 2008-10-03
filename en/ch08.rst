@@ -5,1853 +5,1739 @@
 
     >>> import nltk, re, pprint
 
-.. _chap-advanced-parsing:
+.. TODO: explain that cfg grammars must not mix lexical and phrasal RHS
+.. TODO: explain why RHS can't have a sequence of terminals
+.. TODO: motivate or omit mathematical notation for formalizing CFGs
+.. TODO: include overview of cfg.Grammar and cfg.Production in 8.4
+.. TODO: put dependency grammar material in later chapter?
+.. TODO: make URLs clickable in the HTML version
 
-==========================================
-8. Chart Parsing and Probabilistic Parsing
-==========================================
+.. _chap-parse:
 
-.. _ch08-introduction:
+====================================
+7. Context Free Grammars and Parsing
+====================================
+
+.. _ch07-introduction:
 
 ------------
 Introduction
 ------------
 
-Chapter chap-parse_ started with an introduction to constituent
-structure in English, showing how words in a sentence group together
-in predictable ways. We showed how to describe this structure using
-syntactic tree diagrams, and observed that it is sometimes desirable
-to assign more than one such tree to a given string. In this case, we
-said that the string was structurally ambiguous; and example was `old
-men and women`:lx:. 
+Early experiences with the kind of grammar taught in school are sometimes perplexing.
+Your written work might have been graded by a teacher who red-lined all
+the grammar errors they wouldn't put up with.
+Like the plural pronoun or the dangling preposition in the last sentence,
+or sentences like this one that lack a main verb.
+If you learnt English as a second language, you might have found it difficult
+to discover which of these errors need to be fixed (or *needs* to be fixed?).
+Correct punctuation is an obsession for many writers and editors.
+It is easy to find cases where changing punctuation changes meaning.
+In the following example, the interpretation of a relative clause as
+restrictive or non-restrictive depends on the presence of commas alone:
 
-Treebanks are language resources in which the syntactic structure of a
-corpus of sentences has been annotated, usually by hand. However, we
-would also like to be able to produce trees algorithmically. A
-context-free phrase structure grammar (|CFG|) is a formal model for
-describing whether a given string can be assigned a particular
-constituent structure. Given a set of syntactic categories, the |CFG|
-uses a set of productions to say how a phrase of some category *A* can
-be analyzed into a sequence of smaller parts |alpha|\ :sub:`1`
-... |alpha|\ :sub:`n`.  But a grammar is a static description of a set
-of strings; it does not tell us what sequence of steps we need to take
-to build a constituent structure for a string. For this, we need to
-use a parsing algorithm.  We presented two such algorithms: Top-Down Recursive
-Descent (sec-recursive-descent_) and Bottom-Up Shift-Reduce
-(sec-shift-reduce_). As we pointed out, both parsing approaches suffer
-from important shortcomings. The Recursive Descent parser cannot
-handle left-recursive productions (e.g., productions such as `np`:gc:
-|rarr| `np pp`:gc:), and blindly expands categories top-down without
-checking whether they are compatible with the input string. The
-Shift-Reduce parser is not guaranteed to find a valid parse for the
-input even if one exists, and builds substructure without checking
-whether it is globally consistent with the grammar. As we will
-describe further below, the Recursive Descent parser is also
-inefficient in its search for parses.
+.. ex::
+  .. _rest:
+  .. ex:: The presidential candidate, who was extremely popular,
+          smiled broadly.
+  .. _nonrest:
+  .. ex:: The presidential candidate who was extremely popular smiled broadly.
 
-So, parsing builds trees over sentences, according to a phrase
-structure grammar.  Now, all the examples we gave in Chapter
-chap-parse_ only involved toy grammars containing a handful of
-productions. What happens if we try to scale up this approach to deal
-with realistic corpora of language? Unfortunately, as the coverage of
-the grammar increases and the length of the input sentences grows, the
-number of parse trees grows rapidly.  In fact, it grows at an
-astronomical rate.
+In rest_, we assume there is just one presidential candidate, and say
+two things about her: that she was popular and that she smiled. In
+nonrest_, on the other hand, we use the description `who was extremely
+popular`:lx: as a means of identifying which of several possible
+candidates we are referring to. 
 
-Let's explore this issue with the help of a simple example.
-The word
-`fish`:lx: is both a noun and a verb.  We can make up the sentence
-`fish fish fish`:lx:, meaning *fish like to fish for other fish*.
-(Try this with `police`:lx: if you prefer something more sensible.)
-Here is a toy grammar for the "fish" sentences.
+It is clear that some of these rules are important.
+However, others seem to be vestiges of antiquated style.
+Consider the injunction that :lx:`however`
+|mdash| when used to mean *nevertheless* |mdash|
+must not appear at the start of a sentence.
+Pullum argues that Strunk and White [StrunkWhite1999]_ were
+merely insisting that English usage should conform to "an utterly
+unimportant minor statistical detail of style concerning adverb
+placement in the literature they knew" [Pullum2005However]_.
+This is a case where, a `descriptive`:em: observation about language use became
+a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
+and use grammar to formalize observations about language as it is used,
+particularly as it is used in corpora.
 
-    >>> grammar = nltk.parse_cfg("""
-    ... S -> NP V NP
-    ... NP -> NP Sbar
-    ... Sbar -> NP V 
-    ... NP -> 'fish'
-    ... V -> 'fish'
-    ... """)
+In this chapter we present the fundamentals of syntax, focusing on constituency
+and tree representations, before describing the formal notation of context free
+grammar.  Next we present parsers as an automatic way to associate syntactic
+structures with sentences.  Finally, we give a detailed presentation of simple
+top-down and bottom-up parsing algorithms available in |NLTK|.
+Before launching into the theory we present some more naive observations about
+grammar, for the benefit of readers who do not have a background in linguistics.
+
+.. _sec-more-observations-about-grammar:
+
+-------------------------------
+More Observations about Grammar
+-------------------------------
+
+Another function of a grammar is to explain our observations
+about ambiguous sentences.  Even when the individual words are
+unambiguous, we can put them together to create ambiguous sentences,
+as in ambiguous_.
+
+.. _ambiguous:
+.. ex::
+  .. ex:: Fighting animals could be dangerous.
+  .. ex:: Visiting relatives can be tiresome.
+
+A grammar will be able to assign two structures to each sentence,
+accounting for the two possible interpretations.
+
+Perhaps another kind of syntactic variation, word order, is easier to
+understand.  We know that the two sentences `Kim likes Sandy`:lx: and
+`Sandy likes Kim`:lx: have different meanings, and that `likes Sandy
+Kim`:lx: is simply ungrammatical.  Similarly, we know that the
+following two sentences are equivalent:
+
+.. ex::
+  .. ex:: The farmer *loaded* the cart with sand
+  .. ex:: The farmer *loaded* sand into the cart
+
+However, consider the semantically similar verbs `filled`:lx: and `dumped`:lx:.
+Now the word order cannot be altered (ungrammatical sentences are
+prefixed with an asterisk.)
+
+.. ex::
+  .. ex:: The farmer *filled* the cart with sand
+  .. ex:: \*The farmer *filled* sand into the cart
+  .. ex:: \*The farmer *dumped* the cart with sand
+  .. ex:: The farmer *dumped* sand into the cart
+
+A further notable fact is that we have no difficulty accessing the meaning of
+sentences we have never encountered before.  It is not difficult to concoct an
+entirely novel sentence, one that has probably never been used before
+in the history of the language, and yet all speakers of the language
+will agree about its meaning.  In fact, the set of possible sentences is
+infinite, given that there is no upper bound on length.
+Consider the following passage from a children's story, containing a
+rather impressive sentence:
+
+   You can imagine Piglet's joy when at last the ship came in sight of
+   him. In after-years he liked to think that he had been in Very
+   Great Danger during the Terrible Flood, but the only danger he had
+   really been in was the last half-hour of his imprisonment, when
+   Owl, who had just flown up, sat on a branch of his tree to comfort
+   him, and told him a very long story about an aunt who had once laid
+   a seagull's egg by mistake, and the story went on and on, rather
+   like this sentence, until Piglet who was listening out of his
+   window without much hope, went to sleep quietly and naturally,
+   slipping slowly out of the window towards the water until he was
+   only hanging on by his toes, at which moment, luckily, a sudden
+   loud squawk from Owl, which was really part of the story, being
+   what his aunt said, woke the Piglet up and just gave him time to
+   jerk himself back into safety and say, "How interesting, and did
+   she?"  when -- well, you can imagine his joy when at last he saw
+   the good ship, Brain of Pooh (Captain, C. Robin; 1st Mate, P. Bear)
+   coming over the sea to rescue him...  (from A.A. Milne *In which
+   Piglet is Entirely Surrounded by Water*)
+
+Our ability to produce and understand entirely new sentences, of
+arbitrary length, demonstrates that the set of well-formed sentences in
+English is infinite.  The same case can be made for any human language.
+
+This chapter presents grammars and parsing, as the formal and
+computational methods for investigating and modeling the linguistic
+phenomena we have been touching on (or tripping over).
+As we shall see, patterns of well-formedness and ill-formedness in a
+sequence of words can be understood with respect to the underlying
+:dt:`phrase structure` of the sentences.  We can develop formal
+models of these structures using grammars and parsers.
+As before, the motivation is natural language *understanding*.  How
+much more of the meaning of a text can we access when we can reliably
+recognize the linguistic structures it contains?  Having read in a
+text, can a program 'understand' it enough to be able to answer simple
+questions about "what happened" or "who did what to whom."  Also as
+before, we will develop simple programs to process annotated corpora
+and perform useful tasks.
 
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
-Now we can try parsing a longer sentence, `fish fish fish fish
-fish`:lx:, which amongst other things, means 'fish that other fish
-fish are in the habit of fishing fish themselves'. We use the |NLTK|
-chart parser, which is presented later on in this chapter.  This
-sentence has two readings.
-
-    >>> tokens = ["fish"] * 5
-    >>> cp = nltk.ChartParser(grammar, nltk.parse.TD_STRATEGY)
-    >>> for tree in cp.nbest_parse(tokens):
-    ...     print tree
-    (S (NP (NP fish) (Sbar (NP fish) (V fish))) (V fish) (NP fish))
-    (S (NP fish) (V fish) (NP (NP fish) (Sbar (NP fish) (V fish))))
-
-As the length of this sentence goes up (3, 5, 7, ...) we get the
-following numbers of parse trees:
-1; 2; 5; 14; 42; 132; 429; 1,430; 4,862; 16,796; 58,786; 208,012; ...
-(These are the `Catalan numbers`:idx:, which we saw in an exercise
-in Section sec-algorithm-design-strategies_).
-The last of these is for a sentence of length 23, the average length
-of sentences in the  WSJ section of Penn Treebank.  For a sentence
-of length 50 there would be over 10\ :superscript:`12` parses, and this
-is only half the length of the Piglet sentence
-(Section sec-more-observations-about-grammar_),
-which young children process effortlessly.
-No practical |NLP| system could construct all millions of trees for a
-sentence and choose the appropriate one in the context.
-It's clear that humans don't do this either!
-
-Note that the problem is not with our choice of example. 
-[Church1982CSA]_ point out that the syntactic ambiguity of `pp`:gc:
-attachment in sentences like pp_ also grows in proportion to the Catalan
-numbers.
-
-.. _pp:
-.. ex:: Put the block in the box on the table.
-
-So much for structural ambiguity; what about lexical ambiguity?
-As soon as we try to construct a broad-coverage grammar, we
-are forced to make lexical entries highly ambiguous for their part of
-speech.  In a toy grammar, `a`:lx: is only a determiner, `dog`:lx: is
-only a noun, and `runs`:lx: is only a verb.  However, in a
-broad-coverage grammar, `a` is also a noun (e.g. `part a`:lx:),
-`dog`:lx: is also a verb (meaning to follow closely), and `runs`:lx:
-is also a noun (e.g. `ski runs`:lx:).  In fact, all words can be
-referred to by name: e.g. `the verb 'ate' is spelled with three
-letters`:lx:; in speech we do not need to supply quotation marks.
-Furthermore, it is possible to *verb* most nouns.  Thus a parser for a
-broad-coverage grammar will be overwhelmed with ambiguity.  Even
-complete gibberish will often have a reading, e.g. `the a are of
-I`:lx:.  As [Abney1996SML]_ has pointed out, this is not word salad but a
-grammatical noun phrase, in which `are`:lx: is a noun meaning a
-hundredth of a hectare (or 100 sq m), and `a`:lx: and `I`:lx: are
-nouns designating coordinates, as shown in Figure are_.
-
-.. _are:
-.. figure:: ../images/are.png
-   :scale: 20
-
-   The a are of I
-
-|nopar|
-Even though this phrase is unlikely, it is still grammatical and a
-a broad-coverage parser should be able to construct a parse tree
-for it.  Similarly, sentences that seem to be
-unambiguous, such as `John saw Mary`:lx:, turn out to have other
-readings we would not have anticipated (as Abney explains).  This
-ambiguity is unavoidable, and leads to horrendous inefficiency in
-parsing seemingly innocuous sentences. 
-
-Let's look more closely at this issue of efficiency.
-The top-down recursive-descent parser presented
-in Chapter chap-parse_ can be very inefficient, since it often builds
-and discards the same sub-structure many times over.  We see this
-in Figure parser-problem_, where a phrase `the block`:lx: is identified
-as a noun phrase several times, and where this information is discarded
-each time we backtrack.
-
-.. Note::
-   You should try the recursive-descent parser demo if you haven't
-   already: ``nltk.draw.srparser.demo()``
-
-.. table:: parser-problem
-
-   +-----------------------------------+-----------------------------------+
-   | a. Initial stage                  | b. Backtracking                   |
-   |                                   |                                   |
-   | |findtheblock1|                   | |findtheblock2|                   |
-   +-----------------------------------+-----------------------------------+
-   | c. Failing to match `on`:lx:      | d. Completed parse                |
-   |                                   |                                   |
-   | |findtheblock3|                   | |findtheblock4|                   |
-   +-----------------------------------+-----------------------------------+
-
-   Backtracking and Repeated Parsing of Subtrees
-
-.. |findtheblock1| image:: ../images/findtheblock1.png
-   :scale: 85
-.. |findtheblock2| image:: ../images/findtheblock2.png
-   :scale: 85
-.. |findtheblock3| image:: ../images/findtheblock3.png
-   :scale: 85
-.. |findtheblock4| image:: ../images/findtheblock4.png
-   :scale: 85
-
-
-In this chapter, we will present two independent methods for dealing with ambiguity.
-The first is `chart parsing`:em:, which uses the algorithmic technique
-of dynamic programming to derive the parses of an ambiguous
-sentence more `efficiently`:em:.  The second is
-`probabilistic parsing`:em:, which allows us to `rank`:em:
-the parses of an ambiguous sentence on the basis of evidence from corpora.
-
-.. _chart-parsing:
-
--------------
-Chart Parsing
--------------
-
-`chart parsing`:topic:
-
-In the introduction to this chapter, we pointed out that the simple
-parsers discussed in Chapter chap-parse_ suffered from limitations in
-both completeness and efficiency. In order to remedy these, we will
-apply the algorithm design technique of `dynamic programming`:idx: to
-the parsing problem.  As we saw in Section sec-dynamic-programming_,
-dynamic programming stores intermediate results and re-uses them when
-appropriate, achieving significant efficiency gains. This technique
-can be applied to syntactic parsing, allowing us to store
-partial solutions to the parsing task and then look them up as
-necessary in order to efficiently arrive at a complete solution.
-This approach to parsing is known as `chart parsing`:dt:, and is the
-focus of this section.
-
-Well-Formed Substring Tables
-----------------------------
-
-Let's start off by defining a simple grammar.
-
-    >>> grammar = nltk.parse_cfg("""
-    ... S -> NP VP
-    ... PP -> P NP
-    ... NP -> Det N | NP PP
-    ... VP -> V NP | VP PP
-    ... Det -> 'the'
-    ... N -> 'kids' | 'box' | 'floor'
-    ... V -> 'opened' 
-    ... P -> 'on' 
-    ... """)
-
-As you can see, this grammar allows the `vp`:gc: 
-`opened the box on the floor`:lx: to be analyzed in two ways,
-depending on where the `pp`:gc: is attached.
-
-.. ex::
-  .. ex::
-    .. tree:: (VP (V opened)(NP (NP (Det the) (N box))(PP (P on (NP (Det the)(N floor))))))
-
-  .. ex::
-    .. tree:: (VP (VP (V opened)(NP (Det the) (N box)))(PP (P on (NP (Det the)(N floor)))))
-
-Dynamic programming allows us to build the `pp`:gc: `on the floor`:lx:
-just once.  The first time we build it we save it in a table, then we look it
-up when we need to use it as a subconstituent of either the object `np`:gc: or
-the higher `vp`:gc:. This table is known as a
-`well-formed substring table`:dt: (or |WFST| for short). 
-We will show how to construct the |WFST| bottom-up so as to systematically record
-what syntactic constituents have been found.
-
-Let's set our input to be the sentence `the kids opened the box on the
-floor`:lx:. It is helpful to think of the input as being indexed like a Python
-list. We have illustrated this in Figure stringpos_.
-
-.. _stringpos:
-.. figure:: ../images/chart_positions.png
-   :scale: 25
-
-   Slice Points in the Input String
-
-|nopar|
-This allows us to say that, for instance, the word `opened`:lx: spans
-(2, 3) in the input.  This is reminiscent of the slice notation:
-
-    >>> tokens = ["the", "kids", "opened", "the", "box", "on", "the", "floor"]
-    >>> tokens[2:3]
-    ['opened']
-
-|nopar|
-In a |WFST|, we record the position of the words
-by filling in cells in a triangular matrix:
-the vertical axis will denote the start position of a substring,
-while the horizontal axis will denote the end position
-(thus `opened`:lx: will appear in the cell with coordinates (2, 3)).
-To simplify this presentation, we will assume each word has a unique
-lexical category, and we will store this (not the word) in the matrix.
-So cell (2, 3) will contain the entry `v`:gc:.
-More generally, if our input string is
-`a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`, and our grammar
-contains a production of the form *A* |rarr| `a`:sub:`i`, then we add *A* to
-the cell (`i`-1, `i`).
-
-So, for every word in ``tokens``, we can look up in our grammar what
-category it belongs to.
-
-    >>> grammar.productions(rhs=tokens[2])
-    [V -> 'opened']
-
-|nopar| 
-For our |WFST|, we create an `(n-1)`:math: |times| `(n-1)`:math: matrix
-as a list of lists in Python, and initialize it
-with the lexical categories of each token, in the ``init_wfst()``
-function in Figure wfst_.  We also define a utility function ``display()``
-to pretty-print the |WFST| for us.
-As expected, there is a `v`:gc: in cell (2, 3).
-
-.. pylisting:: wfst
-   :caption: Acceptor Using Well-Formed Substring Table (based on |CYK| algorithm)
-
-   def init_wfst(tokens, grammar):
-       numtokens = len(tokens)
-       wfst = [['.' for i in range(numtokens+1)] for j in range(numtokens+1)]
-       for i in range(numtokens):
-           productions = grammar.productions(rhs=tokens[i])
-           wfst[i][i+1] = productions[0].lhs()
-       return wfst
-   def complete_wfst(wfst, tokens, trace=False):
-       index = {}
-       for prod in grammar.productions():
-           index[prod.rhs()] = prod.lhs()
-       numtokens = len(tokens)
-       for span in range(2, numtokens+1):
-           for start in range(numtokens+1-span):
-               end = start + span
-               for mid in range(start+1, end):
-                   nt1, nt2 = wfst[start][mid], wfst[mid][end]
-                   if (nt1,nt2) in index:
-                       if trace:
-                           print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
-                           (start, nt1, mid, nt2, end, start, index[(nt1,nt2)], end)
-                       wfst[start][end] = index[(nt1,nt2)]
-       return wfst
-   def display(wfst, tokens):
-       print '\nWFST ' + ' '.join([("%-4d" % i) for i in range(1, len(wfst))])
-       for i in range(len(wfst)-1):
-           print "%d   " % i,
-           for j in range(1, len(wfst)):
-               print "%-4s" % wfst[i][j],
-           print
-
-   >>> wfst0 = init_wfst(tokens, grammar)
-   >>> display(wfst0, tokens)
-   WFST 1    2    3    4    5    6    7    8   
-   0    Det  .    .    .    .    .    .    .
-   1    .    N    .    .    .    .    .    .
-   2    .    .    V    .    .    .    .    .
-   3    .    .    .    Det  .    .    .    .
-   4    .    .    .    .    N    .    .    .
-   5    .    .    .    .    .    P    .    .
-   6    .    .    .    .    .    .    Det  .
-   7    .    .    .    .    .    .    .    N
-   >>> wfst1 = complete_wfst(wfst0, tokens)
-   >>> display(wfst1, tokens)
-   WFST 1    2    3    4    5    6    7    8   
-   0    Det  NP   .    .    S    .    .    S
-   1    .    N    .    .    .    .    .    .
-   2    .    .    V    .    VP   .    .    VP
-   3    .    .    .    Det  NP   .    .    NP
-   4    .    .    .    .    N    .    .    .
-   5    .    .    .    .    .    P    .    PP
-   6    .    .    .    .    .    .    Det  NP
-   7    .    .    .    .    .    .    .    N
-
-Returning to our tabular representation, given that we have `det`:gc:
-in cell (0, 1), and `n`:gc: in cell (1, 2), what should we put into
-cell (0, 2)? In other words, what syntactic category derives
-`the kids`:lx:? We have already established that `Det`:gc:
-derives `the`:lx: and `n`:gc: derives `kids`:lx:, so we need to find a
-production of the form *A* |rarr| `det`:gc: `n`:gc:, that is, a production whose
-right hand side matches the categories in the cells we have already
-found.  From the grammar, we know that we can enter `np`:gc: in cell (0,2).
-
-More generally, we can enter *A* in `(i, j)`:math: if there
-is a production *A* |rarr| *B* *C*, and we find
-nonterminal *B* in `(i, k)`:math: and *C* in `(k, j)`:math:.
-The program in Figure wfst_ uses this inference step to complete the |WFST|.
-
-.. note::
-   To help us easily retrieve productions by their right hand
-   sides, we create an index for the grammar.
-   This is an example of a space-time trade-off: we do a reverse lookup
-   on the grammar, instead of having to check through entire list of
-   productions each time we want to look up via the right hand side.
-
-We conclude that there is a parse for the whole input string once
-we have constructed an `s`:gc: node that covers the whole input, from
-position `0` to position `8`; i.e., we can conclude that `s`:gc:
-|DoubleRightArrow|\ * `a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`.
-
-Notice that we have not used any built-in parsing functions here.
-We've implemented a complete, primitive chart parser from the ground up!
-
-Charts
-------
-
-By setting ``trace`` to ``True`` when calling the function ``complete_wfst()``, we get 
-additional output.
-
-    >>> wfst1 = complete_wfst(wfst0, tokens, trace=True)
-    [0] Det [1]   N [2] ==> [0]  NP [2]
-    [3] Det [4]   N [5] ==> [3]  NP [5]
-    [6] Det [7]   N [8] ==> [6]  NP [8]
-    [2]   V [3]  NP [5] ==> [2]  VP [5]
-    [5]   P [6]  NP [8] ==> [5]  PP [8]
-    [0]  NP [2]  VP [5] ==> [0]   S [5]
-    [3]  NP [5]  PP [8] ==> [3]  NP [8]
-    [2]   V [3]  NP [8] ==> [2]  VP [8]
-    [2]  VP [5]  PP [8] ==> [2]  VP [8]
-    [0]  NP [2]  VP [8] ==> [0]   S [8]
-
-|nopar| For example, this says that since we found ``Det`` at
-``wfst[0][1]`` and ``N`` at ``wfst[1][2]``, we can add ``NP`` to
-``wfst[0][2]``.
-The same information can be represented in a directed acyclic graph,
-as shown in Figure chartinit_\ (a). This graph is usually called a `chart`:dt:.
-Figure chartinit_\ (b) is the corresponding graph representation, where
-we add a new edge labeled `np`:gc: to cover the input from `0` to `2`.
-
-.. table:: chartinit
-
-   +-------------------------------------------------------------------+
-   | a. Initialized WFST                                               |
-   |                                                                   |
-   | |chart_init0|                                                     |
-   +-------------------------------------------------------------------+
-   | b. Adding an `np`:gc: Edge                                        |
-   |                                                                   |
-   | |chart_init1|                                                     |
-   +-------------------------------------------------------------------+
-
-   A Graph Representation for the WFST
-
-.. |chart_init0| image:: ../images/chart_init0.png
-   :scale: 25
-
-.. |chart_init1| image:: ../images/chart_init1.png
-   :scale: 25
-
-(Charts are more general than the |WFST|\ s we have seen, since they
-can hold multiple hypotheses for a given span.)
-
-A |WFST| is a data structure that can be used by a variety of parsing
-algorithms. The particular method for constructing a |WFST| that we
-have just seen and has some shortcomings.
-First, as you can see, the |WFST| is not itself a parse tree, so the technique is
-strictly speaking `recognizing`:dt: that a sentence is admitted by a
-grammar, rather than parsing it.
-Second, it requires every non-lexical grammar production to be
-`binary`:em: (see Section sec-normal-forms_).
-Although it is possible to convert an arbitrary |CFG| into this form,
-we would prefer to use an approach without such a requirement.
-Third, as a bottom-up approach it is potentially wasteful, being
-able to propose constituents in locations that would not be licensed by
-the grammar.
-Finally, the |WFST| did not represent the structural ambiguity in
-the sentence (i.e. the two verb phrase readings).  The `vp`:gc:
-in cell (`2,8`) was actually entered twice, once for a `v np`:gc:
-reading, and once for a `vp pp`:gc: reading.
-In the next section we will address these issues.
-
-Exercises
----------
-
-1. |easy| Consider the sequence of words:
-   `Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo`:lx:.
-   This is a grammatically correct sentence, as explained at
-   ``http://en.wikipedia.org/wiki/Buffalo_buffalo_Buffalo_buffalo_buffalo_buffalo_Buffalo_buffalo.``
-   Consider the tree diagram presented on this Wikipedia page, and write down a suitable
-   grammar.  Normalize case to lowercase, to simulate the problem that a listener has when hearing
-   this sentence.  Can you find other parses for this sentence?  
-   How does the number of parse trees grow as the sentence gets longer?
-   (More examples of these sentences can be found at ``http://en.wikipedia.org/wiki/List_of_homophonous_phrases``).
-
-#. |soso| Consider the algorithm in Figure wfst_.  Can you explain why
-   parsing context-free grammar is proportional to `n`:sup:`3`\ ?
-
-#. |soso| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
-   that the contents of each cell in the |WFST| is a set of
-   non-terminal symbols rather than a single non-terminal.
-
-#. |hard| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
-   that when a non-terminal symbol is added to a cell in the |WFST|, it includes
-   a record of the cells from which it was derived. Implement a
-   function that will convert a |WFST| in this form to a parse tree.
-
--------------
-Active Charts
--------------
-
-One important aspect of the tabular approach to parsing can be seen more
-clearly if we look at the graph representation: given our grammar, there are two
-different ways to derive a top-level `vp`:gc: for the input, as shown in
-Table chartnp_\ (a,b).
-In our graph representation, we simply combine the
-two sets of edges to yield Table chartnp_\ (c).
-
-.. table:: chartnp
-
-   +---------------------------------------------------------+
-   | a. `vp`:gc: |rarr| `v`:gc: `np`:gc:                     |
-   |                                                         |
-   | |chartnp0|                                              |
-   +---------------------------------------------------------+
-   | b. `vp`:gc: |rarr| `vp`:gc: `pp`:gc:                    |
-   |                                                         |
-   | |chartnp1|                                              |
-   +---------------------------------------------------------+
-   | c. Merged Chart                                         |
-   |                                                         |
-   | |chartnp2|                                              |
-   +---------------------------------------------------------+
-
-   Combining Multiple Parses in a Single Chart
-
-.. |chartnp0| image:: ../images/chart_np0.png
-   :scale: 25
-
-.. |chartnp1| image:: ../images/chart_np1.png
-   :scale: 25
-
-.. |chartnp2| image:: ../images/chart_np2.png
-   :scale: 25
-
-|nopar| However, given a |WFST| we cannot necessarily read off
-the justification for adding a particular edge.
-For example, in chartnp_\ (b), ``[Edge: VP, 2:8]``
-might owe its existence to a production `vp`:gc: |rarr| `v np pp`:gc:.
-Unlike phrase structure trees, a |WFST| does not encode a relation of
-immediate dominance. In order to make such information available, we
-can label edges not just with a non-terminal category, but with the
-whole production that justified the addition of the edge. This is
-illustrated in Figure chartprods_.
-
-.. _chartprods:
-.. figure:: ../images/chart_prods.png
-   :scale: 25
-
-   Chart Annotated with Productions
-
-In general, a chart parser hypothesizes constituents (i.e. adds edges)
-based on the grammar, the tokens, and the constituents already found.
-Any constituent that is compatible with the current knowledge can be hypothesized;
-even though many of these hypothetical constituents will never be used in
-the final result.  A |WFST| just records these hypotheses.
-
-All of the edges that we've seen so far represent complete
-constituents.  However, as we will see, it is helpful to hypothesize
-*incomplete* constituents.  For example, the work done by a
-parser in processing the production *VP* |rarr| *V* *NP* *PP*
-can be reused when processing *VP* |rarr| *V* *NP*.
-Thus, we will record the
-hypothesis that "the `v`:gc: constituent `likes`:lx: is the beginning of a `vp`:gc:."
-
-We can record such hypotheses by adding a `dot`:dt: to the
-edge's right hand side.  Material to the left of the dot specifies
-what the constituent starts with; and material to the
-right of the dot specifies what still needs to be found in order
-to complete the constituent.  For example, the edge in the
-Figure dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
-`likes`:lx:, but still needs an `np`:gc: to become complete":
-
-.. _dottededge:
-.. figure:: ../images/chart_intro_dottededge.png
-   :scale: 30
-
-   Chart Containing Incomplete VP Edge
-
-|nopar| These `dotted edges`:dt: are used to record all of the hypotheses that a
-chart parser makes about constituents in a sentence.  Formally
-a dotted edge [`A` |rarr| `c`:sub:`1` |dots| `c`:sub:`d` |dot| `c`:sub:`d+1` |dots| `c`:sub:`n`, (*i*, *j*)] 
-records the hypothesis that a constituent of type `A` with span (`i, j`)
-starts with children `c`:sub:`1` |dots| `c`:sub:`d`, but still
-needs children `c`:sub:`d+1` |dots| `c`:sub:`n` to be complete
-(`c`:sub:`1` |dots| `c`:sub:`d` and `c`:sub:`d+1` |dots| `c`:sub:`n` may be empty).
-If `d = n`:math:, then `c`:sub:`d+1` |dots| `c`:sub:`n` is
-empty and the edge represents a complete constituent and is called
-a `complete edge`:dt:.  Otherwise, the edge represents an incomplete
-constituent, and is called an `incomplete edge`:dt:.  In Figure
-chart_terms_\ (a), [`vp`:gc: |rarr| `v`:gc: `np`:gc: |dot|, (1, 3)] is a
-complete edge, and [`vp`:gc: |rarr| `v`:gc: |dot| `np`:gc:, (1, 2)] is
-an incomplete edge.
-
-If `d = 0`:math:, then `c`:sub:`1` |dots| `c`:sub:`n` is empty
-and the edge is called a `self-loop edge`:dt:.  
-This is illustrated in Table chart_terms_\ (b).
-If a complete edge spans the entire sentence, and has the grammar's
-start symbol as its left-hand side, then the edge is called a `parse
-edge`:dt:, and it encodes one or more parse trees for the sentence.  In
-Table chart_terms_\ (c), [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
-
-.. table:: chart_terms
-
-   +--------------------------+-------------------------+-------------------------+
-   | a. Incomplete Edge       | b. Self Loop Edge       | c. Parse Edge           |
-   | |chart_intro_incomplete| | |chart_intro_selfloop|  | |chart_intro_parseedge| |
-   +--------------------------+-------------------------+-------------------------+
-
-   Chart Terminology
-
-.. |chart_intro_incomplete| image:: ../images/chart_intro_incomplete.png
-   :scale: 25
-
-.. |chart_intro_selfloop| image:: ../images/chart_intro_selfloop.png
-   :scale: 25
-
-.. |chart_intro_parseedge| image:: ../images/chart_intro_parseedge.png
-   :scale: 25
-
-The Chart Parser
-----------------
-
-To parse a sentence, a chart parser first creates an empty chart
-spanning the sentence.  It then finds edges that are licensed by its
-knowledge about the sentence, and adds them to the chart one at a time
-until one or more parse edges are found.  The edges that it adds can
-be licensed in one of three ways:
-
-1. The *input* can license an edge.  In particular, each word `w`:sub:`i`
-   in the input licenses the complete edge [`w`:sub:`i` |rarr|
-   |dot|, (*i*, *i*\ +1)].
-
-#. The *grammar* can license an edge.  In particular, each grammar
-   production A |rarr| |alpha| licenses the self-loop edge [*A* |rarr|
-   |dot| |alpha|, (*i*, *i*)] for every *i*, 0 |leq| *i* < *n*.
-
-#. The *current chart contents* can license an edge.
-
-However, it is not wise to add `all`:em: licensed edges to the chart,
-since many of them will not be used in any complete parse.  For
-example, even though the edge in the following chart is licensed (by
-the grammar), it will never be used in a complete parse:
-
-.. _uselessedge:        
-.. figure:: ../images/chart_useless_edge.png
-   :scale: 30
-
-   Chart Containing Redundant Edge
-
-Chart parsers therefore use a set of `rules`:dt: to heuristically decide
-when an edge should be added to a chart.  This set of rules, along
-with a specification of when they should be applied, forms a
-`strategy`:dt:.
-
-The Fundamental Rule
---------------------
-
-One rule is particularly important, since it is used by every chart
-parser: the `Fundamental Rule`:dt:. 
-This rule is used to combine an
-incomplete edge that's expecting a nonterminal *B* with a following, complete
-edge whose left hand side is *B*.
-
-.. _fundamental-rule:
-.. ex::
-   `Fundamental Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the edges
-      [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*\ )]
-      [*B* |rarr| |gamma| |dot| , (*j*, *k*\ )]
-    then add the new edge
-      [*A* |rarr| |alpha| *B* |dot| |beta| , (*i*, *k*)]
-    where |alpha|, |beta|, and |gamma| are (possibly empty) sequences
-    of terminals or non-terminals
-
-Note that the dot has moved one place to the right, and the span of this new edge is the combined
-span of the other two.  Note also that in adding this new edge we do not remove the other two,
-because they might be used again.
-
-A somewhat more intuitive version of the operation of the Fundamental
-Rule can be given using chart diagrams. Thus, if we have a chart of
-the form shown in Table fr_\ (a),
-then we can add a new complete edge as shown in Table fr_\ (b).
-
-.. table:: fr
-
-   +-------------------------------+-------------------------------+
-   | a. Input                      | b. Output                     |
-   | |chart_fr1|                   | |chart_fr2|                   |
-   +-------------------------------+-------------------------------+
-
-   Fundamental Rule
-
-.. |chart_fr1| image:: ../images/chart_fr1.png
-   :scale: 30
-
-.. |chart_fr2| image:: ../images/chart_fr2.png
-   :scale: 30
-
-.. [#] The Fundamental Rule corresponds to the Completer
-   function in the Earley algorithm; cf. [JurafskyMartin2008]_.
-
-Bottom-Up Parsing
------------------
-
-As we saw in Chapter chap-parse_, bottom-up parsing starts from the
-input string, and tries to find sequences of words and phrases that
-correspond to the *right hand* side of a grammar production. The
-parser then replaces these with the left-hand side of the production,
-until the whole sentence is reduced to an `S`:gc:.  Bottom-up chart
-parsing is an extension of this approach in which hypotheses about
-structure are recorded as edges on a chart. In terms of our earlier
-terminology, bottom-up chart parsing can be seen as a parsing
-strategy; in other words, bottom-up is a particular choice of
-heuristics for adding new edges to a chart. 
-
-The general procedure for chart parsing is
-inductive: we start with a base case, and then show how we can move
-from a given state of the chart to a new state. Since we are working
-bottom-up, the base case for our induction will be determined by the
-words in the input string, so we add new edges for each word.  Now,
-for the induction step, suppose the chart contains an edge labeled
-with constituent *A*. Since we are working bottom-up, we want to build
-constituents that can have an *A* as a daughter. In other words, we
-are going to look for productions of the form *B* |rarr| *A* |beta| and use
-these to label new edges.
-
-Let's look at the procedure a bit more formally.  To create a
-bottom-up chart parser, we add to the Fundamental Rule two new rules:
-the `Bottom-Up Initialization Rule`:dt:; and the `Bottom-Up Predict
-Rule`:dt:.
-The Bottom-Up Initialization Rule says to add all edges licensed by
-the input.
-
-.. _bottom-up-initialization-rule:
-.. ex::
-   `Bottom-Up Initialization Rule`:dt:
-
-   .. parsed-literal::
-
-    For every word w\ :subscript:`i` add the edge
-      [`w`:subscript:`i` |rarr|  |dot| , (*i*, *i*\ +1)]
-
-Table bu-init-chart_\ (a) illustrates this rule using the chart notation,
-while Table bu-init-chart_\ (b) shows the bottom-up
-initialization for the input `Lee likes coffee`:lx:.
-
-.. table:: bu-init-chart
-
-   +------------------------------+----------------------------+
-   | a. Generic                   | b. Example                 |
-   | |chart_bu_init|              | |chart_bu_ex1|             |
-   +------------------------------+----------------------------+
-
-   Bottom-Up Initialization Rule
-
-.. |chart_bu_init| image:: ../images/chart_bu_init.png
-   :scale: 30
-
-.. |chart_bu_ex1| image:: ../images/chart_bu_ex1.png
-   :scale: 30
-
-Notice that the dot on the right hand side of these productions
-is telling us that we have complete edges for the lexical items. By
-including this information, we
-can give a uniform statement of how the Fundamental Rule operates in
-Bottom-Up parsing, as we will shortly see.
-
-Next, suppose the chart contains a complete edge *e* whose
-left hand category is *A*. Then the Bottom-Up Predict Rule requires the
-parser to add a self-loop edge at the left boundary of *e*
-for each grammar production whose right hand side begins with category
-*A*.
-
-.. _bottom-up-predict-rule:
-.. ex::
-   `Bottom-Up Predict Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the complete edge
-      [*A* |rarr| |alpha| |dot| , (*i*, *j*\ )]
-    and the grammar contains the production
-      *B* |rarr| *A* |beta|
-    then add the self-loop edge
-      [*B* |rarr|  |dot| *A* |beta| , (*i*, *i*\ )]
-
-Graphically, if the chart looks as in Figure bu-predict-chart_\ (a),
-then the Bottom-Up Predict Rule tells the parser to augment the chart
-as shown in Figure bu-predict-chart_\ (b).
-
-.. table:: bu-predict-chart
-
-   +----------------------------+--------------------------+
-   | a. Input                   | b. Output                |
-   | |chart_bu_predict1|        | |chart_bu_predict2|      |
-   +----------------------------+--------------------------+
-
-   Bottom-Up Prediction Rule
-
-.. |chart_bu_predict1| image:: ../images/chart_bu_predict1.png
-   :scale: 30
-
-.. |chart_bu_predict2| image:: ../images/chart_bu_predict2.png
-   :scale: 30
-
-To continue our earlier example, let's suppose that our grammar
-contains the lexical productions shown in lexical-productions_.
-This allows us to add three self-loop edges to the chart, as
-shown in buex2_.
-
-.. _lexical-productions:
-.. ex::
-
-     `np`:gc: |rarr| `Lee`:lx: | `coffee`:lx:
-
-     `v`:gc: |rarr| `likes`:lx:
-
-.. _buex2:
-.. ex::
-   .. image:: ../images/chart_bu_ex2.png
-      :scale: 30
-
-Once our chart contains an instance of the pattern shown in Figure bu-predict-chart_\ (b),
-we can use the Fundamental Rule to add an edge where we have "moved the dot" one
-position to the right, as shown in Figure bu-fr_
-(we have omitted the self-loop edges for simplicity.)
-
-.. table:: bu-fr
-
-   +----------------------+------------------------------+
-   | a. Generic           | b. Example                   |
-   |                      |                              |
-   | |chart_bu_fr|        | |chart_bu_ex3|               |
-   +----------------------+------------------------------+
-
-   Fundamental Rule used in Bottom-Up Parsing
-
-.. |chart_bu_fr| image:: ../images/chart_bu_fr.png
-   :scale: 30
-
-.. |chart_bu_ex3| image:: ../images/chart_bu_ex3.png
-   :scale: 30
-
-|nopar| We will now be able to add new self-loop edges such as 
-[`s`:gc: |rarr|  |dot| `np`:gc: `vp`:gc:, (0, 0)] and
-[`vp`:gc: |rarr|  |dot| `vp`:gc: `np`:gc:, (1, 1)], and use these to
-build more complete edges.
-
-Using these three productions, we can parse a sentence as shown in
-bottom-up-strategy_.
-
-.. _bottom-up-strategy:
-.. ex::
-   `Bottom-Up Strategy`:dt:
-
-   .. parsed-literal::
-
-    Create an empty chart spanning the sentence. 
-    Apply the Bottom-Up Initialization Rule to each word. 
-    Until no more edges are added: 
-      Apply the Bottom-Up Predict Rule everywhere it applies. 
-      Apply the Fundamental Rule everywhere it applies. 
-    Return all of the parse trees corresponding to the parse edges in the chart. 
-
-|NLTK| provides a useful interactive tool for visualizing the way in which charts
-are built, ``nltk.draw.chart.demo()``.
-The tool comes with a pre-defined input string and grammar, but both
-of these can be readily modified with options inside the *Edit* menu.
-Figure budemo1_ illustrates a window after the grammar has been updated:
-
-.. _budemo1:       
-.. figure:: ../images/chart_demo1.png
-
-   Modifying the `demo()` grammar
-
-.. Note:: To get the symbol |DoubleRightArrow| illustrated in Figure
-   budemo1_. you just have to type the keyboard characters `'->'`.
-
-
-Figure budemo2_ illustrates the tool interface. In order to invoke a
-rule, you simply click one of the green buttons at the bottom of the window.
-We show the state of the chart on the input `Lee
-likes coffee`:lx: after three applications of the Bottom-Up
-Initialization Rule, followed by successive applications of the Bottom-Up Predict
-Rule and the Fundamental Rule. 
-
-.. _budemo2:       
-.. figure:: ../images/chart_demo2.png
-   :scale: 100
-
-   Incomplete chart for `Lee likes coffee`:lx: 
-
-Notice that in the topmost pane of the window, there is a partial tree
-showing that we have constructed an `s`:gc: with an `np`:gc: subject
-in the expectation that we will be able to find a `vp`:gc:.
-
-Top-Down Parsing
-----------------
-
-Top-down chart parsing works in a similar way to the recursive descent
-parser discussed in Chapter chap-parse_, in that it starts off with
-the top-level goal of finding an `s`:gc:. This goal is then broken into
-the subgoals of trying to find constituents such as `np`:gc: and
-`vp`:gc: that can be immediately dominated by  `s`:gc:.
-To create a top-down chart parser, we use the Fundamental Rule as before plus
-three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
-Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
-The Top-Down Initialization Rule in td-init-rule_
-captures the fact that the root of any
-parse must be the start symbol `s`:gc:\.
-It is illustrated graphically in Table td-init-chart_.
-
-.. _td-init-rule:
-.. ex::
-   `Top-Down Initialization Rule`:dt:
-
-   .. parsed-literal::
-
-    For every grammar production of the form:
-      `s`:gc: |rarr| |alpha|
-    add the self-loop edge: 
-      [`s`:gc: |rarr|  |dot| |alpha|\ , (0, 0)]
-
-.. table:: td-init-chart
-
-   +----------------------+------------------------------+
-   | a. Generic           | b. Example                   |
-   |                      |                              |
-   | |chart_td_init|      | |chart_td_ex1|               |
-   +----------------------+------------------------------+
-
-   Top-Down Initialization Rule
-
-.. |chart_td_init| image:: ../images/chart_td_init.png
-   :scale: 30
-
-.. |chart_td_ex1| image:: ../images/chart_td_ex1.png
-   :scale: 30
-
-
-As we mentioned before, the dot on the right hand side of a production
-records how far our goals have been satisfied. So in Figure
-td-init-chart_\ (b), we are predicting that we will be able to find an `np`:gc: and a
-`vp`:gc:, but have not yet satisfied these subgoals. So how do we
-pursue them? In order to find an  `np`:gc:, for instance, we need to
-invoke a production that has `np`:gc: on its left hand side. The step
-of adding the required edge to the chart is accomplished with the
-Top-Down Expand Rule td-expand-rule_.
-This tells us that if our chart contains an incomplete
-edge whose dot is followed by a nonterminal *B*, then the parser
-should add any self-loop edges licensed by the grammar whose left-hand
-side is *B*.
-
-.. _td-expand-rule:
-.. ex::
-   `Top-Down Expand Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the incomplete edge
-      [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*)]
-    then for each grammar production
-      *B* |rarr| |gamma|
-    add the edge
-      [*B* |rarr| |dot| |gamma| , (*j*, *j*\ )]
-
-|nopar| Thus, given a chart that looks like the one in Table td-expand-chart_\ (a),
-the Top-Down Expand Rule augments it with the edge shown in Table td-expand-chart_\ (b).
-In terms of our running example, we now have the chart shown in Table td-expand-chart_\ (c).
-
-.. table:: td-expand-chart
-
-   +----------------------+------------------------+---------------------------------+
-   | a. Input             | b. Output              | c. Example                      |
-   | |chart_td_expand1|   | |chart_td_expand2|     | |chart_td_ex2|                  |
-   +----------------------+------------------------+---------------------------------+
-
-   Top-Down Expand Rule
-
-.. |chart_td_expand1| image:: ../images/chart_td_expand1.png
-   :scale: 30
-
-.. |chart_td_expand2| image:: ../images/chart_td_expand2.png
-   :scale: 30
-
-.. |chart_td_ex2| image:: ../images/chart_td_ex2.png
-   :scale: 30
-
-The Top-Down Match rule allows the predictions of the grammar to be
-matched against the input string. Thus, if the chart contains an incomplete
-edge whose dot is followed by a terminal *w*, then the parser should
-add an edge if the terminal corresponds to the current input symbol.
-
-.. _top-down-match-rule:
-.. ex::
-   `Top-Down Match Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the incomplete edge
-      [*A* |rarr| |alpha| |dot| w\ :subscript:`j` |beta|\ , (*i*, *j*\ )], 
-    where w\ :subscript:`j` is the *j* :sup:`th` word of the input,
-    then add a new complete edge
-      [`w`:subscript:`j` |rarr| |dot| , (*j*, *j*\ +1)]
-
-|nopar| Graphically, the Top-Down Match rule takes us from
-Table td-match-chart_\ (a), to Table td-match-chart_\ (b).
-
-.. table:: td-match-chart
-
-   +--------------------------+------------------------+
-   | a. Input                 | b. Output              |
-   | |chart_td_match1|        | |chart_td_match2|      |
-   +--------------------------+------------------------+
-
-   Top-Down Match Rule
-
-.. |chart_td_match1| image:: ../images/chart_td_match1.png
-   :scale: 30
-
-.. |chart_td_match2| image:: ../images/chart_td_match2.png
-   :scale: 30
-
-Figure td-example_\ (a) illustrates how our example chart after applying the
-Top-Down Match rule.
-What rule is relevant now? The Fundamental Rule. If we remove the
-self-loop edges from Figure td-example_\ (a) for simplicity, the
-Fundamental Rule gives us Figure td-example_\ (b).
-
-.. table:: td-example
-
-   +--------------------------------------+------------------------------------+
-   | a. Apply Top-Down Match Rule         | b. Apply Fundamental Rule          |
-   | |chart_td_ex3|                       | |chart_td_ex4|                     |
-   +--------------------------------------+------------------------------------+
-
-   Top-Down Example (cont)
-
-.. |chart_td_ex3| image:: ../images/chart_td_ex3.png
-   :scale: 30
-
-.. |chart_td_ex4| image:: ../images/chart_td_ex4.png
-   :scale: 30
-
-Using these four rules, we can parse a sentence top-down as shown in
-top-down-strategy_.
-
-
-.. I don't see why 'each word': Apply the Top-Down Initialization Rule to each word. 
-.. It is defined to apply to node (0, 0)
-
-.. _top-down-strategy:
-.. ex::
-   `Top-Down Strategy`:dt:
-
-   .. parsed-literal::
-
-    Create an empty chart spanning the sentence. 
-    Apply the Top-Down Initialization Rule. 
-    Until no more edges are added: 
-      Apply the Top-Down Expand Rule everywhere it applies. 
-      Apply the Top-Down Match Rule everywhere it applies. 
-      Apply the Fundamental Rule everywhere it applies. 
-    Return all of the parse trees corresponding to the parse edges in
-    the chart. 
-
-
-We encourage you to experiment with the |NLTK| chart parser demo,
-as before, in order to test out the top-down strategy yourself.
-
-The Earley Algorithm
---------------------
-
-The Earley algorithm [Earley1970ECF]_ is a parsing strategy that
-resembles the Top-Down Strategy, but deals more efficiently with
-matching against the input string. Table earley-terminology_ shows the
-correspondence between the parsing rules introduced above and the
-rules used by the Earley algorithm.
-
-.. table:: earley-terminology
-
-    +-------------------------------+------------------------------+
-    |**Top-Down**\ /**Bottom-Up**   |   **Earley**                 |
-    +===============================+==============================+
-    | Top-Down Initialization Rule  |  Predictor Rule              |
-    | Top-Down Expand Rule          |                              |
-    +-------------------------------+------------------------------+
-    | Top-Down/Bottom-Up Match Rule |  Scanner Rule                |
-    +-------------------------------+------------------------------+
-    | Fundamental Rule              |  Completer Rule              |
-    +-------------------------------+------------------------------+
-
-    Terminology for rules in the Earley algorithm
-
-Let's look in more detail at the Scanner Rule. Suppose the chart
-contains an incomplete edge with a lexical category *P* immediately after
-the dot,  the next word in the input is *w*, *P* is a part-of-speech
-label for *w*. Then the Scanner Rule admits a new complete edge in
-which *P* dominates *w*. More precisely:
-
-.. _scanner-rule:
-.. ex::
-   `Scanner Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the incomplete edge
-      [*A* |rarr| |alpha| |dot| *P* |beta|, (*i*, *j*)] 
-    and  *w*\ :subscript:`j` is the *j*\ :sup:`th` word of the input,
-    and *P* is a valid part of speech for *w*\ :subscript:`j`,
-    then add the new complete edges
-      [*P* |rarr| *w*\ :subscript:`j` |dot|\ , (*j*, *j*\ +1)] 
-      [*w*\ :subscript:`j` |rarr| |dot|\ , (*j*, *j*\ +1)]  
-
-|nopar| To illustrate, suppose the input is of the form 
-`I saw ...`:lx:, and the chart already contains the edge 
-[`vp`:gc: |rarr|  |dot| `v`:gc: ..., (1, 1)]. Then the Scanner Rule will add to 
-the chart the edges [`v`:gc: |rarr| 'saw', (1, 2)]
-and ['saw'|rarr| |dot|\ , (1, 2)]. So in effect the Scanner Rule packages up a
-sequence of three rule applications: the Bottom-Up Initialization Rule for 
-[*w* |rarr| |dot|\ , (*j*, *j*\ +1)],
-the Top-Down Expand Rule for [*P* |rarr| |dot| *w*\ :subscript:`j`, (*j*, *j*)], and 
-the Fundamental Rule for [*P* |rarr| *w*\ :subscript:`j` |dot|\ , (*j*,
-*j*\ +1))]. This is considerably more efficient than the Top-Down Strategy, that
-adds a new edge of the form [*P* |rarr| |dot| *w* , (*j*, *j*)] for
-`every`:em: lexical rule *P* |rarr| *w*, regardless of whether *w* can
-be found in the input.
-By contrast with Bottom-Up Initialization, however, the
-Earley algorithm proceeds strictly left-to-right through the input,
-applying all applicable rules at that point in the chart, and never backtracking.
-The |NLTK| chart parser demo, described above, allows the option of
-parsing according to the Earley algorithm.
-
-Chart Parsing in NLTK
----------------------
-
-NLTK defines a simple yet flexible chart parser,
-``ChartParser``.  A new chart parser is constructed from a
-grammar and a list of chart rules (also known as a *strategy*).  These
-rules will be applied, in order, until no new edges are added to the
-chart.  In particular, ``ChartParser`` uses the algorithm shown in chart-algorithm_.
-
-.. _chart-algorithm:
-.. ex::
-   .. parsed-literal::   
-
-    Until no new edges are added:
-      For each chart rule *R*:
-        Apply *R* to any applicable edges in the chart. 
-        Return any complete parses in the chart. 
-
-``nltk.parse.chart`` defines two ready-made strategies:
-``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
-basic bottom-up strategy.  When constructing a chart parser, you
-can use either of these strategies, or create your own.
-
-The following example illustrates the use of the chart parser.
-We start by defining a simple grammar, and tokenizing a sentence.
-We make sure it is a list (not an iterator), since
-we wish to use the same tokenized sentence several times.
-
-.. pylisting:: chart-demo
-   :caption: Chart Parsing with NLTK
-
-   grammar = nltk.parse_cfg('''
-     NP  -> NNS | JJ NNS | NP CC NP
-     NNS -> "men" | "women" | "children" | NNS CC NNS
-     JJ  -> "old" | "young"
-     CC  -> "and" | "or"
-     ''')
-   parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY)
-
-   >>> sent = 'old men and women'.split()
-   >>> for tree in parser.nbest_parse(sent):
-   ...     print tree
-   (NP (JJ old) (NNS (NNS men) (CC and) (NNS women)))
-   (NP (NP (JJ old) (NNS men)) (CC and) (NP (NNS women)))
-
-The ``trace`` parameter can be specified when creating a parser, to
-turn on tracing (higher trace levels produce more verbose output).
-Example butrace_ shows the trace output for parsing a
-sentence with the bottom-up strategy.
-Notice that in this output, ``'[-----]'`` indicates a complete edge,
-``'>'`` indicates a self-loop edge, and ``'[----->'`` indicates an
-incomplete edge.
-
-.. pylisting:: butrace
-   :caption: Trace of Bottom-Up Parser
-
-   >>> parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY, trace=2)
-   >>> trees = parser.nbest_parse(sent)
-   |.   old   .   men   .   and   .  women  .|
-   Bottom Up Init Rule:
-   |[---------]         .         .         .| [0:1] 'old' 
-   |.         [---------]         .         .| [1:2] 'men' 
-   |.         .         [---------]         .| [2:3] 'and' 
-   |.         .         .         [---------]| [3:4] 'women' 
-   Bottom Up Predict Rule:
-   |>         .         .         .         .| [0:0] JJ -> * 'old' 
-   |.         >         .         .         .| [1:1] NNS -> * 'men' 
-   |.         .         >         .         .| [2:2] CC -> * 'and' 
-   |.         .         .         >         .| [3:3] NNS -> * 'women' 
-   Fundamental Rule:
-   |[---------]         .         .         .| [0:1] JJ -> 'old' * 
-   |.         [---------]         .         .| [1:2] NNS -> 'men' * 
-   |.         .         [---------]         .| [2:3] CC -> 'and' * 
-   |.         .         .         [---------]| [3:4] NNS -> 'women' * 
-   Bottom Up Predict Rule:
-   |>         .         .         .         .| [0:0] NP -> * JJ NNS 
-   |.         >         .         .         .| [1:1] NP -> * NNS 
-   |.         >         .         .         .| [1:1] NNS -> * NNS CC NNS 
-   |.         .         .         >         .| [3:3] NP -> * NNS 
-   |.         .         .         >         .| [3:3] NNS -> * NNS CC NNS 
-   Fundamental Rule:
-   |[--------->         .         .         .| [0:1] NP -> JJ * NNS 
-   |.         [---------]         .         .| [1:2] NP -> NNS * 
-   |.         [--------->         .         .| [1:2] NNS -> NNS * CC NNS 
-   |[-------------------]         .         .| [0:2] NP -> JJ NNS * 
-   |.         [------------------->         .| [1:3] NNS -> NNS CC * NNS 
-   |.         .         .         [---------]| [3:4] NP -> NNS * 
-   |.         .         .         [--------->| [3:4] NNS -> NNS * CC NNS 
-   |.         [-----------------------------]| [1:4] NNS -> NNS CC NNS * 
-   |.         [-----------------------------]| [1:4] NP -> NNS * 
-   |.         [----------------------------->| [1:4] NNS -> NNS * CC NNS 
-   |[=======================================]| [0:4] NP -> JJ NNS * 
-   Bottom Up Predict Rule:
-   |.         >         .         .         .| [1:1] NP -> * NP CC NP 
-   |>         .         .         .         .| [0:0] NP -> * NP CC NP 
-   |.         .         .         >         .| [3:3] NP -> * NP CC NP 
-   Fundamental Rule:
-   |.         [--------->         .         .| [1:2] NP -> NP * CC NP 
-   |[------------------->         .         .| [0:2] NP -> NP * CC NP 
-   |.         .         .         [--------->| [3:4] NP -> NP * CC NP 
-   |.         [----------------------------->| [1:4] NP -> NP * CC NP 
-   |[--------------------------------------->| [0:4] NP -> NP * CC NP 
-   |.         [------------------->         .| [1:3] NP -> NP CC * NP 
-   |[----------------------------->         .| [0:3] NP -> NP CC * NP 
-   |.         [-----------------------------]| [1:4] NP -> NP CC NP * 
-   |[=======================================]| [0:4] NP -> NP CC NP * 
-   |.         [----------------------------->| [1:4] NP -> NP * CC NP 
-   |[--------------------------------------->| [0:4] NP -> NP * CC NP 
-
-Exercises
----------
-
-1. |easy| Use the graphical chart-parser interface to experiment with
-   different rule invocation strategies. Come up with your own strategy
-   that you can execute manually using the graphical interface. Describe
-   the steps, and report any efficiency improvements it has (e.g. in terms
-   of the size of the resulting chart). Do these improvements depend on
-   the structure of the grammar? What do you think of the prospects for
-   significant performance boosts from cleverer rule invocation
-   strategies?
-
-#. |easy| We have seen that a chart parser adds but never removes edges
-   from a chart.  Why?
-
-#. |soso| Write a program to compare the efficiency of a top-down chart parser
-   compared with a recursive descent parser (Section sec-recursive-descent_).
-   Use the same grammar and input sentences for both.  Compare their performance
-   using the ``timeit`` module (Section sec-timing_).
-
----------------------
-Probabilistic Parsing
----------------------
-
-.. TODO: mention interest in having weights is because they can be learned.
-   Without this it is mysterious why we would want to bother.
-   Technical aspects follow, but this is important motivation (Steven)
-
-.. TODO: expand opening discussion to remind reader why we're doing this
-   (we had moved stuff to front of chapter) (Steven)
-
-As we pointed out in the introduction to this
-chapter, dealing with ambiguity is a key challenge to broad coverage
-parsers. We have shown how chart parsing can help improve the
-efficiency of computing multiple parses of the same sentences. But
-the sheer number of parses can be just overwhelming. We will show how
-probabilistic parsing helps to manage a large space of parses.  
-However, before we deal with these parsing issues,
-we must first back up and introduce weighted grammars.
-
-Weighted Grammars
------------------
-
-We begin by considering the verb `give`:lx:.  This verb requires both
-a direct object (the thing being given) and an indirect object (the
-recipient).  These complements can be given in either order, as
-illustrated in example dative_.  In the "prepositional dative" form,
-the indirect object appears last, and inside a prepositional phrase,
-while in the "double object" form, the indirect object comes first:
-
-.. _dative:
-.. ex::
-   .. ex::
-      Kim gave a bone to the dog
-   .. ex::
-      Kim gave the dog a bone
-
-Using the Penn Treebank sample, we can examine all instances of
-prepositional dative and double object constructions involving
-`give`:lx:, as shown in Figure give_.
-
-.. pylisting:: give
-   :caption: Usage of Give and Gave in the Penn Treebank sample
-
-   def give(t):
-       return t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
-              and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
-              and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
-   def sent(t):
-       return ' '.join(token for token in t.leaves() if token[0] not in '*-0')
-   def print_node(t, width):
-           output = "%s %s: %s / %s: %s" %\
-               (sent(t[0]), t[1].node, sent(t[1]), t[2].node, sent(t[2]))
-           if len(output) > width:
-               output = output[:width] + "..."
-           print output
-
-   >>> for tree in nltk.corpus.treebank.parsed_sents():
-   ...     for t in tree.subtrees(give):
-   ...         print_node(t, 72)
-   gave NP: the chefs / NP: a standing ovation
-   give NP: advertisers / NP: discounts for maintaining or increasing ad sp...
-   give NP: it / PP-DTV: to the politicians
-   gave NP: them / NP: similar help
-   give NP: them / NP: 
-   give NP: only French history questions / PP-DTV: to students in a Europe...
-   give NP: federal judges / NP: a raise
-   give NP: consumers / NP: the straight scoop on the U.S. waste crisis
-   gave NP: Mitsui / NP: access to a high-tech medical product
-   give NP: Mitsubishi / NP: a window on the U.S. glass industry
-   give NP: much thought / PP-DTV: to the rates she was receiving , nor to ...
-   give NP: your Foster Savings Institution / NP: the gift of hope and free...
-   give NP: market operators / NP: the authority to suspend trading in futu...
-   gave NP: quick approval / PP-DTV: to $ 3.18 billion in supplemental appr...
-   give NP: the Transportation Department / NP: up to 50 days to review any...
-   give NP: the president / NP: such power
-   give NP: me / NP: the heebie-jeebies
-   give NP: holders / NP: the right , but not the obligation , to buy a cal...
-   gave NP: Mr. Thomas / NP: only a `` qualified '' rating , rather than ``...
-   give NP: the president / NP: line-item veto power
-
-We can observe a strong tendency for the shortest complement to appear
-first.  However, this does not account for a form like
-``give NP: federal judges / NP: a raise``, where animacy may be
-playing a role.  In fact there turn out to be a large number of contributing
-factors, as surveyed by [Bresnan2006GG]_.
-
-How can such tendencies be expressed in a conventional context free
-grammar?  It turns out that they cannot.  However, we can address the
-problem by adding weights, or probabilities, to the productions of a grammar.
-
-A `probabilistic context free grammar`:dt: (or *PCFG*) is a context free
-grammar that associates a probability with each of its productions.
-It generates the same set of parses for a text that the corresponding
-context free grammar does, and assigns a probability to each parse.
-The probability of a parse generated by a PCFG is simply the product
-of the probabilities of the productions used to generate it.
-
-The simplest way to define a PCFG is to load it from a specially
-formatted string consisting of a sequence of weighted productions,
-where weights appear in brackets, as shown in Figure pcfg1_.
-
-.. pylisting:: pcfg1
-   :caption: Defining a Probabilistic Context Free Grammar (PCFG)
-
-   grammar = nltk.parse_pcfg("""
-       S    -> NP VP              [1.0]
-       VP   -> TV NP              [0.4]
-       VP   -> IV                 [0.3]
-       VP   -> DatV NP NP         [0.3]
-       TV   -> 'saw'              [1.0]
-       IV   -> 'ate'              [1.0]
-       DatV -> 'gave'             [1.0]
-       NP   -> 'telescopes'       [0.8]
-       NP   -> 'Jack'             [0.2]
-       """)
-   >>> print grammar
-   Grammar with 9 productions (start state = S)
-       S -> NP VP [1.0]
-       VP -> TV NP [0.4]
-       VP -> IV [0.3]
-       VP -> DatV NP NP [0.3]
-       TV -> 'saw' [1.0]
-       IV -> 'ate' [1.0]
-       DatV -> 'gave' [1.0]
-       NP -> 'telescopes' [0.8]
-       NP -> 'Jack' [0.2]
-
-It is sometimes convenient to combine multiple productions into a single line,
-e.g. ``VP -> TV NP [0.4] | IV [0.3] | DatV NP NP [0.3]``.
-In order to ensure that the trees generated by the grammar form a
-probability distribution, PCFG grammars impose the constraint
-that all productions with a given left-hand side must have
-probabilities that sum to one.
-The grammar in Figure pcfg1_ obeys this constraint: for ``S``,
-there is only one production, with a probability of 1.0; for ``VP``,
-0.4+0.3+0.3=1.0; and for ``NP``, 0.8+0.2=1.0.
-The parse tree returned by ``parse()`` includes probabilities:
-
-    >>> viterbi_parser = nltk.ViterbiParser(grammar)
-    >>> print viterbi_parser.parse(['Jack', 'saw', 'telescopes'])
-    (S (NP Jack) (VP (TV saw) (NP telescopes))) (p=0.064)
-
-The next two sections introduce two probabilistic parsing algorithms
-for PCFGs.  The first is an A* parser that uses Viterbi-style dynamic
-programming to find the single most likely parse for a given text.
-Whenever it finds multiple possible parses for a subtree, it discards
-all but the most likely parse.  The second is a bottom-up chart parser
-that maintains a queue of edges, and adds them to the chart one at a
-time.  The ordering of this queue is based on the probabilities
-associated with the edges, allowing the parser to expand more likely
-edges before less likely ones.  Different queue orderings are used to
-implement a variety of different search strategies.  These algorithms
-are implemented in the ``nltk.parse.viterbi`` and
-``nltk.parse.pchart`` modules.
-
-A* Parser
----------
-
-An `A* Parser`:dt: is a bottom-up PCFG parser that uses
-dynamic programming to find the single most likely parse for a text [Klein2003Astar]_.
-It parses texts by iteratively filling in a 
-`most likely constituents table`:dt:.  This table records the most likely tree for each
-span and node value.  For example, after parsing the sentence "I saw the man with
-the telescope" with the grammar ``cfg.toy_pcfg1``, the most likely constituents table
-contains the following entries (amongst others):
-
-.. table:: mlct
-
-   ===== ==== ==================================================================  ============
-   Span  Node Tree                                                                Prob
-   ===== ==== ==================================================================  ============
-   [0:1] NP   (NP I)                                                              0.15
-   [6:7] NP   (NN telescope)                                                      0.5
-   [5:7] NP   (NP the telescope)                                                  0.2
-   [4:7] PP   (PP with (NP the telescope))                                        0.122
-   [0:4] S    (S (NP I) (VP saw (NP the man)))                                    0.01365
-   [0:7] S    (S (NP I) (VP saw (NP (NP the man) (PP with (NP the telescope)))))  0.0004163250
-   ===== ==== ==================================================================  ============
-
-   Fragment of Most Likely Constituents Table
-
-Once the table has been completed, the parser
-returns the entry for the most likely constituent that spans the
-entire text, and whose node value is the start symbol.  For this
-example, it would return the entry with a span of [0:6] and a node
-value of "S".
-
-Note that we only record the *most likely* constituent for any given
-span and node value.  For example, in the table above, there are
-actually two possible constituents that cover the span [1:6] and have
-"VP" node values.
-
-1. "saw the man, who has the telescope":
-
-  (VP saw
-     (NP (NP John)
-          (PP with (NP the telescope))))
-
-2. "used the telescope to see the man":
-
-  (VP saw
-     (NP John)
-     (PP with (NP the telescope)))
-
-|nopar|
-Since the grammar we are using to parse the text indicates that the
-first of these tree structures has a higher probability, the parser
-discards the second one.
-
-**Filling in the Most Likely Constituents Table:**
-Because the grammar used by ``ViterbiParse`` is a PCFG, the
-probability of each constituent can be calculated from the
-probabilities of its children.  Since a constituent's children can
-never cover a larger span than the constituent itself, each entry of
-the most likely constituents table depends only on entries for
-constituents with *shorter* spans (or equal spans, in the case of
-unary and epsilon productions).
-
-``ViterbiParse`` takes advantage of this fact, and fills in the most
-likely constituent table incrementally.  It starts by filling in the
-entries for all constituents that span a single element of text.
-After it has filled in all the table entries for constituents that
-span one element of text, it fills in the entries for constituents
-that span two elements of text.  It continues filling in the entries
-for constituents spanning larger and larger portions of the text,
-until the entire table has been filled.
-
-To find the most likely constituent with a given span and node value,
-``ViterbiParse`` considers all productions that could produce that
-node value.  For each production, it checks the most likely
-constituents table for sequences of children that collectively cover
-the span and that have the node values specified by the production's
-right hand side.  If the tree formed by applying the production to the
-children has a higher probability than the current table entry, then
-it updates the most likely constituents table with the new tree.
-
-**Handling Unary Productions and Epsilon Productions:**
-A minor difficulty is introduced by unary productions and epsilon
-productions: an entry of the most likely constituents table might
-depend on another entry with the same span.  For example, if the
-grammar contains the production ``V`` |rarr| ``VP``, then the table
-entries for ``VP`` depend on the entries for ``V`` with the same span.
-This can be a problem if the constituents are checked in the wrong
-order.  For example, if the parser tries to find the most likely
-constituent for a ``VP`` spanning [1:3] before it finds the most
-likely constituents for ``V`` spanning [1:3], then it can't apply the
-``V`` |rarr| ``VP`` production.
-
-To solve this problem, ``ViterbiParse`` repeatedly checks each span
-until it finds no new table entries.  Note that cyclic grammar
-productions (e.g. ``V`` |rarr| ``V``) will *not* cause this procedure
-to enter an infinite loop.  Since all production probabilities are
-less than or equal to 1, any constituent generated by a cycle in the
-grammar will have a probability that is less than or equal to the
-original constituent; so ``ViterbiParse`` will discard it.
-
-In NLTK, we create Viterbi parsers using ``ViterbiParse()``.
-Note that since ``ViterbiParse`` only finds the single most likely
-parse, that ``nbest_parse()`` will never return more than one parse.
-
-.. pylisting:: viterbi-parse
-
-   grammar = nltk.parse_pcfg('''
-     NP  -> NNS [0.5] | JJ NNS [0.3] | NP CC NP [0.2]
-     NNS -> "men" [0.1] | "women" [0.2] | "children" [0.3] | NNS CC NNS [0.4]
-     JJ  -> "old" [0.4] | "young" [0.6]
-     CC  -> "and" [0.9] | "or" [0.1]
-     ''')
-   viterbi_parser = nltk.ViterbiParser(grammar)
-
-   >>> sent = 'old men and women'.split()
-   >>> print viterbi_parser.parse(sent)
-   (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)    
-
-The ``trace`` method can be used to set the level of tracing output
-that is generated when parsing a text.  Trace output displays the
-constituents that are considered, and indicates which ones are added
-to the most likely constituent table.  It also indicates the
-likelihood for each constituent.
-
-    >>> viterbi_parser.trace(3)
-    >>> print viterbi_parser.parse(sent)
-    Inserting tokens into the most likely constituents table...
-       Insert: |=...| old
-       Insert: |.=..| men
-       Insert: |..=.| and
-       Insert: |...=| women
-    Finding the most likely constituents spanning 1 text elements...
-       Insert: |=...| JJ -> 'old' [0.4]                 0.4000000000 
-       Insert: |.=..| NNS -> 'men' [0.1]                0.1000000000 
-       Insert: |.=..| NP -> NNS [0.5]                   0.0500000000 
-       Insert: |..=.| CC -> 'and' [0.9]                 0.9000000000 
-       Insert: |...=| NNS -> 'women' [0.2]              0.2000000000 
-       Insert: |...=| NP -> NNS [0.5]                   0.1000000000 
-    Finding the most likely constituents spanning 2 text elements...
-       Insert: |==..| NP -> JJ NNS [0.3]                0.0120000000 
-    Finding the most likely constituents spanning 3 text elements...
-       Insert: |.===| NP -> NP CC NP [0.2]              0.0009000000 
-       Insert: |.===| NNS -> NNS CC NNS [0.4]           0.0072000000 
-       Insert: |.===| NP -> NNS [0.5]                   0.0036000000 
-      Discard: |.===| NP -> NP CC NP [0.2]              0.0009000000 
-      Discard: |.===| NP -> NP CC NP [0.2]              0.0009000000 
-    Finding the most likely constituents spanning 4 text elements...
-       Insert: |====| NP -> JJ NNS [0.3]                0.0008640000 
-      Discard: |====| NP -> NP CC NP [0.2]              0.0002160000 
-      Discard: |====| NP -> NP CC NP [0.2]              0.0002160000 
-    (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
-
-
-A Bottom-Up PCFG Chart Parser
------------------------------
-
-The `A* parser`:idx: described in the previous section finds
-the single most likely parse for a given text.  However, when parsers
-are used in the context of a larger NLP system, it is often necessary
-to produce several alternative parses.  In the context of an overall system,
-a parse that is assigned low probability by the parser might still have the
-best overall probability.
-
-For example, a probabilistic parser might decide that the most likely
-parse for "I saw John with the cookie" is is the structure with the
-interpretation "I used my cookie to see John"; but that parse would be
-assigned a low probability by a semantic system.  Combining the
-probability estimates from the parser and the semantic system, the
-parse with the interpretation "I saw John, who had my cookie" would be
-given a higher overall probability.
-
-This section describes a probabilistic bottom-up chart parser.
-It maintains an `edge queue`:dt:, and adds these edges to the chart one at a time.
-The ordering of this queue is based on the probabilities associated with the edges,
-and this allows the parser to insert the most probable edges first.
-Each time an edge is added to the chart, it may become possible
-to insert new edges, so these are added to the queue.
-The bottom-up chart parser continues adding the edges in the
-queue to the chart until enough complete parses have been found, or
-until the edge queue is empty.
-
-Like an edge in a regular chart, a probabilistic edge
-consists of a dotted production, a span, and a (partial) parse tree.
-However, unlike ordinary charts, this time the tree is weighted
-with a probability.  Its probability
-is the product of the probability of the production that
-generated it and the probabilities of its children.  For example, the
-probability of the edge ``[Edge: S`` |rarr| ``NP`` |dot| ``VP, 0:2]``
-is the probability of the PCFG production ``S`` |rarr| ``NP VP``
-multiplied by the probability of its `np`:gc: child.
-(Note that an edge's tree only includes children for elements to the left
-of the edge's dot.  Thus, the edge's probability does *not* include
-probabilities for the constituents to the right of the edge's dot.)
-
-Bottom-Up PCFG Strategies
+-------------------------
+What's the Use of Syntax?
 -------------------------
 
-The `edge queue`:idx: is a sorted list of edges that can be added to the
-chart.  It is initialized with a single edge for each token in the
-text, with the form ``[Edge: token |rarr| |dot|]``.
-As each edge from the queue is added to the chart, it may
-become possible to add further edges, according to two rules:
-(i) the Bottom-Up Initialization Rule can be used to add a
-self-loop edge whenever an edge whose dot is in position 0 is added to the chart; or
-(ii) the Fundamental Rule can be used to combine a new edge
-with edges already present in the chart.  These additional edges
-are queued for addition to the chart.
+Earlier chapters focused on words: how to identify them, how to
+analyze their morphology, and how to assign them to classes via
+part-of-speech tags. We have also seen how to identify recurring
+sequences of words (i.e. n-grams). Nevertheless, there seem to be
+linguistic regularities that cannot be described simply in terms of
+n-grams.
 
-By changing the sort order used by the queue, we can control the
-strategy that the parser uses to explore the search space.  Since
-there are a wide variety of reasonable search strategies,
-``BottomUpChartParser()`` does not define any sort order.
-Instead, different strategies are implemented in subclasses of ``BottomUpChartParser()``.
+In this section we will see why it is useful to have some
+kind of syntactic representation of sentences.  In particular, we will
+see that there are systematic aspects of meaning that are much easier
+to capture once we have established a level of syntactic structure.
 
-.. We should either explain "inside probabilities" or rename this parser (to
-        ``LowestCostFirstParser``?). 
+.. _sec-syntactic-ambiguity:
 
-**Lowest Cost First:**
-The simplest way to order the edge queue is to sort edges by the
-probabilities of their associated trees (``nltk.InsideChartParser()``).
-This ordering concentrates the efforts of the parser on those edges
-that are more likely to be correct analyses of their underlying tokens.
+Syntactic Ambiguity
+-------------------
 
-The probability of an edge's tree provides an upper bound on the
-probability of any parse produced using that edge.  The probabilistic
-"cost" of using an edge to form a parse is one minus its tree's
-probability.  Thus, inserting the edges with the most likely trees
-first results in a `lowest-cost-first search strategy`:dt:.
-Lowest-cost-first search is optimal: the first
-solution it finds is guaranteed to be the best solution.
+We have seen that sentences can be ambiguous.  If we overheard someone
+say :lx:`I went to the bank`, we wouldn't know whether it was
+a river bank or a financial institution.  This ambiguity concerns
+the meaning of the word :lx:`bank`, and is a kind of :dt:`lexical
+ambiguity`.
 
-However, lowest-cost-first search can be rather inefficient.  Recall that a
-tree's probability is the product of the probabilities of all the
-productions used to generate it.  Consequently, smaller trees tend to have higher
-probabilities than larger ones.  Thus, lowest-cost-first search tends to work
-with edges having small trees before considering edges with larger trees.
-Yet any complete parse of the text will necessarily have a
-large tree, and so this strategy will tend to produce complete parses only
-once most other edges are processed.
+However, other kinds of ambiguity cannot be explained in terms of
+ambiguity of specific words.  Consider a phrase involving
+an adjective with a conjunction:
+`old men and women`:lx:.
+Does `old`:lx: have wider scope than `and`:lx:, or is it the other way
+round? In fact, both interpretations are possible, and we can
+represent the different scopes using parentheses:
 
-Let's consider this problem from another angle.
-The basic shortcoming with lowest-cost-first search is that it ignores the
-probability that an edge's tree will be part of a complete parse.  The parser will
-try parses that are locally coherent even if they are unlikely to
-form part of a complete parse.  Unfortunately, it can be quite
-difficult to calculate the probability that a tree is part of a
-complete parse.  However, we can use a variety of techniques to
-approximate that probability.
+.. ex::
+  .. ex::  old (men and women)
+  .. ex::  (old men) and women
 
-**Best-First Search:**
-This method sorts the edge queue in descending order of the edges'
-span, no the assumption that edges having a larger span are more likely
-to form part of a complete parse.
-Thus, ``LongestParse`` employs a `best-first search strategy`:dt:,
-where it inserts the edges that are closest to producing
-complete parses before trying any other edges.  Best-first search is
-*not* an optimal search strategy: the first solution it finds is not
-guaranteed to be the best solution.  However, it will usually find a
-complete parse much more quickly than lowest-cost-first search.
+One convenient way of representing this scope difference at a structural
+level is by means of a `tree diagram`:dt:, as shown in tree-diagram_.
 
-**Beam Search:**
-When large grammars are used to parse a text, the edge queue can grow
-quite long.  The edges at the end of a large well-sorted queue are
-unlikely to be used.  Therefore, it is reasonable to remove (or
-*prune*) these edges from the queue.  This strategy is known as
-`beam search`:dt:; it only keeps the best partial results.
-The bottom-up chart parsers take an optional parameter ``beam_size``;
-whenever the edge queue grows longer than this, it is pruned.
-This parameter is best used in conjunction with ``InsideChartParser()``.
-Beam search reduces the space requirements for lowest-cost-first
-search, by discarding edges that are not likely to be used.  But beam
-search also loses many of lowest-cost-first search's more useful
-properties.  Beam search is not optimal: it is not guaranteed to find
-the best parse first.  In fact, since it might prune a necessary edge,
-beam search is not even `complete`:idx:\ : it is not guaranteed to return a
-parse if one exists.
+.. _tree-diagram:
+.. ex::
+  .. ex::
+    .. tree:: (NP (Adj old)
+                  (NP
+                     (N men)
+                     (Conj and)
+                     (N women)))
+  .. ex::
+    .. tree:: (NP (NP
+                     (Adj old)
+                     (N men))
+                  (Conj and)
+                  (NP
+                     (N women)))
 
-In NLTK we can construct these parsers using
-``InsideChartParser``, ``LongestChartParser``, ``RandomChartParser``.
+Note that linguistic trees grow upside down: the node labeled `s`:gc:
+is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
+labeled with the words.
 
-.. pylisting:: bottom-up-chart-parsers
+In NLTK, you can easily produce trees like this yourself with the
+following commands:
 
-   inside_parser = nltk.InsideChartParser(grammar)
-   longest_parser = nltk.LongestChartParser(grammar)
-   beam_parser = nltk.InsideChartParser(grammar, beam_size=20)
+    >>> tree = nltk.bracket_parse('(NP (Adj old) (NP (N men) (Conj and) (N women)))')
+    >>> tree.draw()                 # doctest: +SKIP
 
-   >>> print inside_parser.parse(sent)
-   (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
-   >>> for tree in inside_parser.nbest_parse(sent):
-   ...     print tree
-   (NP
-     (JJ old)
-     (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
-   (NP
-     (NP (JJ old) (NNS men))
-     (CC and)
-     (NP (NNS women))) (p=0.000216)
+We can construct other examples of syntactic ambiguity
+involving the coordinating conjunctions `and`:lx: and `or`:lx:, e.g.
+`Kim left or Dana arrived and everyone cheered`:lx:.
+We can describe this ambiguity in terms of the relative
+semantic `scope`:dt: of `or`:lx: and `and`:lx:.
 
-The ``trace`` method can be used to set the level of tracing output
-that is generated when parsing a text.  Trace output displays edges as
-they are added to the chart, and shows the probability for each edges'
-tree.
+For our third illustration of ambiguity, we look at
+prepositional phrases.
+Consider a sentence like: :lx:`I saw the man with a telescope`.  Who
+has the telescope?  To clarify what is going on here, consider the
+following pair of sentences:
 
-    >>> inside_parser.trace(3)
-    >>> trees = inside_parser.nbest_parse(sent)
-      |. . . [-]| [3:4] 'women'                          [1.0]
-      |. . [-] .| [2:3] 'and'                            [1.0]
-      |. [-] . .| [1:2] 'men'                            [1.0]
-      |[-] . . .| [0:1] 'old'                            [1.0]
-      |. . [-] .| [2:3] CC -> 'and' *                    [0.9]
-      |. . > . .| [2:2] CC -> * 'and'                    [0.9]
-      |[-] . . .| [0:1] JJ -> 'old' *                    [0.4]
-      |> . . . .| [0:0] JJ -> * 'old'                    [0.4]
-      |> . . . .| [0:0] NP -> * JJ NNS                   [0.3]
-      |. . . [-]| [3:4] NNS -> 'women' *                 [0.2]
-      |. . . > .| [3:3] NP -> * NNS                      [0.5]
-      |. . . > .| [3:3] NNS -> * NNS CC NNS              [0.4]
-      |. . . > .| [3:3] NNS -> * 'women'                 [0.2]
-      |[-> . . .| [0:1] NP -> JJ * NNS                   [0.12]
-      |. . . [-]| [3:4] NP -> NNS *                      [0.1]
-      |. . . > .| [3:3] NP -> * NP CC NP                 [0.2]
-      |. [-] . .| [1:2] NNS -> 'men' *                   [0.1]
-      |. > . . .| [1:1] NP -> * NNS                      [0.5]
-      |. > . . .| [1:1] NNS -> * NNS CC NNS              [0.4]
-      |. > . . .| [1:1] NNS -> * 'men'                   [0.1]
-      |. . . [->| [3:4] NNS -> NNS * CC NNS              [0.08]
-      |. [-] . .| [1:2] NP -> NNS *                      [0.05]
-      |. > . . .| [1:1] NP -> * NP CC NP                 [0.2]
-      |. [-> . .| [1:2] NNS -> NNS * CC NNS              [0.04]
-      |. [---> .| [1:3] NNS -> NNS CC * NNS              [0.036]
-      |. . . [->| [3:4] NP -> NP * CC NP                 [0.02]
-      |[---] . .| [0:2] NP -> JJ NNS *                   [0.012]
-      |> . . . .| [0:0] NP -> * NP CC NP                 [0.2]
-      |. [-> . .| [1:2] NP -> NP * CC NP                 [0.01]
-      |. [---> .| [1:3] NP -> NP CC * NP                 [0.009]
-      |. [-----]| [1:4] NNS -> NNS CC NNS *              [0.0072]
-      |. [-----]| [1:4] NP -> NNS *                      [0.0036]
-      |. [----->| [1:4] NNS -> NNS * CC NNS              [0.00288]
-      |[---> . .| [0:2] NP -> NP * CC NP                 [0.0024]
-      |[-----> .| [0:3] NP -> NP CC * NP                 [0.00216]
-      |. [-----]| [1:4] NP -> NP CC NP *                 [0.0009]
-      |[=======]| [0:4] NP -> JJ NNS *                   [0.000864]
-      |. [----->| [1:4] NP -> NP * CC NP                 [0.00072]
-      |[=======]| [0:4] NP -> NP CC NP *                 [0.000216]
-      |. [----->| [1:4] NP -> NP * CC NP                 [0.00018]
-      |[------->| [0:4] NP -> NP * CC NP                 [0.0001728]
-      |[------->| [0:4] NP -> NP * CC NP                 [4.32e-05]
+.. ex::
+  .. ex:: The policeman saw a burglar *with a gun*.
+         (not some other burglar)
+  .. ex:: The policeman saw a burglar *with a telescope*.
+         (not with his naked eye)
 
------------------
-Grammar Induction
------------------
+In both cases, there is a prepositional phrase introduced by
+:lx:`with`.  In the first case this phrase modifies the noun
+:lx:`burglar`, and in the second case it modifies the verb :lx:`saw`.
+We could again think of this in terms of scope: does the prepositional
+phrase (`pp`:gc:) just have scope over the `np`:gc:
+`a burglar`:lx:, or does it have scope over
+the whole verb phrase? As before, we can represent the difference in terms
+of tree structure:
 
-As we have seen, PCFG productions are just like CFG productions,
-adorned with probabilities.  So far, we have simply specified these
-probabilities in the grammar.  However, it is more usual to *estimate*
-these probabilities from training data, namely a collection of parse
-trees or *treebank*.
+.. _burglar:
+.. ex::
+  .. ex::
+    .. tree:: (S <NP the policeman>
+                 (VP (V saw)
+                     (NP <NP the burglar>
+                         <PP with a gun>)))
+  .. ex::
+    .. tree:: (S <NP the policeman>
+                 (VP (V saw)
+                     <NP the burglar>
+                     <PP with a telescope>))
 
-The simplest method uses *Maximum Likelihood Estimation*, so called
-because probabilities are chosen in order to maximize the likelihood
-of the training data.  The probability of a production
-``VP`` |rarr| ``V NP PP`` is *p(V,NP,PP | VP)*.  We calculate this as
-follows::
+|nopar|
+In burglar_\ a, the `pp`:gc: attaches to the `np`:gc:,
+while in burglar_\ b, the `pp`:gc: attaches to the `vp`:gc:.
 
-                        count(VP → V NP PP)
-      P(V,NP,PP | VP) = -------------------
-                        count(VP → ...)
+We can generate these trees in Python as follows:
 
-..  I couldn't make the |rarr| macro work in the formula above, the
-    literal Unicode arrow charicter works properly.
+    >>> s1 = '(S (NP the policeman) (VP (V saw) (NP (NP the burglar) (PP with a gun))))'
+    >>> s2 = '(S (NP the policeman) (VP (V saw) (NP the burglar) (PP with a telescope)))'
+    >>> tree1 = nltk.bracket_parse(s1)
+    >>> tree2 = nltk.bracket_parse(s2)
 
-Here is a simple program that induces a grammar from the first
-three parse trees in the Penn Treebank corpus:
+We can discard the structure to get the list of `leaves`:dt:, and
+we can confirm that both trees have the same leaves (except for the last word).
+We can also see that the trees have different `heights`:dt: (given by the
+number of nodes in the longest branch of the tree, starting at `s`:gc:
+and descending to the words):
 
-    >>> from itertools import islice
-    >>> productions = []
-    >>> S = nltk.Nonterminal('S')
-    >>> for tree in nltk.corpus.treebank.parsed_sents('wsj_0002.mrg'):
-    ...      productions += tree.productions()
-    >>> grammar = nltk.induce_pcfg(S, productions)
-    >>> for production in grammar.productions()[:10]:
-    ...      print production
-    CC -> 'and' [1.0]
-    NNP -> 'Agnew' [0.166666666667]
-    JJ -> 'industrial' [0.2]
-    NP -> CD NNS [0.142857142857]
-    , -> ',' [1.0]
-    S -> NP-SBJ NP-PRD [0.5]
-    VP -> VBN S [0.5]
-    NNP -> 'Rudolph' [0.166666666667]
-    NP -> NP PP [0.142857142857]
-    NNP -> 'PLC' [0.166666666667]
+    >>> tree1.leaves()
+    ['the', 'policeman', 'saw', 'the', 'burglar', 'with', 'a', 'gun']
+    >>> tree1.leaves()[:-1] == tree2.leaves()[:-1]
+    True
+    >>> tree1.height() == tree2.height()
+    False
 
-.. _sec-normal-forms:
+In general, how can we determine whether a prepositional phrase
+modifies the preceding noun or verb? This problem is known as
+`prepositional phrase attachment ambiguity`:dt:.
+The `Prepositional Phrase Attachment Corpus`:dt: makes it
+possible for us to study this question systematically.  The corpus is
+derived from the IBM-Lancaster Treebank of Computer Manuals and from
+the Penn Treebank, and distills out only the essential information
+about `pp`:gc: attachment. Consider the sentence from the WSJ
+in ppattach-a_.  The corresponding line in the Prepositional Phrase
+Attachment Corpus is shown in ppattach-b_.
 
-Normal Forms
+.. ex::
+  .. _ppattach-a:
+  .. ex::
+     Four of the five surviving workers have asbestos-related diseases,
+     including three with recently diagnosed cancer.
+  .. _ppattach-b:
+  .. ex::
+     ::
+
+       16 including three with cancer N
+
+|nopar|
+That is, it includes an identifier for the original sentence, the
+head of the relevant verb phrase (i.e., `including`:lx:), the head of
+the verb's `np`:gc: object (`three`:lx:), the preposition
+(`with`:lx:), and the head noun within the prepositional phrase
+(`cancer`:lx:). Finally, it contains an "attachment" feature (``N`` or
+``V``) to indicate whether the prepositional phrase attaches to
+(modifies) the noun phrase or the verb phrase. 
+Here are some further examples:
+
+.. _ppattachments:
+.. ex::
+   :: 
+
+     47830 allow visits between families N
+     47830 allow visits on peninsula V
+     42457 acquired interest in firm N
+     42457 acquired interest in 1986 V
+
+|nopar|
+The PP attachments in ppattachments_ can also be made explicit by
+using phrase groupings as in phrase-groupings_.
+
+.. _phrase-groupings:
+.. ex::
+   :: 
+
+     allow (NP visits (PP between families))
+     allow (NP visits) (PP on peninsula)
+     acquired (NP interest (PP in firm))
+     acquired (NP interest) (PP in 1986)
+
+Observe in each case that the argument of the verb is either a single
+complex expression ``(visits (between families))`` or a pair of
+simpler expressions ``(visits) (on peninsula)``.
+
+We can access the Prepositional Phrase Attachment Corpus from NLTK as follows:
+
+    >>> nltk.corpus.ppattach.tuples('training')[9]
+    ('16', 'including', 'three', 'with', 'cancer', 'N')
+
+If we go back to our first examples of `pp`:gc: attachment ambiguity,
+it appears as though it is the `pp`:gc: itself (e.g., `with a gun`:lx:
+versus `with a telescope`:lx:) that determines the attachment. However,
+we can use this corpus to find examples where other factors come into play.
+For example, it appears that the verb is the key factor in ppattach-verb_.
+
+.. _ppattach-verb:
+.. ex::
+   :: 
+
+     8582 received offer from group V
+     19131 rejected offer from group N
+
+Constituency
 ------------
 
-Grammar induction usually involves normalizing the grammar
-in various ways.  NLTK trees
-support binarization (Chomsky Normal Form), parent annotation,
-Markov order-N smoothing, and unary collapsing:
+We claimed earlier that one of the motivations for building syntactic
+structure was to help make explicit how a sentence says "who did what
+to whom". Let's just focus for a while on the "who" part of this
+story: in other words, how can syntax tell us what the subject of a
+sentence is? At first, you might think this task is rather simple
+|mdash| so simple indeed that we don't need to bother with syntax. In
+a sentence such as `The fierce dog bit the man`:lx:
+we know that it is the dog that is doing the biting. So we could
+say that the noun phrase immediately preceding the verb is the
+subject of the sentence. And we might try to make this more explicit
+in terms of sequences part-of-speech tags.  Let's try to come up with a simple
+definition of `noun phrase`:idx:; we might start off with something
+like this, based on our knowledge of noun phrase chunking (Chapter chap-chunk_):
 
-    >>> treebank_string = """(S (NP-SBJ (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths)) )
-    ...     (PP (IN of) (NP (DT the) (NNS students) ))) (VP (VBD passed)))"""
-    >>> t = nltk.bracket_parse(treebank_string)
-    >>> print t
+.. ex::
+    `dt jj* nn`:gc:
+
+|nopar|
+We're using regular expression notation here in the form of
+`jj*`:gc: to indicate a sequence of zero or more `jj`:gc:\s. So this
+is intended to say that a noun phrase can consist of a
+determiner, possibly followed by some adjectives, followed by a
+noun. Then we can go on to say that if we can find a sequence of
+tagged words like this that precedes a word tagged as a verb, then
+we've identified the subject. But now think about this sentence:
+
+.. ex:: The child with a fierce dog bit the man.
+
+|nopar|
+This time, it's the child that is doing the biting. But the tag
+sequence preceding the verb is:
+
+.. ex::
+    `dt nn in dt jj nn`:gc:
+
+Our previous attempt at identifying the subject would have
+incorrectly come up with `the fierce dog`:lx: as the subject.
+So our next hypothesis would have to be a bit more complex. For
+example, we might say that the subject can be identified as any string
+matching the following pattern before the verb:
+
+.. ex::
+     `dt jj* nn (in dt jj* nn)*`:gc:
+
+In other words, we need to find a noun phrase followed by zero or more
+sequences consisting of a preposition followed by a noun phrase. Now
+there are two unpleasant aspects to this proposed solution. The first
+is esthetic: we are forced into repeating the sequence of tags (`dt
+jj* nn`:gc:) that constituted our initial notion of noun phrase, and
+our initial notion was in any case a drastic simplification. More
+worrying, this approach still doesn't work! For consider the following
+example:
+
+.. _seagull:
+.. ex:: The seagull that attacked the child with the fierce dog bit the man.
+
+|nopar|
+This time the seagull is the culprit, but it won't be detected as subject by our
+attempt to match sequences of tags. So it seems that we need a
+richer account of how words are *grouped* together into patterns, and
+a way of referring to these groupings at different points in the
+sentence structure. This idea of grouping is often called
+syntactic `constituency`:dt:.
+
+As we have just seen, a well-formed sentence of a language is more
+than an arbitrary sequence of words from the language.  Certain kinds
+of words usually go together.  For instance, determiners like `the`:lx:
+are typically followed by adjectives or nouns, but not by verbs.
+Groups of words form intermediate structures called phrases or
+:dt:`constituents`.  These constituents can be identified using
+standard syntactic tests, such as substitution, movement and
+coordination.  For example, if a sequence of words can be replaced
+with a pronoun, then that sequence is likely to be a constituent.
+According to this test, we can infer that the italicized string in the
+following example is a constituent, since it can be replaced by
+`they`:lx:\:
+
+.. ex::
+  .. ex:: *Ordinary daily multivitamin and mineral supplements* could 
+         help adults with diabetes fight off some minor infections.
+  .. ex:: *They* could help adults with diabetes fight off some minor
+         infections.
+
+In order to identify whether a phrase is the subject of a sentence, we
+can use the construction called `Subject-Auxiliary Inversion`:dt: in
+English. This construction allows us to form so-called Yes-No
+Questions. That is, corresponding to the statement in have1_, we have
+the question in have2_:
+
+.. ex::
+  .. _have1:
+  .. ex:: All the cakes have been eaten.
+  .. _have2:
+  .. ex:: Have *all the cakes* been eaten?
+
+Roughly speaking, if a sentence already contains an auxiliary verb,
+such as `has`:lx: in have1_, then we can turn it into a Yes-No
+Question by moving the auxiliary verb 'over' the subject noun phrase
+to the front of the sentence. If there is no auxiliary in the
+statement, then we insert the appropriate form of `do`:lx: as the
+fronted auxiliary and replace the tensed main verb by its base form:
+
+.. ex::
+  .. ex:: The fierce dog bit the man.
+  .. ex:: Did *the fierce dog* bite the man?
+
+As we would hope, this test also confirms our earlier claim about the
+subject constituent of seagull_:
+
+.. ex:: Did *the seagull that attacked the child with the fierce dog* bite
+       the man?
+
+To sum up then, we have seen that the notion of constituent brings a
+number of benefits. By having a constituent labeled `noun phrase`:gc:,
+we can provide a unified statement of the classes of word that
+constitute that phrase, and reuse this statement in describing noun
+phrases wherever they occur in the sentence. Second, we can use the
+notion of a noun phrase in defining the subject of sentence, which in
+turn is a crucial ingredient in determining the "who does what to
+whom" aspect of meaning.
+
+More on Trees
+-------------
+
+A tree is a set of connected nodes, each of which is labeled with a
+category.  It common to use a 'family' metaphor to talk about the
+relationships of nodes in a tree: for example, `s`:gc: is the
+`parent`:dt: of `vp`:gc:; conversely `vp`:gc: is a `daughter`:dt: (or
+`child`:dt:) of `s`:gc:.  Also, since `np`:gc: and `vp`:gc: are both
+daughters of `s`:gc:, they are also `sisters`:dt:. 
+Here is an example of a tree:
+
+.. ex::
+  .. tree:: (S (NP Lee) (VP (V saw) (NP the dog)))
+
+Although it is helpful to represent trees in a graphical format, for
+computational purposes we usually need a more text-oriented
+representation.  We will use the same format as the Penn Treebank,
+a combination of brackets and labels:
+
+.. doctest-ignore::
+      (S 
+         (NP Lee)
+         (VP 
+            (V saw)
+            (NP 
+               (Det the)
+               (N dog))))
+
+Here, the node value is a constituent type (e.g., `np`:gc: or `vp`:gc:),
+and the children encode the hierarchical contents of the tree.
+
+Although we will focus on syntactic trees, trees can be used to encode
+`any`:em: homogeneous hierarchical structure that spans a sequence
+of linguistic forms (e.g. morphological structure, discourse structure).
+In the general case, leaves and node values do not have to be strings.
+
+In NLTK, trees are created with the ``Tree`` constructor, which takes a
+node value and a list of zero or more children.  Here's a couple of
+simple trees:
+
+    >>> tree1 = nltk.Tree('NP', ['John'])
+    >>> print tree1
+    (NP John)
+    >>> tree2 = nltk.Tree('NP', ['the', 'man'])
+    >>> print tree2
+    (NP the man)
+
+|nopar|
+We can incorporate these into successively larger trees as follows:
+
+    >>> tree3 = nltk.Tree('VP', ['saw', tree2])
+    >>> tree4 = nltk.Tree('S', [tree1, tree3])
+    >>> print tree4
+    (S (NP John) (VP saw (NP the man)))
+
+|nopar|
+Here are some of the methods available for tree objects:
+
+    >>> print tree4[1]
+    (VP saw (NP the man))
+    >>> tree4[1].node
+    'VP'
+    >>> tree4.leaves()
+    ['John', 'saw', 'the', 'man']
+    >>> tree4[1,1,1]
+    'man'
+
+The printed representation for complex trees can be difficult to read.
+In these cases, the ``draw`` method can be very useful. 
+It opens a new window, containing a graphical representation
+of the tree.  The tree display window allows you to zoom in and out;
+to collapse and expand subtrees; and to print the graphical
+representation to a postscript file (for inclusion in a document).
+
+    >>> tree3.draw()                           # doctest: +SKIP
+
+.. image:: ../images/parse_draw.png
+   :scale: 70
+
+
+Treebanks (notes)
+-----------------
+
+The ``corpus`` module defines the ``treebank`` corpus reader,
+which contains a 10% sample of the Penn Treebank corpus.
+
+    >>> print nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
     (S
       (NP-SBJ
-        (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths)))
-        (PP (IN of) (NP (DT the) (NNS students))))
-      (VP (VBD passed)))
-    >>> t.collapse_unary(collapsePOS=True)
-    >>> print t
-    (S
-      (NP-SBJ
-        (NP+QP (IN at) (JJS least) (CD nine) (NNS tenths))
-        (PP (IN of) (NP (DT the) (NNS students))))
-      (VP+VBD passed))
-    >>> t.chomsky_normal_form()
-    >>> print t
-    (S
-      (NP-SBJ
-        (NP+QP
-          (IN at)
-          (NP+QP|<JJS-CD-NNS>
-            (JJS least)
-            (NP+QP|<CD-NNS> (CD nine) (NNS tenths))))        
-        (PP (IN of) (NP (DT the) (NNS students))))
-      (VP+VBD passed))
+        (NP (NNP Pierre) (NNP Vinken))
+        (, ,)
+        (ADJP (NP (CD 61) (NNS years)) (JJ old))
+        (, ,))
+      (VP
+        (MD will)
+        (VP
+          (VB join)
+          (NP (DT the) (NN board))
+          (PP-CLR
+            (IN as)
+            (NP (DT a) (JJ nonexecutive) (NN director)))
+          (NP-TMP (NNP Nov.) (CD 29))))
+      (. .))
 
-These trees are shown in treetransforms_.
+The program in Figure indent-tree_ prints a tree object using whitespace formatting.
 
-.. _treetransforms:
+.. pylisting:: indent-tree
+
+   def indent_tree(t, level=0, first=False, width=8):
+       if not first:
+           print ' '*(width+1)*level,
+       try:
+           print "%-*s" % (width, t.node),
+           indent_tree(t[0], level+1, first=True)
+           for child in t[1:]:
+               indent_tree(child, level+1, first=False)
+       except AttributeError:
+           print t
+
+   >>> t = nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
+   >>> indent_tree(t)
+    S        NP-SBJ   NP       NNP      Pierre
+                               NNP      Vinken
+                      ,        ,
+                      ADJP     NP       CD       61
+                                        NNS      years
+                               JJ       old
+                      ,        ,
+             VP       MD       will
+                      VP       VB       join
+                               NP       DT       the
+                                        NN       board
+                               PP-CLR   IN       as
+                                        NP       DT       a
+                                                 JJ       nonexecutive
+                                                 NN       director
+                               NP-TMP   NNP      Nov.
+                                        CD       29
+             .        .
+
+
+NLTK also includes a sample from the *Sinica Treebank Corpus*,
+consisting of 10,000 parsed sentences drawn from the
+*Academia Sinica Balanced Corpus of Modern Chinese*.
+Here is a code fragment to read and display one of the trees in this corpus.
+
+    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
+
+
+.. _sinica-tree:
+.. ex::
+    .. image:: ../images/sinica-tree.png
+       :scale: 70
+
+Note that we can read tagged text from a Treebank corpus, using the ``tagged()`` method:
+
+    >>> print nltk.corpus.treebank.tagged_sents('wsj_0001.mrg')[0]
+    [('Pierre', 'NNP'), ('Vinken', 'NNP'), (',', ','), ('61', 'CD'), ('years', 'NNS'),
+    ('old', 'JJ'), (',', ','), ('will', 'MD'), ('join', 'VB'), ('the', 'DT'),
+    ('board', 'NN'), ('as', 'IN'), ('a', 'DT'), ('nonexecutive', 'JJ'),
+    ('director', 'NN'), ('Nov.', 'NNP'), ('29', 'CD'), ('.', '.')]
+
+Exercises
+---------
+
+#. |easy| Can you come up with grammatical sentences that have probably never
+   been uttered before?  (Take turns with a partner.)  What does this tell you
+   about human language?
+
+#. |easy| Recall Strunk and White's prohibition against sentence-initial
+   `however`:lx: used to mean "although".
+   Do a web search for `however`:lx: used at the start of the sentence.
+   How widely used is this construction?
+
+#. |easy| Consider the sentence `Kim arrived or Dana left and everyone cheered`.
+   Write down the parenthesized forms to show the relative scope of `and`:lx:
+   and `or`:lx:.  Generate tree structures corresponding to both of these interpretations.
+
+#. |easy| The ``Tree`` class implements a variety of other useful methods.
+   See the ``Tree`` help documentation for more details, i.e. import
+   the Tree class and then type ``help(Tree)``.
+
+#. |easy| **Building trees:**
+
+   a) Write code to produce two trees, one for each reading of the phrase
+      `old men and women`:lx:
+
+   #) Encode any of the trees presented in this chapter as a labeled
+      bracketing and use ``nltk.bracket_parse()`` to check that it is well-formed.
+      Now use ``draw()`` to display the tree.
+
+   #) As in (a) above, draw a tree for `The woman saw a man last Thursday`:lx:.
+
+#. |easy| Write a recursive function to traverse a tree and return the
+   depth of the tree, such that a tree with a single node would have
+   depth zero.  (Hint: the depth of a subtree is the maximum depth
+   of its children, plus one.)
+
+#. |easy| Analyze the A.A. Milne sentence about Piglet, by underlining all
+   of the sentences it contains then replacing these with `s`:gc:
+   (e.g. the first sentence becomes `s`:gc: `when`:lx` `s`:gc:).
+   Draw a tree structure for this "compressed" sentence.  What are
+   the main syntactic constructions used for building such a long
+   sentence?
+
+#. |soso| To compare multiple trees in a single window, we can use the
+   ``draw_trees()`` method.  Define some trees and try it out:
+
+    >>> from nltk.draw.tree import draw_trees
+    >>> draw_trees(tree1, tree2, tree3)                    # doctest: +SKIP
+
+#. |soso| Using tree positions, list the subjects of the first 100
+   sentences in the Penn treebank; to make the results easier to view,
+   limit the extracted subjects to subtrees whose height is 2.
+
+#. |soso| Inspect the Prepositional Phrase Attachment Corpus
+   and try to suggest some factors that influence `pp`:gc: attachment.
+
+#. |soso| In this section we claimed that there are linguistic regularities
+   that cannot be described simply in terms of n-grams.
+   Consider the following sentence, particularly the position of the phrase
+   `in his turn`:lx:.  Does this illustrate a problem for an approach based
+   on n-grams?
+
+     `What was more, the in his turn somewhat youngish Nikolay Parfenovich
+     also turned out to be the only person in the entire world to acquire a
+     sincere liking to our "discriminated-against" public procurator.`
+     (Dostoevsky: The Brothers Karamazov)
+
+#. |soso| Write a recursive function that produces a nested bracketing for
+   a tree, leaving out the leaf nodes, and displaying the non-terminal
+   labels after their subtrees.  So the above example about Pierre
+   Vinken would produce:
+   ``[[[NNP NNP]NP , [ADJP [CD NNS]NP JJ]ADJP ,]NP-SBJ MD [VB [DT NN]NP [IN [DT JJ NN]NP]PP-CLR [NNP CD]NP-TMP]VP .]S``
+   Consecutive categories should be separated by space.
+
+.. recurse over tree to look for coordinate constructions (cf 4th
+   example in chapter 1.1); (possible extension: callback function for Tree.subtrees())
+
+#. |soso| Download several electronic books from Project Gutenberg.
+   Write a program to scan these texts for any extremely long sentences.
+   What is the longest sentence you can find?  What syntactic construction(s)
+   are responsible for such long sentences?
+
+#. |hard| One common way of defining the subject of a sentence `s`:gc: in
+   English is as *the noun phrase that is the daughter of* `s`:gc: *and
+   the sister of* `vp`:gc:.   Write a function that takes the tree for
+   a sentence and returns the subtree corresponding to the subject of the
+   sentence.  What should it do if the root node of the tree passed to
+   this function is not `s`:gc:, or it lacks a subject?
+
+--------------------
+Context Free Grammar
+--------------------
+
+As we have seen, languages are infinite |mdash| there is no principled
+upper-bound on the length of a sentence.  Nevertheless, we would like
+to write (finite) programs that can process well-formed sentences.  It turns
+out that we can characterize what we mean by well-formedness using a
+grammar.  The way that finite grammars are able to describe an
+infinite set uses `recursion`:dt:.  (We already came across this idea
+when we looked at regular expressions: the finite expression ``a+`` is
+able to describe the infinite set ``{a, aa, aaa, aaaa, ...}``).  Apart
+from their compactness, grammars usually capture important structural
+and distributional properties of the language, and can be used to map
+between sequences of words and abstract representations of meaning.
+Even if we were to impose an upper bound on sentence length to ensure
+the language was finite, we would probably still want to come up with
+a compact representation in the form of a grammar.
+
+A `grammar`:dt: is a formal system that specifies which sequences of
+words are well-formed in the language, and that provides one or more
+phrase structures for well-formed sequences.  We will be looking at
+:dt:`context-free grammar` (CFG), which is a collection of
+`productions`:dt: of the form `s`:gc: |rarr| `np vp`:gc:.  This says
+that a constituent `s`:gc: can consist of sub-constituents `np`:gc:
+and `vp`:gc:. Similarly, the production `v`:gc: |rarr| ``'saw' | ``'walked'``
+means that the constituent `v`:gc: can consist of the string
+`saw`:lx: or `walked`:lx:.
+For a phrase structure tree to be well-formed relative to
+a grammar, each non-terminal node and its children must correspond to
+a production in the grammar.
+
+
+A Simple Grammar
+----------------
+
+Let's start off by looking at a simple context-free grammar.
+By convention, the left-hand-side of the first production is
+the `start-symbol`:dt: of the grammar, and all well-formed trees
+must have this symbol as their root label.
+
+.. _grammar1:
+.. ex::
+
+ | S |rarr| NP VP
+ | NP |rarr| Det N | Det N PP
+ | VP |rarr| V | V NP | V NP PP
+ | PP |rarr| P NP
+ |
+ | Det |rarr| 'the' | 'a'
+ | N |rarr| 'man' | 'park' | 'dog' | 'telescope'
+ | V |rarr| 'saw' | 'walked'
+ | P |rarr| 'in' | 'with'
+
+This grammar contains productions involving various syntactic categories,
+as laid out in Table syncat_.
+
+.. table:: syncat
+
+   ======    ====================    =====================
+   Symbol    Meaning                 Example
+   ======    ====================    =====================
+   S         sentence                `the man walked`:lx:
+   NP        noun phrase             `a dog`:lx:
+   VP        verb phrase             `saw a park`:lx:
+   PP        prepositional phrase    `with a telescope`:lx:
+   ...       ...                     ...
+   Det       determiner              `the`:lx:
+   N         noun                    `dog`:lx:
+   V         verb                    `walked`:lx:
+   P         preposition             `in`:lx:
+   ======    ====================    =====================
+
+   Syntactic Categories
+
+In our following discussion of grammar, we will use the following terminology.
+The grammar consists of productions, where each production involves a
+single `non-terminal`:dt: (e.g. `s`:gc:, `np`:gc:), an arrow, and one
+or more non-terminals and `terminals`:dt: (e.g. `walked`:lx:).
+The productions are often divided into two main groups.
+The `grammatical productions`:dt: are those without a terminal on
+the right hand side.  The `lexical productions`:dt: are those having
+a terminal on the right hand side.
+A special case of non-terminals are the `pre-terminals`:dt:, which
+appear on the left-hand side of lexical productions.
+We will say that a grammar `licenses`:dt: a tree if each non-terminal
+`x`:gc: with children `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`
+corresponds to a production in the grammar of the form:
+`x`:gc: |rarr| `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`.
+
+In order to get started with developing simple grammars of your own, you
+will probably find it convenient to play with the recursive descent
+parser demo, ``nltk.draw.rdparser.demo()``.
+The demo opens a window that displays a list of grammar productions in the
+left hand pane and the current parse diagram in the central pane:
+
+.. image:: ../images/parse_rdparsewindow.png
+   :scale: 100
+
+The demo comes with the grammar in grammar1_ already loaded. We will
+discuss the parsing algorithm in greater detail below, but for the
+time being you can get an idea of how it works by using the *autostep* button.
+If we parse the string `The dog saw a man in the park` using
+the grammar in grammar1_, we end up with two trees:
+
+.. ex::
+  .. ex::
+    .. tree:: (S (NP (Det the) (N dog))
+                 (VP (V saw)
+                     (NP (Det a) (N man))
+                     (PP (P in) (NP (Det the) (N park)))))
+  .. ex::
+    .. tree:: (S (NP (Det the) (N dog))
+                 (VP (V saw)
+                     (NP (Det a)
+                         (N man)
+                         (PP (P in) (NP (Det the) (N park))))))
+
+Since our grammar licenses two trees for this sentence, the sentence is
+said to be :dt:`structurally ambiguous`.  The ambiguity in question is called
+a `prepositional phrase attachment ambiguity`:idx:, as we saw earlier in this chapter.
+As you may recall, it is an ambiguity about attachment since the
+`pp`:gc: `in the park`:lx: needs to be attached to one of two places
+in the tree: either as a daughter of `VP`:gc: or else as a daughter of
+`np`:gc:.
+When the `pp`:gc: is attached to `vp`:gc:, the seeing event happened
+in the park.  However, if the `pp`:gc: is attached to `np`:gc:,
+then the man was in the park, and the agent of the seeing (the dog)
+might have been sitting on the balcony of an apartment overlooking the park.
+As we will see, dealing with ambiguity is a key challenge in parsing.
+
+Recursion in Syntactic Structure
+--------------------------------
+
+Observe that sentences can be nested within sentences, with no limit
+to the depth:
+
+.. ex::
+  .. ex:: Jodie won the 100m freestyle
+  .. ex:: "The Age" reported that Jodie won the 100m freestyle
+  .. ex:: Sandy said "The Age" reported that Jodie won the 100m freestyle
+  .. ex::  I think Sandy said "The Age" reported that Jodie won the 100m freestyle
+
+|nopar|
+This nesting is explained in terms of :dt:`recursion`. A grammar is
+said to be :dt:`recursive` if a category occurring on the left hand
+side of a production (such as `s`:gc: in this case) also appears on
+the right hand side of a production. If this dual occurrence takes
+place in *one and the same production*, then we have :dt:`direct
+recursion`; otherwise we have :dt:`indirect recursion`. There is no
+recursion in grammar1_. However, the grammar in grammar2_ illustrates both kinds of
+recursive production:
+
+.. _grammar2:
+.. ex::
+     .. parsed-literal::
+
+        S  |rarr| NP VP
+        NP |rarr| Det Nom | Det Nom PP | PropN
+        Nom |rarr| Adj Nom | N
+        VP |rarr| V | V NP | V NP PP | V S
+        PP |rarr| P NP
+
+        PropN |rarr| 'John' | 'Mary' 
+        Det |rarr| 'the' | 'a'
+        N |rarr| 'man' | 'woman' | 'park' | 'dog' | 'lead' | 'telescope' | 'butterfly'
+        Adj  |rarr| 'fierce' | 'black' |  'big' | 'European'
+        V |rarr| 'saw' | 'chased' | 'barked'  | 'disappeared' | 'said' | 'reported' 
+        P |rarr| 'in' | 'with' 
+
+Notice that the production `Nom`:gc: |rarr| `Adj Nom`:gc: (where
+`Nom`:gc: is the category of nominals) involves direct
+recursion on the category `Nom`:gc:, whereas indirect recursion on `s`:gc:
+arises from the combination of two productions, namely `s`:gc: |rarr|
+`np vp`:gc: and `vp`:gc: |rarr| `v s`:gc:.  
+
+To see how recursion is handled in this grammar, consider the following
+trees.  Example nested-nominals_ involves nested nominal phrases,
+while nested-sentences_ contains nested sentences.
+
+.. ex::
+  .. ex::
+    .. _nested-nominals:
+    .. tree::
+     (S (NP (Det a) (Nom (Adj fierce)(Nom (Adj black) (N dog))))
+         (VP (V chased)
+            (NP (Det the) (Nom (Adj big)(Nom (Adj European) (N butterfly))))))
+  .. ex::
+    .. _nested-sentences:
+    .. tree::
+      (S (NP (Det the) (N man))
+         (VP (V said)
+             (S (NP (Det the) (N woman))
+                (VP (V thought)
+                    (S (NP (Det the) (N dog))
+                             (VP (V barked)))))))
+
+
+If you did the exercises for the last section, you will have noticed
+that the recursive descent parser fails to deal properly with the
+following production: `np`:gc: |rarr| `np pp`:gc:.
+From a linguistic point of view, this production is perfectly respectable,
+and will allow us to derive trees like this:
+
+.. ex::
+  .. tree::
+    (S (NP 
+           (NP 
+               (NP (Det the) (N man))
+               (PP (P with) (NP  (Det a) (N dog))))
+            (PP (P in  (NP  (Det the) (N park)))))
+         (VP (V disappeared)))
+
+More schematically, the trees for these compound noun phrases will be
+of the following shape:
+
+.. _leftrec:
+.. ex::
+  .. tree::
+    (NP (NP (NP (NP Det N) PP) PP) PP)
+
+The structure in leftrec_ is called a `left recursive`:dt: structure.
+These occur frequently in analyses of English, and
+the failure of recursive descent parsers to deal adequately with left
+recursion means that we will need to find alternative approaches.
+
+Heads, Complements and Modifiers
+--------------------------------
+
+Let us take a closer look at verbs.
+The grammar grammar2_ correctly generates examples like subcat1_,
+corresponding to the four productions with `vp`:gc: on the left hand side:
+
+.. _subcat1:
+.. ex::
+   .. ex:: The woman gave the telescope to the dog
+   .. ex:: The woman saw a man
+   .. ex:: A man said that the woman disappeared
+   .. ex:: The dog barked
+
+That is, `gave`:lx: can occur with a following `np`:gc: and `pp`:gc:; 
+`saw`:lx: can occur with a following `np`:gc:; 
+`said`:lx: can occur with a following `s`:gc:; 
+and `barked`:lx: can occur with no following phrase.
+In these cases, `np`:gc:, `pp`:gc: and `s`:gc: are called :dt:`complements`
+of the respective verbs, and the verbs themselves are called
+:dt:`heads` of the verb phrase.
+
+However, there are fairly strong constraints on what verbs can occur
+with what complements. Thus, we would like our grammars to mark the
+following examples as ungrammatical:
+
+.. _subcat2:
 .. ex:: 
-   .. ex::
-      .. tree:: (S (NP-SBJ (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths))) (PP (IN of) (NP (DT the) (NNS students)))) (VP (VBD passed)))
-   .. ex::
-      .. tree:: (S (NP-SBJ (NP+QP (IN at) (JJS least) (CD nine) (NNS tenths)) (PP (IN of) (NP (DT the) (NNS students)))) (VP+VBD passed))
-   .. ex::
-      .. tree:: (S (NP-SBJ (NP+QP (IN at) (NP+QP|\<JJS-CD-NNS\> (JJS least) (NP+QP|\<CD-NNS\> (CD nine) (NNS tenths)))) (PP (IN of) (NP (DT the) (NNS students)))) (VP+VBD passed))
+   .. ex:: \*The woman disappeared the telescope to the dog
+   .. ex:: \*The dog barked a man
+   .. ex:: \*A man gave that the woman disappeared
+   .. ex:: \*A man said
+
+.. note:: It is possible to create examples that involve 'non-standard'
+   but interpretable combinations of verbs and complements. Thus,
+   we can, at a stretch, interpret `the man disappeared the dog`:lx:
+   to mean that the man made the dog disappear. We will ignore such examples here.
+
+How can we ensure that our grammar correctly excludes the
+ungrammatical examples in subcat2_?  We need some way of constraining
+grammar productions which expand `vp`:gc: so that verbs *only* co-occur
+with their correct complements. We do this by dividing the class of
+verbs into `subcategories`:dt:, each of which is associated with a
+different set of complements. For example, `transitive verbs`:dt: such
+as `saw`:lx:, `kissed`:lx: and `hit`:lx: require a following `np`:gc:
+object complement. Borrowing from the terminology of chemistry, we
+sometimes refer to the `valency`:dt: of a verb, that is, its capacity
+to combine with a sequence of arguments and thereby compose a verb
+phrase.
+
+Let's introduce a new category label for such verbs, namely
+`tv`:gc: (for Transitive Verb), and use it in the following productions:
+
+.. ex::
+   .. parsed-literal::
+
+     `vp`:gc: |rarr| `tv np`:gc:
+     `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit'
+
+Now `*the dog barked the man`:lx: is excluded since we haven't listed
+`barked`:lx: as a `V_tr`:gc:, but `the woman saw a man`:lx: is still allowed.
+Table verbcat_ provides more examples of labels for verb subcategories.
+
+.. table:: verbcat
+
+   ======    ====================    ========================
+   Symbol    Meaning                 Example
+   ======    ====================    ========================
+   IV        intransitive verb       *barked*
+   TV        transitive verb         *saw a man*
+   DatV      dative verb             *gave a dog to a man*
+   SV        sentential verb         *said that a dog barked*
+   ======    ====================    ========================
+
+   Verb Subcategories
+
+The revised grammar for `vp`:gc: will now look like this:
+
+.. _subcat3:
+.. ex::
+   .. parsed-literal:: 
+
+      `vp`:gc: |rarr| `datv np pp`:gc:
+      `vp`:gc: |rarr| `tv np`:gc:
+      `vp`:gc: |rarr| `sv s`:gc:
+      `vp`:gc: |rarr| `iv`:gc: 
+
+      `datv`:gc: |rarr| 'gave' | 'donated' | 'presented'
+      `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
+      `sv`:gc: |rarr| 'said' | 'knew' | 'alleged'
+      `iv`:gc: |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
+
+Notice that according to subcat3_, a given lexical item can belong to more
+than one subcategory. For example, `sang`:lx: can occur both with and
+without a following `np`:gc: complement.
+
+Dependency Grammar
+------------------
+
+Although we concentrate on phrase structure grammars in this chapter,
+we should mention an alternative approach, namely `dependency
+grammar`:dt:. Rather than taking starting from the grouping of words
+into constituents, dependency grammar takes as basic the notion that
+one word can be dependent on another (namely, its head). The root of a
+sentence is usually taken to be the main verb, and every other word is
+either dependent on the root, or connects to it through a path of
+dependencies. Figure depgraph0_ illustrates a dependency graph, where
+the head of the arrow points to the head of a dependency. 
+
+.. _depgraph0:
+.. ex::
+    .. image:: ../images/depgraph0.png
+       :scale: 30
+
+As you will see, the arcs in Figure depgraph0_ are labeled with the
+particular dependency relation that holds between a dependent and its
+head. For example, `Esso`:lx: bears the subject relation to `said`:lx:
+(which is the head of the whole sentence), and `Tuesday`:lx: bears a
+verbal modifier (`vmod`:gc:) relation to `started`:lx:.
+
+An alternative way of representing the dependency relationships is illustrated
+in the tree depgraph1_,
+where dependents are shown as daughters of their heads.
+
+.. _depgraph1:
+.. ex::
+    .. tree:: (said Esso (started (field the Whiting) production Tuesday))
+
+One format for encoding dependency information places each word on a
+line, followed by its part-of-speech tag, the index of its head, and
+the label of the dependency relation (cf. [Nivre2006MP]_). The index
+of a word is implicitly given by the ordering of the lines (with 1 as the
+first index). This is illustrated in the following code snippet:
+
+    >>> from nltk_contrib.dependency import DepGraph
+    >>> dg = DepGraph().read("""Esso	NNP	2	SUB
+    ... said	VBD	0	ROOT
+    ... the 	DT	5	NMOD
+    ... Whiting	NNP	5	NMOD
+    ... field	NN	6	SUB
+    ... started	VBD	2	VMOD
+    ... production	NN	6	OBJ
+    ... Tuesday	NNP	6	VMOD""")
+
+As you will see, this format also adopts the convention that the head
+of the sentence is dependent on an empty node, indexed as 0. We can
+use the ``deptree()`` method of a ``DepGraph()`` object to build an |NLTK|
+tree like that illustrated earlier in depgraph1_.
+
+    >>> tree = dg.deptree()
+    >>> tree.draw()                                 # doctest: +SKIP
+
+Formalizing Context Free Grammars
+---------------------------------
+
+We have seen that a CFG contains terminal and nonterminal symbols, and
+productions that dictate how constituents are expanded into other
+constituents and words. In this section, we provide some formal definitions.
+
+A CFG is a 4-tuple |langle|\ `N`:math:, |Sigma|, `P`:math:, `S`:math:\
+|rangle|\ , where:
+
+*  |Sigma| is a set of *terminal* symbols (e.g., lexical items);
+
+*  `N`:math: is a set of *non-terminal* symbols (the category labels); 
+
+*  `P`:math: is a set of *productions* of the form `A`:math: |rarr| |alpha|, where
+
+   * `A`:math: is a non-terminal, and 
+
+   * |alpha| is a string of symbols from (`N`:math: |cup| |Sigma|)*
+     (i.e., strings of either terminals or non-terminals);
+
+*  `S`:math: is the *start symbol*.
+
+A `derivation`:dt: of a string from a non-terminal `A`:math:
+in grammar `G`:math: is the result of successively applying
+productions from  `G`:math: to `A`:math:.  For example, deriv1_ is a
+derivation of `the dog with a telescope`:lx: for the grammar in grammar1_.
+
+.. _deriv1:
+.. ex::
+  ::
+
+     NP
+     Det N PP
+     the N PP
+     the dog PP
+     the dog P NP
+     the dog with NP
+     the dog with Det N
+     the dog with a N
+     the dog with a telescope
+
+Although we have chosen here to expand the leftmost non-terminal
+symbol at each stage, this is not obligatory; productions can be
+applied in any order. Thus,  derivation deriv1_
+could equally have started off in the following manner:
+
+.. _deriv2:
+.. ex::
+  ::
+
+     NP
+     Det N PP
+     Det N P NP
+     Det N with NP
+     ...
+
+We can also write derivation deriv1_ as:
+
+.. _deriv3:
+.. ex::
+   `np`:gc: |DoubleRightArrow| `det n pp`:gc:
+   |DoubleRightArrow| `the`:lx: `n pp`:gc:
+   |DoubleRightArrow| `the dog`:lx: `pp`:gc:
+   |DoubleRightArrow| `the dog`:lx: `p np`:gc:
+   |DoubleRightArrow| `the dog with`:lx: `np`:gc:
+   |DoubleRightArrow| `the dog with a`:lx: `n`:gc:
+   |DoubleRightArrow| `the dog with a telescope`:lx:
+
+where |DoubleRightArrow| means "derives in one step". 
+We use |DoubleRightArrow|\ * to mean "derives in zero or more steps":
+
+* |alpha| |DoubleRightArrow|\ * |alpha| for any string |alpha|, and
+
+* if |alpha| |DoubleRightArrow|\ * |beta| and |beta|
+  |DoubleRightArrow| |gamma|, then |alpha| |DoubleRightArrow|\ *
+  |gamma|.
+
+We write `A`:math: |DoubleRightArrow|\ * |alpha| to indicate that
+|alpha| can be derived from  `A`:math:.
+
+In NLTK, context free grammars are defined in the ``parse.cfg`` module.  The easiest
+way to construct a grammar object is from the standard string representation
+of grammars.  In Figure cfg_ we define a grammar and use it to parse a simple
+sentence.  You will learn more about parsing in the next section.
+
+.. pylisting:: cfg
+   :caption: Context Free Grammars in NLTK
+
+   grammar = nltk.parse_cfg("""
+     S -> NP VP
+     VP -> V NP | V NP PP
+     V -> "saw" | "ate"
+     NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
+     Det -> "a" | "an" | "the" | "my"
+     N -> "dog" | "cat" | "cookie" | "park"
+     PP -> P NP
+     P -> "in" | "on" | "by" | "with"
+     """)
+   >>> sent = "Mary saw Bob".split()
+   >>> rd_parser = nltk.RecursiveDescentParser(grammar)
+   >>> for p in rd_parser.nbest_parse(sent):
+   ...      print p
+   (S (NP Mary) (VP (V saw) (NP Bob)))
+
+
+
+Exercises
+---------
+
+1. |easy| In the recursive descent parser demo, experiment with changing the
+   sentence to be parsed by selecting *Edit Text* in the *Edit* menu.
+
+#. |easy| Can the grammar in grammar1_ be used to describe sentences that are
+   more than 20 words in length?
+
+#. |soso| You can modify the grammar in the recursive descent parser demo
+   by selecting *Edit Grammar*  in the *Edit* menu. Change
+   the first expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
+   PP``. Using the *Step* button, try to build a parse tree. What happens?
+
+#. |soso| Extend the grammar in grammar2_ with productions that expand prepositions as
+   intransitive, transitive and requiring a `pp`:gc:
+   complement. Based on these productions, use the method of the
+   preceding exercise to draw a tree for the sentence `Lee ran away home`:lx:\.
+
+#. |soso| Pick some common verbs and complete the following tasks:
+
+   a) Write a program to find those verbs in the Prepositional Phrase Attachment Corpus
+      ``nltk.corpus.ppattach``.  Find any cases where the same verb
+      exhibits two different attachments, but where the first noun,
+      or second noun, or preposition, stay unchanged (as we saw in
+      Section sec-syntactic-ambiguity_).
+
+   b) Devise CFG grammar productions to cover some of these cases.
+
+#. |hard| Write a function that takes a grammar (such as the one defined in
+   Figure cfg_) and returns a random sentence generated by the grammar.
+   (Use ``grammar.start()`` to find the start symbol of the grammar;
+   ``grammar.productions(lhs)`` to get the list of productions from the grammar
+   that have the specified left-hand side; and ``production.rhs()`` to get
+   the right-hand side of a production.)
+
+#. |hard| **Lexical Acquisition:**
+   As we saw in Chapter chap-chunk_, it is possible 
+   to collapse chunks down to their chunk label.  When we do this
+   for sentences involving the word `gave`:lx:, we find patterns
+   such as the following::
+
+      gave NP
+      gave up NP in NP
+      gave NP up
+      gave NP NP
+      gave NP to NP
+
+   a) Use this method to study the complementation patterns of a verb
+      of interest, and write suitable grammar productions.
+
+   b) Identify some English verbs that are near-synonyms, such as the
+      :lx:`dumped/filled/loaded` example from earlier in this chapter.
+      Use the chunking method to study the complementation patterns of
+      these verbs.  Create a grammar to cover these cases.  Can the verbs
+      be freely substituted for each other, or are their constraints?
+      Discuss your findings.
+
+-------
+Parsing
+-------
+
+A :dt:`parser` processes input sentences according to the
+productions of a grammar, and builds one or more
+constituent structures that conform to the grammar.
+A grammar is a declarative specification of well-formedness.
+In NLTK, it is just a multi-line string; it is not itself a
+program that can be used for anything.
+A parser is a procedural interpretation of the grammar.
+It searches through the space of trees licensed by a grammar
+to find one that has the required sentence along its fringe.
+
+Parsing is important in both linguistics and natural language processing.
+A parser permits a grammar to be evaluated against
+a potentially large collection of test sentences,
+helping linguists to find any problems in their grammatical analysis.
+A parser can serve as a model of psycholinguistic processing,
+helping to explain the difficulties that humans have with processing
+certain syntactic constructions.
+Many natural language applications involve parsing at some point;
+for example, we would expect the natural language questions
+submitted to a question-answering system to undergo parsing as an initial step.
+
+In this section we see two simple parsing algorithms,
+a top-down method called recursive descent parsing,
+and a bottom-up method called shift-reduce parsing.
+
+.. _sec-recursive-descent:
+
+Recursive Descent Parsing 
+-------------------------
+
+The simplest kind of parser interprets a grammar as a specification
+of how to break a high-level goal into several lower-level subgoals.
+The top-level goal is to find an `s`:gc:.  The `s`:gc: |rarr| `np vp`:gc:
+production permits the parser to replace this goal with two subgoals:
+find an `np`:gc:, then find a `vp`:gc:.  Each of these subgoals can be
+replaced in turn by sub-sub-goals, using productions that have `np`:gc:
+and `vp`:gc: on their left-hand side.  Eventually, this expansion
+process leads to subgoals such as: find the word `telescope`:lx:.  Such
+subgoals can be directly compared against the input string, and
+succeed if the next word is matched.  If there is no match the parser
+must back up and try a different alternative.
+
+The recursive descent parser builds a parse tree during the above
+process.  With the initial goal (find an `s`:gc:), the `s`:gc: root node
+is created.  As the above process recursively expands its goals using
+the productions of the grammar, the parse tree is extended downwards
+(hence the name *recursive descent*).  We can see this in action using
+the parser demonstration ``nltk.draw.rdparser.demo()``.
+Six stages of the execution of this parser are shown in Table rdparser_.
+
+.. table:: rdparser
+
+   +---------------------------+--------------------------+---------------------------+
+   | |rdparser1|               | |rdparser2|              | |rdparser3|               |
+   |                           |                          |                           |
+   | a. Initial stage          | b. 2nd production        | c. Matching `the`:lx:     |
+   +---------------------------+--------------------------+---------------------------+
+   | |rdparser4|               | |rdparser5|              | |rdparser6|               |
+   |                           |                          |                           |
+   | d. Cannot match `man`:lx: | e. Completed parse       | f. Backtracking           |
+   +---------------------------+--------------------------+---------------------------+
+
+   Six Stages of a Recursive Descent Parser
+
+.. |rdparser1| image:: ../images/rdparser1.png
+.. |rdparser2| image:: ../images/rdparser2.png
+.. |rdparser3| image:: ../images/rdparser3.png
+.. |rdparser4| image:: ../images/rdparser4.png
+.. |rdparser5| image:: ../images/rdparser5.png
+.. |rdparser6| image:: ../images/rdparser6.png
+
+During this process, the parser is often forced to choose between several
+possible productions.  For example, in going from step 3 to step 4, it
+tries to find productions with `n`:gc: on the left-hand side.  The
+first of these is `n`:gc: |rarr| `man`:lx:.  When this does not work
+it `backtracks`:idx:, and tries other `n`:gc: productions in order, under it
+gets to `n`:gc: |rarr| `dog`:lx:, which matches the next word in the
+input sentence.  Much later, as shown in step 5, it finds a complete
+parse.  This is a tree that covers the entire sentence, without any
+dangling edges.  Once a parse has been found, we can get the parser to
+look for additional parses.  Again it will backtrack and explore other
+choices of production in case any of them result in a parse.
+
+NLTK provides a recursive descent parser:
+
+    >>> rd_parser = nltk.RecursiveDescentParser(grammar)
+    >>> sent = 'Mary saw a dog'.split()
+    >>> for t in rd_parser.nbest_parse(sent):
+    ...     print t
+    (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
+
+.. Note:: ``RecursiveDescentParser()`` takes an optional parameter ``trace``. 
+   If ``trace`` is greater than zero, then the parser will report the steps
+   that it takes as it parses a text.
+
+Recursive descent parsing has three key shortcomings.  First,
+left-recursive productions like `np`:gc: |rarr| `np pp`:gc: send it
+into an infinite loop.  Second, the parser wastes a lot of time
+considering words and structures that do not correspond to the input
+sentence.  Third, the backtracking process may discard parsed
+constituents that will need to be rebuilt again later.  For example,
+backtracking over `vp`:gc: |rarr| `v np`:gc: will discard the subtree
+created for the `np`:gc:.  If the parser then proceeds with `vp`:gc:
+|rarr| `v np pp`:gc:, then the `np`:gc: subtree must be created all
+over again.
+
+Recursive descent parsing is a kind of `top-down parsing`:dt:.
+Top-down parsers use a grammar to *predict* what the input will be,
+before inspecting the input!  However, since the input is available to
+the parser all along, it would be more sensible to consider the input
+sentence from the very beginning.  This approach is called
+`bottom-up parsing`:dt:, and we will see an example in the next section.
+
+.. _sec-shift-reduce:
+
+Shift-Reduce Parsing 
+--------------------
+
+A simple kind of bottom-up parser is the `shift-reduce parser`:dt:.
+In common with all bottom-up parsers, a shift-reduce
+parser tries to find sequences of words and phrases that correspond
+to the *right hand* side of a grammar production, and replace them
+with the left-hand side, until the whole sentence is reduced to
+an `s`:gc:.
+
+The shift-reduce parser repeatedly pushes the next input word onto a
+stack (Section stacks-and-queues_); this is the `shift`:dt: operation.
+If the top *n* items on the stack match
+the *n* items on the right hand side of some production,
+then they are all popped off the stack, and the item on the left-hand
+side of the production is pushed on the stack.  This replacement of
+the top *n* items with a single item is the `reduce`:dt: operation.
+(This reduce operation may only be applied to the top of the stack;
+reducing items lower in the stack must be done before later items are
+pushed onto the stack.)  The parser finishes when all the input is
+consumed and there is only one item remaining on the stack, a parse
+tree with an `s`:gc: node as its root.
+
+The shift-reduce parser builds a parse tree during the above process.
+If the top of stack holds the word `dog`:lx:, and if the grammar has a
+production `n`:gc: |rarr| `dog`:lx:, then the reduce operation causes the word
+to be replaced with the parse tree for this production.  For
+convenience we will represent this tree as ``N(dog)``.  At a later
+stage, if the top of the stack holds two items ``Det(the) N(dog)`` and
+if the grammar has a production `np`:gc: |rarr| `det n`:gc: then the reduce
+operation causes these two items to be replaced with ``NP(Det(the),
+N(dog))``.  This process continues until a parse tree for the entire
+sentence has been constructed.  We can see this in action using the
+parser demonstration ``nltk.draw.srparser.demo()``.
+Six stages of the execution of this parser are shown in Figure srparser_.
+
+.. table:: srparser
+
+   +------------------------------------+------------------------------------+
+   | .. image:: ../images/srparser1.png | .. image:: ../images/srparser2.png |
+   |    :scale: 50                      |    :scale: 50                      |
+   |                                    |                                    |
+   | 1. Initial State                   | 2. After one shift                 |
+   +------------------------------------+------------------------------------+
+   | .. image:: ../images/srparser3.png | .. image:: ../images/srparser4.png |
+   |    :scale: 50                      |    :scale: 50                      |
+   |                                    |                                    |
+   | 3. After reduce shift reduce       | 4. After recognizing the second NP |
+   +------------------------------------+------------------------------------+
+   | .. image:: ../images/srparser5.png | .. image:: ../images/srparser6.png |
+   |    :scale: 50                      |    :scale: 50                      |
+   |                                    |                                    |
+   | 5. Complex NP                      | 6. Final Step                      |
+   +------------------------------------+------------------------------------+
+
+   Six Stages of a Shift-Reduce Parser
+
+NLTK provides ``ShiftReduceParser()``, a simple
+implementation of a shift-reduce parser.  This parser does not
+implement any backtracking, so it is not guaranteed to find a parse
+for a text, even if one exists.  Furthermore, it will only find at
+most one parse, even if more parses exist.  We can provide an
+optional ``trace`` parameter that controls how verbosely the
+parser reports the steps that it takes as it parses a text: 
+
+    >>> sr_parse = nltk.ShiftReduceParser(grammar, trace=2)
+    >>> sent = 'Mary saw a dog'.split()
+    >>> print sr_parse.parse(sent)
+    Parsing 'Mary saw a dog'
+        [ * Mary saw a dog]
+      S [ 'Mary' * saw a dog]
+      R [ <NP> * saw a dog]
+      S [ <NP> 'saw' * a dog]
+      R [ <NP> <V> * a dog]
+      S [ <NP> <V> 'a' * dog]
+      R [ <NP> <V> <Det> * dog]
+      S [ <NP> <V> <Det> 'dog' * ]
+      R [ <NP> <V> <Det> <N> * ]
+      R [ <NP> <V> <NP> * ]
+      R [ <NP> <VP> * ]
+      R [ <S> * ]
+      (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
+
+Shift-reduce parsers have a number of problems.
+A shift-reduce parser may fail to parse the sentence, even though the
+sentence is well-formed according to the grammar.  In such cases,
+there are no remaining input words to shift, and there is no way to
+reduce the remaining items on the stack, as exemplified in Table conflict_\ 1.
+The parser entered this blind alley at an earlier
+stage shown in Table conflict_\ 2, when it reduced instead of
+shifted.  This situation is called a `shift-reduce conflict`:dt:.  At
+another possible stage of processing shown in Table conflict_\ 3,
+the parser must choose between two possible reductions, both matching
+the top items on the stack: `vp`:gc: |rarr| `vp np pp`:gc: or `np`:gc: |rarr|
+`np pp`:gc:.  This situation is called a `reduce-reduce conflict`:dt:.
+
+.. table:: conflict
+
+   +------------------------------------------+
+   | .. image:: ../images/srparser7.png       |
+   |    :scale: 50                            |
+   |                                          |
+   | 1. Dead end                              |
+   +------------------------------------------+
+   | .. image:: ../images/srparser8.png       |
+   |    :scale: 50                            |
+   |                                          |
+   | 2. Shift-reduce conflict                 |
+   +------------------------------------------+
+   | .. image:: ../images/srparser9.png       |
+   |    :scale: 50                            |
+   |                                          |
+   | 3. Reduce-reduce conflict                |
+   +------------------------------------------+
+
+   Conflict in Shift-Reduce Parsing
+
+.. To do: diagram showing search tree with success and failure.
+
+Shift-reduce parsers may implement policies for resolving such
+conflicts.  For example, they may address shift-reduce conflicts by
+shifting only when no reductions are possible, and they may address
+reduce-reduce conflicts by favoring the reduction operation that removes
+the most items from the stack.  No such policies are failsafe however.
+
+The advantages of shift-reduce parsers over recursive descent parsers
+is that they only build structure that corresponds to the words in the
+input.  Furthermore, they only build each sub-structure once,
+e.g. ``NP(Det(the), N(man))`` is only built and pushed onto the stack
+a single time, regardless of whether it will later be used by the `vp`:gc:
+|rarr| `v np pp`:gc: reduction or the `np`:gc: |rarr| `np pp`:gc: reduction.
+
+The Left-Corner Parser
+----------------------
+
+One of the problems with the recursive descent parser is that it can
+get into an infinite loop.  This is because it applies the grammar
+productions blindly, without considering the actual input sentence.
+A left-corner parser is a hybrid between the bottom-up and top-down
+approaches we have seen.
+
+Grammar grammar2_ allows us to produce the following parse of `John saw
+Mary`:lx:\ :
+
+.. _jmtree:
+.. ex::
+  .. tree::
+   (S (NP John) 
+      (VP (V saw)
+         (NP Mary)))
+
+Recall that the grammar in grammar2_ has the following productions for expanding `np`:gc:\ :
+
+.. ex::
+   .. _r1:
+   .. ex:: `np`:gc: |rarr| `dt nom`:gc:
+   .. _r2:
+   .. ex:: `np`:gc: |rarr| `dt nom pp`:gc:
+   .. _r3:
+   .. ex:: `np`:gc: |rarr| `propn`:gc: 
+
+Suppose we ask you to first look at tree jmtree_, and then decide
+which of the `np`:gc: productions you'd want a recursive descent parser to
+apply first |mdash| obviously, r3_ is the right choice! How do you
+know that it would be pointless to apply r1_ or r2_ instead? Because
+neither of these productions will derive a string whose first word is
+`John`:lx:.  That is, we can easily tell that in a successful
+parse of `John saw Mary`:lx:, the parser has to expand `np`:gc: in
+such a way that `np`:gc: derives the string `John`:lx: |alpha|. More
+generally, we say that a category `B`:math: is a `left-corner`:dt: of
+a tree rooted in `A`:math: if  `A`:math: |DoubleRightArrow|\ *
+`B`:math: |alpha|.
+
+.. ex::
+  .. tree:: <A B a>
+
+A `left-corner parser`:dt: is a top-down parser with bottom-up filtering.
+Unlike an ordinary recursive descent parser, it does not get trapped
+in left recursive productions. 
+Before starting its work, a left-corner parser preprocesses the
+context-free grammar to build a table where each row contains two
+cells, the first holding a non-terminal, and the second holding the
+collection of possible left corners of that non-terminal. Table lc_
+illustrates this for the grammar from grammar2_.
+
+.. table:: lc
+
+   ========  ============================
+   Category  Left-Corners (pre-terminals)
+   ========  ============================
+   S         NP
+   NP        Det, PropN
+   VP        V
+   PP        P
+   ========  ============================
+
+   Left-Corners in grammar2_
+
+Each time a production is considered by the parser, it checks that the
+next input word is compatible with at least one of the pre-terminal
+categories in the left-corner table.
+
+[TODO: *explain how this effects the action of the parser, and why this solves the problem.*]
+
+Exercises
+---------
+
+#. |easy| With pen and paper, manually trace the execution of a recursive descent
+   parser and a shift-reduce parser, for a CFG you have already seen, or one
+   of your own devising.
+
+#. |soso| Compare the performance of the top-down, bottom-up, and left-corner
+   parsers using the same grammar and three grammatical test
+   sentences. Use ``timeit`` to log the amount of time each
+   parser takes on the same sentence (Section sec-timing_).  Write a function that runs all
+   three parsers on all three sentences, and prints a 3-by-3 grid of
+   times, as well as row and column totals. Discuss your findings.
+
+#. |soso| Read up on "garden path" sentences.  How might the computational
+   work of a parser relate to the difficulty humans have with
+   processing these sentences?
+   ``http://en.wikipedia.org/wiki/Garden_path_sentence``
+
+#. |hard| **Left-corner parser:** Develop a left-corner parser
+   based on the recursive descent parser, and inheriting from ``ParseI``.
+   (Note, this exercise requires knowledge of Python classes, covered
+   in Chapter chap-applied-programming_.)
+
+#. |hard| Extend NLTK's shift-reduce parser to incorporate backtracking, so
+   that it is guaranteed to find all parses that exist (i.e. it is `complete`:dt:).
 
 ----------
 Conclusion
 ----------
 
-[to be written]
+We began this chapter talking about confusing encounters with grammar
+at school.  We just wrote what we wanted to say, and our work was
+handed back with red marks showing all our grammar mistakes.  If this
+kind of "grammar" seems like secret knowledge, the linguistic approach
+we have taken in this chapter is quite the opposite: grammatical
+structures are made explicit as we build trees on top of sentences.
+We can write down the grammar productions, and parsers can build the
+trees automatically.  This thoroughly objective approach
+is widely referred to as `generative grammar`:dt:.
+
+Note that we have only considered "toy grammars," small grammars that
+illustrate the key aspects of parsing.  But there is an obvious
+question as to whether the general approach can be scaled up to cover
+large corpora of natural languages. How hard would it be to construct
+such a set of productions by hand? In general, the answer is: *very
+hard*. Even if we allow ourselves to use various formal devices that
+give much more succinct representations of grammar productions (some
+of which will be discussed in Chapter chap-advanced-parsing_), it is still extremely
+difficult to keep control of the complex interactions between the many
+productions required to cover the major constructions of a
+language. In other words, it is hard to modularize grammars so that
+one portion can be developed independently of the other parts. This in
+turn means that it is difficult to distribute the task of grammar
+writing across a team of linguists. Another difficulty is that as the
+grammar expands to cover a wider and wider range of constructions,
+there is a corresponding increase in the number of analyses which are
+admitted for any one sentence. In other words, ambiguity increases
+with coverage.
+
+Despite these problems, there are a number of large collaborative
+projects that have achieved interesting and impressive results in
+developing rule-based grammars for several languages. Examples are the
+Lexical Functional Grammar (LFG) Pargram project
+(http://www2.parc.com/istl/groups/nltt/pargram/), the Head-Driven
+Phrase Structure Grammar (HPSG) LinGO Matrix framework
+(http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
+Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
+
+---------------
+Summary (notes)
+---------------
+
+* Sentences have internal organization, or constituent structure,
+  that can be represented using a tree; notable features of constituent
+  structure are: recursion, heads, complements, modifiers
+
+* A grammar is a compact characterization of a potentially infinite set of sentences;
+  we say that a tree is well-formed according to a grammar, or that a grammar licenses a tree.
+
+* Syntactic ambiguity arises when one sentence has more than one syntactic structure
+  (e.g. prepositional phrase attachment ambiguity).
+
+* A parser is a procedure for finding one or more trees corresponding to a grammatically
+  well-formed sentence.
+
+* A simple top-down parser is the recursive descent parser (summary, problems)
+
+* A simple bottom-up parser is the shift-reduce parser (summary, problems)
+
+* It is difficult to develop a broad-coverage grammar...
 
 ---------------
 Further Reading
 ---------------
 
-Section 13.4 of [JurafskyMartin2008]_ covers chart parsing, and Chapter 14
-contains a more formal presentation of statistical parsing.
+For more examples of parsing with |NLTK|, please see the
+guide at ``http://nltk.org/doc/guides/parse.html``.
 
-* [Manning2003Probabilistic]_
+There are many introductory books on syntax. [O'Grady1989LI]_ is a
+general introduction to linguistics, while [Radford1988TG]_ provides a
+gentle introduction to transformational grammar, and can be
+recommended for its coverage of transformational approaches to
+unbounded dependency constructions. 
 
-* [Klein2003Astar]_
+[BurtonRoberts1997AS]_ is very practically oriented textbook on how to
+analyze constituency in English, with extensive exemplification and
+exercises. [Huddleston2002CGE]_ provides an up-to-date and comprehensive analysis of
+syntactic phenomena in English.
+
+Chapter 12 of [JurafskyMartin2008]_ covers formal grammars of English;
+Sections 13.1-3 cover simple parsing algorithms and techniques
+for dealing with ambiguity;
+Chapter 16 covers the Chomsky hierarchy and the formal complexity
+of natural language.
+
+* LALR(1)
+
+* Marcus parser
+
+* Lexical Functional Grammar (LFG) 
+
+  * `Pargram project <http://www2.parc.com/istl/groups/nltt/pargram/>`_
+
+  * `LFG Portal <http://www.essex.ac.uk/linguistics/lfg/>`_
+
+* Head-Driven Phrase Structure Grammar (HPSG) `LinGO Matrix framework <http://www.delph-in.net/matrix/>`_
+
+* Lexicalized Tree Adjoining Grammar `XTAG Project <http://www.cis.upenn.edu/~xtag/>`_
 
 .. include:: footer.rst
+

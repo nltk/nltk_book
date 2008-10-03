@@ -5,1320 +5,2434 @@
 
     >>> import nltk, re, pprint
 
-.. TODO: exercise on cascaded tagging
-.. TODO: simplified tagset (N, V, J, A) -- WordNet
-.. TODO: better approach to tagging unknown words using special UNK token
-.. TODO: motivate trigram tagging by showing some cases where bigram tagging doesn't work
-.. TODO: xref to unicode section in prog chapter
-.. TODO: * outstanding problems:
-   - what are we doing with ConditionalFreqDist?
-   - nltk.tag contains all of math library
-   - nltk.corpus.brown.tagged_sents() is too verbose?
-   - tag method returns generator object? 
+.. TODO: more on regular expressions, including ()
+.. TODO: add some literature references (esp to other intro linguistics textbooks)
+.. TODO: talk about fact that English lexicon is open set (e.g. malware = malicious software)
+.. TODO: add section on sentence tokenization (or sentence segmentation), and punkt
+.. TODO: mention .words() methods for corpus readers for multiple languages
+.. TODO: other issues
+   - nltk.corpus.brown.items returns a tuple, not a list (cf discussion in ch 6)
+   - invocation of pprint.pprint is a little clunky
+   - regexp_tokenize() doesn't work when it is given a compiled pattern
+.. TODO: add more graphical plots
 
-.. _chap-tag:
+.. _chap-words:
 
-=================================
-3. Categorizing and Tagging Words
-=================================
+======================
+2. Processing Raw Text
+======================
 
-.. _ch03-introduction:
+.. _ch02-introduction:
 
 ------------
 Introduction
 ------------
 
-In Chapter chap-words_ we dealt with words in their own right.
-We looked at the distribution of `often`:lx:, identifying the words that
-follow it; we noticed that `often`:lx: frequently modifies verbs.
-In fact, it is a member of a whole class of verb-modifying words, the *adverbs*.
-Before we delve into this terminology, let's find other words
-that appear in the same context, using NLTK's ``Text.similar()`` function:
+The most important source of texts is undoubtedly the Web.  Its convenient
+to have existing text collections to explore, such as the corpora we saw
+in Chapter chap-introduction_.  However, you probably have your own text sources
+in mind, and need to learn how to access them.
 
-    >>> text = nltk.Text(word.lower() for word in nltk.corpus.brown.words())
-    >>> text.similar('woman')
-    man number world time end house state matter kind result day door
-    group use way year rest part case problem
-    >>> text.similar('bought')
-    able made been used found was had , done expected given and followed
-    that have seen put told said in
-    >>> text.similar('over')
-    in and of on to . , with at for but `` as is was from that when '' by
-    >>> text.similar('the')
-    a his this and in their an her that no its our however `` any these
-    one ; my ?
+The goal of this chapter is to answer the following questions:
 
-This function takes a word `w`:math:, finds all contexts
-`w`:math:\ `1`:subscript:\ `w`:math: `w`:math:\ `2`:subscript:,
-then finds all words `w'`:math: that appear in the same context,
-i.e. `w`:math:\ `1`:subscript:\ `w'`:math: `w`:math:\ `2`:subscript:.
-(You can find the implementation online at ``http://nltk.org/nltk/text.py``)    
+#. how can we write programs to access text from local files and
+   from the web, in order to get hold of an unlimited range of
+   language material?
+#. how can we split documents up into individual words and
+   punctuation symbols, so we can do the same kinds of
+   analysis we did with text corpora in Chapter chap-introduction_?
+#. what features of the Python programming language are
+   needed to do this?
 
-Observe that searching for `woman`:lx: finds *nouns*;
-searching for `bought`:lx: finds *verbs*;
-searching for `over`:lx: generally finds *prepositions*;
-searching for `the`:lx: finds several *determiners*.
-This simple method of finding distributionally similar words is
-not a reliable way of categorizing English words.  However, it
-is a striking demonstration of the fact that categories
-like noun and verb are not just inventions of grammarians but
-labels for groups of words that arise directly from the text.
-These groups of words are so important that they have several names,
-all in common use: `word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
-We'll use these names interchangeably.
+In order to address these questions, we will be covering
+key concepts in NLP, including tokenization and stemming.
+Along the way you will consolidate your Python knowledge and
+learn about strings, files, and regular expressions.  Since
+so much text on the web is in |HTML| format, we will also
+see how to dispense with markup.
 
-One of the notable features of the Brown corpus is that all the words have
-been `tagged`:dt: for their part-of-speech. Now, instead of just
-looking at the words that immediately follow `often`:lx:, we can
-look at the `part-of-speech tags`:dt: (or `POS tags`:dt:).  Table often_
-lists the top eight, ordered by frequency, along with explanations of
-each tag.  As we can see, the majority of words following `often`:lx: are verbs.
-
-.. table:: often
-
-   ======  ====  ==================================  ===================================
-   Tag     Freq  Example                             Comment
-   ======  ====  ==================================  ===================================
-   VBN     61    `burnt`:lx:, `gone`:lx:             verb: past participle
-   VB      51    `make`:lx:, `achieve`:lx:           verb: base form
-   VBD     36    `saw`:lx:, `looked`:lx:             verb: simple past tense
-   JJ      30    `ambiguous`:lx:, `acceptable`:lx:   adjective
-   VBZ     24    `sees`:lx:, `goes`:lx:              verb: third-person singular present
-   IN      18    `by`:lx:, `in`:lx:                  preposition
-   AT      18    `a`:lx:, `this`:lx:                 article
-   ,       16    `,`:lx:                             comma
-   ======  ====  ==================================  ===================================
-
-   Part of Speech Tags Following `often`:lx: in the Brown Corpus
-
-The process of classifying words into their parts-of-speech and
-labeling them accordingly is known as `part-of-speech tagging`:dt:,
-`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
-used for a particular task is known as a `tag set`:dt:.  Our emphasis
-in this chapter is on exploiting tags, and tagging text automatically.
-
-Automatic tagging has several applications.  We have already
-seen an example of how to exploit tags in corpus analysis |mdash| we
-get a clear understanding of the distribution of `often`:lx: by
-looking at the tags of adjacent words.  Automatic tagging
-also helps predict the behavior of previously unseen words.
-For example, if we encounter the word
-`blogging`:lx: we can probably infer that it is a verb, with
-the root `blog`:lx:, and likely to occur after forms of the auxiliary
-``to be`` (e.g. `he was blogging`:lx:).  Parts of speech are also used
-in speech synthesis and recognition.  For example, ``wind/NN``, as in
-`the wind blew`:lx:, is pronounced with a short vowel, whereas
-``wind/VB``, as in `to wind the clock`:lx:, is pronounced with a long
-vowel.  Other examples can be found where the stress pattern differs
-depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
-`insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
-Without knowing the part of speech we cannot be sure of pronouncing
-the word correctly.
-
-In the next section we will see how to access and explore the Brown
-Corpus.  Following this we will take a closer look at the
-linguistics of word classes.  The rest of the chapter will deal with
-automatic tagging: simple taggers, evaluation, and n-gram taggers.
-
-.. note:: Remember that our program samples assume you
+.. Note:: From this chapter onwards, our program samples will assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
-
-----------------------------
-Getting Started with Tagging
-----------------------------
-
-Several large corpora, such as the Brown Corpus and portions of the
-Wall Street Journal, have been tagged for part-of-speech, and we will be able to
-process this tagged data.  Tagged corpus files typically contain text
-of the following form (this example is from the Brown Corpus)::
-
-  The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
-  other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
-  Fulton/np-tl County/nn-tl purchasing/vbg departments/nns which/wdt it/pps
-  said/vbd ``/`` are/ber well/ql operated/vbn and/cc follow/vb generally/rb
-  accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
-  interest/nn of/in both/abx governments/nns ''/'' ./.
-
-.. note:: The NLTK Brown Corpus reader converts part-of-speech tags to uppercase,
-          as this has become standard practice since the Brown Corpus was published.
-
-Representing Tags and Reading Tagged Corpora
---------------------------------------------
-
-By convention in NLTK, a tagged token is represented using a Python
-`tuple`:dt:.
-Python tuples are just like lists, except for one important
-difference: tuples cannot be changed in place, for example by
-``sort()`` or ``reverse()``. In other words, like strings, they are
-immutable. Tuples are formed with the comma operator, and typically enclosed
-using parentheses.  Like lists, tuples can be indexed and sliced:
-
-.. doctest-ignore::
-   >>> t = ('walk', 'fem', 3)
-   >>> t[0]
-   'walk'
-   >>> t[1:]
-   ('fem', 3)
-   >>> t[0] = 'run'
-   Traceback (most recent call last):
-     File "<stdin>", line 1, in ?
-   TypeError: object does not support item assignment
-
-A tagged token is represented using a tuple consisting of just two items.
-We can create one of these special tuples from the standard string
-representation of a tagged token, using the function ``str2tuple()``:
-
-    >>> tagged_token = nltk.tag.str2tuple('fly/NN')
-    >>> tagged_token
-    ('fly', 'NN')
-    >>> tagged_token[0]
-    'fly'
-    >>> tagged_token[1]
-    'NN'
-
-We can construct a list of tagged tokens directly from a string.  The first
-step is to tokenize the string
-to access the individual ``word/tag`` strings, and then to convert
-each of these into a tuple (using ``str2tuple()``).
-
-    >>> sent = '''
-    ... The/AT grand/JJ jury/NN commented/VBD on/IN a/AT number/NN of/IN
-    ... other/AP topics/NNS ,/, AMONG/IN them/PPO the/AT Atlanta/NP and/CC
-    ... Fulton/NP-tl County/NN-tl purchasing/VBG departments/NNS which/WDT it/PPS
-    ... said/VBD ``/`` ARE/BER well/QL operated/VBN and/CC follow/VB generally/RB
-    ... accepted/VBN practices/NNS which/WDT inure/VB to/IN the/AT best/JJT
-    ... interest/NN of/IN both/ABX governments/NNS ''/'' ./.
-    ... '''
-    >>> [nltk.tag.str2tuple(t) for t in sent.split()]
-    [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
-    ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
-
-We can access several tagged corpora directly from Python.
-If a corpus contains tagged text, then it will have a ``tagged_words()``
-method.  Please see the ``README`` file included with each corpus
-for documentation of its tagset.
-
-    >>> nltk.corpus.brown.tagged_words()
-    [('The', 'AT'), ('Fulton', 'NP-TL'), ...]
-    >>> print nltk.corpus.nps_chat.tagged_words()
-    [('now', 'RB'), ('im', 'PRP'), ('left', 'VBD'), ...]
-    >>> nltk.corpus.conll2000.tagged_words()
-    [('Confidence', 'NN'), ('in', 'IN'), ('the', 'DT'), ...]
-    >>> nltk.corpus.treebank.tagged_words()
-    [('Pierre', 'NNP'), ('Vinken', 'NNP'), (',', ','), ...]
-
-Tagged corpora for several other languages are distributed with NLTK,
-including Chinese, Hindi, Portuguese, Spanish, Dutch and Catalan.
-These usually contain non-ASCII text,
-and Python always displays this in hexadecimal when printing a larger structure
-such as a list.
-
-    >>> nltk.corpus.sinica_treebank.tagged_words()
-    [('\xe4\xb8\x80', 'Neu'), ('\xe5\x8f\x8b\xe6\x83\x85', 'Nad'), ...]
-    >>> nltk.corpus.indian.tagged_words()
-    [('\xe0\xa6\xae\xe0\xa6\xb9\xe0\xa6\xbf\xe0\xa6\xb7\xe0\xa7\x87\xe0\xa6\xb0', 'NN'),
-    ('\xe0\xa6\xb8\xe0\xa6\xa8\xe0\xa7\x8d\xe0\xa6\xa4\xe0\xa6\xbe\xe0\xa6\xa8', 'NN'), ...]
-    >>> nltk.corpus.mac_morpho.tagged_words()
-    [('Jersei', 'N'), ('atinge', 'V'), ('m\xe9dia', 'N'), ...]
-    >>> nltk.corpus.conll2002.tagged_words()
-    [('Sao', 'NC'), ('Paulo', 'VMI'), ('(', 'Fpa'), ...]
-    >>> nltk.corpus.cess_cat.tagged_words()
-    [('El', 'da0ms0'), ('Tribunal_Suprem', 'np0000o'), ...]
-
-If your environment is set up correctly, with appropriate editors and fonts,
-you should be able to display individual strings in a human-readable way.
-For example, Figure tag-indian_ shows the output of the demonstration code 
-(``nltk.corpus.indian.demo()``).
-
-.. _tag-indian:
-.. figure:: ../images/tag-indian.png
-   :scale: 60
-
-   POS-Tagged Data from Four Indian Languages
-
-..    इराक_NNP के_PREP विदेश_NNC मंत्री_NN ने_PREP अमरीका_NNP के_PREP उस_PRP प्रस्ताव_NN का_PREP मजाक_NVB उड़ाया_VFM है_VAUX ...
-
-If the corpus is also segmented into sentences, it will have
-a ``tagged_sents()`` method that returns a list of tagged sentences.
-This will be useful when we come to training automatic taggers,
-as they typically function on a sentence at a time.
-
-Nouns and Verbs
----------------
-
-Linguists recognize several major categories of words in
-English, such as nouns, verbs, adjectives and determiners.  In this
-section we will discuss the most important categories, namely nouns
-and verbs.
-
-Nouns generally refer to people, places, things, or concepts, e.g.:
-`woman, Scotland, book, intelligence`:lx:.  Nouns can appear after
-determiners and adjectives, and can be the subject or object of the
-verb, as shown in Table syntax-nouns_.
-
-.. table:: syntax-nouns
-
-   ============    =============================================  ===================================
-   Word            After a determiner                             Subject of the verb
-   ============    =============================================  ===================================  
-   woman           *the* woman who I saw yesterday ...            the woman *sat* down
-   Scotland        *the* Scotland I remember as a child ...       Scotland *has* five million people
-   book            *the* book I bought yesterday ...              this book *recounts* the colonization of Australia
-   intelligence    *the* intelligence displayed by the child ...  Mary's intelligence *impressed* her teachers
-   ============    =============================================  ===================================
-
-   Syntactic Patterns involving some Nouns
-
-Nouns can be classified as `common nouns`:dt: and `proper nouns`:dt:.
-Proper nouns identify particular individuals or entities,
-e.g. `Moses`:lx: and `Scotland`:lx:.  Common nouns are all the rest.
-Another distinction exists between `count nouns`:dt: and `mass
-nouns`:dt:. Count nouns are thought of as distinct entities that can
-be counted, such as `pig`:lx: (e.g. `one pig, two pigs, many
-pigs`:lx:).  They cannot occur with the word `much`:lx: (i.e. \*\
-`much pigs`:lx:).  Mass nouns, on the other hand, are not thought of
-as distinct entities (e.g. `sand`:lx:).  They cannot be pluralized,
-and do not occur with numbers (e.g. \*\ `two sands`:lx:, \*\ `many
-sands`:lx:).  However, they can occur with `much`:lx: (i.e. `much
-sand`:lx:).
-
-Verbs are words that describe events and actions, e.g. `fall`:lx:,
-`eat`:lx: in Table syntax-verbs_.
-In the context of a sentence, verbs express a relation
-involving the referents of one or more noun phrases.
-
-.. table:: syntax-verbs
-
-   =====  ===============  ===============================================
-   Word   Simple           With modifiers and adjuncts (italicized)
-   =====  ===============  ===============================================
-   fall   Rome fell        Dot com stocks *suddenly* fell *like a stone*
-   eat    Mice eat cheese  John ate the pizza *with gusto*
-   =====  ===============  ===============================================
-
-   Syntactic Patterns involving some Verbs
-
-`\pagebreak`:raw-latex:
-
-Verbs can be classified according to the number of arguments (usually
-noun phrases) that they require.  The word `fall`:lx: is
-`intransitive`:dt:, requiring exactly one argument (the entity that
-falls).  The word `eat`:lx: is `transitive`:dt:, requiring two
-arguments (the eater and the eaten).  Other verbs are more complex;
-for instance `put`:lx: requires three arguments, the agent doing the
-putting, the entity being put somewhere, and a location.  We will return
-to this topic when we come to look at grammars and parsing (see Chapter chap-parse_).
-
-In the Brown Corpus, verbs have a range of possible tags, e.g.:
-``give/VB`` (present), ``gives/VBZ`` (present, 3ps),
-``giving/VBG`` (present continuous; gerund)
-``gave/VBD`` (simple past),
-and ``given/VBN`` (past participle).
-We will discuss these tags in more detail in a later section.
-
-Nouns and Verbs in Tagged Corpora
----------------------------------
-
-Now that we are able to access tagged corpora, we can write simple
-programs to garner statistics about the tags.  In this section
-we will focus on the nouns and verbs.
-
-What are the 10 most common verbs?  We can write a program to find all
-words tagged with `VB`:gc:, `VBZ`:gc:, `VBG`:gc:, `VBD`:gc: or `VBN`:gc:.
-
-    >>> brown_a = nltk.corpus.brown.tagged_words(categories='a')
-    >>> fd = nltk.FreqDist(word + "/" + tag
-                           for (word, tag) in brown_a if tag[:2] == 'VB')
-    >>> fd.sorted()[:20]
-    ['said/VBD', 'get/VB', 'made/VBN', 'United/VBN-TL', 'take/VB',
-     'took/VBD', 'told/VBD', 'made/VBD', 'make/VB', 'got/VBD',
-     'came/VBD', 'go/VB', 'see/VB', 'went/VBD', 'given/VBN',
-     'expected/VBN', 'began/VBD', 'give/VB', 'taken/VBN', 'play/VB']
-
-Let's study nouns, and find the most frequent nouns of each noun
-part-of-speech type.  The program in Figure findtags_ finds all
-tags starting with `NN`:gc:, and provides a few example words for each
-one.  Observe that there are many noun tags; the most important
-of these have ``$`` for possessive nouns, `S`:gc: for plural nouns (since plural
-nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
-
-.. pylisting:: findtags
-   :caption: Program to Find the Most Frequent Noun Tags
-
-   def findtags(tag_prefix, tagged_text):
-       cfd = nltk.ConditionalFreqDist((word, tag) for (word, tag) in tagged_text
-                                      if tg.startswith(tag_prefix))
-       return dict((tag, cfd[tag].sorted()[:5]
-                   for tag in cfd.conditions())
-
-   >>> tagdict = findtags('NN', nltk.corpus.brown.tagged_words(categories='a'))
-   >>> for tg in sorted(tagdict):
-   ...     print tg, tagdict[tg]
-   NN ['year', 'time', 'state', 'week', 'man']
-   NN$ ["year's", "world's", "state's", "nation's", "company's"]
-   NN$-HL ["Golf's", "Navy's"]
-   NN$-TL ["President's", "University's", "League's", "Gallery's", "Army's"]
-   NN-HL ['cut', 'Salary', 'condition', 'Question', 'business']
-   NN-NC ['eva', 'ova', 'aya']
-   NN-TL ['President', 'House', 'State', 'University', 'City']
-   NN-TL-HL ['Fort', 'City', 'Commissioner', 'Grove', 'House']
-   NNS ['years', 'members', 'people', 'sales', 'men']
-   NNS$ ["children's", "women's", "men's", "janitors'", "taxpayers'"]
-   NNS$-HL ["Dealers'", "Idols'"]
-   NNS$-TL ["Women's", "States'", "Giants'", "Officers'", "Bombers'"]
-   NNS-HL ['years', 'idols', 'Creations', 'thanks', 'centers']
-   NNS-TL ['States', 'Nations', 'Masters', 'Rules', 'Communists']
-   NNS-TL-HL ['Nations']
-
-Some tags contain a plus sign; these are compound tags, and are
-assigned to words that contain two parts normally treated separately.
-Some tags contain a minus sign; this indicates disjunction.
-
-
-The Default Tagger
-------------------
-
-The simplest possible tagger assigns the same tag to each token.  This
-may seem to be a rather banal step, but it establishes an important
-baseline for tagger performance.  In order to get the best result, we
-tag each word with the most likely word.  (This kind of tagger is
-known as a `majority class classifier`:dt:).  What then, is the most
-frequent tag?  We can find out using a one-line program:
-
-    >>> nltk.FreqDist(tag for (word, tag) in brown_a).max()
-    'NN'
-
-Now we can create a tagger, called ``default_tagger``, that
-tags everything as `NN`:gc:.
-
-    >>> tokens = 'John saw 3 polar bears .'.split()
-    >>> default_tagger = nltk.DefaultTagger('NN')
-    >>> default_tagger.tag(tokens)
-    [('John', 'NN'), ('saw', 'NN'), ('3', 'NN'), ('polar', 'NN'),
-    ('bears', 'NN'), ('.', 'NN')]
-
-This is a simple algorithm, and it performs poorly when used on its
-own. On a typical corpus, it will tag only about an eighth of the tokens
-correctly:
-
-    >>> nltk.tag.accuracy(default_tagger, nltk.corpus.brown.tagged_sents(categories='a'))
-    0.13089484257215028
-
-Default taggers assign their tag to every single word, even words that
-have never been encountered before.  As it happens, most new words are
-nouns.  Thus, default taggers help to improve the
-robustness of a language processing system.  We will return to them
-later, in the context of our discussion of *backoff*.
-
-Exercises
----------
-
-#. |easy|
-   Working with someone else, take turns to pick a word that can be
-   either a noun or a verb (e.g. `contest`:lx:); the opponent has to
-   predict which one is likely to be the most frequent in the Brown corpus; check the
-   opponent's prediction, and tally the score over several turns.
-
-#. |soso| Write programs to process the Brown Corpus and find answers to the following
-   questions:
-
-   #) Which nouns are more common in their plural form, rather than their singular
-      form? (Only consider regular plurals, formed with the `-s`:lx: suffix.)
-   #) Which word has the greatest number of distinct tags.  What are they, and
-      what do they represent?
-   #) List tags in order of decreasing frequency.  What do the 20 most frequent tags represent?
-   #) Which tags are nouns most commonly found after?  What do these tags represent?
-
-#. |soso| Generate some statistics for tagged data to answer the following questions:
-
-   a)  What proportion of word types are always assigned the same part-of-speech tag?
-   #)  How many words are ambiguous, in the sense that they appear with at least two tags?
-   #)  What percentage of word *occurrences* in the Brown Corpus involve
-       these ambiguous words?
-
-#. |soso| Above we gave an example of the ``nltk.tag.accuracy()`` function.  It has two
-   arguments, a tagger and some tagged text, and it works out how accurately
-   the tagger performs on this text.  For example, if the supplied tagged text
-   was ``[('the', 'DT'), ('dog', 'NN')]`` and the tagger produced the output
-   ``[('the', 'NN'), ('dog', 'NN')]``, then the accuracy score would be ``0.5``.
-   Can you figure out how the ``nltk.tag.accuracy()`` function works?
-
-   a) A tagger takes a list of words as input, and produces a list of tagged words
-      as output.  However, ``nltk.tag.accuracy()`` is given correctly tagged text as its input.
-      What must the ``nltk.tag.accuracy()`` function do with this input before performing the tagging?
-   b) Once the supplied tagger has created newly tagged text, how would ``nltk.tag.accuracy()``
-      go about comparing it with the original tagged text and computing the accuracy score?
-
------------------------------
-Looking for Patterns in Words
------------------------------
-
-Some Morphology
----------------
-
-English nouns can be morphologically complex.  For example, words like
-`books`:lx: and `women`:lx: are plural.  Words with the `-ness`:lx:
-suffix are nouns that have been derived from adjectives,
-e.g. `happiness`:lx: and `illness`:lx:.  The `-ment`:lx: suffix
-appears on certain nouns derived from verbs, e.g. `government`:lx: and
-`establishment`:lx:.
-
-English verbs can also be morphologically complex.  For instance, the
-`present participle`:dt: of a verb ends in `-ing`:lx:, and expresses
-the idea of ongoing, incomplete action (e.g. `falling`:lx:, `eating`:lx:).
-The `-ing`:lx: suffix also appears on nouns derived from verbs, e.g. `the
-falling of the leaves`:lx: (this is known as the `gerund`:dt:).
-In the Brown corpus, these are tagged `VBG`:gc:.
-
-The `past participle`:dt: of a verb often ends in `-ed`:lx:, and
-expresses the idea of a completed action (e.g. `walked`:lx:, `cried`:lx:).
-These are tagged `VBD`:gc:.
-
-.. TODO: Modal verbs, e.g. `would`:lx: ...
-
-Common tag sets often capture some `morpho-syntactic`:dt: information;
-that is, information about the kind of morphological markings that
-words receive by virtue of their syntactic role.  Consider, for
-example, the selection of distinct grammatical forms of the word
-`go`:lx: illustrated in the following sentences:
-
-.. _go:
-.. ex::
-  .. ex:: *Go* away!
-  .. ex::  He sometimes *goes* to the cafe.
-  .. ex::  All the cakes have *gone*.
-  .. ex::  We *went* on the excursion.
-
-Each of these forms |mdash| `go`:lx:, `goes`:lx:, `gone`:lx:, and `went`:lx: |mdash|
-is morphologically distinct from the others. Consider the form,
-`goes`:lx:. This cannot occur in all grammatical contexts, but
-requires, for instance, a third person singular subject. Thus, the
-following sentences are ungrammatical.
-
-.. ex::
-  .. ex:: \*They sometimes *goes* to the cafe.
-  .. ex:: \*I sometimes *goes* to the cafe.
-
-By contrast, `gone`:lx: is the past participle form; it is required
-after `have`:lx: (and cannot be replaced in this context by
-`goes`:lx:), and cannot occur as the main verb of a clause. 
-
-.. ex::
-  .. ex:: \*All the cakes have *goes*.
-  .. ex:: \*He sometimes *gone* to the cafe.
-
-We can easily imagine a tag set in which the four distinct
-grammatical forms just discussed were all tagged as `VB`:gc:. Although
-this would be adequate for some purposes, a more fine-grained tag set
-will provide useful information about these forms that can be of value
-to other processors that try to detect syntactic patterns from tag
-sequences. As we noted at the beginning of this chapter,
-the Brown tag set does in fact capture these distinctions,
-as summarized in Table morphosyntax_.
-
-.. table:: morphosyntax
-
-   =======  ======================  =====
-   Form     Category                Tag
-   =======  ======================  =====
-   go       base                    VB
-   goes     3rd singular present    VBZ
-   gone     past participle         VBN
-   going    gerund                  VBG
-   went     simple past             VBD
-   =======  ======================  =====
-
-   Some morphosyntactic distinctions in the Brown tag set
-
-In addition to this set of verb tags, the various forms of the verb `to be`:lx:
-have special tags:   
-``be/BE, being/BEG, am/BEM, been/BEN`` and ``was/BEDZ``.   All told,
-this fine-grained tagging of verbs means that an automatic tagger
-that uses this tag set is in effect carrying out a limited amount
-of morphological analysis.
-
-Most part-of-speech tag sets make use of the same basic categories,
-such as noun, verb, adjective, and preposition. However, tag sets
-differ both in how finely they divide words into categories, and in
-how they define their categories. For example, `is`:lx: might be tagged
-simply as a verb in one tag set; but as a distinct form of the lexeme `BE`:lx:
-in another tag set (as in the Brown Corpus).  This variation in tag sets is
-unavoidable, since part-of-speech tags are used in different ways for
-different tasks. In other words, there is no one 'right way' to assign
-tags, only more or less useful ways depending on one's goals.
-
-.. More details about the Brown corpus tag set can be found in the `Appendix`_
-   at the end of this chapter.
-
-.. _sec-regular-expression-tagger:
-
-The Regular Expression Tagger
------------------------------
-
-The regular expression tagger assigns tags to tokens on the basis of
-matching patterns.  For instance, we might guess that any word ending
-in `ed`:lx: is the past participle of a verb, and any word ending with
-`'s`:lx: is a possessive noun.  We can express these as a list of
-regular expressions:
-
-    >>> patterns = [
-    ...     (r'.*ing$', 'VBG'),               # gerunds
-    ...     (r'.*ed$', 'VBD'),                # simple past
-    ...     (r'.*es$', 'VBZ'),                # 3rd singular present
-    ...     (r'.*ould$', 'MD'),               # modals
-    ...     (r'.*\'s$', 'NN$'),               # possessive nouns
-    ...     (r'.*s$', 'NNS'),                 # plural nouns
-    ...     (r'^-?[0-9]+(.[0-9]+)?$', 'CD'),  # cardinal numbers
-    ...     (r'.*', 'NN')                     # nouns (default)
-    ... ]
-
-Note that these are processed in order, and the first one that matches is applied.
-
-Now we can set up a tagger and use it to tag some text.
-
-    >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> regexp_tagger.tag(nltk.corpus.brown.sents(categories='a')[3])
-    [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
-    ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
-    ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
-    ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
-    ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ..., ('.', 'NN')]
-
-How well does this do?
-
-    >>> nltk.tag.accuracy(regexp_tagger, nltk.corpus.brown.tagged_sents(categories='a'))
-    0.20326391789486245
-
-The regular expression is a catch-all that tags everything as a noun.
-This is equivalent to the default tagger (only much less efficient).
-Instead of re-specifying this as part of the regular expression tagger,
-is there a way to combine this tagger with the default tagger?  We
-will see how to do this later, under the heading of backoff taggers.
-
-
-Exercises
----------
-
-1. |easy|
-   Search the web for "spoof newspaper headlines", to find such gems as:
-   `British Left Waffles on Falkland Islands`:lx:, and
-   `Juvenile Court to Try Shooting Defendant`:lx:.
-   Manually tag these headlines to see if knowledge of the part-of-speech
-   tags removes the ambiguity.
-
-#. |easy| Satisfy yourself that there are
-   restrictions on the distribution of `go`:lx: and `went`:lx:, in the
-   sense that they cannot be freely interchanged in the kinds of contexts
-   illustrated in go_.
-
-#. |soso| Write code to search the Brown Corpus for particular words and phrases
-   according to tags, to answer the following questions:
-
-   a)  Produce an alphabetically sorted list of the distinct words tagged as ``MD``.
-   #)  Identify words that can be plural nouns or third person singular verbs
-       (e.g. `deals`:lx:, `flies`:lx:).
-   #)  Identify three-word prepositional phrases of the form IN + DET + NN
-       (eg. `in the lab`:lx:).
-   #)  What is the ratio of masculine to feminine pronouns?
-
-#. |soso| In the introduction we saw a table involving frequency counts for
-   the verbs `adore`:lx:, `love`:lx:, `like`:lx:, `prefer`:lx: and
-   preceding qualifiers such as `really`:lx:.  Investigate the full
-   range of qualifiers (Brown tag `QL`:gc:) that appear before these
-   four verbs.
-
-#. |soso|
-   We defined the ``regexp_tagger`` that can be used
-   as a fall-back tagger for unknown words.  This tagger only checks for
-   cardinal numbers.  By testing for particular prefix or suffix strings,
-   it should be possible to guess other tags.  For example, 
-   we could tag any word that ends with `-s`:lx: as a plural noun.
-   Define a regular expression tagger (using ``nltk.RegexpTagger``)
-   that tests for at least five other patterns in the spelling of words.
-   (Use inline documentation to explain the rules.)
-
-#. |soso|
-   Consider the regular expression tagger developed in the exercises in
-   the previous section.  Evaluate the tagger using ``nltk.tag.accuracy()``,
-   and try to come up with ways to improve its performance.  Discuss your findings.
-   How does objective evaluation help in the development process?
-
-#. |hard| There are 264 distinct words in the Brown Corpus having exactly
-   three possible tags.
-
-   a)  Print a table with the integers 1..10 in one column, and the
-       number of distinct words in the corpus having 1..10 distinct tags.
-   #)  For the word with the greatest number of distinct tags, print
-       out sentences from the corpus containing the word, one for each
-       possible tag.
-
-#. |hard| Write a program to classify contexts involving the word `must`:lx: according
-   to the tag of the following word.  Can this be used to discriminate between the
-   epistemic and deontic uses of `must`:lx:?
-
-
----------------------
-Baselines and Backoff
----------------------
-
-So far the performance of our simple taggers has been disappointing.
-Before we embark on a process to get 90+% performance, we need to do
-two more things.  First, we need to establish a more principled
-baseline performance than the default tagger, which was too
-simplistic, and the regular expression tagger, which was too
-arbitrary.  Second, we need a way to connect multiple taggers
-together, so that if a more specialized tagger is unable to assign
-a tag, we can "back off" to a more generalized tagger.
-
-.. _sec-lookup-tagger:
-
-The Lookup Tagger
------------------
-
-A lot of high-frequency words do not have the ``NN`` tag.
-Let's find some of these words and their tags.  The
-following code takes a list of sentences and counts up the words,
-and prints the 100 most frequent words:
-
-    >>> fd = nltk.FreqDist(nltk.corpus.brown.words(categories='a'))
-    >>> most_freq_words = fd.sorted()[:100]
-    >>> most_freq_words
-    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that', '``',
-    'is', 'was', "''", 'on', 'at', 'with', 'be', 'by', 'as', 'he', 'said', 'his',
-    'will', 'it', 'from', 'are', ';', 'has', 'an', '--', 'had', 'who', 'have',
-    'not', 'Mrs.', 'were', 'this', 'would', 'which', 'their', 'been', 'they', 'He',
-    'one', 'I', 'its', 'but', 'or', 'more', ')', 'Mr.', 'up', '(', 'all', 'last',
-    'out', 'two', ':', 'other', 'new', 'first', 'year', 'than', 'A', 'about', 'there',
-    'when', 'home', 'after', 'In', 'also', 'over', 'It', 'into', 'no', 'But', 'made',
-    'her', 'only', 'years', 'time', 'three', 'them', 'some', 'can', 'New', 'him',
-    'state', '?', 'any', 'President', 'could', 'before', 'week', 'under', 'against',
-    'we', 'now']
-
-|nopar|
-Next, let's inspect the tags that these words have.  First we will do
-this in the most obvious (but highly inefficient) way:
-
-    >>> [(w,t) for (w,t) in nltk.corpus.brown.tagged_words(categories='a')
-    ...        if w in most_freq_words]
-    [('The', 'AT'), ('said', 'VBD'), ('an', 'AT'), ('of', 'IN'),
-    ('``', '``'), ('no', 'AT'), ("''", "''"), ('that', 'CS'), 
-    ('any', 'DTI'), ('.', '.'), ..., ("''", "''")]
-
-|nopar|
-A much better approach is to set up a dictionary that maps each of the
-100 most frequent words to its most likely tag.  We can do this by
-setting up a frequency distribution ``cfd`` over the tagged words,
-i.e. the frequency of the different tags that occur with each word.
-
-    >>> cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words(categories='a'))
-
-|nopar|
-Now for any word that appears in this section of the corpus,
-we can determine its most likely tag:
-
-    >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
-    >>> likely_tags['The']
-    'AT'
-
-|nopar|
-Finally, we can create and evaluate a simple tagger that assigns tags to words
-based on this table:
-
-    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
-    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='a'))
-    0.45578495136941344
-
-This is surprisingly good; just knowing the tags for the 100 most frequent
-words enables us to tag nearly half of all words correctly!  Let's see
-what it does on some untagged input text:
-
-    >>> baseline_tagger.tag(nltk.corpus.brown.sents(categories='a')[3])
-    [('``', '``'), ('Only', None), ('a', 'AT'), ('relative', None),
-    ('handful', None), ('of', 'IN'), ('such', None), ('reports', None), 
-    ('was', 'BEDZ'), ('received', None), ("''", "''"), (',', ','),
-    ('the', 'AT'), ('jury', None), ('said', 'VBD'), (',', ','), 
-    ('``', '``'), ('considering', None), ('the', 'AT'), ('widespread', None), 
-    ('interest', None), ('in', 'IN'), ('the', 'AT'), ('election', None), 
-    (',', ','), ('the', 'AT'), ('number', None), ('of', 'IN'),
-    ('voters', None), ('and', 'CC'), ('the', 'AT'), ('size', None),
-    ('of', 'IN'), ('this', 'DT'), ('city', None), ("''", "''"), ('.', '.')]
-
-Notice that a lot of these words have been assigned a tag of ``None``.
-That is because they were not among the 100 most frequent words.
-In these cases we would like to assign the default tag of ``NN``,
-a process known as backoff.
-
-Backoff
--------
-
-How do we combine these taggers?  We want to use the lookup table
-first, and if it is unable to assign a tag, then use the default tagger.
-We do this by specifying the default tagger as an argument to the
-lookup tagger.  The lookup tagger will call the default tagger just
-in case it can't assign a tag itself.
-
-    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='a'))
-    0.58177695566561249
-
-We will return to this technique in the context of a broader discussion
-on combining taggers in Section sec-combining-taggers_.
-
-Choosing a Good Baseline
-------------------------
-
-We can put all this together to write a simple (but somewhat inefficient) program to create and
-evaluate lookup taggers having a range of sizes, as shown in Figure baseline-tagger_.
-We include a backoff tagger that tags everything as a noun.  A consequence
-of using this backoff tagger is that the lookup tagger only has to store word/tag
-pairs for words other than nouns.
-
-.. pylisting:: baseline-tagger
-   :caption: Lookup Tagger Performance with Varying Model Size
-
-   def performance(cfd, wordlist):
-       lt = dict((word, cfd[word].max()) for word in wordlist)
-       baseline_tagger = nltk.UnigramTagger(model=lt, backoff=nltk.DefaultTagger('NN'))
-       return nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='a'))
-
-   def display():
-       import pylab
-       words_by_freq = nltk.FreqDist(nltk.corpus.brown.words(categories='a')).sorted()
-       cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words(categories='a'))
-       sizes = 2 ** pylab.arange(15)
-       perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
-       pylab.semilogx(sizes, perfs, '-bo')
-       pylab.title('Lookup Tagger Performance with Varying Model Size')
-       pylab.xlabel('Model Size')
-       pylab.ylabel('Performance')
-       pylab.show()
-
-   >>> display()                                  # doctest: +SKIP
-
-.. _tag-lookup:
-.. figure:: ../images/tag-lookup.png
-   :scale: 20
-
-   Lookup Tagger
-
-Observe that performance initially increases rapidly as the model size grows, eventually
-reaching a plateau, when large increases in model size yield little improvement
-in performance.  (This example used the ``pylab`` plotting package; we will
-return to this later in Section sec-graphics_).
-
-Exercises
----------
-
-#. |soso| Explore the following issues that arise in connection with the lookup tagger:
-
-   a) What happens to the tagger performance for the various
-      model sizes when a backoff tagger is omitted?
-   b) Consider the curve in Figure tag-lookup_; suggest a
-      good size for a lookup tagger that balances memory and performance.
-      Can you come up with scenarios where it would be preferable to
-      minimize memory usage, or to maximize performance with no regard for memory usage?
-
-#. |soso| What is the upper limit of performance for a lookup tagger,
-   assuming no limit to the size of its table?  (Hint: write a program
-   to work out what percentage of tokens of a word are assigned
-   the most likely tag for that word, on average.)
-
------------------------
-Getting Better Coverage
------------------------
-
-More English Word Classes
+-------------------------
+Accessing Text on the Web
 -------------------------
 
-Two other important word classes are `adjectives`:dt: and `adverbs`:dt:.
-Adjectives describe nouns, and can be used as modifiers
-(e.g. `large`:lx: in `the large pizza`:lx:), or in predicates (e.g. `the
-pizza is large`:lx:).  English adjectives can be morphologically complex
-(e.g.  `fall`:lx:\ :subscript:`V`\ `+ing`:lx: in `the falling
-stocks`:lx:).  Adverbs modify verbs to specify the time, manner, place or
-direction of the event described by the verb (e.g. `quickly`:lx: in
-`the stocks fell quickly`:lx:).  Adverbs may also modify adjectives
-(e.g. `really`:lx: in `Mary's teacher was really nice`:lx:).
-
-English has several categories of closed class words in addition to
-prepositions, such as `articles`:dt: (also often called `determiners`:dt:)
-(e.g., `the`:lx:, `a`:lx:), `modals`:dt: (e.g., `should`:lx:,
-`may`:lx:), and `personal pronouns`:dt: (e.g., `she`:lx:, `they`:lx:).
-Each dictionary and grammar classifies these words differently.
-
-Part-of-speech tags are closely related to the notion of word class
-used in syntax.  The assumption in linguistics is that every distinct
-word type will be listed in a lexicon (or dictionary), with
-information about its pronunciation, syntactic properties and
-meaning. A key component of the word's properties will be its
-class. When we carry out a syntactic analysis of an example like
-`fruit flies like a banana`:lx:, we will look up each word in the
-lexicon, determine its word class, and then group it into a hierarchy
-of phrases, as illustrated in the following parse tree.
-
-.. tree:: (S (NP (Adj Fruit) (N flies)) (VP (V like) (NP (Det a) (N banana))))
-
-Syntactic analysis will be dealt with in more detail in Part II.
-For now, we simply want to make the connection between the labels used in
-syntactic parse trees and part-of-speech tags.  Table word-classes_
-shows the correspondence:
-
-.. table:: word-classes
-
-   ================  =========   ============================
-   Word Class Label  Brown Tag   Word Class 
-   ================  =========   ============================
-   Det               `AT`:gc:    article 
-   N                 `NN`:gc:    noun 
-   V                 `VB`:gc:    verb 
-   Adj               `JJ`:gc:    adjective 
-   P                 `IN`:gc:    preposition 
-   Card              `CD`:gc:    cardinal number 
-   --                `.`:gc:     sentence-ending punctuation 
-   ================  =========   ============================
-
-   Word Class Labels and Brown Corpus Tags
-
-Some Diagnostics
+Electronic Books
 ----------------
 
-Now that we have examined word classes in detail, we turn to a more
-basic question: how do we decide what category a word belongs to in
-the first place? In general, linguists use three criteria:
-morphological (or formal); syntactic (or distributional); semantic (or
-notional).  A `morphological`:dt: criterion is one that looks at the
-internal structure of a word. For example, `-ness`:lx: is a suffix
-that combines with an adjective to produce a noun. Examples are
-`happy`:lx: |rarr| `happiness`:lx:, `ill`:lx: |rarr| `illness`:lx:. So
-if we encounter a word that ends in `-ness`:lx:, this is very likely
-to be a noun.
+A small sample of texts from Project Gutenberg appears in the |NLTK| corpus collection.
+However, you may be interested in analyzing other texts from Project Gutenberg.
+You can browse the catalog of 25,000 free online books at
+``http://www.gutenberg.org/catalog/``, and obtain a URL to an ASCII text file.
+Although 90% of the texts in Project Gutenberg are in English, it
+includes material in over 50 other languages, including Catalan, Chinese, Dutch,
+Finnish, French, German, Italian, Portuguese and Spanish (with more than
+100 texts each).
 
-A `syntactic`:dt: criterion refers to the contexts in which a word can
-occur. For example, assume that we have already determined the
-category of nouns. Then we might say that a syntactic criterion for an
-adjective in English is that it can occur immediately before a noun,
-or immediately following the words `be`:lx: or `very`:lx:. According
-to these tests, `near`:lx: should be categorized as an adjective:
+Text number 2554 is an English translation of *Crime and Punishment*,
+and we can access it as follows:
 
-.. ex::
-   .. ex:: the near window
-   .. ex:: The end is (very) near.
+    >>> from urllib import urlopen
+    >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
+    >>> raw = urlopen(url).read()
+    >>> type(raw)
+    <type 'str'>
+    >>> len(raw)
+    1176831
+    >>> raw[:75]
+    'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
 
-A familiar example of a `semantic`:dt: criterion is that a noun is
-"the name of a person, place or thing". Within modern linguistics,
-semantic criteria for word classes are treated with suspicion, mainly
-because they are hard to formalize. Nevertheless, semantic criteria
-underpin many of our intuitions about word classes, and enable us to
-make a good guess about the categorization of words in languages that
-we are unfamiliar with.  For example, if we all we know about the Dutch
-`verjaardag`:lx: is that it means the same as the English word
-`birthday`:lx:, then we can guess that `verjaardag`:lx: is a noun in
-Dutch. However, some care is needed: although we might translate `zij
-is vandaag jarig`:lx: as `it's her birthday today`:lx:, the word
-`jarig`:lx: is in fact an adjective in Dutch, and has no exact
-equivalent in English!
+.. note:: The read() process will take a few seconds as it downloads this large book.
+   If you're using an internet proxy which is not correctly detected by Python,
+   you may need to specify the proxy manually as follows:
+   
+       >>> proxies = {'http': 'http://www.someproxy.com:3128'}
+       >>> raw = urllib.urlopen(url, proxies=proxies).read()
+   
+The variable ``raw`` contains a string with 1,176,831 characters.  This is the raw
+content of the book, including many details we are not interested in such as
+whitespace, line breaks and blank lines.  Instead, we want to break it up into
+words and punctuation, as we saw in Chapter chap-introduction_.  This step is
+called `tokenization`:dt:, and it produces our familiar structure, a list of words
+and punctuation.  From now on we will call these `tokens`:dt:.
 
-All languages acquire new lexical items. A list of words recently
-added to the Oxford Dictionary of English includes `cyberslacker,
-fatoush, blamestorm, SARS, cantopop, bupkis, noughties, muggle`:lx:, and
-`robata`:lx:. Notice that all these new words are nouns, and this is
-reflected in calling nouns an `open class`. By contrast, prepositions
-are regarded as a `closed class`:dt:. That is, there is a limited set of
-words belonging to the class (e.g., `above, along, at, below, beside,
-between, during, for, from, in, near, on, outside, over, past,
-through, towards, under, up, with`:lx:), and membership of the set only
-changes very gradually over time.
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> type(tokens)
+    <type 'list'>
+    >>> text[:10]
+    ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
+    >>> len(text)
+    255809
 
-Unigram Tagging
----------------
+If we now take the further step of creating an |NLTK| text from this list, we can do
+all of the other linguistic processing we saw in Chapter chap-introduction_, along with
+the regular list operations like slicing:
 
-Unigram taggers are based on a simple statistical algorithm:
-for each token, assign the tag that is most likely for
-that particular token. For example, it will assign the tag ``JJ`` to any
-occurrence of the word `frequent`:lx:, since `frequent`:lx: is used as an
-adjective (e.g. `a frequent word`:lx:) more often than it is used as a
-verb (e.g. `I frequent this cafe`:lx:).
-A unigram tagger behaves just like a lookup tagger (Section sec-lookup-tagger_),
-except there is a more convenient technique for setting it up,
-called `training`:dt:\ .  In the following code sample,
-we initialize and train a unigram tagger (line tag-train_),
-use it to tag a sentence, then finally compute the tagger's overall accuracy:
+    >>> text = nltk.Text(tokens)
+    >>> type(text)
+    <type 'nltk.text.Text'>
+    >>> text[1020:1060]
+    ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
+    'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
+    'which', 'he', 'lodged', 'in', 'S', '.', 'Place', 'and', 'walked', 'slowly',
+    ',', 'as', 'though', 'in', 'hesitation', ',', 'towards', 'K', '.', 'bridge', '.']
+    >>> text.collocations()
+    Katerina Ivanovna; Pulcheria Alexandrovna; Avdotya Romanovna; Pyotr
+    Petrovitch; Project Gutenberg; Marfa Petrovna; Rodion Romanovitch;
+    Sofya Semyonovna; Nikodim Fomitch; did not; Hay Market; Andrey
+    Semyonovitch; old woman; Literary Archive; Dmitri Prokofitch; great
+    deal; United States; Praskovya Pavlovna; Porfiry Petrovitch; ear rings
 
-    >>> brown_a = nltk.corpus.brown.tagged_sents(categories='a')
-    >>> unigram_tagger = nltk.UnigramTagger(brown_a)               # [_tag-train]
-    >>> sent = nltk.corpus.brown.sents(categories='a')[2007]
-    >>> unigram_tagger.tag(sent)
-    [('Various', None), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
-    ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
-    ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
-    ('so', 'QL'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
-    >>> nltk.tag.accuracy(unigram_tagger, brown_a)
-    0.8550331165343994
+Notice that "Project Gutenberg" appears as a collocation in this text.
+Each text downloaded from Project Gutenberg contains a header with the
+name of the text, the author, the names of people who scanned and
+corrected the text, a license, and so on.  Sometimes this information
+appears in a footer at the end of the file.  We cannot reliably detect
+where the content begins and ends, and so have to resort to manual
+inspection of the file, to discover unique strings that mark the beginning
+and the end, before trimming ``raw`` to be just the content and nothing else:
 
-Affix Taggers
--------------
+    >>> raw.find("PART I")
+    5303
+    >>> raw.rfind("End of Project Gutenberg's Crime")
+    1157681
+    >>> raw = raw[5303:1157681]
 
-Affix taggers are like unigram taggers, except they are trained on
-word prefixes or suffixes of a specified length.  (NB. Here we use
-*prefix* and *suffix* in the string sense, not the morphological
-sense.)  For example, the following tagger will consider suffixes of
-length 3 (e.g. *-ize*, *-ion*), for words having at least 5
-characters.
+The "find" and "reverse find" functions help us get the right index values.
+Now the raw text begins with "PART I", and goes up to (but not including) the
+phrase that marks the end of the content.
 
-    >>> affix_tagger = nltk.AffixTagger(brown_a, affix_length=-2, min_stem_length=3)
-    >>> affix_tagger.tag(sent)
-    [('Various', 'JJ'), ('of', None), ('the', None), ('apartments', 'NNS'), ('are', None),
-    ('of', None), ('the', None), ('terrace', 'NN'), ('type', None), (',', None),
-    ('being', 'VBG'), ('on', None), ('the', None), ('ground', 'NN'), ('floor', 'NN'),
-    ('so', None), ('that', None), ('entrance', 'NN'), ('is', None), ('direct', 'NN'),
-    ('.', None)]
+This was our first brush with reality: texts found on the web may contain
+unwanted material, and there may not be an automatic way to remove it.
+With a small amount of extra work we can extract the material we need.
 
-.. _n-gram-taggers:
-
-N-Gram Taggers
---------------
-
-When we perform a language processing task based on unigrams, we are using
-one item of context.  In the case of tagging, we only consider the current
-token, in isolation from any larger context.  Given such a model, the best
-we can do is tag each word with its *a priori* most likely tag.
-This means we would tag a word such as `wind`:lx: with the same tag,
-regardless of whether it appears in the context `the wind`:lx: or
-`to wind`:lx:\ .
-
-An `n-gram tagger`:dt: is a generalization of a unigram tagger whose context is
-the current word together with the part-of-speech tags of the
-*n-1* preceding tokens, as shown in Figure tag-context_. The tag to be
-chosen, *t*\ `n`:subscript:, is circled, and the context is shaded
-in grey. In the example of an n-gram tagger shown in Figure tag-context_,
-we have *n=3*; that is, we consider the tags of the two preceding words in addition
-to the current word.  An n-gram tagger
-picks the tag that is most likely in the given context. 
-
-.. _tag-context:
-.. figure:: ../images/tag-context.png
-   :scale: 80
-
-   Tagger Context
-
-.. note:: A 1-gram tagger is another term for a unigram tagger: i.e.,
-   the context used to tag a token is just the text of the token itself.
-   2-gram taggers are also called *bigram taggers*, and 3-gram taggers
-   are called *trigram taggers*.
-
-The ``NgramTagger`` class uses a tagged training corpus to determine which
-part-of-speech tag is most likely for each context.  Here we see
-a special case of an n-gram tagger, namely a bigram tagger.
-First we train it, then use it to tag untagged sentences:
-
-    >>> bigram_tagger = nltk.BigramTagger(brown_a, cutoff=0)
-    >>> bigram_tagger.tag(sent)
-    [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
-    ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
-    ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
-    ('so', 'CS'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'),
-    ('.', '.')]
-
-|nopar|
-As with the other taggers, n-gram taggers assign the tag `None`:gc: to
-any token whose context was not seen during training.
-
-As *n* gets larger, the specificity of the contexts increases,
-as does the chance that the data we wish to tag contains contexts that
-were not present in the training data. This is known as the *sparse
-data* problem, and is quite pervasive in NLP. Thus, there is a
-trade-off between the accuracy and the coverage of our results (and
-this is related to the `precision/recall trade-off`:dt: in information
-retrieval).
-
-.. Note:: n-gram taggers should not consider context that crosses a
-   sentence boundary.  Accordingly, NLTK taggers are designed to work
-   with lists of sentences, where each sentence is a list of words.  At
-   the start of a sentence, *t*\ `n-1`:subscript: and preceding
-   tags are set to ``None``.
-
-.. _sec-combining-taggers:
-
-Combining Taggers
+Dealing with HTML
 -----------------
 
-One way to address the trade-off between accuracy and coverage is to
-use the more accurate algorithms when we can, but to fall back on
-algorithms with wider coverage when necessary. For example, we could
-combine the results of a bigram tagger, a unigram tagger, and
-a ``regexp_tagger``, as follows:
+A large amount of text on the web is in the form of |HTML| documents.
+You can use a web browser to save a page as text to a local
+file, then access this as described in Section sec-reading-files_.
+However, if you're going to do this a lot, its easiest to get Python
+to do the work directly.  The first step is the same as before,
+using ``urlopen``.  For fun we'll pick a BBC News story
+called *Blondes to die out in 200 years*, an entertaining
+example of an urban legend reported as established scientific
+fact (as noted on languagelog.org).
 
-1. Try tagging the token with the bigram tagger.
-2. If the bigram tagger is unable to find a tag for the token, try
-   the unigram tagger.
-3. If the unigram tagger is also unable to find a tag, use a default tagger.
+    >>> url = "http://news.bbc.co.uk/2/hi/health/2284783.stm"
+    >>> html = urlopen(url).read()
+    >>> html[:60]
+    '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN'
 
-Most NLTK taggers permit a backoff-tagger to be specified.
-The backoff-tagger may itself have a backoff tagger:
+You can type ``print html`` to see the |HTML| content in all its glory,
+including meta tags, an image map, JavaScript, forms, and tables.
 
-    >>> t0 = nltk.DefaultTagger('NN')
-    >>> t1 = nltk.UnigramTagger(brown_a, backoff=t0)
-    >>> t2 = nltk.BigramTagger(brown_a, backoff=t1)
-    >>> nltk.tag.accuracy(t2, brown_a)
-    0.88565347972233821
+.. note:: Remember that there's nothing special about the names of our variables,
+   such as ``url`` and ``html``; we chose them to make the code easier to follow.
+   If we called them ``var1`` and ``var2`` the result would be the same.
 
-.. Note:: We specify the backoff tagger when the tagger is
-   initialized, so that training can take advantage of the backoff tagger.
-   Thus, if the bigram tagger would assign
-   the same tag as its unigram backoff tagger in
-   a certain context, the bigram tagger discards the training instance.
-   This keeps the bigram tagger model as small as possible.  We can
-   further specify that a tagger needs to see more than one instance of a
-   context in order to retain it, e.g. ``nltk.BigramTagger(sents, cutoff=2, backoff=t1)``
-   will discard contexts that have only been seen once or twice.
+Getting text out of |HTML| is a sufficiently common task that |NLTK| provides
+a helper function ``nltk.clean_html()``, which takes an |HTML| string and
+returns text.
 
-Tagging Unknown Words
----------------------
+    >>> raw = nltk.clean_html(html)
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> tokens
+    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'", 'to', 'die', 'out', ...]
 
-Our approach to tagging unknown words still uses backoff to a regular-expression tagger
-or a default tagger.  These are unable to make use of context.  Thus, if our tagger
-encountered the word `blog`:lx:, not seen during training, it would assign it a tag
-regardless of whether this word appeared in the context `the blog`:lx: or `to blog`:lx:.
-How can we do better with these unknown words, or `out-of-vocabulary`:dt: items?
+This still contains lots of unwanted material concerning site navigation and related
+stories.  With some trial and error you can find the start and end indexes of the
+content and select the tokens of interest, and initialize a text as before.
 
-A useful method to tag unknown words based on context is to limit the vocabulary
-of a tagger to the most frequent `n`:math: words, and to replace every other word
-with a special word `UNK`:lx:\ .  During training, a unigram tagger will probably
-learn that this "word" is usually a noun.  However, the n-gram taggers will
-detect contexts in which it has some other tag.  For example, if the
-preceding word is `to`:lx: (tagged ``TO``), then `UNK`:lx: will probably
-be tagged as a verb.  Full exploration of this method is left to the exercises.
+    >>> tokens = tokens[96:399]
+    >>> text = nltk.Text(tokens)
+    >>> text.concordance('gene')
+     they say too few people now carry the gene for blondes to last beyond the next tw
+    t blonde hair is caused by a recessive gene . In order for a child to have blonde 
+    to have blonde hair , it must have the gene on both sides of the family in the gra
+    there is a disadvantage of having that gene or by chance . They don ' t disappear 
+    ondes would disappear is if having the gene was a disadvantage and I do not think 
 
-Storing Taggers
----------------
 
-Training a tagger on a large corpus may take several minutes.  Instead of training a tagger
-every time we need one, it is convenient to save a trained tagger in a file for later re-use.
-Let's save our tagger ``t2`` to a file ``t2.pkl``.
+Processing Google Results
+-------------------------
 
-    >>> from cPickle import dump
-    >>> output = open('t2.pkl', 'wb')
-    >>> dump(t2, output, -1)
-    >>> output.close()
+[how to extract google hits]
+
+LanguageLog example for `absolutely`:lx:
+
+.. table:: absolutely
+
+   +-----------------+------------+-------------+-------------+--------------+
+   | Google hits     |`adore`:lx: | `love`:lx:  |`like`:lx:   |`prefer`:lx:  |
+   +-----------------+------------+-------------+-------------+--------------+
+   | `absolutely`:lx:|     289,000|      905,000|       16,200|           644|
+   +-----------------+------------+-------------+-------------+--------------+
+   | `definitely`:lx:|       1,460|       51,000|      158,000|        62,600|
+   +-----------------+------------+-------------+-------------+--------------+
+   | ratio           |       198:1|         18:1|         1:10|          1:97|
+   +-----------------+------------+-------------+-------------+--------------+
+
+   `Absolutely`:lx: vs `Definitely`:lx: (Liberman 2005, LanguageLog.org)
+
+
+Extracting Text from PDF, MSWord and other Binary Formats
+---------------------------------------------------------
+
+ASCII text and |HTML| text are human readable formats.  Text often comes in binary
+formats |mdash| like PDF and MSWord |mdash| that can only be opened using specialized
+software.  Third-party libraries such as ``pypdf`` and ``pywin32`` can be used to access
+these formats [appendix section on this?].  For once-off conversion of a few documents,
+it is simpler to open the document with a suitable application, then save it as text
+to the local drive, and access it as described in Section sec-reading-files_.
+If the document is already on the web, you can enter its URL in Google's search box.
+This often includes a link to an |HTML| version of the document, which you can save
+as text.  
+
+.. _sec-reading-files:
+
+Reading Local Files
+-------------------
+
+.. Monkey-patching to fake the file/web examples in this section:
+
+    >>> from StringIO import StringIO
+    >>> def fake_open(filename, mode=None):
+    ...     return StringIO('Hello World!\nThis is a test file.\n')
+    >>> def fake_urlopen(url):
+    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
+    >>> open = fake_open
+    >>> import urllib
+    >>> urllib.urlopen = fake_urlopen
+
+It is easy to access local files in Python.  As an exercise, create a
+file called ``corpus.txt`` using a text editor, and enter the
+following text::
+
+   Time flies like an arrow.
+   Fruit flies like a banana.
+
+|nopar| 
+Be sure to save the file as plain text. You also need to make sure
+that you have saved the file in the same directory or folder in which
+you are running the Python interactive interpreter.
+
+.. Note:: If you are using |IDLE|, you can easily create this file by
+   selecting the *New Window* command in the *File* menu, typing
+   the required text into this window, and then saving the file as
+   ``corpus.txt`` in the first directory that |IDLE| offers in the
+   pop-up dialogue box.
+
+
+|nopar| 
+The next step is to `open`:dt: a file using the built-in function ``open()``
+which has two parameters, the name of the file, here ``corpus.txt``, and the
+mode to open the file with (``'r'`` means to open the file for reading,
+and ``'U'`` stands for "Universal", which lets us ignore the different
+conventions used for marking newlines).
+
+.. doctest-ignore::
+    >>> f = open('corpus.txt', 'rU')
+
+.. Note:: If the interpreter cannot find your file, it will give an
+   error like this:
+
+   .. doctest-ignore::
+      >>> f = open('corpus.txt', 'rU')
+      Traceback (most recent call last):
+      File "<pyshell#7>", line 1, in -toplevel-
+      f = open('corpus.txt', 'rU')
+      IOError: [Errno 2] No such file or directory: 'corpus.txt'
+
+   To check that the file that you are trying to open is really in the
+   right directory, use |IDLE|\ 's *Open* command in the *File* menu;
+   this will display a list of all the files in the directory where
+   |IDLE| is running. An alternative is to examine the current
+   directory from within Python:
+
+   .. doctest-ignore::
+      >>> import os
+      >>> os.listdir('.')
+
+|nopar| 
+There are several methods for reading the file.
+The following uses the method ``read()`` on the file object
+``f``; this reads the entire contents of a file into a string.
+
+.. doctest-ignore::
+    >>> f.read() 
+    'Hello World!\nThis is a test file.\n'
 
 |nopar|
-Now, in a separate Python process, we can load our saved tagger.
+Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
+is equivalent to pressing *Enter* on a keyboard and starting a new line. 
+Note that we can open and read a file in one step:
 
-    >>> from cPickle import load
-    >>> input = open('t2.pkl', 'rb')
-    >>> tagger = load(input)
-    >>> input.close()
+    >>> text = open('corpus.txt', 'rU').read()
 
 |nopar|
-Now let's check that it can be used for tagging.
+We can also read a file one line at a time using the ``for`` loop construct:
 
-    >>> text = """The board's action shows what free enterprise
-    ...     is up against in our complex maze of regulatory laws ."""
-    >>> tokens = text.split()
-    >>> tagger.tag(tokens)
-    [('The', 'AT'), ("board's", 'NN$'), ('action', 'NN'), ('shows', 'NNS'),
-    ('what', 'WDT'), ('free', 'JJ'), ('enterprise', 'NN'), ('is', 'BEZ'),
-    ('up', 'RP'), ('against', 'IN'), ('in', 'IN'), ('our', 'PP$'), ('complex', 'JJ'),
-    ('maze', 'NN'), ('of', 'IN'), ('regulatory', 'NN'), ('laws', 'NNS'), ('.', '.')]
+    >>> f = open('corpus.txt', 'rU')
+    >>> for line in f:
+    ...     print line[:-1]
+    Hello world!
+    This is a test file.
+
+|nopar| 
+Here we use the slice ``[:-1]`` to remove the newline character at the end of
+the input line.
+
+It is possible to use the methods described above
+with ``nltk.data.find()`` method to access and read NLTK's corpus files
+directly:
+
+    >>> file = nltk.data.find('corpora/gutenberg/melville-moby_dick.txt')
+    >>> raw = open(file, 'rU').read()
+
+
+The Processing Pipeline
+-----------------------
+
+Figure pipeline1_ summarizes what we have covered in this section, including the process
+of building a vocabulary that we saw in Chapter chap-introduction_.  (One step, normalization,
+will be discussed later in this chapter.)
+
+[Discuss types of object at each stage of the pipeline; and ``type()``]
+
+.. _pipeline1:
+.. figure:: ../images/pipeline1.png
+   :scale: 40
+
+   The Processing Pipeline
+
+Integers, strings and lists are all kinds of `data types`:dt: in
+Python, and have types ``int``, ``str`` and ``list`` respectively. In
+fact, every value in Python has a type. Python's ``type()`` function
+will tell you what an object's type is:
+
+    >>> oddments = ['cat', 'cat'.index('a'), 'cat'.split()]
+    >>> for e in oddments:
+    ...     type(e)
+    ... 
+    <type 'str'>
+    <type 'int'>
+    <type 'list'>
+    >>> 
+
+The type determines what operations you can perform on the data
+value. So, for example, we have seen that we can index strings and
+lists, but we can't index integers:
+
+    >>> one = 'cat'
+    >>> one[0]
+    'c'
+    >>> two = [1, 2, 3]
+    >>> two[1]
+    2
+    >>> three = 1234
+    >>> three[2]
+    Traceback (most recent call last):
+    File "<pyshell#95>", line 1, in -toplevel-
+    three[2]
+    TypeError: 'int' object is unsubscriptable
+    >>> 
+
+The fact that this is a problem with types is signalled by the class of
+error, i.e., ``TypeError``; an object being "unsubscriptable" means we
+can't index into it.
+
+Similarly, we can concatenate strings with strings, and lists with
+lists, but we cannot concatenate strings with lists:
+
+    >>> query = 'Who knows?'
+    >>> beatles = ['john', 'paul', 'george', 'ringo']
+    >>> query + beatles
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: cannot concatenate 'str' and 'list' objects
+
+You may also have noticed that our analogy between operations on
+strings and numbers works for multiplication and addition, but not
+subtraction or division:
+
+    >>> 'very' * 3 
+    'veryveryvery'
+    >>> 'very' - 'y'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: unsupported operand type(s) for -: 'str' and 'str'
+    >>> 6 / 2
+    3
+    >>> 'very' / 2
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: unsupported operand type(s) for /: 'str' and 'int'
+    >>> 
+
+These error messages are another example of Python telling us that we
+have got our data types in a muddle. In the first case, we are told
+that the operation of substraction (i.e., ``-``) cannot apply to
+objects of type ``str``, while in the second, we are told that
+division cannot take ``str`` and ``int`` as its two operands.
+
+Type conversions: ``str()``, ``int()``, ``list()``.
 
 Exercises
 ---------
 
-#. |easy|
-   Train a unigram tagger and run it on some new text.
-   Observe that some words are not assigned a tag.  Why not?
+[to be written]
 
-#. |easy|
-   Train an affix tagger ``AffixTagger()`` and run it on some new text.
-   Experiment with different settings for the affix length
-   and the minimum word length.  Can you find a setting that seems
-   to perform better than the one described above?  Discuss your findings.
+-----------------
+Strings and Files
+-----------------
 
-#. |easy|
-   Train a bigram tagger with no backoff tagger, and run it on some of the training
-   data.  Next, run it on some new data.
-   What happens to the performance of the tagger?  Why?
+[Introduction]
 
-#. |soso|
-   Write a program that calls ``AffixTagger()`` repeatedly, using
-   different settings for the affix length and the minimum word length.
-   What parameter values give the best overall performance?  Why do
-   you think this is the case?
+When applied to strings, the ``+`` operation is called
+`concatenation`:dt:. It produces a new string that is a copy of the
+two original strings pasted together end-to-end.  Notice that
+concatenation doesn't do anything clever like insert a space between
+the words.  The Python interpreter has no way of knowing that you want
+a space; it does `exactly`:em: what it is told.  Given the example
+of ``+``, you might be able guess what multiplication will do:
 
-#. |soso|
-   How serious is the sparse data problem?  Investigate the
-   performance of n-gram taggers as `n`:math: increases from 1 to 6.
-   Tabulate the accuracy score.  Estimate the training data required
-   for these taggers, assuming a vocabulary size of
-   10\ `5`:superscript: and a tagset size of 10\ `2`:superscript:.
+    >>> 'very' + 'very' + 'very'
+    'veryveryvery'
+    >>> 'very' * 3
+    'veryveryvery'
 
-#. |soso| Obtain some tagged data for another language, and train and
-   evaluate a variety of taggers on it.  If the language is
-   morphologically complex, or if there are any orthographic clues
-   (e.g. capitalization) to word classes, consider developing a
-   regular expression tagger for it (ordered after the unigram
-   tagger, and before the default tagger).  How does the accuracy of
-   your tagger(s) compare with the same taggers run on English data?
-   Discuss any issues you encounter in applying these methods to the language.
+Printing and Inspecting Strings
+-------------------------------
 
-#. |hard|
-   Create a default tagger and various unigram and n-gram taggers,
-   incorporating backoff, and train them on part of the Brown corpus.
+So far, when we have wanted to look at the contents of a variable or
+see the result of a calculation, we have just typed the variable name
+into the interpreter.  We can also see the contents of ``msg`` using
+``print msg``:
 
-   a) Create three different combinations of the taggers. Test the
-      accuracy of each combined tagger. Which combination works best?
-   #) Try varying the size of the training corpus. How does it affect
-      your results?
+    >>> monty = 'Monty Python'
+    >>> monty
+    'Monty Python'
+    >>> print monty
+    Monty Python
 
-#. |hard|
-   Our approach for tagging an unknown word has been to consider the letters of the word
-   (using ``RegexpTagger()`` and ``AffixTagger()``), or to ignore the word altogether and tag
-   it as a noun (using ``nltk.DefaultTagger()``).  These methods will not do well for texts having
-   new words that are not nouns.
-   Consider the sentence `I like to blog on Kim's blog`:lx:.  If `blog`:lx: is a new
-   word, then looking at the previous tag (``TO`` vs ``NP$``) would probably be helpful.
-   I.e. we need a default tagger that is sensitive to the preceding tag.
+In the first case above, we `inspect`:em: the variable by giving its
+name.  The interpreter prints the Python representation of its value.
+Since its a string, the result is quoted.  In the second case, we've
+asked the interpreter to print the contents of the variable.  Since there
+are no quotation characters inside the string itself, none are printed.
+We can use ``print`` to display more than one item on a line, in various ways:
 
-   a) Create a new kind of unigram tagger that looks at the tag of the previous word,
-      and ignores the current word.  (The best way to do this is to modify the source
-      code for ``UnigramTagger()``, which presumes knowledge of Python classes discussed
-      in Section OO_.)
-   b) Add this tagger to the sequence of backoff taggers (including ordinary trigram
-      and bigram taggers that look at words), right before the usual default tagger.
-   c) Evaluate the contribution of this new unigram tagger.
+    >>> grail = 'Holy Grail'
+    >>> print monty grail
+    Monty PythonHoly Grail
+    >>> print monty, grail
+    Monty Python Holy Grail
+    >>> print monty, "and the", grail
+    Monty Python and the Holy Grail    
+    
 
-#. |hard|
-   Write code to preprocess tagged training data, replacing all but the most frequent
-   `n`:math: words with the special word `UNK`:lx:.  Train an n-gram backoff tagger
-   on this data, then use it to tag some new text.  Note that you will have
-   to preprocess the text to replace unknown words with `UNK`:lx:, and post-process
-   the tagged output to replace the `UNK`:lx: words with the words from the original
-   input.
+.. note:: If you have created some variable ``v`` and want to find out about
+   it, then type ``help(v)`` to read the help entry for this kind of object.
+   Type ``dir(v)`` to see a list of operations that are defined on the
+   object.
+
+You need to be a little bit careful in your choice of names (or `identifiers`:dt:) for Python
+variables. Some of the things you might try will cause an
+error. First, you should start the name with a letter, optionally
+followed by digits (``0`` to ``9``) or letters. Thus, ``abc23`` is fine, but
+``23abc`` will cause a syntax error. You can use underscores (both
+within and at the start of the variable name), but not a hyphen, since
+this gets interpreted as an arithmetic operator. A second problem is
+shown in the following snippet.
+
+    >>> not = "don't do this"
+      File "<stdin>", line 1
+        not = "don't do this"
+        ^
+    SyntaxError: invalid syntax
+
+Why is there an error here? Because ``not`` is reserved as one of Python's 30 odd
+`keywords`:dt:. These are special identifiers that are used in specific
+syntactic contexts, and cannot be used as variables. It is easy to
+tell which words are keywords if you use IDLE, since they are
+helpfully highlighted in orange. 
+
+Accessing Individual Characters
+-------------------------------
+
+As we saw in Section sec-indexing-lists_ for lists, strings are indexed, starting from zero:
+
+    >>> msg = 'Hello World'
+    >>> msg[0]
+    'H'
+    >>> msg[3]
+    'l'
+    >>> msg[5]
+    ' '
+    >>>
+
+.. Note:: Be careful to distinguish between the string ``' '``, which
+   is a single whitespace character, and ``''``, which is the empty string.
+
+The easiest way to grasp this counting from zero is to think of a string
+index as specifying how many steps the computer has to take, starting from
+the beginning of the string, to get to the desired character.  As for
+lists, if we try to access an index that is outside of the string we get an
+error:
+
+    >>> msg[11]
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    IndexError: string index out of range
+    >>>
+
+As with lists, we can use negative indexes for strings,
+where ``-1`` is the index of the last character.
+
+    >>> msg[-1]
+    'd'
+    >>> msg[-3]
+    'r'
+    >>> msg[-6]
+    ' '
+
+We can visualize negative indexes as shown in Figure indexing02_.
+[Redo this diagram] 
+
+.. _indexing02:
+.. figure:: ../images/indexing02.png
+   :scale: 40
+
+
+   Negative Indexes
+
+Using positive and negative indexes, we have two ways to refer to
+any position in a string.  In this case, when the string had a length of 11,
+indexes ``5`` and ``-6`` both refer to the same character (a space), and:
+``5 = len(msg) - 6``.
+
+Accessing Substrings
+--------------------
+
+[condense this section]
+
+In |NLP| we usually want to access more than one character at a time. This is
+also pretty simple; we just need to specify a start and end index.  For example,
+the following code accesses the substring starting at index ``1``, up to (but not including)
+index ``4``:
+
+    >>> msg[1:4]
+    'ell'
+    >>>
+
+The notation ``:4`` is known as a `slice`:dt:.
+Here we see the characters are ``'e'``, ``'l'`` and ``'l'`` which correspond
+to ``msg[1]``, ``msg[2]`` and ``msg[3]``, but not ``msg[4]``. This is because
+a slice `starts`:em: at the first index but finishes `one before`:em: the end index.
+This is consistent with indexing: indexing also starts from
+zero and goes up to `one before`:em: the length of the string. We can see this
+by slicing with the value of ``len()``:
+
+    >>> len(msg)
+    11
+    >>> msg[0:11]
+    'Hello World'
+    >>>
+
+We can also slice with negative indices |mdash| the same basic rule of starting
+from the start index and stopping one before the end index applies;
+here we stop before the space character:
+
+    >>> msg[0:-6]
+    'Hello'
+    >>>
+
+Python provides two shortcuts for commonly used slice values. If the
+start index is ``0`` then you can leave it out, and if the
+end index is the length of the string then you can leave it out:
+
+    >>> msg[:3]
+    'Hel'
+    >>> msg[6:]
+    'World'
+    >>>
+
+The first example above selects the first three characters from the string,
+and the second example selects from the character with index 6, namely ``'W'``,
+to the end of the string.
+
+We can also find the position of a substring within a string, using ``find()``:
+
+    >>> msg.find('World')
+    6
+
+Analyzing Strings
+-----------------
+
+* character frequency plot, e.g get text in some language using ``language_x = nltk.corpus.udhr.raw(x)``,
+  then construct its frequency distribution ``fdist = FreqDist(language_x)``, then
+  view the distribution with ``fdist.sorted()`` and ``fdist.plot()``.
+
+* functions involving strings, e.g. determining past tense
+
+* built-ins, ``find()``, ``rfind()``, ``index()``, ``rindex()``
+
+* revisit string tests like ``endswith()`` from chapter 1
+
+
+Lists vs Strings
+----------------
+
+Strings and lists are both kind of `sequence`:dt:. As such, they can
+both be indexed and sliced:
+
+    >>> query = 'Who knows?'
+    >>> beatles = ['john', 'paul', 'george', 'ringo']
+    >>> query[2]
+    'o'
+    >>> beatles[2]
+    'george'
+    >>> query[:2]
+    'Wh'
+    >>> beatles[:2]
+    ['john', 'paul']
+    >>>
+
+Similarly, strings can be concatenated and so can lists (though not
+with each other!): 
+
+    >>> newstring = query + " I don't"
+    >>> newlist = beatles + ['brian', 'george']
+
+When we open a file
+for reading into a Python program, we get a string,
+corresponding to the contents of the whole file. If we try to use a ``for`` loop to
+process the elements of this string, all we can pick out are the
+individual characters |mdash| we don't get to choose the
+granularity. By contrast, the elements of a list can be as big or
+small as we like: for example, they could be paragraphs, sentence,
+phrases, words, characters. So lists have the advantage that we
+can be flexible about the elements they contain, and
+correspondingly flexible about any downstream processing.
+So one of the first things we are likely to do in a piece of NLP
+code is tokenize a string into a list of strings (Section sec-tokenization_).
+Conversely, when we want to write our results to a file, or to a terminal,
+we will usually format them as a string (Section sec-formatting_).
+
+Lists and strings do not have exactly the same functionality.
+Lists have the added power that you can change their elements. Let's
+imagine that we want to change the 0th element of ``cgi`` to
+``'colorful'``, we can do that by assigning the new value
+to the index ``cgi[0]``:
+
+    >>> cgi = ['colorless', 'green', 'ideas']
+    >>> cgi[0] = 'colorful'
+    >>> cgi
+    ['colorful', 'green', 'ideas']
+    >>>
+
+|nopar| On the other hand if we try to do that with a *string*
+|mdash| changing the 0th character in ``msg`` to ``'J'`` |mdash| we get:
+
+.. doctest-ignore::
+    >>> msg[0] = 'J'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    TypeError: object does not support item assignment
+    >>>
+
+|nopar| This is because strings are `immutable`:dt: |mdash| you can't change a
+string once you have created it.  However, lists are `mutable`:dt:,
+and their contents can be modified at any time.  As a result, lists
+support operations that modify the original value rather than producing a new value.
+A method is a function that is associated with a particular object.
+A method is called on the object by giving the object's name,
+then a period, then the name of the method, and finally the parentheses
+containing any arguments.  For example, in the following code we use
+the ``sort()`` and ``reverse()`` methods:
+
+    >>> chomsky.sort()
+    >>> chomsky.reverse()
+    >>> chomsky
+    ['sleep', 'ideas', 'green', 'furiously', 'colorless']
+    >>>
+
+As you will see, the prompt reappears immediately on the line after
+``chomsky.sort()`` and ``chomsky.reverse()``. That is because these
+methods do not produce a new list, but instead modify the original list
+stored in the variable ``chomsky``.  
+
+Lists also have an ``append()`` method for adding items to the
+end of the list and an ``index()`` method for finding the index
+of particular items in the list:
+
+    >>> chomsky.append('said')
+    >>> chomsky.append('Chomsky')
+    >>> chomsky
+    ['sleep', 'ideas', 'green', 'furiously', 'colorless', 'said', 'Chomsky']
+    >>> chomsky.index('green')
+    2
+    >>>
+
+Finally, just as a reminder, you can create lists of any values you like.
+As you can see in the following example for a lexical entry, the values
+in a list do not even have to have the same type (though this is usually
+not a good idea, as we will explain in Section sec-back-to-the-basics_).
+
+    >>> bat = ['bat', [[1, 'n', 'flying mammal'], [2, 'n', 'striking instrument']]]
+    >>>
+
+Creating Programs with a Text Editor
+------------------------------------
+
+The Python interative interpreter performs your instructions as soon as you type
+them.  Often, it is better to compose a multi-line program using a text editor,
+then ask Python to run the whole program at once.  Using |IDLE|, you can do
+this by going to the ``File`` menu and opening a new window.  Try this now, and
+enter the following one-line program:
+
+::
+
+     msg = 'Hello World'
+
+Save this program in a file called ``test.py``, then
+go to the ``Run`` menu, and select the command ``Run Module``.
+The result in the main |IDLE| window should look like this:
+
+.. doctest-ignore::
+    >>> ================================ RESTART ================================
+    >>> 
+    >>>     
+
+Now, where is the output showing the value of ``msg``? The answer is
+that the program in ``test.py`` will show a value only if you explicitly tell
+it to, using the ``print`` command. So add another line to
+``test.py`` so that it looks as follows:
+
+::
+
+     msg = 'Hello World'
+     print msg
+
+Select ``Run Module`` again, and this time you should get output that
+looks like this:
+
+.. doctest-ignore::
+    >>> ================================ RESTART ================================
+    >>> 
+    Hello World
+    >>> 
+
+From now on, you have a choice of using the interactive interpreter or a
+text editor to create your programs.  It is often convenient to test your ideas
+using the interpreter, revising a line of code until it does what you expect,
+and consulting the interactive help facility.  Once you're ready, you can paste
+the code (minus any ``>>>`` prompts) into the text editor,
+continue to expand it, and finally save the program
+in a file so that you don't have to retype it in again later.
+
+
+Exercises
+---------
+
+#. |easy| Try the examples in this section, then try the following.
+
+   a) Create a variable called ``msg`` and put a message
+      of your own in this variable.  Remember that strings need
+      to be quoted, so you will need to type something like:
+      ``msg = "I like NLP!"``
+   b) Now print the contents of this variable in two ways, first
+      by simply typing the variable name and pressing enter, then
+      by using the ``print`` command.
+   c) Try various arithmetic expressions using this string, e.g.
+      ``msg + msg``, and ``5 * msg``.
+   d) Define a new string ``hello``, and then try ``hello + msg``.
+      Change the ``hello`` string so that it ends with a space
+      character, and then try ``hello + msg`` again.
+
+#. |easy| Define a string ``s = 'colorless'``.  Write a Python statement
+   that changes this to "colourless" using only the slice and
+   concatenation operations.
+
+#. |easy| Try the slice examples from this section using the interactive
+   interpreter.  Then try some more of your own.  Guess what the result
+   will be before executing the command.
+
+#. |easy| We can use the slice notation to remove morphological endings on
+   words.  For example, ``'dogs'[:-1]`` removes the last character of
+   ``dogs``, leaving ``dog``.  Use slice notation to remove the
+   affixes from these words (we've inserted a hyphen to
+   indicate the affix boundary, but omit this from your strings):
+   ``dish-es``, ``run-ning``, ``nation-ality``, ``un-do``,
+   ``pre-heat``.
+
+#. |easy| We saw how we can generate an ``IndexError`` by indexing beyond the end
+   of a string.  Is it possible to construct an index that goes too far to
+   the left, before the start of the string?
+
+#. |easy| We can also specify a "step" size for the slice. The following
+   returns every second character within the slice: ``msg[6:11:2]``.
+   It also works in the reverse direction: ``msg[10:5:-2]``
+   Try these for yourself, then experiment with different step values.
+
+#. |easy| What happens if you ask the interpreter to evaluate ``msg[::-1]``?
+   Explain why this is a reasonable result.
+
+#. |soso| Write code to abbreviate text by removing all the vowels.
+   Define ``sentence`` to hold any string you like, then initialize
+   a new string ``result`` to hold the empty string ``''``.  Now write
+   a ``for`` loop to process the string, one character at a time,
+   and append any non-vowel characters to the result string.
+
+.. _sec-tokenization:
+
+-----------------------------------
+Tokenization: From Strings to Lists
+-----------------------------------
+
+Consider the following code, which splits a string into a list of words: 
+
+    >>> sentence = "This is the time -- and this is the record of the time."
+    >>> words = sentence.split()
+    >>> words
+    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
+    >>> len(words)
+    13
+    >>> len(set(words))
+    10
+
+|nopar| This process of segmenting a string of characters into words
+is known as `tokenization`:dt:. Tokenization is a prelude to pretty
+much everything else we do in |NLP|, since it tells our
+processing software what our basic units are. We will discuss
+tokenization in more detail shortly.
+
+|nopar| So if we ask how many words there are in ``sentence``, we get
+different answers depending on whether we count duplicates. 
+Clearly we are using different senses of "word" here. To help
+distinguish between them, let's introduce two terms:
+`token`:dt: and `type`:dt:.  A word token is an individual occurrence
+of a word in a concrete context; it exists in time and space.  A word
+`type`:dt: is a more abstract; it's what we're talking about when we
+say that the three occurrences of ``the`` in ``sentence`` are  "the same word."
+
+Something similar to a type-token distinction is reflected in the following
+snippet of Python:
+
+    >>> words[2]
+    'the'
+    >>> words[2] == words[8]
+    True
+    >>> words[2] is words[8]
+    False
+    >>> words[2] is words[2]
+    True
+
+|nopar| The operator ``==`` tests whether two expressions are equal, and in
+this case, it is testing for string-identity. This is the notion of
+identity that was assumed by our use of ``set()`` above. By contrast, the
+``is`` operator tests whether two objects are stored in the same
+location of memory, and is therefore analogous to token-identity.  
+When we used ``split()`` to turn a string into a list of words,
+our tokenization method was to say that any strings that
+are delimited by whitespace count as a word token. But this simple
+approach doesn't always give the desired results.
+Also, testing string-identity isn't a very useful criterion for
+assigning tokens to types. We therefore need to address two questions
+in more detail:
+*Tokenization:* Which substrings of the original text should be treated as word tokens?
+*Type definition:* How do we decide whether two tokens have the same type?
+
+To see the problems with our first stab at defining tokens and types
+in ``sentence``, let's look at the actual tokens we found:
+
+    >>> set(words)
+    set(['and', 'this', 'record', 'This', 'of', 'is', '--', 'time.', 'time', 'the'])
+
+|nopar|
+Observe that ``'time'`` and ``'time.'`` are incorrectly
+treated as distinct types since the trailing period
+has been bundled with the rest of the word.
+Although ``'--'`` is some kind of token, it's not a `word`:em: token.
+Additionally, ``'This'`` and ``'this'`` are incorrectly distinguished
+from each other, because of a difference in capitalization that should
+be ignored.
+
+If we turn to languages other than English, tokenizing text is even more
+challenging.  In Chinese text there is no visual representation of word
+boundaries.  Consider the following
+three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
+ai4 "love" (verb), guo3 "country", ren2 "person"). This could
+either be segmented as [|ai4|\ |guo3|]\ |ren2|\ ,
+"country-loving person" or as |ai4|\ [|guo3|\ |ren2|]\ ,
+"love country-person."
+
+The terms *token* and *type* can also be applied to other linguistic
+entities.  For example, a `sentence token`:dt: is an individual
+occurrence of a sentence; but a `sentence type`:dt: is an abstract
+sentence, without context. If I say the same sentence twice, I have
+uttered two sentence tokens but only used one sentence type.  When the kind
+of token or type is obvious from context, we will simply use the terms
+token and type.
+
+To summarize, we cannot just say that two word tokens have the same type if they are
+the same string of characters.  We need to
+consider a variety of factors in determining what counts as
+the same word, and we need to be careful in how we
+identify tokens in the first place. 
+
+Tokenization with Regular Expressions
+-------------------------------------
+
+Tokenization, as we saw, is the task of cutting a string into
+identifiable linguistic units.
+that constitute a piece of language data. In our first attempt to
+carry out this task, we started off with a string of characters, and
+used the ``split()`` method to break the string at whitespace
+characters. Recall that "whitespace" covers not only inter-word space,
+but also tabs and newlines.
+We pointed out that tokenization
+based solely on whitespace is too simplistic for most applications.
+In this section we will take a more sophisticated approach, using
+regular expressions to specify which character sequences should be
+treated as words.  We will also look at ways to normalize tokens.
+
+The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
+regular expression, and returns the list of substrings that match the
+regular expression.  To define a tokenizer that includes punctuation
+as separate tokens, we could do the following:
+
+    >>> text = '''Hello.  Isn't this fun?'''
+    >>> pattern = r'\w+|[^\w\s]+'
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
+    ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
+
+|nopar| 
+The regular expression in this example will match a sequence
+consisting of one or more word characters ``\w+``.  It will also match
+a sequence consisting of one or more punctuation characters (or
+non-word, non-space characters ``[^\w\s]+``).  This is another negated range
+expression; it matches one or more characters that are not word
+characters (i.e., not a match for ``\w``) and not a whitespace
+character (i.e., not a match for ``\s``).  We use the disjunction
+operator ``|`` to combine these into a single complex expression
+``\w+|[^\w\s]+``.
+
+There are a number of ways we could improve on this regular
+expression.  For example, it currently breaks `$22.50`:lx: into four
+tokens; we might want it to treat this as a single token.
+Similarly, `U.S.A.` should count as a single token.  We can
+deal with these by adding further cases to the regular
+expression.  For readability we will break it up and insert comments, and
+insert the special ``(?x)`` "verbose flag" so that Python knows
+to strip out the embedded whitespace and comments.
+
+    >>> text = 'That poster costs $22.40.'
+    >>> pattern = r'''(?x)
+    ...     \w+               # sequences of 'word' characters
+    ...   | \$?\d+(\.\d+)?    # currency amounts, e.g. $12.50
+    ...   | ([A-Z]\.)+        # abbreviations, e.g. U.S.A.
+    ...   | [^\w\s]+          # sequences of punctuation
+    ... '''
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
+    ['That', 'poster', 'costs', '$22.40', '.']
+
+It is sometimes more convenient to write a regular expression
+matching the material that appears *between* tokens, such as whitespace
+and punctuation.  The ``nltk.tokenize.regexp_tokenize()`` function permits
+an optional boolean parameter ``gaps``; when set to ``True`` the
+pattern is matched against the gaps.  For example, we could define
+a whitespace tokenizer as follows:
+
+    >>> nltk.tokenize.regexp_tokenize(text, pattern=r'\s+', gaps=True)
+    ['That', 'poster', 'costs', '$22.40.']
+
+It is more convenient to call NLTK's whitespace
+tokenizer directly, as ``nltk.WhitespaceTokenizer(text)``.
+(However, in this case is generally better to use Python's ``split()``
+method, defined on strings: ``text.split()``.)
+
+
+Tokens and Types Revisited
+--------------------------
+
+Before concluding this section, we return to the original topic of
+distinguishing tokens and types.  Now that we can access substantial
+quantities of text, we will give a preview of the interesting computations
+we will be learning how to do (without yet explaining all the details).
+Figure vocabulary-growth_ computes vocabulary growth curves
+for US Presidents, shown in Figure fig-vocabulary-growth_
+(a color figure in the online version).
+These curves show the number of word types seen after `n`:math: word tokens
+have been read.
+
+.. Note:: Figure vocabulary-growth_ uses the PyLab package which supports sophisticated
+   plotting functions with a MATLAB-style interface.  For more information about
+   this package please see ``http://matplotlib.sourceforge.net/``.  The listing also
+   uses the ``yield`` statement, which will be explained in Chapter chap-structured-programming_.
+
+.. pylisting:: vocabulary-growth
+   :caption: Vocabulary Growth in State-of-the-Union Addresses
+
+   def vocab_growth(texts):
+       vocabulary = set()
+       for text in texts:
+           for word in text:
+               vocabulary.add(word)
+               yield len(vocabulary)
+
+   def speeches():
+       presidents = []
+       texts = nltk.defaultdict(list)
+       for speech in nltk.corpus.state_union.files():
+           president = speech.split('-')[1]
+           if president not in texts:
+               presidents.append(president)
+           texts[president].append(nltk.corpus.state_union.words(speech))
+       return [(president, texts[president]) for president in presidents]
+
+   >>> import pylab
+   >>> for president, texts in speeches()[-7:]:
+   ...     growth = list(vocab_growth(texts))[:10000]
+   ...     pylab.plot(growth, label=president, linewidth=2)
+   >>> pylab.title('Vocabulary Growth in State-of-the-Union Addresses')
+   >>> pylab.legend(loc='lower right')
+   >>> pylab.show()         # doctest: +SKIP
+
+.. _fig-vocabulary-growth:
+.. figure:: ../images/vocabulary-growth.png
+   :scale: 30
+
+   Vocabulary Growth in State-of-the-Union Addresses
+
+
+
+Exercises
+---------
+
+#. |easy| Create a small text file, and write a program to read it and print it
+   with a line number at the start of each line.  (Make sure you don't introduce
+   an extra blank line between each line.)
+
+#. |easy| Use the corpus module to read ``austen-persuasion.txt``.
+   How many word tokens does this book have?  How many word types?
+
+#. |easy| Use the Brown corpus reader ``nltk.corpus.brown.words()`` or the Web text corpus
+   reader ``nltk.corpus.webtext.words()`` to access some sample text in two different genres.
+
+#. |easy| Use the Brown corpus reader ``nltk.corpus.brown.sents()`` to find sentence-initial
+   examples of the word `however`:lx:.  Check whether these conform to Strunk and White's
+   prohibition against sentence-initial `however`:lx: used to mean "although".
+
+.. above exercise needs a more contemporary corpus to test against: news?
+
+#. |easy| Read in the texts of the *State of the Union* addresses, using the
+   ``state_union`` corpus reader.  Count occurrences of ``men``, ``women``,
+   and ``people`` in each document.  What has happened to the usage of these
+   words over time?
+
+#. |soso| Write code to read a file and print the lines in reverse order,
+   so that the last line is listed first.
+
+#. |soso| Read in some text from a corpus, tokenize it, and print the list of
+   all `wh`:lx:\ -word types that occur.  (`wh`:lx:\ -words in English
+   are used in questions, relative clauses and exclamations:
+   `who`:lx:, `which`:lx:, `what`:lx:, and so on.) Print
+   them in order.  Are any words duplicated in this list, because of
+   the presence of case distinctions or punctuation?
+
+#. |soso| Write code to access a favorite webpage and extract some text from it.
+   For example, access a weather site and extract the forecast top
+   temperature for your town or city today.
+
+#. |soso| Write a function ``unknown()`` that takes a URL as its argument,
+   and returns a list of unknown words that occur on that webpage.
+   In order to do this, extract all substrings consisting of lowercase letters
+   (using ``re.findall()``) and remove any items from this set that occur
+   in the words corpus (``nltk.corpus.words``).  Try to categorize these words
+   manually and discuss your findings.
+
+#. |soso| Examine the results of processing the URL
+   ``http://news.bbc.co.uk/`` using the regular expressions suggested
+   above. You will see that there is still a fair amount of
+   non-textual data there, particularly Javascript commands. You may
+   also find that sentence breaks have not been properly
+   preserved. Define further regular expressions that improve the
+   extraction of text from this web page.
+
+#. |soso| Take a copy of the ``http://news.bbc.co.uk/`` over three different
+   days, say at two-day intervals. This should give you three
+   different files, ``bbc1.txt``, ``bbc2.txt`` and ``bbc3.txt``, each
+   corresponding to a different snapshot of world events. Collect the
+   100 most frequent word tokens for each file. What can you tell
+   from the changes in frequency?
+
+#. |soso| Define a function ``ghits()`` that takes a word as its argument and
+   builds a Google query string of the form ``http://www.google.com/search?q=word``.
+   Strip the |HTML| markup and normalize whitespace.  Search for a substring
+   of the form ``Results 1 - 10 of about``, followed by some number
+   `n`:math:,  and extract `n`:math:.
+   Convert this to an integer and return it.
+
+#. |soso| Try running the various chatbots included with |NLTK|, using
+   ``nltk.chat.demo()``.  How *intelligent* are these programs?
+   Take a look at the program code
+   and see if you can discover how it works.  You can find the code
+   online at: ``http://nltk.org/nltk/chat/``.
+
+#. |hard| Define a function ``find_language()`` that takes a string
+   as its argument, and returns a list of languages that have that
+   string as a word.  Use the ``udhr`` corpus and limit your searches
+   to files in the Latin-1 encoding.
+
+
+-------------------
+Regular Expressions
+-------------------
+
+For a moment, imagine that you are editing a large text, and you have
+strong dislike of repeated occurrences of the word `very`:lx:.
+How could you find all such cases in the text? To be concrete, let's
+suppose that we assign the following text to the variable ``s``:
+
+    >>> s = """Google Analytics is very very very nice (now)
+    ... By Jason Hoffman 18 August 06
+    ... Google Analytics, the result of Google's acquisition of the San
+    ... Diego-based Urchin Software Corporation, really really opened its
+    ... doors to the world a couple of days ago, and it allows you to
+    ... track up to 10 sites within a single google account.
+    ... """
+    >>>
+
+|nopar| Python's triple quotes ``"""`` are used here since they allow us
+to break a string across lines.
+
+One approach to our task would be to convert the string into a list,
+and look for adjacent items that are both equal to the string
+``'very'``. We use the ``range(n)`` function in this example to create
+a list of consecutive integers from 0 up to, but not including, ``n``:
+
+    >>> text = s.split()
+    >>> for n in range(len(text)):
+    ...    if text[n] == 'very' and text[n+1] == 'very':
+    ...         print n, n+1
+    ... 
+    3 4
+    4 5
+    >>> 
+
+|nopar| However, such an approach is not very flexible or convenient. In this
+section, we will present Python's `regular expression`:dt: module
+``re``, which supports powerful search and substitution inside
+strings.
+
+Searching Strings with Regular Expressions
+------------------------------------------
+
+As a gentle introduction, we will start out using a utility
+function ``re_show()`` to illustrate how regular expressions match
+against substrings. ``re_show()`` takes two arguments, a pattern that
+it is looking for, and a string in which the pattern might occur.
+
+    >>> import nltk
+    >>> nltk.re_show('very very', s)
+    Google Analytics is {very very} very nice (now)
+    ...
+    >>>
+
+|nopar| (We have only displayed the first part of ``s`` that
+is returned, since the rest is irrelevant for the moment.)
+As you can see, ``re_show`` places curly braces around the first
+occurrence it has found of the string ``'very very'``. So an important
+part of what ``re_show`` is doing is searching for any substring of
+``s`` that `matches`:dt: the pattern in its first argument. 
+
+Now we might want to modify the example so that ``re_show`` highlights
+cases where there are two `or more`:em: adjacent sequences of
+``'very'``. To do this, we need to use a `regular expression
+operator`:dt:, namely ``'+'``. If `s`:ph: is a string, then `s`:ph:\
+``+`` means: 'match one or more occurrences of `s`:ph:\ '. Let's first look
+at the case where `s`:ph: is a single character, namely the letter
+``'o'``:
+
+.. doctest-ignore::
+    >>> nltk.re_show('o+', s)
+    G{oo}gle Analytics is very very very nice (n{o}w)
+    ...
+    >>>
+
+|nopar| ``'o+'`` is our first proper regular expression. You can think of it as
+matching an `infinite set`:em: of strings, namely the set {``'o'``,
+``'oo'``, ``'ooo'``, ...}. But we would really like to match
+sequences of least two ``'o'``\ s; for this, we need
+the regular expression  ``'oo+'``, which matches any string consisting of
+``'o'`` followed by one or more occurrences of ``o``.
+
+.. doctest-ignore::
+    >>> nltk.re_show('oo+', s)
+    G{oo}gle Analytics is very very very nice (now)
+    ...
+    >>>
+
+Let's return to the task of identifying multiple occurrences of
+``'very'``. Some initially plausible candidates won't do what we
+want. For example, ``'very+'`` would match ``'veryyy'`` (but not
+``'very very'``), since the ``+`` scopes over the immediately
+preceding expression, in this case ``'y'``. To widen the scope of
+``+``, we need to use parentheses, as in ``'(very)+'``. Will this
+match ``'very very'``? No, because we've forgotten about the
+whitespace between the two words; instead, it will match strings like
+``'veryvery'``. However, the following `does`:em: work: 
+
+.. doctest-ignore::
+    >>> nltk.re_show('(very\s)+', s)
+    Google Analytics is {very very very }nice (now)
+    >>>
+
+|nopar| Characters preceded by a ``\``, such as ``'\s'``, have a
+special interpretation inside regular expressions; thus, ``'\s'``
+matches a whitespace character. We could have used ``' '`` in our
+pattern, but ``'\s'`` is better practice in general. One reason is
+that the sense of "whitespace" we are using is more general than you
+might have imagined; it includes not just inter-word spaces, but also
+tabs and newlines. If you try to inspect the variable ``s``, you
+might initially get a shock:
+
+.. doctest-ignore::
+    >>> s
+    "Google Analytics is very very very nice (now)\nBy Jason Hoffman 
+    18 August 06\nGoogle
+    ...
+    >>>
+
+|nopar| You might recall that ``'\n'`` is a special character that corresponds
+to a newline in a string. The following example shows how newline is
+matched by ``'\s'``.
+
+    >>> s2 = "I'm very very\nvery happy"
+    >>> nltk.re_show('very\s', s2)
+    I'm {very }{very
+    }{very }happy
+    >>>
+
+Finding all Occurrences
+-----------------------
+
+Python's ``re.findall(``\ `patt`:ph:, `s`:ph:\ ``)`` function is a useful
+way to find all the substrings in `s`:ph: that are matched by `patt`:ph:.
+Before illustrating, let's introduce  two further
+special characters, ``'\d'`` and ``'\w'``: the first
+will match any digit, and the second will match any alphanumeric character.
+Before we can use ``re.findall()`` we have to load Python's regular
+expression module, using ``import re``.
+
+    >>> import re
+    >>> re.findall('\d\d', s)
+    ['18', '06', '10']
+    >>> re.findall('\s\w\w\w\s', s)
+    [' the ', ' the ', ' its\n', ' the ', ' and ', ' you ']
+    >>> 
+
+|nopar| As you will see, the second example matches three-letter
+words. However, this regular expression is not quite what we
+want. First, the leading and trailing spaces are extraneous. Second,
+it will fail to match against strings such as ``'the San'``, where two
+three-letter words are adjacent. To solve this problem, we can use
+another special character, namely ``'\b'``. This is sometimes called a
+"zero-width" character; it matches against the empty string, but only
+at the beginning and end of words:
+
+    >>> re.findall(r'\b\w\w\w\b', s)
+    ['now', 'the', 'the', 'San', 'its', 'the', 'ago', 'and', 'you']
+
+.. Note:: This example uses a Python `raw string`:dt:\:
+   ``r'\b\w\w\w\b'``. The specific justification here is that in an
+   ordinary string, ``\b`` is interpreted as a backspace character.
+   Python will convert it to a backspace in a regular expression
+   unless you use the ``r`` prefix to create a raw string as shown
+   above. Another use for raw strings is to match strings that
+   include backslashes. Suppose we want to match 'either\\or'. In order
+   to create a regular expression, the backslash needs to be escaped,
+   since it is a special character; 
+   so we want to pass the pattern ``\\`` to the regular expression
+   interpreter. But to express this as a Python string literal, each
+   backslash must be escaped again, yielding the string
+   ``'\\\\'``. However, with a raw string, this reduces down to
+   ``r'\\'``. 
+
+Returning to the case of repeated words, we might want to look for
+cases involving ``'very'`` or ``'really'``, and for this we use the
+disjunction operator ``|``.
+
+    >>> nltk.re_show('((very|really)\s)+', s)
+    Google Analytics is {very very very }nice (now)
+    By Jason Hoffman 18 August 06
+    Google Analytics, the result of Google's acquisition of the San
+    Diego-based Urchin Software Corporation, {really really }opened its
+    doors to the world a couple of days ago, and it allows you to
+    track up to 10 sites within a single google account.
+    >>>
+
+In addition to the matches just illustrated, the regular expression
+``'((very|really)\s)+'`` will also match cases where the two disjuncts
+occur with each other, such as the string ``'really very really '``. 
+
+Substitutions
+-------------
+
+Let's now look at how to perform substitutions, using the ``re.sub()``
+function.  In the first instance we replace
+all instances of ``l`` with ``s``.  Note that this generates a string
+as output, and doesn't modify the original string.  Then we replace
+any instances of ``green`` with ``red``.
+
+    >>> sent = "colorless green ideas sleep furiously"
+    >>> re.sub('l', 's', sent)
+    'cosorsess green ideas sseep furioussy'
+    >>> re.sub('green', 'red', sent)
+    'colorless red ideas sleep furiously'
+    >>>
+
+We can also disjoin individual characters using a square bracket
+notation.  For example, ``[aeiou]`` matches any of ``a``, ``e``,
+``i``, ``o``, or ``u``, that is, any vowel.  The expression
+``[^aeiou]`` matches any single character that is `not`:em: a vowel.
+In the following example, we match sequences consisting of a non-vowel
+followed by a vowel.
+
+    >>> nltk.re_show('[^aeiou][aeiou]', sent)
+    {co}{lo}r{le}ss g{re}en{ i}{de}as s{le}ep {fu}{ri}ously
+    >>>
+
+|nopar|
+Using the same regular expression, the function ``re.findall()``
+returns a list of all the substrings in ``sent`` that are matched:
+
+    >>> re.findall('[^aeiou][aeiou]', sent)
+    ['co', 'lo', 'le', 're', ' i', 'de', 'le', 'fu', 'ri']
+    >>>
+
+Groupings
+---------
+
+Returning briefly to our earlier problem with unwanted whitespace
+around three-letter words, we note that ``re.findall()`` behaves
+slightly differently if we create `groups`:dt: in the regular
+expression using parentheses; it only returns strings that occur
+within the groups:
+
+    >>> re.findall('\s(\w\w\w)\s', s)
+    ['the', 'the', 'its', 'the', 'and', 'you']
+    >>>
+
+|nopar|
+The same device allows us to select only the non-vowel characters
+that appear before a vowel:
+
+    >>> re.findall('([^aeiou])[aeiou]', sent)
+    ['c', 'l', 'l', 'r', ' ', 'd', 'l', 'f', 'r']
+    >>>
+
+By delimiting a second group in the regular expression, we can even
+generate pairs (or `tuples`:dt:) that we may then go on and
+tabulate.
+
+    >>> re.findall('([^aeiou])([aeiou])', sent)
+    [('c', 'o'), ('l', 'o'), ('l', 'e'), ('r', 'e'), (' ', 'i'),
+    ('d', 'e'), ('l', 'e'), ('f', 'u'), ('r', 'i')]
+    >>>
+
+Our next example also makes use of groups. One further special
+character is the so-called wildcard element, ``'.'``; this has the
+distinction of matching any single character (except ``'\n'``). Given
+the string ``s3``, our task is to pick out login names and email domains:
+
+    >>> s3 = """
+    ... <hart@vmd.cso.uiuc.edu>
+    ... Final editing was done by Martin Ward <Martin.Ward@uk.ac.durham>
+    ... Michael S. Hart <hart@pobox.com>
+    ... Prepared by David Price, email <ccx074@coventry.ac.uk>"""
+
+The task is made much easier by the fact that all the email addresses
+in the example are delimited by angle brackets, and we can exploit
+this feature in our regular expression:
+
+    >>> re.findall(r'<(.+)@(.+)>', s3)
+    [('hart', 'vmd.cso.uiuc.edu'), ('Martin.Ward', 'uk.ac.durham'), 
+    ('hart', 'pobox.com'), ('ccx074', 'coventry.ac.uk')]
+    >>>
+
+|nopar|
+Since ``'.'`` matches any single character, ``'.+'`` will match any
+non-empty `string`:em: of characters, including punctuation symbols
+such as the period.  
+
+One question that might occur to you is how do
+we specify a match against a period? The answer is that we have to
+place a ``'\'`` immediately before the ``'.'`` in order to escape its
+special interpretation.
+
+    >>> re.findall(r'(\w+\.)', s3)
+    ['vmd.', 'cso.', 'uiuc.', 'Martin.', 'uk.', 'ac.', 'S.', 
+    'pobox.', 'coventry.', 'ac.']
+    >>>
+
+Now, let's suppose that we wanted to match occurrences of both
+``'Google'`` and ``'google'`` in our sample text. If you have been
+following up till now, you would reasonably expect that this regular
+expression with a disjunction would do the trick:
+``'(G|g)oogle'``. But look what happens when we try this with
+``re.findall()``:
+
+    >>> re.findall('(G|g)oogle', s)
+    ['G', 'G', 'G', 'g']
+    >>> 
+
+|nopar|
+What is going wrong? We innocently used
+the parentheses to indicate the scope of the operator ``'|'``, but
+``re.findall()`` has interpreted them as marking a group. In order to
+tell ``re.findall()``  "don't try to do anything special with these
+parentheses", we need an extra piece of notation:
+
+    >>> re.findall('(?:G|g)oogle', s)
+    ['Google', 'Google', 'Google', 'google']
+    >>> 
+
+|nopar|
+Placing ``'?:'`` immediately after the opening parenthesis makes it
+explicit that the parentheses are just being used for scoping.
+
+Practice Makes Perfect
+----------------------
+
+Regular expressions are very flexible and very powerful. However, they
+often don't do what you expect. For this reason, you are strongly
+encouraged to try out a variety of tasks using ``re_show()`` and
+``re.findall()`` in order to develop your intuitions further; the
+exercises below should help get you started.  We suggest that you build up a
+regular expression in small pieces, rather than trying to get it
+completely right first time.  Table regexp-operators_ lists some operators
+and sequences that are commonly used in natural language processing.
+
+.. table:: regexp-operators
+
+   ===========  ====================================================================
+   Operator     Behavior
+   -----------  --------------------------------------------------------------------
+   ``*``        Zero or more, e.g. ``a*``, ``[a-z]*``
+   -----------  --------------------------------------------------------------------
+   ``+``        One or more, e.g. ``a+``, ``[a-z]+``
+   -----------  --------------------------------------------------------------------
+   ``?``        Zero or one (i.e. optional), e.g. ``a?``, ``[a-z]?``
+   -----------  --------------------------------------------------------------------
+   ``[..]``     A set or range of characters, e.g. ``[aeiou]``, ``[a-z0-9]``
+   -----------  --------------------------------------------------------------------
+   ``(..)``     Grouping parentheses, e.g. ``(the|a|an)``
+   -----------  --------------------------------------------------------------------
+   ``\b``       Word boundary (zero width)
+   -----------  --------------------------------------------------------------------
+   ``\d``       Any decimal digit (``\D`` is any non-digit)
+   -----------  --------------------------------------------------------------------
+   ``\s``       Any whitespace character (``\S`` is any non-whitespace character)
+   -----------  --------------------------------------------------------------------
+   ``\w``       Any alphanumeric character (``\W`` is any non-alphanumeric character
+   -----------  --------------------------------------------------------------------
+   ``\t``       The tab character
+   -----------  --------------------------------------------------------------------
+   ``\n``       The newline character
+   ===========  ====================================================================
+
+   Commonly-used Operators and Sequences
+
+
+Stripping HTML with Regular Expressions
+---------------------------------------
+
+Web pages are usually in |HTML| format.  To extract the text, we
+need to strip out the |HTML| markup, i.e. remove all material enclosed in
+angle brackets. Let's digress briefly to consider how to carry out
+this task using regular expressions. Our first attempt might look as
+follows:
+
+    >>> line = '<title>BBC NEWS | News Front Page</title>'
+    >>> new = re.sub(r'<.*>', '', line)
+
+So the regular expression ``'<.*>'`` is intended to match a
+pair of left and right angle brackets, with a string of any characters
+intervening. However, look at what the result is:
+
+    >>> new
+    '' 
+
+|nopar| 
+What has happened here? The problem is twofold. First,
+the wildcard ``'.'`` matches any character other than ``'\n'``,
+so it will match ``'>'`` and ``'<'``.
+Second, the ``'*'`` operator is "greedy", in the sense that it matches
+as many characters as it can. In the above example,
+``'.*'`` will return not the shortest match, namely
+``'title'``, but the longest match, ``'title>BBC NEWS | News Front
+Page</title'``.   To get the *shortest* match we have to use the ``'*?'`` operator.
+We will also normalize whitespace, replacing any sequence
+of spaces, tabs or newlines (``'\s+'``) with a single space character.
+
+    >>> page = re.sub('<.*?>', '', page)
+    >>> page = re.sub('\s+', ' ', page)
+    >>> print page[:60]
+     BBC NEWS | News Front Page News Sport Weather World Service
+
+.. Note:: Note that your output for the above code may differ from ours,
+   because the BBC home page may have been changed since this
+   example was created.
+
+.. TODO: fix above example?  (make it current; issue with script on BBC site)
+
+You will probably find it useful to borrow the structure of the above code
+snippet for future tasks involving regular expressions: each time
+through a series of substitutions, the result of operating on ``page``
+gets assigned as the new value of ``page``. This approach allows us to
+decompose the transformations we need into a series of simple regular
+expression substitutions, each of which can be tested and debugged on its own.
+
+
+Exercises
+---------
+
+#. |easy| Describe the class of strings matched by the following regular
+   expressions. Note that ``'*'`` means: match zero or more
+   occurrences of the preceding regular expression.
+
+   a) ``[a-zA-Z]+``
+   #) ``[A-Z][a-z]*``
+   #) ``\d+(\.\d+)?``
+   #) ``([bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz])*``
+   #) ``\w+|[^\w\s]+``
+
+   Test your answers using ``re_show()``.
+
+#. |easy| Write regular expressions to match the following classes of strings:
+
+    a) A single determiner (assume that `a`:lx:, `an`:lx:, and `the`:lx:
+       are the only determiners).
+    #) An arithmetic expression using integers, addition, and
+       multiplication, such as ``2*3+8``.
+
+#. |soso| The above example of extracting (name, domain) pairs from
+   text does not work when there is more than one email address
+   on a line, because the ``+`` operator is "greedy" and consumes
+   too much of the input.
+
+   a) Experiment with input text containing more than one email address
+      per line, such as that shown below.  What happens?
+   #) Using ``re.findall()``, write another regular expression
+      to extract email addresses, replacing the period character
+      with a range or negated range, such as ``[a-z]+`` or ``[^ >]+``.
+   #) Now try to match email addresses by changing the regular
+      expression ``.+`` to its "non-greedy" counterpart, ``.+?``
+
+   >>> s = """
+   ... austen-emma.txt:hart@vmd.cso.uiuc.edu  (internet)  hart@uiucvmd (bitnet)
+   ... austen-emma.txt:Internet (72600.2026@compuserve.com); TEL: (212-254-5093)
+   ... austen-persuasion.txt:Editing by Martin Ward (Martin.Ward@uk.ac.durham)
+   ... blake-songs.txt:Prepared by David Price, email ccx074@coventry.ac.uk
+   ... """
+
+#. |soso| Write code to convert text into Pig Latin.  This involves two steps:
+   move any consonant (or consonant cluster) that appears at the start of the word
+   to the end, then append `ay`:lx:, e.g. `string`:lx: |rarr| `ingstray`:lx:,
+   `idle`:lx: |rarr| `idleay`:lx:.  ``http://en.wikipedia.org/wiki/Pig_Latin``
+
+#. |soso| Write code to convert text into *hAck3r* again, this time using regular expressions
+   and substitution, where
+   ``e`` |rarr| ``3``,
+   ``i`` |rarr| ``1``,
+   ``o`` |rarr| ``0``,
+   ``l`` |rarr| ``|``,
+   ``s`` |rarr| ``5``,
+   ``.`` |rarr| ``5w33t!``,
+   ``ate`` |rarr| ``8``.
+   Normalize the text to lowercase before converting it.
+   Add more substitutions of your own.  Now try to map
+   ``s`` to two different values: ``$`` for word-initial ``s``,
+   and ``5`` for word-internal ``s``.
+
+#. |hard| Read the Wikipedia entry on *Soundex*.  Implement this
+   algorithm in Python.
+
+#. |hard| Define a function ``percent(word, text)`` that calculates
+   how often a given word occurs in a text, and expresses the result
+   as a percentage.
+
+.. _sentence-segmentation:
+
+Sentence Segmentation
+---------------------
+
+Manipulating texts at the level of individual words often presupposes
+the ability to divide a text into individual sentences.  As we have
+seen, some corpora already provide access at the sentence level.  In
+the following example, we compute the average number of words per
+sentence in the Brown Corpus:
+
+    >>> len(nltk.corpus.brown.words()) / len(nltk.corpus.brown.sents())
+    20
+
+In other cases, the text is only available as a stream of characters.  Before
+doing word tokenization, we need to do sentence segmentation.  NLTK facilitates
+this by including the Punkt sentence segmenter [KissStrunk2006]_, along with
+supporting data for English.  Here is an example of its use in segmenting
+the text of a novel:
+
+    >>> sent_tokenizer=nltk.data.load('tokenizers/punkt/english.pickle')
+    >>> text = nltk.corpus.gutenberg.raw('chesterton-thursday.txt')
+    >>> sents = sent_tokenizer.tokenize(text)
+    >>> pprint(sents[171:181])
+    ['"Nonsense!',
+     '" said Gregory, who was very rational when anyone else\nattempted paradox.',
+     '"Why do all the clerks and navvies in the\nrailway trains look so sad and tired, so very sad and tired?',
+     'I will\ntell you.',
+     'It is because they know that the train is going right.',
+     'It\nis because they know that whatever place they have taken a ticket\nfor that place they will reach.',
+     'It is because after they have\npassed Sloane Square they know that the next station must be\nVictoria, and nothing but Victoria.',
+     'Oh, their wild rapture!',
+     'oh,\ntheir eyes like stars and their souls again in Eden, if the next\nstation were unaccountably Baker Street!'
+     '"\n\n"It is you who are unpoetical," replied the poet Syme.']
+
+Notice that this example is really a single sentence, reporting the speech of Mr Lucian Gregory.
+However, the quoted speech contains several sentences, and these have been split into individual
+strings.  This is reasonable behavior for most applications.
+
+Exercises
+---------
+
+1. |easy| **Regular expression tokenizers:**
+   Save some text into a file ``corpus.txt``.  Define a function ``load(f)``
+   that reads from the file named in its sole argument, and returns a string
+   containing the text of the file.
+
+   a) Use ``nltk.tokenize.regexp_tokenize()`` to create a tokenizer that tokenizes
+      the various kinds of punctuation in this text.  Use a single
+      regular expression, with inline comments using the
+      ``re.VERBOSE`` flag.
+   b) Use ``nltk.tokenize.regexp_tokenize()`` to create a tokenizer that tokenizes
+      the following kinds of expression: monetary amounts; dates; names
+      of people and companies.
+
+#. |easy| Rewrite the following loop as a list comprehension:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> result = []
+    >>> for word in sent:
+    ...     word_len = (word, len(word))
+    ...     result.append(word_len)
+    >>> result
+    [('The', 3), ('dog', 3), ('gave', 4), ('John', 4), ('the', 3), ('newspaper', 9)]
+
+#. |soso| Consider the numeric expressions in the following sentence from
+   the MedLine corpus: `The corresponding free cortisol fractions in these
+   sera were 4.53 +/- 0.15% and 8.16 +/- 0.23%, respectively.`:lx:
+   Should we say that the numeric expression `4.53 +/- 0.15%`:lx: is three
+   words?  Or should we say that it's a single compound word?  Or should
+   we say that it is actually *nine* words, since it's read "four point
+   five three, plus or minus fifteen percent"?  Or should we say that
+   it's not a "real" word at all, since it wouldn't appear in any dictionary?
+   Discuss these different possibilities.  Can you think of application domains
+   that motivate at least two of these answers?
+
+#. |soso| Readability measures are used to score the reading difficulty of a
+   text, for the purposes of selecting texts of appropriate difficulty
+   for language learners.  Let us define
+   |mu|\ :subscript:`w` to be the average number of letters per word, and
+   |mu|\ :subscript:`s` to be the average number of words per sentence, in
+   a given text.  The Automated Readability Index (ARI) of the text
+   is defined to be:
+   ``4.71 * `` |mu|\ :subscript:`w` ``+ 0.5 * `` |mu|\ :subscript:`s` ``- 21.43``.
+   Compute the ARI score for various sections of the Brown Corpus, including
+   section ``f`` (popular lore) and ``j`` (learned).  Make use of the fact that
+   ``nltk.corpus.brown.words()`` produces a sequence of words, while
+   ``nltk.corpus.brown.sents()`` produces a sequence of sentences.
+
+#. |hard| Obtain raw texts from two or more genres and compute their respective
+   reading difficulty scores as in the previous exercise.
+   E.g. compare ABC Rural News and ABC Science News (``nltk.corpus.abc``).
+   Use Punkt to perform sentence segmentation.
+
+#. |hard| Rewrite the following nested loop as a nested list comprehension:
+
+    >>> words = ['attribution', 'confabulation', 'elocution',
+    ...          'sequoia', 'tenacious', 'unidirectional']
+    >>> vsequences = set()
+    >>> for word in words:
+    ...     vowels = []
+    ...     for char in word:
+    ...         if char in 'aeiou':
+    ...             vowels.append(char)
+    ...     vsequences.add(''.join(vowels))
+    >>> sorted(vsequences)
+    ['aiuio', 'eaiou', 'eouio', 'euoia', 'oauaio', 'uiieioa']    
+
+    .. sorted(set(''.join(c for c in word if c in 'aeiou') for word in words))
+
+
+-------------------------------
+Lemmatization and Normalization
+-------------------------------
+
+Earlier we talked about counting word tokens, and completely ignored
+the rest of the sentence in which these tokens appeared.  Thus, for an
+example like `I saw the saw`:lx:, we would have treated both `saw`:lx:
+tokens as instances of the same type.  However, one is a form of the
+verb `see`:lx:, and the other is the name of a cutting instrument.
+How do we know that these two forms of `saw`:lx: are unrelated?  One
+answer is that as speakers of English, we know that these would appear
+as different entries in a dictionary. Another, more empiricist, answer
+is that if we looked at a large enough number of texts, it would
+become clear that the two forms have very different distributions. For
+example, only the noun `saw`:lx: will occur immediately after
+determiners such as `the`:lx:.  Distinct words that have the same
+written form are called `homographs`:dt:. We can distinguish
+homographs with the help of context; often the previous word suffices.
+We will explore this idea of context briefly, before addressing the
+main topic of this section.
+
+As a first approximation to discovering the distribution of a word, we
+can look at all the bigrams it occurs in.
+A `bigram`:dt: is simply a pair of words.
+For example, in the sentence `She sells sea shells by the sea shore`:lx:,
+the bigrams are
+`She sells`:lx:,
+`sells sea`:lx:,
+`sea shells`:lx:,
+`shells by`:lx:,
+`by the`:lx:,
+`the sea`:lx:,
+`sea shore`:lx:.
+Let's consider all bigrams from the Brown Corpus that have the
+word `often`:lx: as first element.
+Here is a small selection, ordered by their counts::
+
+    often ,     16
+    often a     10
+    often in        8
+    often than      7
+    often the       7
+    often been      6
+    often do        5
+    often called    4
+    often appear    3
+    often were      3
+    often appeared  2
+    often are       2
+    often did       2
+    often is        2
+    often appears   1
+    often call      1
+
+|nopar|
+In the topmost entry, we see that `often`:lx: is frequently followed
+by a comma.  This suggests that `often`:lx: is common at the end of
+phrases. We also see that `often`:lx: precedes verbs, presumably as an
+adverbial modifier.  We might conclude that when `saw`:lx:
+appears in the context `often saw`:lx:, then `saw`:lx: is being used
+as a verb.
+
+You will also see that this list includes different grammatical forms
+of the same verb. We can form separate groups consisting of
+`appear`:lx: |tilde| `appears`:lx: |tilde| `appeared`:lx:; `call`:lx:
+|tilde| `called`:lx:; `do`:lx: |tilde| `did`:lx:; and `been`:lx:
+|tilde| `were`:lx: |tilde| `are`:lx: |tilde| `is`:lx:.  It is common
+in linguistics to say that two forms such as `appear`:lx: and
+`appeared`:lx: belong to a more abstract notion of a word called a
+`lexeme`:dt:; by contrast, `appeared`:lx: and `called`:lx: belong to
+different lexemes. You can think of a lexeme as corresponding to an
+entry in a dictionary, and a `lemma`:dt: as the headword for that entry.
+By convention, small capitals are used when referring to a lexeme or lemma: `appear`:lex:.
+
+Although `appeared`:lx: and `called`:lx: belong to different lexemes,
+they do have something in common: they are both past tense forms. This
+is signaled by the segment `-ed`:lx:, which we call a morphological
+`suffix`:dt:. We also say that such morphologically complex forms are
+`inflected`:dt:.  If we strip off the suffix, we get something called
+the `stem`:dt:, namely `appear`:lx: and `call`:lx: respectively. While
+`appeared`:lx:, `appears`:lx: and `appearing`:lx: are all
+morphologically inflected, `appear`:lx: lacks any morphological
+inflection and is therefore termed the `base`:dt: form. In English,
+the base form is conventionally used as the `lemma`:dt: for a word.
+
+Our notion of context would be more compact if we could group
+different forms of the various verbs into their lemmas; then we could
+study which verb lexemes are typically modified by a particular
+adverb. `Lemmatization`:dt: |mdash| the process of mapping words
+to their lemmas |mdash| would yield the
+following picture of the distribution of `often`:lx:.
+Here, the counts for `often appear`:lx: (3),
+`often appeared`:lx: (2) and `often appears`:lx: (1)
+are combined into a single line.
+
+::
+
+    often ,     16
+    often a     10
+    often be        13
+    often in        8
+    often than      7
+    often the       7
+    often do        7
+    often appear    6
+    often call      5
+
+Lemmatization is a rather sophisticated process that uses rules
+for the regular word patterns, and table look-up for
+the irregular patterns. Within |NLTK|, we can use off-the-shelf
+stemmers, such as the `Porter Stemmer`:dt:, the `Lancaster Stemmer`:dt:,
+and the stemmer that comes with WordNet, e.g.:
+
+    >>> stemmer = nltk.PorterStemmer()
+    >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
+    >>> stems = [stemmer.stem(verb) for verb in verbs]
+    >>> sorted(set(stems))
+    ['appear', 'call']
+
+Stemmers for other languages are added to NLTK as they are contributed,
+e.g. the RSLP Portuguese Stemmer, ``nltk.RSLPStemmer()``.
+
+Lemmatization and stemming are special cases of `normalization`:dt:.
+They identify a canonical representative for a set of related word forms.
+Normalization collapses distinctions.  Exactly how we normalize words depends
+on the application.  Often, we convert everything into lower
+case so that we can ignore the written distinction between sentence-initial
+words and the rest of the words in the sentence.
+The Python string method ``lower()`` will accomplish this for us:
+
+    >>> str = 'This is the time'
+    >>> str.lower()
+    'this is the time'
+
+.. We need to be careful, however; case normalization will also collapse the `New`:lx:
+   of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
+   [SB: this mixes the issue with named entity detection, and should probably
+   be left to the engineering chapter]
+
+A final issue for normalization is the presence of contractions, such
+as `didn't`:lx:.  If we are analyzing the meaning
+of a sentence, it would probably be more useful to normalize this
+form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
+
+More Examples
+-------------
+
+Lemmatization and normalization involve applying the same operation to
+each word token in a text.  `List comprehensions`:dt: are a convenient
+Python construct for doing this.  Here we lowercase each word:
+
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> [word.lower() for word in sent]
+    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
+
+List comprehensions can constrain the items they include.  In the next
+example we remove some non-content words from a list of words:
+
+    >>> def is_lexical(word):
+    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
+    >>> [word for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'John', 'newspaper']
+
+|nopar|
+Now we can combine the two ideas (constraints and normalization),
+to pull out the content words and normalize them.
+
+    >>> [word.lower() for word in sent if is_lexical(word)]
+    ['dog', 'gave', 'john', 'newspaper']
+
+List comprehensions can build nested structures too.  For example,
+the following code builds a list of tuples, where each tuple consists
+of a word and its stem.
+
+    >>> sent = nltk.corpus.brown.sents(categories='a')[0]
+    >>> [(x, stemmer.stem(x).lower()) for x in sent]
+    [('The', 'the'), ('Fulton', 'fulton'), ('County', 'counti'),
+    ('Grand', 'grand'), ('Jury', 'juri'), ('said', 'said'), ('Friday', 'friday'),
+    ('an', 'an'), ('investigation', 'investig'), ('of', 'of'),
+    ("Atlanta's", "atlanta'"), ('recent', 'recent'), ('primary', 'primari'),
+    ('election', 'elect'), ('produced', 'produc'), ('``', '``'), ('no', 'no'),
+    ('evidence', 'evid'), ("''", "''"), ('that', 'that'), ('any', 'ani'),
+    ('irregularities', 'irregular'), ('took', 'took'), ('place', 'place'), ('.', '.')]
+
+The Lexicon
+-----------
+
+* type vs token distinction; connection of types to lemmas
+* concept of "word", many-to-many mapping between forms and meanings
+* why the lexicon is an open set, lexical productivity and challenge for NLP
+* morphology
+
+.. _fig-lexicon:
+.. figure:: ../images/lexicon.png
+   :scale: 50
+   
+   Lexicon Terminology
+
+
+String Similarity
+-----------------
+
+* spelling correction (a kind of normalization)
+* stemming (``nltk.stem``)
+* Soundex -- indexing strings in a dictionary (key = soundex code; value = list of words)
+* anagrams -- key = sorted letters of word; value = list of words with these letters
+
+Semantic Similarity
+-------------------
+
+.. TODO: discuss WSD, mention Semcor, give pine cone example
+
+.. It is often useful to be able to tell whether two lexical concepts are
+   `semantically related`:dt:. For example, in order to check whether a
+   particular instance of the word `bank`:lx: means
+   *financial institution*, we can count the number of nearby words
+   that are semantically related to this sense.  Using WordNet, we can
+   investigate whether semantic relatedness can be
+   expressed in terms of the graph structure of the concept hierarchy. 
+
+We would expect that the semantic similarity of two concepts
+would correlate with the length of the path between them in WordNet.
+The ``wordnet`` package includes a variety of measures
+that incorporate this basic insight.  For example,
+``path_similarity`` assigns a score in the range ``0``\ |ndash|\
+``1``, based on the shortest path that connects the concepts in the hypernym
+hierarchy (``-1`` is returned in those cases where a path cannot be
+found).  A score of 1 represents identity, i.e., comparing a sense with
+itself will return ``1``.
+
+    >>> wordnet.N['poodle'][0].path_similarity(wordnet.N['dalmatian'][1])
+    0.33333333333333331
+    >>> wordnet.N['dog'][0].path_similarity(wordnet.N['cat'][0])
+    0.20000000000000001
+    >>> wordnet.V['run'][0].path_similarity(wordnet.V['walk'][0])
+    0.25
+    >>> wordnet.V['run'][0].path_similarity(wordnet.V['think'][0])
+    -1
+
+Several other similarity measures are provided in ``wordnet``:
+Leacock-Chodorow, Wu-Palmer, Resnik, Jiang-Conrath, and Lin.
+For a detailed comparison of various measures, see [Budanitsky2006EWB]_.
+
+Indexing Texts
+--------------
+
+(Discussion of the use of normalization in indexing a text collection; better concordancing)
+
+.. soundex concordancing, wordnet concordancing
+
+Exercises
+---------
+
+#. |soso| Use the Porter Stemmer to normalize some tokenized text, calling
+   the stemmer on each word.  Do the same thing with the Lancaster Stemmer
+   and see if you observe any differences.
+
+.. _sec-formatting:
+
+---------------------------------
+Formatting: From Lists to Strings
+---------------------------------
+
+Working on Sequences One Item at a Time
+---------------------------------------
+
+We can write ``for`` loops to iterate over the characters
+in strings.  This ``print`` statement ends with a trailing comma, which is
+how we tell Python not to print a newline at the end.
+
+    >>> sent = 'colorless green ideas sleep furiously'
+    >>> for char in sent:
+    ...     print char,
+    ... 
+    c o l o r l e s s   g r e e n   i d e a s   s l e e p   f u r i o u s l y
+    >>>
+
+A note of caution: we have now iterated over words and characters,
+using expressions like ``for word in sent:`` and ``for char in sent:``.
+Remember that, to Python, ``word`` and ``char`` are meaningless variable names,
+and we could just as well have written ``for foo123 in sent:``.
+The interpreter simply iterates over the items in the sequence,
+quite oblivious to what kind of object they represent, e.g.:
+
+    >>> for foo123 in 'colorless green ideas sleep furiously':
+    ...     print foo123,
+    ... 
+    c o l o r l e s s   g r e e n   i d e a s   s l e e p   f u r i o u s l y
+    >>> for foo123 in ['colorless', 'green', 'ideas', 'sleep', 'furiously']:
+    ...     print foo123,
+    ... 
+    colorless green ideas sleep furiously
+    >>>
+
+However, you should try to choose 'sensible' names for loop variables because
+it will make your code more readable.
+
+
+Converting Between Strings and Lists
+------------------------------------
+
+Often we want to convert between a string containing a space-separated
+list of words and a list of strings. Let's first consider turning a
+list into a string. One way of doing this is as follows:
+
+    >>> s = ''
+    >>> for word in chomsky:
+    ...	   s += ' ' + word
+    ...
+    >>> s
+    ' colorless green ideas sleep furiously'
+    >>>
+
+One drawback of this approach is that we have an unwanted space at the
+start of ``s``.  It is more convenient to use the ``join()`` method.
+We specify the string to be used as the "glue", followed by a
+period, followed by the ``join()`` function.
+
+    >>> sent = ' '.join(chomsky)
+    >>> sent
+    'colorless green ideas sleep furiously'
+    >>>
+
+So ``' '.join(chomsky)`` means: take all the items in ``chomsky`` and
+concatenate them as one big string, using ``' '`` as a spacer between
+the items. 
+
+Now let's try to reverse the process: that is, we want to convert a
+string into a list. Again, we could start off with an empty list
+``[]`` and ``append()`` to it within a ``for`` loop.  But as before,
+there is a more succinct way of achieving the same goal.  This time,
+we will `split`:em: the new string ``sent`` on whitespace:
+
+..  why did we have this?  >>> sent.split(' ')
+
+    >>> sent.split()
+    ['colorless', 'green', 'ideas', 'sleep', 'furiously']
+    >>> 
+
+To consolidate your understanding of joining and splitting strings,
+let's try the same thing using a semicolon as the separator:
+
+    >>> sent = ';'.join(chomsky)
+    >>> sent
+    'colorless;green;ideas;sleep;furiously'
+    >>> sent.split(';')
+    ['colorless', 'green', 'ideas', 'sleep', 'furiously']
+    >>>
+
+To be honest, many people find the notation for ``join()`` rather
+unintuitive. 
+There is another function for converting lists to strings, again
+called ``join()`` which is called directly on the list. It uses whitespace by
+default as the "glue". However, we need to explicitly `import`:dt: this
+function into our code. One way of doing this is as follows:
+
+    >>> import string
+    >>> string.join(chomsky)
+    'colorless green ideas sleep furiously'  
+    >>>
+
+Here, we imported something called ``string``, and then called the
+function ``string.join()``. In passing, if we want to use something
+other than whitespace as "glue", we just specify this as a second
+parameter:
+
+    >>> string.join(chomsky, ';')
+    'colorless;green;ideas;sleep;furiously'
+    >>>
+
+We will see other examples of statements with ``import`` later in this
+chapter.  In general, we use ``import`` statements when we want to get
+access to Python code that doesn't already come as part of core
+Python. This code will exist somewhere as one or more files. Each such
+file corresponds to a Python `module`:dt: |mdash| this is a way of
+grouping together code and data that we regard as reusable. When you
+write down some Python statements in a file, you are in effect
+creating a new Python module. And you can make your code depend on
+another module by using the ``import`` statement. In our example
+earlier, we imported the module ``string`` and then used the
+``join()`` function from that module. By adding ``string.`` to the
+beginning of ``join()``, we make it clear to the Python interpreter
+that the definition of ``join()`` is given in the ``string``
+module. An alternative, and equally valid, approach is to use the
+``from`` *module* ``import`` *identifier* statement, as shown in the
+next example:
+
+    >>> from string import join
+    >>> join(chomsky)
+    'colorless green ideas sleep furiously'  
+    >>>
+
+In this case, the name ``join`` is added to all the other identifier that we
+have defined in the body of our programme, and we can use it to call a
+function like any other.
+
+.. Note:: If you are creating a file to contain some of your Python
+   code, do *not* name your file ``nltk.py``: it may get imported in
+   place of the "real" NLTK package. (When it imports modules, Python
+   first looks in the current folder / directory.)
+
+Formatting Output
+-----------------
+
+The output of a program is usually structured to make the information
+easily digestible by a reader.  Instead of running some code and then
+manually inspecting the contents of a variable, we would like the code
+to tabulate some output.  We already saw this above in the first
+``for`` loop example that used a list of words,
+where each line of output was similar to ``5 p sleep``,
+consisting of a word length, the last character of the word,
+then the word itself.
+
+There are many ways we might want to format such output.  For
+instance, we might want to place the length value in parentheses `after`:em: the
+word, and print all the output on a single line:
+
+    >>> for word in chomsky:
+    ...     print word, '(', len(word), '),',
+    colorless ( 9 ), green ( 5 ), ideas ( 5 ), sleep ( 5 ), furiously ( 9 ),
+    >>>
+
+However, this approach has a couple of problems.  First, the ``print``
+statement intermingles variables and punctuation, making it a little
+difficult to read.  Second, the output has spaces around every item
+that was printed.  A cleaner way to produce structured output uses
+Python's `string formatting expressions`:dt:. Before diving into
+clever formatting tricks, however, let's look at a really simple example. We
+are going to use a special symbol, ``%s``, as a placeholder in
+strings. Once we have a string containing this placeholder, we follow
+it with a single ``%``
+and then a value ``v``. Python then returns a new string where
+``v`` has been slotted in to replace ``%s``:
+
+    >>> "I want a %s right now" % "coffee"
+    'I want a coffee right now'
+    >>>
+
+In fact, we can have a number of placeholders, but following the ``%`` operator
+we need to specify exactly the same number of values.  Note that the
+parentheses are required.
+
+    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
+    'Lee wants a sandwich for lunch'
+    >>>
+
+We can also provide the values for the placeholders indirectly. Here's
+an example using a ``for`` loop:
+
+    >>> menu = ['sandwich', 'spam fritter', 'pancake']
+    >>> for snack in menu:
+    ...     "Lee wants a %s right now" % snack
+    ... 
+    'Lee wants a sandwich right now'
+    'Lee wants a spam fritter right now'
+    'Lee wants a pancake right now'
+    >>>
+
+We oversimplified things when we said that placeholders were
+of the form ``%s``; in fact, this is a complex object, called a
+`conversion specifier`:dt:. This has to start with the ``%``
+character, and ends with conversion character such as ``s` or ``d``. The ``%s``
+specifier tells Python that the corresponding variable is a string (or
+should be converted into a string), while the ``%d`` specifier
+indicates that the corresponding variable should be converted into a
+decimal representation. The string containing conversion specifiers is
+called a `format string`:dt:.
+
+Picking up on the ``print`` example that we opened this section with,
+here's how we can use two different kinds of conversion specifier:
+
+    >>> for word in chomsky:
+    ...     print "%s (%d)," % (word, len(word)),
+    colorless (9), green (5), ideas (5), sleep (5), furiously (9), 
+    >>>
+
+To summarize, string formatting is accomplished with a three-part
+object having the syntax: `format`:ph: ``%`` `values`:ph:.  The
+`format`:ph: section is a string containing format specifiers
+such as ``%s`` and ``%d`` that Python will replace with the supplied
+values.  The `values`:ph: section of a formatting string is a parenthesized
+list containing exactly as many items as there are format specifiers in the
+`format`:ph: section.  In the case that there is just one item, the
+parentheses can be left out.  (We will discuss Python's
+string-formatting expressions in more detail in Section
+sec-lining-things-up_).
+
+In the above example, we used a trailing comma to suppress the
+printing of a newline. Suppose, on the other hand, that we want to
+introduce some additional newlines in our output. We can accomplish
+this by inserting the "special" character ``\n`` into the ``print`` string:
+
+    >>> for word in chomsky:
+    ...	   print "Word = %s\nIndex = %s\n*****" % (word, chomsky.index(word))
+    ...
+    Word = colorless
+    Index = 0
+    *****
+    Word = green
+    Index = 1
+    *****
+    Word = ideas
+    Index = 2
+    *****
+    Word = sleep
+    Index = 3
+    *****
+    Word = furiously
+    Index = 4
+    *****
+    >>> 
+
+
+Exercises
+---------
+
+1. |easy| Using the Python interactive interpreter, experiment with
+   the examples in this section.  Think of a sentence and
+   represent it as a list of strings, e.g. ['Hello', 'world'].
+   Try the various operations for indexing, slicing and sorting the elements
+   of your list.  Extract individual items (strings), and perform
+   some of the string operations on them.
+
+#. |easy| Split ``sent`` on some other character, such as ``'s'``.
+
+#. |easy| We pointed out that when ``phrase`` is a list, ``phrase.reverse()``
+   returns a modified version of ``phrase`` rather than a new list. On
+   the other hand, we can use the slice trick mentioned in the
+   exercises for the previous section, ``[::-1]`` to create a `new`:em: reversed list
+   without changing ``phrase``. Show how you can confirm this
+   difference in behavior.
+
+#. |easy| We have seen how to represent a sentence as a list of words, where
+   each word is a sequence of characters.  What does ``phrase1[2][2]`` do?
+   Why?  Experiment with other index values.
+
+#. |easy| Write a ``for`` loop to print out the characters of a string, one per line.
+
+#. |easy| What is the difference between calling ``split`` on a string
+   with no argument or with ``' '`` as the argument,
+   e.g. ``sent.split()`` versus ``sent.split(' ')``?  What happens
+   when the string being split contains tab characters, consecutive
+   space characters, or a sequence of tabs and spaces?  (In IDLE you
+   will need to use ``'\t'`` to enter a tab character.)
+
+#. |easy| Create a variable ``words`` containing a list of words.
+   Experiment with ``words.sort()`` and ``sorted(words)``.
+   What is the difference?
+
+#. |easy| Earlier, we asked you to use a text editor to create a file
+   called ``test.py``, containing the single line ``msg = 'Hello
+   World'``. If you haven't already done this (or can't find the file),
+   go ahead and do it now. Next, start up a new session with the
+   Python interpreter, and enter the expression ``msg`` at the prompt.
+   You will get an error from the interpreter. Now, try the following
+   (note that you have to leave off the ``.py`` part of the filename):
+
+       >>> from test import msg
+       >>> msg
+
+   This time, Python should return with a value. You can also try
+   ``import test``, in which case Python should be able to
+   evaluate the expression ``test.msg`` at the prompt.  
+
+#. |soso| Process the list ``chomsky`` using a ``for`` loop, and store the
+   result in a new list ``lengths``.  Hint: begin by assigning the
+   empty list to ``lengths``, using ``lengths = []``. Then each time
+   through the loop, use ``append()`` to add another length value to
+   the list.
+
+#. |soso| Define a variable ``silly`` to contain the string:
+   ``'newly formed bland ideas are inexpressible in an infuriating
+   way'``.  (This happens to be the legitimate interpretation that
+   bilingual English-Spanish speakers can assign to Chomsky's
+   famous phrase, according to Wikipedia).  Now write code to perform
+   the following tasks:
+
+   a) Split ``silly`` into a list of strings, one per
+      word, using Python's ``split()`` operation, and save
+      this to a variable called ``bland``.
+   b) Extract the second letter of each word in ``silly`` and join
+      them into a string, to get ``'eoldrnnnna'``.
+   c) Combine the words in ``bland`` back into a single string, using ``join()``.
+      Make sure the words in the resulting string are separated with
+      whitespace.
+   d) Print the words of ``silly`` in alphabetical order, one per line.
+
+#. |soso| The ``index()`` function can be used to look up items in sequences.
+   For example, ``'inexpressible'.index('e')`` tells us the index of the
+   first position of the letter ``e``.
+
+   a) What happens when you look up a substring, e.g. ``'inexpressible'.index('re')``?
+   b) Define a variable ``words`` containing a list of words.  Now use ``words.index()``
+      to look up the position of an individual word.
+   c) Define a variable ``silly`` as in the exercise above.
+      Use the ``index()`` function in combination with list slicing to
+      build a list ``phrase`` consisting of all the words up to (but not
+      including) ``in`` in ``silly``.
+
+
+Exercises
+---------
+
+#. |soso| Write a program to score the similarity of two nouns as the depth
+   of their first common hypernym.
+
+#. |hard| Use one of the predefined similarity measures to score
+   the similarity of each of the following pairs of words.
+   Rank the pairs in order of decreasing similarity.
+   How close is your ranking to the order given here?
+   (Note that this order was established experimentally
+   by [MillerCharles1998]_.)
+
+::
+      car-automobile, gem-jewel, journey-voyage, boy-lad,
+      coast-shore, asylum-madhouse, magician-wizard, midday-noon,
+      furnace-stove, food-fruit, bird-cock, bird-crane, tool-implement,
+      brother-monk, lad-brother, crane-implement, journey-car,
+      monk-oracle, cemetery-woodland, food-rooster, coast-hill,
+      forest-graveyard, shore-woodland, monk-slave, coast-forest,
+      lad-wizard, chord-smile, glass-magician, rooster-voyage, noon-string.      
+
+#. |hard| Write a program that processes a text and discovers
+   cases where a word has been used with a novel sense.
+   For each word, compute the wordnet similarity
+   between all synsets of the word and all synsets of the
+   words in its context.  (Note that this is a crude
+   approach; doing it well is an open research problem.)
+
+----------
+Conclusion
+----------
+
+In this chapter we saw that we can do a variety of interesting
+language processing tasks that focus solely on words.  Tokenization
+turns out to be far more difficult than expected.
+No single solution works well across-the-board, and we
+must decide what counts as a token depending on the application
+domain.  We also looked at normalization (including lemmatization) and
+saw how it collapses distinctions between tokens.  In the next chapter
+we will look at word classes and automatic tagging.
 
 -------
 Summary
 -------
 
-* Words can be grouped into classes, such as nouns, verbs, adjectives, and adverbs.
-  These classes are known as lexical categories or parts of speech.
-  Parts of speech are assigned short labels, or tags, such as ``NN``, ``VB``,
-
-* The process of automatically assigning parts of speech to words in text
-  is called part-of-speech tagging, POS tagging, or just tagging.
-
-* Some linguistic corpora, such as the Brown Corpus, have been POS tagged.
-
-* A variety of tagging methods are possible, e.g.
-  default tagger, regular expression tagger, unigram tagger and n-gram taggers.
-  These can be combined using a technique known as backoff.
-
-* Taggers can be trained and evaluated using tagged corpora.
-
-* Part-of-speech tagging is an important, early example of a sequence
-  classification task in NLP: a classification decision at any one point
-  in the sequence makes use of words and tags in the local context.
-
-.. _sec-tag-further-reading:
+* Text is represented in Python using strings, and we type these with
+  single or double quotes: ``'Hello'``, ``"World"``.
+* The characters of a string are accessed using indexes, counting from zero:
+  ``'Hello World'[1]`` gives the value ``e``.  The length of a string is
+  found using ``len()``.
+* Substrings are accessed using slice notation: ``'Hello World'[1:5]``
+  gives the value ``ello``.  If the start index is omitted, the
+  substring begins at the start of the string; if the end index is omitted,
+  the slice continues to the end of the string.
+* Strings can be split into lists: ``'Hello World'.split()`` gives
+  ``['Hello', 'World']``.  Lists can be joined into strings:
+  ``'/'.join(['Hello', 'World'])`` gives ``'Hello/World'``.
+* we can read text from a file ``f`` using ``text = open(f).read()``
+* we can read text from a URL ``u`` using ``text = urlopen(u).read()``
+* texts found on the web may contain unwanted material (such as headers, footers, markup),
+  that need to be removed before we do any linguistic processing.
+* Some functions are not available by default, but must be accessed using
+  Python's ``import`` statement.
+* a word token is an individual occurrence of a word in a particular context
+* a word type is the vocabulary item, independent of any particular use of that item
+* tokenization is the segmentation of a text into basic units |mdash| or tokens |mdash|
+  such as words and punctuation.
+* tokenization based on whitespace is inadequate for many applications because it
+  bundles punctuation together with words
+* lemmatization is a process that maps the various forms of a word (such as `appeared`:lx:, `appears`:lx:)
+  to the canonical or citation form of the word, also known as the lexeme or lemma (e.g. `appear`:lex:).
+* Regular expressions are a powerful and flexible method of specifying
+  patterns. Once we have imported the ``re`` module, we can use
+  ``re.findall()`` to find all substrings in a string that match a pattern,
+  and we can use ``re.sub()`` to replace substrings of one sort with another.
 
 ---------------
 Further Reading
 ---------------
 
-For more examples of tagging with |NLTK|, please see the
-guide at ``http://nltk.org/doc/guides/tag.html``.
-Chapters 4 and 5 of [JurafskyMartin2008]_ contain more advanced
-material on n-grams and part-of-speech tagging.
+For a more extended treatment of regular expressions, see app-regexps_.
+To learn about Unicode, see app-unicode_.
 
-There are several other important approaches to tagging involving
-*Transformation-Based Learning*, *Markov Modeling*, and *Finite State
-Methods*.  (We will discuss some of these in Chapter chap-data-intensive_.)
-In Chapter chap-chunk_ we will see a generalization of tagging called *chunking* in which a
-contiguous sequence of words is assigned a single tag.
+For more examples of processing words with |NLTK|, please see the
+guides at ``http://nltk.org/doc/guides/tokenize.html``,
+``http://nltk.org/doc/guides/stem.html``,
+and ``http://nltk.org/doc/guides/wordnet.html``.
+A guide on accessing |NLTK| corpora is available at:
+``http://nltk.org/doc/guides/corpus.html``.
+Chapters 2 and 3 of [JurafskyMartin2008]_ contain more advanced
+material on regular expressions and morphology.
 
-Part-of-speech tagging is just one kind of tagging, one that
-does not depend on deep linguistic analysis.
-There are many other kinds of tagging.  Words
-can be tagged with directives to a speech synthesizer, indicating
-which words should be emphasized.  Words can be tagged with sense
-numbers, indicating which sense of the word was used.  Words can also
-be tagged with morphological features.
-Examples of each of these kinds of tags are shown below.
-For space reasons, we only show the tag for a single
-word. Note also that the first two examples use XML-style
-tags, where elements in angle brackets enclose the word that is
-tagged.
+Regular Expressions
+-------------------
 
-1. *Speech Synthesis Markup Language (W3C SSML):*
-   ``That is a <emphasis>big</emphasis> car!``
-#. *SemCor: Brown Corpus tagged with WordNet senses:*
-   ``Space in any <wf pos="NN" lemma="form" wnsn="4">form</wf>
-   is completely measured by the three dimensions.``
-   (Wordnet form/nn sense 4: "shape, form, configuration,
-   contour, conformation")
-#. *Morphological tagging, from the Turin University Italian Treebank:*
-   ``E' italiano , come progetto e realizzazione , il
-   primo (PRIMO ADJ ORDIN M SING) porto turistico dell' Albania .``
+There are many references for regular expressions, both practical and
+theoretical.  [Friedl2002MRE]_ is a comprehensive and detailed manual
+in using regular expressions, covering their syntax in most major
+programming languages, including Python.
 
-Tagging exhibits several properties that are characteristic of natural
-language processing.  First, tagging involves *classification*: words have
-properties; many words share the same property (e.g. ``cat`` and ``dog``
-are both nouns), while some words can have multiple such properties
-(e.g. ``wind`` is a noun and a verb).  Second, in tagging, disambiguation
-occurs via *representation*: we augment the representation of tokens with
-part-of-speech tags.  Third, training a tagger involves *sequence learning
-from annotated corpora*.  Finally, tagging uses *simple, general, methods*
-such as conditional frequency distributions and transformation-based learning.
+For an introductory
+tutorial to using regular expressions in Python with the ``re``
+module, see A. M. Kuchling, *Regular Expression HOWTO*,
+http://www.amk.ca/python/howto/regex/. 
 
-Note that tagging is also performed at higher levels.  Here is an example
-of dialogue act tagging, from the NPS Chat Corpus [Forsyth2007]_, included with
-NLTK.
+Chapter 3 of [Mertz2003TPP]_ provides a more extended tutorial on
+Python's facilities for text processing with regular expressions.
 
-|   Statement  User117 Dude..., I wanted some of that
-|   ynQuestion User120 m I missing something?
-|   Bye        User117 I'm gonna go fix food, I'll be back later.
-|   System     User122 JOIN
-|   System     User2   slaps User122 around a bit with a large trout.
-|   Statement  User121 18/m pm me if u tryin to chat
+http://www.regular-expressions.info/ is a useful online resource,
+providing a tutorial and references to tools and other sources of
+information.
 
-List of available taggers:
-``http://www-nlp.stanford.edu/links/statnlp.html``
-
------------------------
-Appendix: Brown Tag Set
------------------------
-
-.. _Appendix:
-
-Table brown-tags_ gives a sample of closed class words, following
-the classification of the Brown Corpus. (Note that part-of-speech tags
-may be presented as either upper-case or lower-case strings |mdash| the
-case difference is not significant.)
-
-.. table:: brown-tags
-
-   ====  =========================================  ==========================================================
-   AP    determiner/pronoun, post-determiner        many other next more last former little several enough most least only very few fewer past same
-   AT    article                                    the an no a every th' ever' ye
-   CC    conjunction, coordinating                  and or but plus & either neither nor yet 'n' and/or minus an'
-   CS    conjunction, subordinating                 that as after whether before while like because if since for than until so unless though providing once lest till whereas whereupon supposing albeit then
-   IN    preposition                                of in for by considering to on among at through with under into regarding than since despite ...
-   MD    modal auxiliary                            should may might will would must can could shall ought need wilt
-   PN    pronoun, nominal                           none something everything one anyone nothing nobody everybody everyone anybody anything someone no-one nothin'
-   PPL   pronoun, singular, reflexive               itself himself myself yourself herself oneself ownself
-   PP$   determiner, possessive                     our its his their my your her out thy mine thine
-   PP$$  pronoun, possessive                        ours mine his hers theirs yours
-   PPS   pronoun, personal, nom, 3rd pers sng       it he she thee
-   PPSS  pronoun, personal, nom, not 3rd pers sng   they we I you ye thou you'uns
-   WDT   WH-determiner                              which what whatever whichever
-   WPS   WH-pronoun, nominative                     that who whoever whosoever what whatsoever
-   ====  =========================================  ==========================================================
-
-   Some English Closed Class Words, with Brown Tag
-
-.. Acknowledgments
-
-.. Dutch example: http://www.askoxford.com/pressroom/archive/odelaunch/
-
+..
+   John Hopkins Center for Language and Speech Processing, 1999
+   Summer Workshop on Normalization of Non-Standard Words: Final Report
+   http://www.clsp.jhu.edu/ws99/projects/normal/report.pdf
 
 .. include:: footer.rst
