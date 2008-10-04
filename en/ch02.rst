@@ -1,0 +1,1739 @@
+.. -*- mode: rst -*-
+.. include:: ../definitions.rst
+
+.. TODO: add Mark Twain
+.. TODO: discussion of resource rich/poor languages in section on corpora in other languages
+         number of languages in the world, Ethnologue, etc
+
+.. _chap-corpora:
+
+================================
+2. Corpora: Large Bodies of Text
+================================
+
+
+The goal of this chapter is to answer the following questions:
+
+#. how can we write programs to access text from local files and
+   from the web, in order to get hold of an unlimited range of
+   language material?
+
+
+
+
+.. _sec-extracting-text-from-corpora:
+
+-----------------------------------------------
+Computing with Language: Accessing Text Corpora
+-----------------------------------------------
+
+A text corpus is a large body of text, containing a careful balance of material in
+one or more genres.  We have already seen some small corpora, such as the
+presidential inaugural addresses.  This corpus actually contains dozens of
+individual texts |mdash| one per address |mdash| but we glued them end-to-end
+and treated them like chapters of a book, i.e. as a single text.  In this
+section we will examine a variety of text corpora and will see how to select
+individual texts, and how to compare them.  
+
+The Gutenberg Corpus
+--------------------
+
+|NLTK| includes a small selection of texts from the `Project Gutenberg
+<http://www.gutenberg.org/>`_ electronic text archive containing
+some 25,000 free electronic books.  Let's find
+out what it contains.  We begin
+by telling the Python interpreter to load the |NLTK| package,
+then ask to see ``nltk.corpus.gutenberg.files()``, the files in
+|NLTK|\ 's corpus of Gutenberg texts:  
+
+    >>> import nltk
+    >>> nltk.corpus.gutenberg.files()
+    ('austen-emma.txt', 'austen-persuasion.txt', 'austen-sense.txt', 'bible-kjv.txt',
+    'blake-poems.txt', 'chesterton-ball.txt', 'chesterton-brown.txt', 'chesterton-thursday.txt',
+    'melville-moby_dick.txt', 'milton-paradise.txt', 'shakespeare-caesar.txt',
+    'shakespeare-hamlet.txt', 'shakespeare-macbeth.txt', 'whitman-leaves.txt')
+    >>>
+
+Let's pick out the first of these texts |mdash| *Emma* by Jane Austen |mdash| and
+give it a short name ``emma``, then find out how many words it contains: 
+
+    >>> emma = nltk.corpus.gutenberg.words("austen-emma.txt")
+    >>> len(emma)
+    192432
+    >>>
+
+.. note:: In |NLTK| 0.9.5 you cannot do concordancing (and other tasks from
+   Section sect-computing-with-language-texts-and-words_) using a text
+   defined this way.  Instead you have to do the following:
+   
+       >>> emma = nltk.Text(nltk.corpus.gutenberg.words("austen-emma.txt"))
+       >>>
+
+It might get cumbersome to type ``nltk.corpus.gutenberg`` all the time, and there's
+nothing to stop us giving this a name in the usual way, e.g. by defining a name
+``gutenberg = nltk.corpus.gutenberg``, then using this instead.  This is so common
+that Python provides direct support for it:
+
+    >>> from nltk.corpus import gutenberg
+    >>> gutenberg.files()
+    ('austen-emma.txt', 'austen-persuasion.txt', 'austen-sense.txt', 'bible-kjv.txt',
+    'blake-poems.txt', 'chesterton-ball.txt', 'chesterton-brown.txt', 'chesterton-thursday.txt',
+    'melville-moby_dick.txt', 'milton-paradise.txt', 'shakespeare-caesar.txt',
+    'shakespeare-hamlet.txt', 'shakespeare-macbeth.txt', 'whitman-leaves.txt')
+    >>>
+
+Let's write a short program to display other information about each text:
+
+    >>> for filename in gutenberg.files():
+    ...     r = gutenberg.raw(filename)
+    ...     w = gutenberg.words(filename)
+    ...     s = gutenberg.sents(filename)
+    ...     v = set(w)
+    ...     print filename, len(r)/len(w), len(w)/len(s), len(w)/len(v)
+    ... 
+    austen-emma.txt 4 21 24
+    austen-persuasion.txt 4 23 16
+    austen-sense.txt 4 24 20
+    bible-kjv.txt 4 33 73
+    blake-poems.txt 4 18 4
+    chesterton-ball.txt 4 17 10
+    chesterton-brown.txt 4 19 10
+    chesterton-thursday.txt 4 16 10
+    melville-moby_dick.txt 4 24 13
+    milton-paradise.txt 4 52 9
+    shakespeare-caesar.txt 4 12 7
+    shakespeare-hamlet.txt 4 13 6
+    shakespeare-macbeth.txt 4 13 5
+    whitman-leaves.txt 4 35 10
+    >>>
+
+This program has displayed the filename, followed by three statistics for each text:
+average word length, average sentence length, and the number of times each vocabulary
+item appears in the text on average (our lexical diversity score).
+Observe that average word length appears to be a general property of English,
+while average sentence length and lexical diversity
+appears to be a characteristic of individual authors.
+  
+This example also showed how we can access the "raw" text of the book,
+not split up into words.  The ``raw()`` function gives us the contents of the file
+without any linguistic processing.  So, for example, ``len(gutenberg.raw("blake-poems.txt")``
+tells us how many *letters* occur in the text, including the spaces between words.
+The ``sents()`` function divides the text up into its sentences, where each sentence is
+a list of words:
+
+    >>> macbeth_sentences = gutenberg.sents("shakespeare-macbeth.txt")
+    >>> macbeth_sentences
+    [['[', 'The', 'Tragedie', 'of', 'Macbeth', 'by', 'William', 'Shakespeare',
+    '1603', ']'], ['Actus', 'Primus', '.'], ...]
+    >>> macbeth_sentences[1038]
+    ['Double', ',', 'double', ',', 'toile', 'and', 'trouble', ';',
+    'Fire', 'burne', ',', 'and', 'Cauldron', 'bubble']
+    >>>
+
+.. note:: Most |NLTK| corpus readers include a variety of access methods
+   apart from ``words()``.  We access the raw file contents using ``raw()``,
+   and get the content sentence by sentence using ``sents()``.  Richer
+   linguistic content is available from some corpora, such as part-of-speech
+   tags, dialogue tags, syntactic trees, and so forth; we will see these
+   in later chapters.
+
+Web Text
+--------
+
+Although Project Gutenberg contains thousands of books, it represents established
+literature.  Its important to consider less formal language as well.  |NLTK|\ 's
+small collection of web text includes content from a Firefox discussion forum,
+conversations overheard in New York, the movie script of *Pirates of the Carribean*,
+personal advertisements, and wine reviews:
+
+    >>> for f in nltk.corpus.webtext.files():
+    ...     print f, nltk.corpus.webtext.raw(f)[:70]
+    ... 
+    firefox.txt Cookie Manager: "Don't allow sites that set removed cookies to set fut
+    overheard.txt White guy: So, do you have any plans for this evening? Asian girl: Yea
+    pirates.txt PIRATES OF THE CARRIBEAN: DEAD MAN'S CHEST, by Ted Elliott & Terry Ros
+    singles.txt 25 SEXY MALE, seeks attrac older single lady, for discreet encounters.
+    wine.txt Lovely delicate, fragrant Rhone wine. Polished leather and strawberrie 
+    >>>
+
+There is also a corpus of instant messaging chat sessions, originally collected
+by the Naval Postgraduate School for research on automatic detection of internet predators.
+The corpus contains over 10,000 posts, anonymized by replacing usernames with generic
+names of the form "UserNNN", and manually edited to remove any other identifying information.
+The corpus is organized into 15 files, where each file contains several hundred posts
+collected on a given date, for an age-specific chatroom (teens, 20s, 30s, 40s, plus a
+generic adults chatroom).  The filename contains the date, chatroom,
+and number of posts, e.g. ``10-19-20s_706posts.xml`` contains 706 posts gathered from
+the 20s chat room on 10/19/2006.
+
+    >>> chatroom = nltk.corpus.nps_chat.posts("10-19-20s_706posts.xml")
+    >>> chatroom[123]
+    ['i', 'do', "n't", 'want', 'hot', 'pics', 'of', 'a', 'female', ',',
+    'I', 'can', 'look', 'in', 'a', 'mirror', '.']
+    >>>
+
+The Brown Corpus
+----------------
+
+The Brown Corpus was the first million-word electronic
+corpus of English, created in 1961 at Brown University.
+This corpus contains text from many sources, and the sources
+have been categorized by genre, and given a label ``a`` through ``r``,
+as set out in Table brown-categories_.
+
+.. table:: brown-categories
+
+   ===  =================  ===  ==================  ===  ================  ===  ================
+   Sec  Genre              Sec  Genre               Sec  Genre             Sec  Genre
+   ===  =================  ===  ==================  ===  ================  ===  ================
+   a    Press: Reportage   b    Press: Editorial    c    Press: Reviews    d    Religion
+   e    Skill and Hobbies  f    Popular Lore        g    Belles-Lettres    h    Government
+   j    Learned            k    Fiction: General    k    Fiction: General  l    Fiction: Mystery
+   m    Fiction: Science   n    Fiction: Adventure  p    Fiction: Romance  r    Humor
+   ===  =================  ===  ==================  ===  ================  ===  ================
+
+   Sections of the Brown Corpus
+
+We can access the corpus as a list of words, or a list of sentences (where each sentence
+is itself just a list of words).  We can optionally specify a section of the corpus to read:
+
+    >>> nltk.corpus.brown.categories()
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
+    >>> nltk.corpus.brown.words(categories='a')
+    ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', ...]
+    >>> nltk.corpus.brown.sents(categories='a')
+    [['The', 'Fulton', 'County'...], ['The', 'jury', 'further'...], ...]
+    >>>
+
+We can use the Brown Corpus to study systematic differences between
+genres, a kind of linguistic inquiry known as `stylistics`:dt:.
+For example, Table brown-modals_ was constructed by counting
+the number of times various modal words appear in different sections of the corpus:
+
+.. table:: brown-modals
+
+   ==================  ===  =====  ===  =====  ====  ====
+   Genre               can  could  may  might  must  will 
+   ==================  ===  =====  ===  =====  ====  ====
+   skill and hobbies   273  59     130  22     83    259 
+   humor               17   33     8    8      9     13 
+   fiction: science    16   49     4    12     8     16 
+   press: reportage    94   86     66   36     50    387 
+   fiction: romance    79   195    11   51     46    43 
+   religion            84   59     79   12     54    64 
+   ==================  ===  =====  ===  =====  ====  ====
+
+   Use of Modals in Brown Corpus, by Genre
+
+|nopar|
+Observe that the most frequent modal in the reportage genre is
+`will`:lx:, suggesting a focus on the future, while the most frequent
+modal in the romance genre is `could`:lx:, suggesting a focus on
+possibilities.  (We will return to this example in Section sec-lining-things-up_).
+
+Reuters Corpus
+--------------
+
+The Reuters Corpus contains 10,788 news documents totaling 1.3 million words.
+The documents have been classified for relevance to 90 topics, and grouped
+into two sets, called "training" and "test" (for training and testing algorithms
+that automatically detect the topic of a document, as we will explore further
+in Chapter chap-data-intensive_).
+
+    >>> nltk.corpus.reuters.files()
+    ('test/14826', 'test/14828', 'test/14829', 'test/14832', ...)
+    >>> reuters.categories() 
+    ['acq', 'alum', 'barley', 'bop', 'carcass', 'castor-oil', 'cocoa',
+    'coconut', 'coconut-oil', 'coffee', 'copper', 'copra-cake', 'corn',
+    'cotton', 'cotton-oil', 'cpi', 'cpu', 'crude', 'dfl', 'dlr', ...]
+    >>>
+
+Unlike the Brown Corpus, categories in the Reuters corpus overlap with each
+other, simply because a news story often covers multiple topics.  We can
+ask for the topics covered by one or more documents, or for the documents
+included in one or more categories:
+
+    >>> reuters.categories('training/9865')
+    ['barley', 'corn', 'grain', 'wheat']
+    >>> reuters.categories(['training/9865', 'training/9880'])
+    ['barley', 'corn', 'grain', 'money-fx', 'wheat']
+    >>> reuters.files('barley') 
+    ['test/15618', 'test/15649', 'test/15676', 'test/15728', 'test/15871', ...]
+    >>> reuters.files(['barley', 'corn']) 
+    ['test/14832', 'test/14858', 'test/15033', 'test/15043', 'test/15106',
+    'test/15287', 'test/15341', 'test/15618', 'test/15618', 'test/15648', ...]
+    >>>
+
+.. note:: Many other English text corpora are provided with |NLTK|.  For a
+   list see Appendix app-modules_.  For more examples of access |NLTK| corpora,
+   please consult the online guide at ``http://nltk.org/doc/guides/corpus.html``.
+
+Corpora in Other Languages
+--------------------------
+
+NLTK comes with corpora for many languages, though in some cases
+you will need to learn how to manipulate character encodings in Python
+before using these corpora (see Appendix app-unicode_).
+
+    >>> print nltk.corpus.nps_chat.words()
+    ['now', 'im', 'left', 'with', 'this', 'gay', 'name', ...]
+    >>> nltk.corpus.cess_esp.words()
+    ['El', 'grupo', 'estatal', 'Electricit\xe9_de_France', ...]
+    >>> nltk.corpus.floresta.words()
+    ['Um', 'revivalismo', 'refrescante', 'O', '7_e_Meio', ...]
+    >>> nltk.corpus.udhr.files()
+    ('Abkhaz-Cyrillic+Abkh', 'Abkhaz-UTF8', 'Achehnese-Latin1', 'Achuar-Shiwiar-Latin1',
+    'Adja-UTF8', 'Afaan_Oromo_Oromiffa-Latin1', 'Afrikaans-Latin1', 'Aguaruna-Latin1',
+    'Akuapem_Twi-UTF8', 'Albanian_Shqip-Latin1', 'Amahuaca', 'Amahuaca-Latin1', ...)
+    >>> nltk.corpus.udhr.words('Javanese-Latin1')[11:]
+    ['Saben', 'umat', 'manungsa', 'lair', 'kanthi', 'hak', ...]
+    >>> nltk.corpus.indian.words('hindi.pos')
+    ['\xe0\xa4\xaa\xe0\xa5\x82\xe0\xa4\xb0\xe0\xa5\x8d\xe0\xa4\xa3',
+    '\xe0\xa4\xaa\xe0\xa5\x8d\xe0\xa4\xb0\xe0\xa4\xa4\xe0\xa4\xbf\xe0\xa4\xac\xe0\xa4\x82\xe0\xa4\xa7', ...]
+    >>>
+
+The last of these corpora, ``udhr`` contains the Universal Declaration of Human Rights
+in over 300 languages.  (Note that the names of the files in this corpus include
+information about character encoding, and for now we will stick with texts in ISO Latin-1, or ASCII)
+
+Let's use a frequency distribution to examine the differences in word lengths,
+for a selection of languages included in this corpus.
+The program in Figure word-len-dist_ goes beyond the methods covered in this chapter,
+and is included to give you a sense of what is to come later. 
+The output is shown in Figure fig-word-len-dist_ (run the program yourself to see a color plot).
+
+.. pylisting:: word-len-dist
+   :caption: Cumulative Word Length Distributions for Several Languages
+
+   import pylab
+
+   def cld(lang):
+       text = nltk.corpus.udhr.words(lang)
+       fd = nltk.FreqDist(len(token) for token in text)
+       ld = [100*fd.freq(i) for i in range(36)]
+       return [sum(ld[0:i+1]) for i in range(len(ld))]
+
+   >>> langs = ['Chickasaw-Latin1', 'English-Latin1',
+   ...          'German_Deutsch-Latin1', 'Greenlandic_Inuktikut-Latin1',
+   ...          'Hungarian_Magyar-Latin1', 'Ibibio_Efik-Latin1']
+   >>> dists = [pylab.plot(cld(l), label=l[:-7], linewidth=2) for l in langs]
+   >>> pylab.title('Cumulative Word Length Distributions for Several Languages')
+   >>> pylab.legend(loc='lower right')
+   >>> pylab.show()     # doctest: +SKIP
+
+.. _fig-word-len-dist:
+.. figure:: ../images/word-len-dist.png
+   :scale: 25
+
+   Cumulative Word Length Distributions for Several Languages
+
+
+Exercises
+---------
+
+#. |easy| Define a frequency distribution over the letters of a text, e.g. 
+   ``fdist = nltk.FreqDist(gutenberg.raw("blake-poems.txt"))``.  Now plot
+   this distribution, using ``fdist.plot()``, to see which letters are more
+   frequent.  Now do this using texts from the Universal Declaration of
+   Human Rights, to see how languages differ in their frequency of use of
+   different letters.
+
+#. |soso| **Exploring text genres:**
+   Investigate the table of modal distributions and look for other patterns.
+   Try to explain them in terms of your own impressionistic understanding
+   of the different genres.  Can you find other closed classes of words that
+   exhibit significant differences across different genres?
+   
+.. _sec-defining-functions:
+
+----------------------
+More Python: Functions
+----------------------
+
+It often happens that part of a program needs to be used several times
+over.  For example, suppose we were writing a program that needed to
+be able to form the plural of a singular noun, and that this needed to
+be done at various places during the program.  Rather than repeating
+the same code several times over, it is more efficient (and reliable)
+to localize this work inside a `function`:dt:.  A function is a
+programming construct that can be called with one or more inputs and
+which returns an output.  We define a function using the keyword
+``def`` followed by the function name and any input parameters,
+followed by a colon; this in turn is followed by the body of the
+function. We use the keyword ``return`` to indicate the value that is
+produced as output by the function. The best way to convey this is
+with an example. Our function ``plural()`` in Figure plural_
+takes a singular noun and generates a plural form (one which is not always
+correct).
+
+.. pylisting:: plural
+   :caption: Example of a Python function
+
+   def plural(word):
+       if word.endswith('y'):
+           return word[:-1] + 'ies'
+       elif word[-1] in 'sx' or word[-2:] in ['sh', 'ch']:
+           return word + 'es'
+       elif word.endswith('an'):
+           return word[:-2] + 'en'
+       return word + 's'
+
+   >>> plural('fairy')
+   'fairies'
+   >>> plural('woman')
+   'women'
+
+(There is much more to be said about functions, but
+we will hold off until Section sec-functions_.)
+
+------------------------------------------
+Computing with Language: Semantic Networks
+------------------------------------------
+
+`WordNet`:idx: is a semantically-oriented dictionary of English,
+similar to a traditional thesaurus but with a richer structure.
+WordNet groups words into synonym sets, or `synsets`:dt:, each with
+its own definition and with links to other synsets.
+WordNet 3.0 data is distributed with NLTK, and includes 117,659 synsets.
+
+Although WordNet was originally developed for research
+in psycholinguistics, it is widely used in NLP and Information Retrieval.
+WordNets are being developed for many other languages, as documented
+at ``http://www.globalwordnet.org/``.
+
+Senses and Synonyms
+-------------------
+
+Consider the following sentence:
+
+.. _carex1:
+.. ex::
+   Benz is credited with the invention of the motorcar.
+
+If we replace `motorcar`:lx: in carex1_ by `automobile`:lx:, the
+meaning of the sentence stays pretty much the same:
+
+.. _carex2:
+.. ex::
+   Benz is credited with the invention of the automobile.
+
+Since everything else in the sentence has remained unchanged, we can
+conclude that the words `motorcar`:lx: and `automobile`:lx: have the
+same meaning, i.e. they are `synonyms`:dt:. 
+
+In order to look up the senses of a word, we need to pick
+a part of speech for the word.  WordNet contains four dictionaries: ``N``
+(nouns), ``V`` (verbs), ``ADJ`` (adjectives), and ``ADV``
+(adverbs). To simplify our discussion, we will focus on the ``N``
+dictionary here.  Let's look up `motorcar`:lx: in the ``N`` dictionary.
+
+    >>> from nltk import wordnet
+    >>> car = wordnet.N['motorcar']
+    >>> car
+    motorcar (noun)
+
+The variable ``car`` is now bound to a ``Word`` object.
+Words will often have more than sense, where each
+sense is represented by a synset. However,
+`motorcar`:lx: only has one sense in WordNet, as we can discover
+using ``len()``.  We can then find the synset (a set of
+lemmas), the words it contains, and a gloss.
+
+    >>> len(car)
+    1
+    >>> car[0]
+    {noun: car, auto, automobile, machine, motorcar}
+    >>> list(car[0])
+    ['car', 'auto', 'automobile', 'machine', 'motorcar']
+    >>> car[0].gloss
+    'a motor vehicle with four wheels; usually propelled by an
+    internal combustion engine; 
+    "he needs a car to get to work"'
+    >>>
+
+The ``wordnet`` module also defines ``Synset``\ s.
+Let's look at a word which is `polysemous`:dt:\ ;
+that is, which has multiple synsets:
+
+    >>> poly = wordnet.N['pupil']
+    >>> for synset in poly:
+    ...     print synset
+    {noun: student, pupil, educatee}
+    {noun: pupil}
+    {noun: schoolchild, school-age_child, pupil}
+    >>> poly[1].gloss
+    'the contractile aperture in the center of the iris of the eye;
+    resembles a large black dot'
+
+The WordNet Hierarchy
+---------------------
+
+WordNet synsets correspond to abstract concepts, which may or may not
+have corresponding words in English.  These concepts are linked together in a hierarchy.
+Some are very general, such as *Entity*, *State*, *Event* |mdash| these are called
+`unique beginners`:dt:.  Others, such as *gas guzzler* and
+*hatchback*, are much more specific. A small portion of a concept
+hierarchy is illustrated in Figure wn-hierarchy_. The edges between nodes
+indicate the hypernym/hyponym relation; the dotted line at the top is
+intended to indicate that *artifact* is a non-immediate hypernym of *motorcar*. 
+
+.. _wn-hierarchy:
+.. figure:: ../images/wordnet-hierarchy.png
+   :scale: 15
+
+   Fragment of WordNet Concept Hierarchy
+
+WordNet makes it easy to navigate between concepts.
+For example, given a concept like *motorcar*,
+we can look at the concepts that are more specific;
+the (immediate) `hyponyms`:dt:. Here is one way to carry out this
+navigation:
+
+    >>> for concept in car[0][wordnet.HYPONYM][:10]:
+    ...     print concept
+    {noun: ambulance}
+    {noun: beach_wagon, station_wagon, wagon, estate_car, beach_waggon, station_waggon, waggon}
+    {noun: bus, jalopy, heap}
+    {noun: cab, hack, taxi, taxicab}
+    {noun: compact, compact_car}
+    {noun: convertible}
+    {noun: coupe}
+    {noun: cruiser, police_cruiser, patrol_car, police_car, prowl_car, squad_car}
+    {noun: electric, electric_automobile, electric_car}
+    {noun: gas_guzzler}
+
+|nopar|
+We can also move up the hierarchy, by looking at broader concepts than
+*motorcar*, e.g. the immediate `hypernym`:dt: of a concept:
+
+    >>> car[0][wordnet.HYPERNYM]
+    [{noun: motor_vehicle, automotive_vehicle}]
+
+We can also look for the hypernyms of hypernyms.  In fact, from any
+synset we can trace (multiple) paths back to a unique beginner.
+Synsets have a method for doing this, called ``tree()``,
+which produces a nested list structure.
+
+    >>> pprint.pprint(wordnet.N['car'][0].tree(wordnet.HYPERNYM))
+    [{noun: car, auto, automobile, machine, motorcar},
+     [{noun: motor_vehicle, automotive_vehicle},
+      [{noun: self-propelled_vehicle},
+       [{noun: wheeled_vehicle},
+        [{noun: vehicle},
+         [{noun: conveyance, transport},
+          [{noun: instrumentality, instrumentation},
+           [{noun: artifact, artefact},
+            [{noun: whole, unit},
+             [{noun: object, physical_object},
+              [{noun: physical_entity}, [{noun: entity}]]]]]]]],
+        [{noun: container},
+         [{noun: instrumentality, instrumentation},
+          [{noun: artifact, artefact},
+           [{noun: whole, unit},
+            [{noun: object, physical_object},
+             [{noun: physical_entity}, [{noun: entity}]]]]]]]]]]]
+
+A related method ``closure()`` produces a flat version of this structure,
+with repeats eliminated.
+Both of these functions take an optional ``depth`` argument that permits
+us to limit the number of steps to take.
+(This is important when using unbounded relations like ``SIMILAR``.)
+Table wordnet-rel_ lists the most important lexical relations supported
+by WordNet; see ``dir(wordnet)`` for a full list.
+
+.. table:: wordnet-rel
+
+   ===========  ================  ==============================================
+   Hypernym     more general      `animal`:lx: is a hypernym of `dog`:lx:
+   Hyponym      more specific     `dog`:lx: is a hyponym of `animal`:lx:
+   Meronym      part of           `door`:lx: is a meronym of `house`:lx:
+   Holonym      has part          `house`:lx: is a holonym of `door`:lx:
+   Synonym      similar meaning   `car`:lx: is a synonym of `automobile`:lx:
+   Antonym      opposite meaning  `like` is an antonym of `dislike`:lx:
+   Entailment   necessary action  `step` is an entailment of `walk`:lx:
+   ===========  ================  ==============================================
+
+   Major WordNet Lexical Relations
+
+Recall that we can iterate over the words of a synset, with ``for word in synset``.
+We can also test if a word is in a dictionary, e.g. ``if word in wordnet.V``.
+As our last task, let's put these together to find "animal words" that are used as verbs.
+Since there are a lot of these, we will cut this off at depth 4.
+Can you think of the animal and verb sense of each word?
+
+    >>> animals = wordnet.N['animal'][0].closure(wordnet.HYPONYM, depth=4)
+    >>> [word for synset in animals for word in synset if word in wordnet.V]
+    ['pet', 'stunt', 'prey', 'quarry', 'game', 'mate', 'head', 'dog',
+     'stray', 'dam', 'sire', 'steer', 'orphan', 'spat', 'sponge',
+     'worm', 'grub', 'pooch', 'toy', 'queen', 'baby', 'pup', 'whelp',
+     'cub', 'kit', 'kitten', 'foal', 'lamb', 'fawn', 'bird', 'grouse',
+     'hound', 'bulldog', 'stud', 'hog', 'baby', 'fish', 'cock', 'parrot',
+     'frog', 'beetle', 'bug', 'bug', 'queen', 'leech', 'snail', 'slug',
+     'clam', 'cockle', 'oyster', 'scallop', 'scollop', 'escallop', 'quail']
+
+NLTK also includes VerbNet, a hierarhical verb lexicon linked to WordNet.
+It can be accessed with ``nltk.corpus.verbnet``.
+
+Exercises
+---------
+
+1. |easy| Familiarize yourself with the WordNet interface, by reading the
+   documentation available via ``help(wordnet)``.  Try out the text-based
+   browser, ``wordnet.browse()``.
+
+#. |easy| Investigate the holonym / meronym relations for some nouns.  Note that there
+   are three kinds (member, part, substance), so access is more specific,
+   e.g., ``wordnet.MEMBER_MERONYM``, ``wordnet.SUBSTANCE_HOLONYM``.
+
+.. Currently too hard since we can't iterate over synsets easily
+   #. |soso| What percentage of noun synsets have no hyponyms?
+
+#. |easy| The polysemy of a word is the number of senses it has.
+   Using WordNet, we can determine that the noun *dog* has 7 senses
+   with: ``len(nltk.wordnet.N['dog'])``.
+   Compute the average polysemy of nouns, verbs, adjectives and
+   adverbs according to WordNet.
+
+#. |soso| What is the branching factor of the noun hypernym hierarchy?
+   (For all noun synsets that have hyponyms, how many do they have on average?)
+
+#. |soso| Define a function ``supergloss(s)`` that takes a synset ``s`` as its argument
+   and returns a string consisting of the concatenation of the glosses of ``s``, all
+   hypernyms of ``s``, and all hyponyms of ``s``.
+
+
+
+.. _getting-organized:
+
+------------------------------
+More Python: Getting Organized
+------------------------------
+
+A text, as we have seen, is treated in Python as a list of words.
+An important property of lists is that we can "look up" a particular
+item by giving its index, e.g. ``text1[100]``.  Notice how we specify
+a number, and get back a word.  We can think of a list as a simple
+kind of table, as shown in Figure maps01_.
+
+.. _maps01:
+.. figure:: ../images/maps01.png
+   :scale: 25
+
+   List Look-up
+
+Contrast this situation with frequency distributions (section sec-frequency-distributions_),
+where we specify a word in order to get back a number, e.g. ``fdist['monstrous']``, which
+tells us the number of times a given word has occurred in a text.  Look-up using words is
+familiar to anyone who has used a dictionary.  Some more examples are shown in
+Figure maps02_.
+
+.. _maps02:
+.. figure:: ../images/maps02.png
+   :scale: 22
+
+   Dictionary Look-up
+
+In the case of a phone book, we look up an entry using a `name`:em:,
+and get back a number.  When we type a domain name in a web browser,
+the computer looks this up to get back an IP address.  A word
+frequency table allows us to look up a word and find its frequency in
+a text collection.  In all these cases, we are mapping from names to
+numbers, rather than the other way round.
+In general, we would like to be able to map between
+arbitrary types of information.  Table linguistic-objects_ lists a variety
+of linguistic objects, along with what they map.
+
+.. table:: linguistic-objects
+
+    +--------------------+-------------------------------------------------+
+    | Linguistic Object  |                      Maps                       |
+    |                    +------------+------------------------------------+
+    |                    |    from    | to                                 |
+    +====================+============+====================================+
+    |Document Index      |Word        |List of pages (where word is found) |
+    |                    |            |                                    |
+    +--------------------+------------+------------------------------------+
+    |Thesaurus           |Word sense  |List of synonyms                    |
+    +--------------------+------------+------------------------------------+
+    |Dictionary          |Headword    |Entry (part of speech, sense        |
+    |                    |            |definitions, etymology)             |
+    |                    |            |                                    |
+    +--------------------+------------+------------------------------------+
+    |Comparative Wordlist|Gloss term  |Cognates (list of words, one per    |
+    |                    |            |language)                           |
+    +--------------------+------------+------------------------------------+
+    |Morph Analyzer      |Surface form|Morphological analysis (list of     |
+    |                    |            |component morphemes)                |
+    |                    |            |                                    |
+    +--------------------+------------+------------------------------------+
+
+    Linguistic Objects as Mappings from Keys to Values
+
+Most often, we are mapping from a "word" to some structured object.
+For example, a document index maps from a word (which we can represent
+as a string), to a list of pages (represented as a list of integers).
+In this section, we will see how to represent such mappings in Python.
+
+Accessing Data with Data
+------------------------
+
+Python provides a `dictionary`:dt: data type that can be used for
+mapping between arbitrary types.
+
+.. Note:: A Python dictionary is somewhat like a linguistic dictionary
+   |mdash| they both give you a systematic means of looking things up,
+   and so there is some potential for confusion. However, we hope that
+   it will usually be clear from the context which kind of dictionary
+   we are talking about.
+
+Here we define ``pos`` to be an empty dictionary and then add three
+entries to it, specifying the part-of-speech of some words.  We add
+entries to a dictionary using the familiar square bracket notation:
+
+    >>> pos = {}
+    >>> pos['colorless'] = 'adj'
+    >>> pos['furiously'] = 'adv'
+    >>> pos['ideas'] = 'n'
+    >>>
+
+So, for example, ``pos['colorless'] = 'adj'`` says that the look-up
+value of ``'colorless'`` in ``pos`` is the string ``'adj'``.
+
+.. Monkey-patching to get our dict examples to print consistently:
+
+    >>> from nltk import SortedDict
+    >>> pos = SortedDict(pos)
+
+To look up a value in ``pos``, we again use indexing notation, except
+now the thing inside the square brackets is the item whose value we
+want to recover:
+
+    >>> pos['ideas']
+    'n'
+    >>> pos['colorless']
+    'adj'
+    >>>
+
+The item used for look-up is called the `key`:dt:, and the
+data that is returned is known as the `value`:dt:.  As with indexing
+a list or string, we get an exception when we try to access the value
+of a key that does not exist:
+
+    >>> pos['missing']
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    KeyError: 'missing'
+    >>>
+
+This raises an important question.  Unlike lists and strings, where we
+can use ``len()`` to work out which integers will be legal indices, how
+do we work out the legal keys for a dictionary?  Fortunately, we can
+check whether a key exists in a dictionary using the ``in`` operator:
+
+    >>> 'colorless' in pos
+    True
+    >>> 'missing' in pos
+    False
+    >>> 'missing' not in pos
+    True
+    >>>
+
+Notice that we can use ``not in`` to check if a key is `missing`:em:.  Be
+careful with the ``in`` operator for dictionaries: it only applies to
+the keys and not their values.  If we check for a value, e.g. ``'adj'
+in pos``, the result is ``False``, since ``'adj'`` is not a key.
+We can loop over all the entries in a dictionary using a ``for`` loop.
+
+    >>> for word in pos:
+    ...     print word, pos[word]
+    ... 
+    colorless adj
+    furiously adv
+    ideas n
+    >>>
+
+We can see what the contents of the dictionary look like by inspecting
+the variable ``pos``.  Note the presence of the colon character to separate
+each key from its corresponding value:
+
+    >>> pos
+    {'furiously': 'adv', 'ideas': 'n', 'colorless': 'adj'}
+    >>>
+
+Here, the contents of the dictionary are shown as `key-value
+pairs`:dt:.  As you can see,  the order of the key-value pairs is different
+from the order in which they were originally entered.  This is because
+dictionaries are not sequences but mappings. The keys in a mapping
+are not inherently ordered, and any ordering that we might want to impose on the keys
+exists independently of the mapping.  As we shall see later, this
+gives us a lot of flexibility.  
+
+We can use the same key-value pair format to create a dictionary:
+
+    >>> pos = {'furiously': 'adv', 'ideas': 'n', 'colorless': 'adj'}
+    >>>
+
+.. Monkey-patching to get our dict examples to print consistently:
+
+    >>> pos = SortedDict(pos)
+
+Using the dictionary methods ``keys()``, ``values()`` and ``items()``,
+we can access the keys and values as separate lists,
+and also the key-value pairs:
+
+    >>> pos.keys()
+    ['colorless', 'furiously', 'ideas']
+    >>> pos.values()
+    ['adj', 'adv', 'n']
+    >>> pos.items()
+    [('colorless', 'adj'), ('furiously', 'adv'), ('ideas', 'n')]
+    >>> for (key, val) in pos.items():
+    ...     print key, "==>", val
+    ...
+    colorless ==> adj
+    furiously ==> adv
+    ideas ==> n
+    >>>
+
+Note that keys are forced to be unique.
+Suppose we try to use a dictionary to store the fact that the
+word `content`:lx: is both a noun and a verb:
+
+    >>> pos['content'] = 'n'
+    >>> pos['content'] = 'v'
+    >>> pos
+    {'content': 'v', 'furiously': 'adv', 'ideas': 'n', 'colorless': 'adj'}
+    >>>
+
+Initially, ``pos['content']`` is given the value ``'n'``, and this is
+immediately overwritten with the new value ``'v'``.
+In other words, there is only one entry for ``'content'``.
+If we wanted to store multiple values in that entry, we could use a list,
+e.g. ``pos['content'] = ['n', 'v']``.
+
+Dictionaries vs Frequency Distributions
+---------------------------------------
+
+|NLTK|\ 's frequency distributions (``nltk.FreqDist``) is just
+a special kind of dictionary which has additional support for sorting
+and plotting that are needed in language processing.
+
+We can use dictionaries to count word occurrences, emulating the
+method used for tallying words (Figure tally_).  
+We begin by initializing
+an empty dictionary, then process each word of the text.  If the word hasn't
+been seen before, we add it to our list with a zero count.  If we've
+seen it before we increment its count using the ``+=`` operator.  
+
+    >>> counts = {}
+    >>> for word in nltk.corpus.gutenberg.words('shakespeare-macbeth.txt'):
+    ...     if word not in counts:
+    ...         counts[word] = 0
+    ...     counts[word] += 1
+    ...
+    >>> counts['Scotland']
+    12
+    >>> counts['the']
+    692
+    >>> counts.sorted()[:50]
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    AttributeError: 'dict' object has no attribute 'sorted'
+
+However, it is preferable to use |NLTK|\ 's support for frequency distributions,
+since it is more compact and has more functionality:
+
+    >>> counts = nltk.FreqDist(nltk.corpus.gutenberg.words('shakespeare-macbeth.txt'))
+    >>> counts['Scotland']
+    12
+    >>> counts.sorted()[:50]
+    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
+    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue',
+    'me', 'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', 'What', 'To',
+    'so', 'all', 'are', 'thou', 'will', 'thee', 'Macbeth', 'But', 'but', 'on', 'they']
+    
+Generating Random Text with Style
+---------------------------------
+
+We have used frequency distributions to count the number of occurrences of
+each word in a text.  Here we will generalize this idea to look at the
+distribution of words in a given context.
+A `conditional frequency distribution`:dt: is a collection
+of frequency distributions, each one for a different condition.
+Here the condition will be the preceding word.
+
+In Figure random_, we've defined a function ``train_model()`` that
+uses ``ConditionalFreqDist()`` to count words as they appear
+relative to the context defined by the preceding word (stored in ``prev``).
+It scans the corpus, incrementing the appropriate counter, and
+updating the value of ``prev``.  The function ``generate_model()``
+contains a simple loop to generate text: we set an initial
+context, pick the most likely token in that context as our next
+word (using ``max()``), and then use that word as our new context.
+This simple approach to text generation tends to get stuck in loops;
+another method would be to randomly choose the next word from among
+the available words.
+
+.. pylisting:: random
+   :caption: Generating Random Text in the Style of Genesis
+
+   def train_model(text):
+       cfdist = nltk.ConditionalFreqDist()
+       prev = None
+       for word in text:
+           cfdist[prev].inc(word)
+           prev = word
+       return cfdist
+
+   def generate_model(cfdist, word, num=15):
+       for i in range(num):
+           print word,
+           word = cfdist[word].max()
+
+   >>> model = train_model(nltk.corpus.genesis.words('english-kjv.txt'))
+   >>> model['living']
+   <FreqDist with 16 samples>
+   >>> list(model['living'])
+   ['substance', ',', '.', 'thing', 'soul', 'creature']
+   >>> generate_model(model, 'living')
+   living creature that he said , and the land of the land of the land
+
+Exercises
+---------
+
+#. |talk| Review the mappings in Table linguistic-objects_.  Discuss any other
+   examples of mappings you can think of.  What type of information do they map
+   from and to?
+
+#. |easy| Using the Python interpreter in interactive mode, experiment with
+   the examples in this section.  Create a dictionary ``d``, and add
+   some entries.  What happens if you try to access a non-existent
+   entry, e.g. ``d['xyz']``?
+
+#. |easy| Try deleting an element from a dictionary, using the syntax
+   ``del d['abc']``.  Check that the item was deleted.
+
+#. |easy| Create a dictionary ``e``, to represent a single lexical entry
+   for some word of your choice.
+   Define keys like ``headword``, ``part-of-speech``, ``sense``, and
+   ``example``, and assign them suitable values.
+
+#. |soso| Write a program to find all words that occur at least three times in the Brown Corpus.
+
+#. |soso| Write a program to generate a table of token/type ratios, as we saw in
+   Table brown-types_.  Include the full set of Brown Corpus genres (``nltk.corpus.brown.categories()``).
+   Which genre has the lowest diversity (greatest number of tokens per type)?
+   Is this what you would have expected?
+
+#. |soso| Modify the text generation program in Figure random_ further, to
+   do the following tasks:
+
+   a) Store the *n* most likely words in a list ``lwords`` then randomly
+      choose a word from the list using ``random.choice()``.
+
+   b) Select a particular genre, such as a section of the Brown Corpus,
+      or a genesis translation, one of the Gutenberg texts, or one of the Web texts.  Train
+      the model on this corpus and get it to generate random text.  You
+      may have to experiment with different start words. How intelligible
+      is the text?  Discuss the strengths and weaknesses of this method of
+      generating random text.
+
+   c) Now train your system using two distinct genres and experiment
+      with generating text in the hybrid genre.  Discuss your observations.
+
+#. |soso| Write a program to print the most frequent bigrams
+   (pairs of adjacent words) of a text,
+   omitting non-content words, in order of decreasing frequency.
+
+#. |soso| Write a program to create a table of word frequencies by genre,
+   like the one given above for modals.  Choose your own words and
+   try to find words whose presence (or absence) is typical of a genre.
+   Discuss your findings.
+
+#. |hard| **Zipf's Law**:
+   Let *f(w)* be the frequency of a word *w* in free text. Suppose that
+   all the words of a text are ranked according to their frequency,
+   with the most frequent word first. Zipf's law states that the
+   frequency of a word type is inversely proportional to its rank
+   (i.e. *f.r = k*, for some constant *k*). For example, the 50th most
+   common word type should occur three times as frequently as the
+   150th most common word type.
+
+   a) Write a function to process a large text and plot word
+      frequency against word rank using ``pylab.plot``. Do
+      you confirm Zipf's law? (Hint: it helps to use a logarithmic scale).
+      What is going on at the extreme ends of the plotted line?
+
+   #) Generate random text, e.g. using ``random.choice("abcdefg ")``,
+      taking care to include the space character.  You will need to
+      ``import random`` first.  Use the string
+      concatenation operator to accumulate characters into a (very)
+      long string.  Then tokenize this string, and generate the Zipf
+      plot as before, and compare the two plots.  What do you make of
+      Zipf's Law in the light of this?
+
+#. |hard| Modify the ``generate_model()`` function in Figure random_ to use Python's
+   ``random.choose()`` method to randomly pick the next word from
+   the available set of words.
+
+#. |soso| Write a function ``tf()`` that takes a word and the name of a section
+   of the Brown Corpus as arguments, and computes the text frequency of the word
+   in that section of the corpus.
+
+
+-------------------------
+Accessing Text on the Web
+-------------------------
+
+Electronic Books
+----------------
+
+A small sample of texts from Project Gutenberg appears in the |NLTK| corpus collection.
+However, you may be interested in analyzing other texts from Project Gutenberg.
+You can browse the catalog of 25,000 free online books at
+``http://www.gutenberg.org/catalog/``, and obtain a URL to an ASCII text file.
+Although 90% of the texts in Project Gutenberg are in English, it
+includes material in over 50 other languages, including Catalan, Chinese, Dutch,
+Finnish, French, German, Italian, Portuguese and Spanish (with more than
+100 texts each).
+
+Text number 2554 is an English translation of *Crime and Punishment*,
+and we can access it as follows:
+
+    >>> from urllib import urlopen
+    >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
+    >>> raw = urlopen(url).read()
+    >>> type(raw)
+    <type 'str'>
+    >>> len(raw)
+    1176831
+    >>> raw[:75]
+    'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
+
+.. note:: The read() process will take a few seconds as it downloads this large book.
+   If you're using an internet proxy which is not correctly detected by Python,
+   you may need to specify the proxy manually as follows:
+   
+       >>> proxies = {'http': 'http://www.someproxy.com:3128'}
+       >>> raw = urllib.urlopen(url, proxies=proxies).read()
+   
+The variable ``raw`` contains a string with 1,176,831 characters.  This is the raw
+content of the book, including many details we are not interested in such as
+whitespace, line breaks and blank lines.  Instead, we want to break it up into
+words and punctuation, as we saw in Chapter chap-introduction_.  This step is
+called `tokenization`:dt:, and it produces our familiar structure, a list of words
+and punctuation.  From now on we will call these `tokens`:dt:.
+
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> type(tokens)
+    <type 'list'>
+    >>> text[:10]
+    ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
+    >>> len(text)
+    255809
+
+If we now take the further step of creating an |NLTK| text from this list, we can do
+all of the other linguistic processing we saw in Chapter chap-introduction_, along with
+the regular list operations like slicing:
+
+    >>> text = nltk.Text(tokens)
+    >>> type(text)
+    <type 'nltk.text.Text'>
+    >>> text[1020:1060]
+    ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
+    'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
+    'which', 'he', 'lodged', 'in', 'S', '.', 'Place', 'and', 'walked', 'slowly',
+    ',', 'as', 'though', 'in', 'hesitation', ',', 'towards', 'K', '.', 'bridge', '.']
+    >>> text.collocations()
+    Katerina Ivanovna; Pulcheria Alexandrovna; Avdotya Romanovna; Pyotr
+    Petrovitch; Project Gutenberg; Marfa Petrovna; Rodion Romanovitch;
+    Sofya Semyonovna; Nikodim Fomitch; did not; Hay Market; Andrey
+    Semyonovitch; old woman; Literary Archive; Dmitri Prokofitch; great
+    deal; United States; Praskovya Pavlovna; Porfiry Petrovitch; ear rings
+
+Notice that "Project Gutenberg" appears as a collocation in this text.
+Each text downloaded from Project Gutenberg contains a header with the
+name of the text, the author, the names of people who scanned and
+corrected the text, a license, and so on.  Sometimes this information
+appears in a footer at the end of the file.  We cannot reliably detect
+where the content begins and ends, and so have to resort to manual
+inspection of the file, to discover unique strings that mark the beginning
+and the end, before trimming ``raw`` to be just the content and nothing else:
+
+    >>> raw.find("PART I")
+    5303
+    >>> raw.rfind("End of Project Gutenberg's Crime")
+    1157681
+    >>> raw = raw[5303:1157681]
+
+The "find" and "reverse find" functions help us get the right index values.
+Now the raw text begins with "PART I", and goes up to (but not including) the
+phrase that marks the end of the content.
+
+This was our first brush with reality: texts found on the web may contain
+unwanted material, and there may not be an automatic way to remove it.
+With a small amount of extra work we can extract the material we need.
+
+Dealing with HTML
+-----------------
+
+A large amount of text on the web is in the form of |HTML| documents.
+You can use a web browser to save a page as text to a local
+file, then access this as described in Section sec-reading-files_.
+However, if you're going to do this a lot, its easiest to get Python
+to do the work directly.  The first step is the same as before,
+using ``urlopen``.  For fun we'll pick a BBC News story
+called *Blondes to die out in 200 years*, an entertaining
+example of an urban legend reported as established scientific
+fact (as noted on languagelog.org).
+
+    >>> url = "http://news.bbc.co.uk/2/hi/health/2284783.stm"
+    >>> html = urlopen(url).read()
+    >>> html[:60]
+    '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN'
+
+You can type ``print html`` to see the |HTML| content in all its glory,
+including meta tags, an image map, JavaScript, forms, and tables.
+
+.. note:: Remember that there's nothing special about the names of our variables,
+   such as ``url`` and ``html``; we chose them to make the code easier to follow.
+   If we called them ``var1`` and ``var2`` the result would be the same.
+
+Getting text out of |HTML| is a sufficiently common task that |NLTK| provides
+a helper function ``nltk.clean_html()``, which takes an |HTML| string and
+returns text.
+
+    >>> raw = nltk.clean_html(html)
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> tokens
+    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'", 'to', 'die', 'out', ...]
+
+This still contains lots of unwanted material concerning site navigation and related
+stories.  With some trial and error you can find the start and end indexes of the
+content and select the tokens of interest, and initialize a text as before.
+
+    >>> tokens = tokens[96:399]
+    >>> text = nltk.Text(tokens)
+    >>> text.concordance('gene')
+     they say too few people now carry the gene for blondes to last beyond the next tw
+    t blonde hair is caused by a recessive gene . In order for a child to have blonde 
+    to have blonde hair , it must have the gene on both sides of the family in the gra
+    there is a disadvantage of having that gene or by chance . They don ' t disappear 
+    ondes would disappear is if having the gene was a disadvantage and I do not think 
+
+
+Processing Google Results
+-------------------------
+
+[how to extract google hits]
+
+LanguageLog example for `absolutely`:lx:
+
+.. table:: absolutely
+
+   +-----------------+------------+-------------+-------------+--------------+
+   | Google hits     |`adore`:lx: | `love`:lx:  |`like`:lx:   |`prefer`:lx:  |
+   +-----------------+------------+-------------+-------------+--------------+
+   | `absolutely`:lx:|     289,000|      905,000|       16,200|           644|
+   +-----------------+------------+-------------+-------------+--------------+
+   | `definitely`:lx:|       1,460|       51,000|      158,000|        62,600|
+   +-----------------+------------+-------------+-------------+--------------+
+   | ratio           |       198:1|         18:1|         1:10|          1:97|
+   +-----------------+------------+-------------+-------------+--------------+
+
+   `Absolutely`:lx: vs `Definitely`:lx: (Liberman 2005, LanguageLog.org)
+
+
+Extracting Text from PDF, MSWord and other Binary Formats
+---------------------------------------------------------
+
+ASCII text and |HTML| text are human readable formats.  Text often comes in binary
+formats |mdash| like PDF and MSWord |mdash| that can only be opened using specialized
+software.  Third-party libraries such as ``pypdf`` and ``pywin32`` can be used to access
+these formats [appendix section on this?].  For once-off conversion of a few documents,
+it is simpler to open the document with a suitable application, then save it as text
+to the local drive, and access it as described in Section sec-reading-files_.
+If the document is already on the web, you can enter its URL in Google's search box.
+This often includes a link to an |HTML| version of the document, which you can save
+as text.  
+
+.. _sec-reading-files:
+
+Reading Local Files
+-------------------
+
+.. Monkey-patching to fake the file/web examples in this section:
+
+    >>> from StringIO import StringIO
+    >>> def fake_open(filename, mode=None):
+    ...     return StringIO('Hello World!\nThis is a test file.\n')
+    >>> def fake_urlopen(url):
+    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
+    >>> open = fake_open
+    >>> import urllib
+    >>> urllib.urlopen = fake_urlopen
+
+It is easy to access local files in Python.  As an exercise, create a
+file called ``corpus.txt`` using a text editor, and enter the
+following text::
+
+   Time flies like an arrow.
+   Fruit flies like a banana.
+
+|nopar| 
+Be sure to save the file as plain text. You also need to make sure
+that you have saved the file in the same directory or folder in which
+you are running the Python interactive interpreter.
+
+.. Note:: If you are using |IDLE|, you can easily create this file by
+   selecting the *New Window* command in the *File* menu, typing
+   the required text into this window, and then saving the file as
+   ``corpus.txt`` in the first directory that |IDLE| offers in the
+   pop-up dialogue box.
+
+
+|nopar| 
+The next step is to `open`:dt: a file using the built-in function ``open()``
+which has two parameters, the name of the file, here ``corpus.txt``, and the
+mode to open the file with (``'r'`` means to open the file for reading,
+and ``'U'`` stands for "Universal", which lets us ignore the different
+conventions used for marking newlines).
+
+.. doctest-ignore::
+    >>> f = open('corpus.txt', 'rU')
+
+.. Note:: If the interpreter cannot find your file, it will give an
+   error like this:
+
+   .. doctest-ignore::
+      >>> f = open('corpus.txt', 'rU')
+      Traceback (most recent call last):
+      File "<pyshell#7>", line 1, in -toplevel-
+      f = open('corpus.txt', 'rU')
+      IOError: [Errno 2] No such file or directory: 'corpus.txt'
+
+   To check that the file that you are trying to open is really in the
+   right directory, use |IDLE|\ 's *Open* command in the *File* menu;
+   this will display a list of all the files in the directory where
+   |IDLE| is running. An alternative is to examine the current
+   directory from within Python:
+
+   .. doctest-ignore::
+      >>> import os
+      >>> os.listdir('.')
+
+|nopar| 
+There are several methods for reading the file.
+The following uses the method ``read()`` on the file object
+``f``; this reads the entire contents of a file into a string.
+
+.. doctest-ignore::
+    >>> f.read() 
+    'Hello World!\nThis is a test file.\n'
+
+|nopar|
+Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
+is equivalent to pressing *Enter* on a keyboard and starting a new line. 
+Note that we can open and read a file in one step:
+
+    >>> text = open('corpus.txt', 'rU').read()
+
+|nopar|
+We can also read a file one line at a time using the ``for`` loop construct:
+
+    >>> f = open('corpus.txt', 'rU')
+    >>> for line in f:
+    ...     print line[:-1]
+    Hello world!
+    This is a test file.
+
+|nopar| 
+Here we use the slice ``[:-1]`` to remove the newline character at the end of
+the input line.
+
+It is possible to use the methods described above
+with ``nltk.data.find()`` method to access and read NLTK's corpus files
+directly:
+
+    >>> file = nltk.data.find('corpora/gutenberg/melville-moby_dick.txt')
+    >>> raw = open(file, 'rU').read()
+
+
+The Processing Pipeline
+-----------------------
+
+Figure pipeline1_ summarizes what we have covered in this section, including the process
+of building a vocabulary that we saw in Chapter chap-introduction_.  (One step, normalization,
+will be discussed later in this chapter.)
+
+[Discuss types of object at each stage of the pipeline; and ``type()``]
+
+.. _pipeline1:
+.. figure:: ../images/pipeline1.png
+   :scale: 40
+
+   The Processing Pipeline
+
+Integers, strings and lists are all kinds of `data types`:dt: in
+Python, and have types ``int``, ``str`` and ``list`` respectively. In
+fact, every value in Python has a type. Python's ``type()`` function
+will tell you what an object's type is:
+
+    >>> oddments = ['cat', 'cat'.index('a'), 'cat'.split()]
+    >>> for e in oddments:
+    ...     type(e)
+    ... 
+    <type 'str'>
+    <type 'int'>
+    <type 'list'>
+    >>> 
+
+The type determines what operations you can perform on the data
+value. So, for example, we have seen that we can index strings and
+lists, but we can't index integers:
+
+    >>> one = 'cat'
+    >>> one[0]
+    'c'
+    >>> two = [1, 2, 3]
+    >>> two[1]
+    2
+    >>> three = 1234
+    >>> three[2]
+    Traceback (most recent call last):
+    File "<pyshell#95>", line 1, in -toplevel-
+    three[2]
+    TypeError: 'int' object is unsubscriptable
+    >>> 
+
+The fact that this is a problem with types is signalled by the class of
+error, i.e., ``TypeError``; an object being "unsubscriptable" means we
+can't index into it.
+
+Similarly, we can concatenate strings with strings, and lists with
+lists, but we cannot concatenate strings with lists:
+
+    >>> query = 'Who knows?'
+    >>> beatles = ['john', 'paul', 'george', 'ringo']
+    >>> query + beatles
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: cannot concatenate 'str' and 'list' objects
+
+You may also have noticed that our analogy between operations on
+strings and numbers works for multiplication and addition, but not
+subtraction or division:
+
+    >>> 'very' * 3 
+    'veryveryvery'
+    >>> 'very' - 'y'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: unsupported operand type(s) for -: 'str' and 'str'
+    >>> 6 / 2
+    3
+    >>> 'very' / 2
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: unsupported operand type(s) for /: 'str' and 'int'
+    >>> 
+
+These error messages are another example of Python telling us that we
+have got our data types in a muddle. In the first case, we are told
+that the operation of substraction (i.e., ``-``) cannot apply to
+objects of type ``str``, while in the second, we are told that
+division cannot take ``str`` and ``int`` as its two operands.
+
+Type conversions: ``str()``, ``int()``, ``list()``.
+
+Exercises
+---------
+
+[to be written]
+
+-----------------
+Strings and Files
+-----------------
+
+[Introduction]
+
+When applied to strings, the ``+`` operation is called
+`concatenation`:dt:. It produces a new string that is a copy of the
+two original strings pasted together end-to-end.  Notice that
+concatenation doesn't do anything clever like insert a space between
+the words.  The Python interpreter has no way of knowing that you want
+a space; it does `exactly`:em: what it is told.  Given the example
+of ``+``, you might be able guess what multiplication will do:
+
+    >>> 'very' + 'very' + 'very'
+    'veryveryvery'
+    >>> 'very' * 3
+    'veryveryvery'
+
+Printing and Inspecting Strings
+-------------------------------
+
+So far, when we have wanted to look at the contents of a variable or
+see the result of a calculation, we have just typed the variable name
+into the interpreter.  We can also see the contents of ``msg`` using
+``print msg``:
+
+    >>> monty = 'Monty Python'
+    >>> monty
+    'Monty Python'
+    >>> print monty
+    Monty Python
+
+In the first case above, we `inspect`:em: the variable by giving its
+name.  The interpreter prints the Python representation of its value.
+Since its a string, the result is quoted.  In the second case, we've
+asked the interpreter to print the contents of the variable.  Since there
+are no quotation characters inside the string itself, none are printed.
+We can use ``print`` to display more than one item on a line, in various ways:
+
+    >>> grail = 'Holy Grail'
+    >>> print monty grail
+    Monty PythonHoly Grail
+    >>> print monty, grail
+    Monty Python Holy Grail
+    >>> print monty, "and the", grail
+    Monty Python and the Holy Grail    
+    
+
+.. note:: If you have created some variable ``v`` and want to find out about
+   it, then type ``help(v)`` to read the help entry for this kind of object.
+   Type ``dir(v)`` to see a list of operations that are defined on the
+   object.
+
+Accessing Individual Characters
+-------------------------------
+
+As we saw in Section sec-indexing-lists_ for lists, strings are indexed, starting from zero:
+
+    >>> msg = 'Hello World'
+    >>> msg[0]
+    'H'
+    >>> msg[3]
+    'l'
+    >>> msg[5]
+    ' '
+    >>>
+
+.. Note:: Be careful to distinguish between the string ``' '``, which
+   is a single whitespace character, and ``''``, which is the empty string.
+
+The easiest way to grasp this counting from zero is to think of a string
+index as specifying how many steps the computer has to take, starting from
+the beginning of the string, to get to the desired character.  As for
+lists, if we try to access an index that is outside of the string we get an
+error:
+
+    >>> msg[11]
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    IndexError: string index out of range
+    >>>
+
+As with lists, we can use negative indexes for strings,
+where ``-1`` is the index of the last character.
+
+    >>> msg[-1]
+    'd'
+    >>> msg[-3]
+    'r'
+    >>> msg[-6]
+    ' '
+
+We can visualize negative indexes as shown in Figure indexing02_.
+[Redo this diagram] 
+
+.. _indexing02:
+.. figure:: ../images/indexing02.png
+   :scale: 40
+
+
+   Negative Indexes
+
+Using positive and negative indexes, we have two ways to refer to
+any position in a string.  In this case, when the string had a length of 11,
+indexes ``5`` and ``-6`` both refer to the same character (a space), and:
+``5 = len(msg) - 6``.
+
+Accessing Substrings
+--------------------
+
+[condense this section]
+
+In |NLP| we usually want to access more than one character at a time. This is
+also pretty simple; we just need to specify a start and end index.  For example,
+the following code accesses the substring starting at index ``1``, up to (but not including)
+index ``4``:
+
+    >>> msg[1:4]
+    'ell'
+    >>>
+
+The notation ``:4`` is known as a `slice`:dt:.
+Here we see the characters are ``'e'``, ``'l'`` and ``'l'`` which correspond
+to ``msg[1]``, ``msg[2]`` and ``msg[3]``, but not ``msg[4]``. This is because
+a slice `starts`:em: at the first index but finishes `one before`:em: the end index.
+This is consistent with indexing: indexing also starts from
+zero and goes up to `one before`:em: the length of the string. We can see this
+by slicing with the value of ``len()``:
+
+    >>> len(msg)
+    11
+    >>> msg[0:11]
+    'Hello World'
+    >>>
+
+We can also slice with negative indices |mdash| the same basic rule of starting
+from the start index and stopping one before the end index applies;
+here we stop before the space character:
+
+    >>> msg[0:-6]
+    'Hello'
+    >>>
+
+Python provides two shortcuts for commonly used slice values. If the
+start index is ``0`` then you can leave it out, and if the
+end index is the length of the string then you can leave it out:
+
+    >>> msg[:3]
+    'Hel'
+    >>> msg[6:]
+    'World'
+    >>>
+
+The first example above selects the first three characters from the string,
+and the second example selects from the character with index 6, namely ``'W'``,
+to the end of the string.
+
+We can also find the position of a substring within a string, using ``find()``:
+
+    >>> msg.find('World')
+    6
+
+Analyzing Strings
+-----------------
+
+* character frequency plot, e.g get text in some language using ``language_x = nltk.corpus.udhr.raw(x)``,
+  then construct its frequency distribution ``fdist = FreqDist(language_x)``, then
+  view the distribution with ``fdist.sorted()`` and ``fdist.plot()``.
+
+* functions involving strings, e.g. determining past tense
+
+* built-ins, ``find()``, ``rfind()``, ``index()``, ``rindex()``
+
+* revisit string tests like ``endswith()`` from chapter 1
+
+
+Lists vs Strings
+----------------
+
+Strings and lists are both kind of `sequence`:dt:. As such, they can
+both be indexed and sliced:
+
+    >>> query = 'Who knows?'
+    >>> beatles = ['john', 'paul', 'george', 'ringo']
+    >>> query[2]
+    'o'
+    >>> beatles[2]
+    'george'
+    >>> query[:2]
+    'Wh'
+    >>> beatles[:2]
+    ['john', 'paul']
+    >>>
+
+Similarly, strings can be concatenated and so can lists (though not
+with each other!): 
+
+    >>> newstring = query + " I don't"
+    >>> newlist = beatles + ['brian', 'george']
+
+When we open a file
+for reading into a Python program, we get a string,
+corresponding to the contents of the whole file. If we try to use a ``for`` loop to
+process the elements of this string, all we can pick out are the
+individual characters |mdash| we don't get to choose the
+granularity. By contrast, the elements of a list can be as big or
+small as we like: for example, they could be paragraphs, sentence,
+phrases, words, characters. So lists have the advantage that we
+can be flexible about the elements they contain, and
+correspondingly flexible about any downstream processing.
+So one of the first things we are likely to do in a piece of NLP
+code is tokenize a string into a list of strings (Section sec-tokenization_).
+Conversely, when we want to write our results to a file, or to a terminal,
+we will usually format them as a string (Section sec-formatting_).
+
+Lists and strings do not have exactly the same functionality.
+Lists have the added power that you can change their elements. Let's
+imagine that we want to change the 0th element of ``cgi`` to
+``'colorful'``, we can do that by assigning the new value
+to the index ``cgi[0]``:
+
+    >>> cgi = ['colorless', 'green', 'ideas']
+    >>> cgi[0] = 'colorful'
+    >>> cgi
+    ['colorful', 'green', 'ideas']
+    >>>
+
+|nopar| On the other hand if we try to do that with a *string*
+|mdash| changing the 0th character in ``msg`` to ``'J'`` |mdash| we get:
+
+.. doctest-ignore::
+    >>> msg[0] = 'J'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    TypeError: object does not support item assignment
+    >>>
+
+|nopar| This is because strings are `immutable`:dt: |mdash| you can't change a
+string once you have created it.  However, lists are `mutable`:dt:,
+and their contents can be modified at any time.  As a result, lists
+support operations that modify the original value rather than producing a new value.
+A method is a function that is associated with a particular object.
+A method is called on the object by giving the object's name,
+then a period, then the name of the method, and finally the parentheses
+containing any arguments.  For example, in the following code we use
+the ``sort()`` and ``reverse()`` methods:
+
+    >>> chomsky.sort()
+    >>> chomsky.reverse()
+    >>> chomsky
+    ['sleep', 'ideas', 'green', 'furiously', 'colorless']
+    >>>
+
+As you will see, the prompt reappears immediately on the line after
+``chomsky.sort()`` and ``chomsky.reverse()``. That is because these
+methods do not produce a new list, but instead modify the original list
+stored in the variable ``chomsky``.  
+
+Lists also have an ``append()`` method for adding items to the
+end of the list and an ``index()`` method for finding the index
+of particular items in the list:
+
+    >>> chomsky.append('said')
+    >>> chomsky.append('Chomsky')
+    >>> chomsky
+    ['sleep', 'ideas', 'green', 'furiously', 'colorless', 'said', 'Chomsky']
+    >>> chomsky.index('green')
+    2
+    >>>
+
+Finally, just as a reminder, you can create lists of any values you like.
+As you can see in the following example for a lexical entry, the values
+in a list do not even have to have the same type (though this is usually
+not a good idea, as we will explain in Section sec-back-to-the-basics_).
+
+    >>> bat = ['bat', [[1, 'n', 'flying mammal'], [2, 'n', 'striking instrument']]]
+    >>>
+
+Creating Programs with a Text Editor
+------------------------------------
+
+The Python interative interpreter performs your instructions as soon as you type
+them.  Often, it is better to compose a multi-line program using a text editor,
+then ask Python to run the whole program at once.  Using |IDLE|, you can do
+this by going to the ``File`` menu and opening a new window.  Try this now, and
+enter the following one-line program:
+
+::
+
+     msg = 'Monty Python'
+
+Save this program in a file called ``test.py``, then
+go to the ``Run`` menu, and select the command ``Run Module``.
+The result in the main |IDLE| window should look like this:
+
+.. doctest-ignore::
+    >>> ================================ RESTART ================================
+    >>> 
+    >>>     
+
+Now, where is the output showing the value of ``msg``? The answer is
+that the program in ``test.py`` will show a value only if you explicitly tell
+it to, using the ``print`` command. So add another line to
+``test.py`` so that it looks as follows:
+
+::
+
+     msg = 'Monty Python'
+     print msg
+
+Select ``Run Module`` again, and this time you should get output that
+looks like this:
+
+.. doctest-ignore::
+    >>> ================================ RESTART ================================
+    >>> 
+    Monty Python
+    >>> 
+
+From now on, you have a choice of using the interactive interpreter or a
+text editor to create your programs.  It is often convenient to test your ideas
+using the interpreter, revising a line of code until it does what you expect,
+and consulting the interactive help facility.  Once you're ready, you can paste
+the code (minus any ``>>>`` prompts) into the text editor,
+continue to expand it, and finally save the program
+in a file so that you don't have to retype it in again later.
+
+Exercises
+---------
+
+#. |easy| Try the examples in this section, then try the following.
+
+   a) Create a variable called ``msg`` and put a message
+      of your own in this variable.  Remember that strings need
+      to be quoted, so you will need to type something like:
+      ``msg = "I like NLP!"``
+   b) Now print the contents of this variable in two ways, first
+      by simply typing the variable name and pressing enter, then
+      by using the ``print`` command.
+   c) Try various arithmetic expressions using this string, e.g.
+      ``msg + msg``, and ``5 * msg``.
+   d) Define a new string ``hello``, and then try ``hello + msg``.
+      Change the ``hello`` string so that it ends with a space
+      character, and then try ``hello + msg`` again.
+
+#. |easy| Consider the following two expressions which have the same
+   result.  Which one will typically be more relevant in |NLP|?  Why?
+
+   a) ``"Monty Python"[6:12]``
+   b) ``["Monty", "Python"][1]``
+
+#. |easy| Define a string ``s = 'colorless'``.  Write a Python statement
+   that changes this to "colourless" using only the slice and
+   concatenation operations.
+
+#. |easy| Try the slice examples from this section using the interactive
+   interpreter.  Then try some more of your own.  Guess what the result
+   will be before executing the command.
+
+#. |easy| We can use the slice notation to remove morphological endings on
+   words.  For example, ``'dogs'[:-1]`` removes the last character of
+   ``dogs``, leaving ``dog``.  Use slice notation to remove the
+   affixes from these words (we've inserted a hyphen to
+   indicate the affix boundary, but omit this from your strings):
+   ``dish-es``, ``run-ning``, ``nation-ality``, ``un-do``,
+   ``pre-heat``.
+
+#. |easy| We saw how we can generate an ``IndexError`` by indexing beyond the end
+   of a string.  Is it possible to construct an index that goes too far to
+   the left, before the start of the string?
+
+#. |easy| We can also specify a "step" size for the slice. The following
+   returns every second character within the slice: ``msg[6:11:2]``.
+   It also works in the reverse direction: ``msg[10:5:-2]``
+   Try these for yourself, then experiment with different step values.
+
+#. |easy| What happens if you ask the interpreter to evaluate ``msg[::-1]``?
+   Explain why this is a reasonable result.
+
+#. |soso| Write code to abbreviate text by removing all the vowels.
+   Define ``sentence`` to hold any string you like, then initialize
+   a new string ``result`` to hold the empty string ``''``.  Now write
+   a ``for`` loop to process the string, one character at a time,
+   and append any non-vowel characters to the result string.
+
