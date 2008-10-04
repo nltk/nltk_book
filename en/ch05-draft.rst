@@ -10,10 +10,10 @@
 .. _chap-data-intensive:
 
 =====================================
-4. Data-Intensive Language Processing
+5. Data-Intensive Language Processing
 =====================================
 
-.. _ch04-introduction:
+.. _ch05-introduction:
 
 ------------
 Introduction
@@ -37,93 +37,6 @@ covering manual approaches to exploring linguistic data in Section sec-explorato
 and automatic approaches in Section sec-data-modeling_.
 
 .. more motivation and overview of this simple ontology (manual vs automatic)
-
-------------------------------------------
-Exploiting Patterns to Understand Language
-------------------------------------------
-
-For example, in `word sense disambiguation`:dt: we want to work out
-which sense of a word was intended in a given context.  Consider the
-ambiguous words `serve`:lx: and `dish`:lx:\ :
-
-.. ex::
-    .. ex:: `serve`:lx:\ : help with food or drink; hold an office; put ball into play
-    .. ex:: `dish`:lx:\ : plate; course of a meal; communications device
-
-|nopar|
-Now, in a sentence containing the phrase: `he served the dish`:lx: we
-can detect that both `serve`:lx: and `dish`:lx: are being used with
-their food meanings.  Its unlikely that the topic of discussion
-shifted from sports to communications between these words, since it
-would result in bizarre interpretations like striking a satellite dish
-with a tennis racquet:
-
-.. ex::
-    In a fit of fury, he tossed the portable satellite receiver in the air, and with
-    a quick flick of his tennis racquet, he served the dish.
-
-In other words, we automatically disambiguate words using context, exploiting
-the simple fact that nearby words have closely related meanings.
-As another example of this contextual effect, consider the word
-`by`:lx:, which has three meanings: `the book by Chesterton`:lx: (agentive);
-`the cup by the stove`:lx: (locative); and `submit by Friday`:lx: (temporal).
-Observe in lost-children_ that the meaning of the italicized word helps us
-interpret the meaning of `by`:lx:.
-
-.. _lost-children:
-.. ex::
-   .. ex:: The lost children were found by the `searchers`:em:  (agentive)
-   .. ex:: The lost children were found by the `mountain`:em:   (locative)
-   .. ex:: The lost children were found by the `afternoon`:em:  (temporal)
-
-A deeper kind of language understanding is to work out who did what to whom |mdash|
-i.e. to detect the subjects and objects of verbs.
-In the sentence `the thieves stole the paintings`:lx:
-it is easy to tell who performed the stealing action.
-Consider three possible following sentences in thieves_, and try to determine
-what was sold, caught, and found (one case is ambiguous).
-  
-.. _thieves:
-.. ex::
-   .. ex:: The thieves stole the paintings.  They were subsequently `sold`:em:.
-   .. ex:: The thieves stole the paintings.  They were subsequently `caught`:em:.
-   .. ex:: The thieves stole the paintings.  They were subsequently `found`:em:.
-
-|nopar|
-Answering this question involves finding the `antecedent`:dt: of the pronoun `they`:lx:
-(the theives or the paintings).  Computational techniques for solving this problem
-fall under the heading of `semantic role labeling`:dt:.
-If we can automatically solve such problems, we will have understood enough of the
-text to perform some important language generation tasks, such as
-`question answering`:idx: and `machine translation`:idx:.  In the first case,
-a machine should be able to answer a user's questions relating to collection of texts:
-
-.. _qa-application:
-.. ex::
-   .. ex:: *Text:* ... The thieves stole the paintings.  They were subsequently sold. ...
-   .. ex:: *Human:* Who or what was sold?
-   .. ex:: *Machine:* The paintings.
-
-|nopar|
-The machine's answer demonstrates that it has correctly worked out that `they`:lx:
-refers to paintings and not to theives.  In the second case, the machine should
-be able to produce a translation of the text into another language, accurately
-conveying the meaning of the original text.  In translating the above text into French,
-we are forced to choose the gender of the pronoun in the second sentence:
-`ils`:lx: (masculine) if the thieves are sold, and `elles`:lx: (feminine) if
-the paintings are sold.  Correct translation actually depends on correct understanding of
-the pronoun.
-
-.. _mt-application:
-.. ex::
-   .. ex:: The thieves stole the paintings.  They were subsequently sold.
-   .. ex:: Les voleurs ont vol\ |eacute| les peintures. *Ils* ont |eacute|\ t\ |eacute| *vendus* plus tard.  (the thieves)
-   .. ex:: Les voleurs ont vol\ |eacute| les peintures. *Elles* ont |eacute|\ t\ |eacute| *vendues* plus tard.  (the paintings)
-    
-In all of the above examples |mdash| working out the sense of a word, the subject of a verb, the 
-antecedent of a pronoun |mdash| are steps in establishing the meaning of a sentence, things
-we would expect a language understanding system to be able to do.  Interestingly, all of them
-turn out to involve `classification`:dt:, tagging a word with a sense tag, a verb-argument tag, etc.
 
 We have already seen the application of
 classification in the case of part-of-speech tagging (Chapter chap-tag_).
