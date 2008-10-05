@@ -6,7 +6,7 @@
     >>> import nltk, re, pprint
 
 ================
-6. Chart Parsing
+7. Chart Parsing
 ================
 
 ------------

@@ -21,7 +21,7 @@
 .. _chap-applied-programming:
 
 ================================
-9. Applied Programming in Python
+10. Applied Programming in Python
 ================================
 
 This chapter introduces concepts in algorithms, data structures,
