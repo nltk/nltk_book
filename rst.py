@@ -1851,7 +1851,6 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             
     def depart_example(self, node):
         example_tag = self.stack_pop(self.example_tag_stack)
-        self.example_tag_stack = self.example_tag_stack[:-1]  # manual update of stack
         if example_tag == "orderedlist":
             self.body.append("</listitem>")
         elif example_tag == "example":

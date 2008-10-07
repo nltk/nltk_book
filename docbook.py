@@ -94,6 +94,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.table_tag_stack = []
         self.figure_tag_stack = []
         self.example_tag_stack = []
+        self.section_stack = []
         self._OPTION_DIRECTIVE_RE = re.compile(
             r'(\n[ ]*\.\.\.[ ]*)?#\s*doctest:\s*([^\n\'"]*)$', re.MULTILINE)
 
@@ -105,7 +106,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         "Pop an item off the given stack and return it"
         item = self.stack_peek(stack)
         if item:
-            stack = stack[0:-1]
+            del stack[-1]
             return item
         else:
             return None
@@ -1006,14 +1007,21 @@ class DocBookTranslator(nodes.NodeVisitor):
             # and only keep the user-supplied id
             if 'ids' in node.attributes and len(node.attributes['ids']) > 1:
                 atts['id'] = node.attributes['ids'][1]
-            self.body.append(self.starttag(node, 'section', **atts))
+            section_tag = 'sect' + `self.section`
+            if self.section > 1:  # don't number subsections
+                section_tag = 'simplesect'
+                if 'id' in atts:
+                    raise ValueError("Identifier given to un-numbered section")
+            self.body.append(self.starttag(node, section_tag, **atts))
+            self.stack_push(self.section_stack, section_tag)
 
         self.section += 1
-
+    
     def depart_section(self, node):
         self.section -= 1
         if self.section:
-            self.body.append('</section>\n')
+            section_tag = self.stack_pop(self.section_stack)
+            self.body.append('</%s>\n' % section_tag)
 
     def visit_sidebar(self, node):
         self.body.append(self.starttag(node, 'sidebar'))
