@@ -795,27 +795,41 @@ does this for us (we will see how it works later).
     the people; for the; specie payments; Western Hemisphere
 
 
-Counting Other Things than Words (NOTES)
-----------------------------------------
+Counting Other Things
+---------------------
 
-Counting lengths:
+Counting words is useful, but we can count other things too.  For example, we can
+look at the distribution of word lengths in a text, by creating a ``FreqDist``
+out of a long list of numbers, where each number is the length of the corresponding
+word in the text: 
 
-    >>> fdist = FreqDist(len(word) for word in text1)
-    >>> fdist[1]
-    47933
-    >>> fdist[2]
-    38513
+    >>> [len(w) for w in text1][:100]
+    [1, 4, 4, 2, 6, 8, 4, 1, 9, 1, 1, 8, 2, 1, 4, 11, 5, 2, 1, 7, 6, 1, 3, 4, 5, 2, 10, 2, 4, 1, 5, ...]
+    >>> fdist = FreqDist(len(w) for w in text1)
+    >>> fdist
+    <FreqDist with 260819 samples>
+    >>> fdist.samples()
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20]
+    >>> fdist.items()
+    [(1, 47933), (2, 38513), (3, 50223), (4, 42345), (5, 26597), (6, 17111), (7, 14399), (8, 9966), (9, 6428),
+    (10, 3528), (11, 1873), (12, 1053), (13, 567), (14, 177), (15, 70), (16, 22), (17, 12), (18, 1), (20, 1)]
+    >>> fdist.max()
+    3
     >>> fdist[3]
     50223
-    >>> fdist[12]
-    1053
-    >>> fdist[20]
-    1
+    >>> fdist.freq(3)
+    0.19255882431878046
     >>>
 
-Letter frequencies -- what are the most frequent letters in English?
+From this we see that the most frequent word length is 3, and that words of length 3 account for 50,000 (20%) of
+of the words of the book. 
 
-    >>> fdist = FreqDist(letter for word in text1 for letter in word)
+We can count individual letters as well.  For each word `w`:math:, we have
+to loop over each character contained in the word.  We can do this as
+follows.
+
+    >>> fdist = FreqDist(char for w in text1 for char in w)
+    >>> fdist.samples()
     >>> ['e', 't', 'a', 'o', 'n', 's', 'i', 'h', 'r', 'l', 'd', 'u', 'm', 'c',
         'w', 'g', 'f', ',', 'y', 'p', 'b', 'v', 'k', '.', '-', ';', 'I', '"',
         "'", 'A', 'T', 'S', '!', 'H', 'B', 'W', 'E', 'q', 'N', 'C', 'P', 'x',
@@ -824,40 +838,57 @@ Letter frequencies -- what are the most frequent letters in English?
         'Z', '6', '9', '_', 'X', '[', ']', '$', '&']
     >>>
 
-Need for normalization and filtering:
+If we're just interested in letter frequencies, we should ignore the case
+distinction by normalizing everything to lowercase, and filter out non-alphabetic characters.
+Here's how we can do it:
 
     >>> fdist = FreqDist(char.lower() for w in text1 for char in w if w.isalpha())
     >>> fdist.sorted()
     ['e', 't', 'a', 'o', 'n', 'i', 's', 'h', 'r', 'l', 'd', 'u', 'm', 'c', 'w',
     'f', 'g', 'p', 'b', 'y', 'v', 'k', 'q', 'j', 'x', 'z']
-    >>> fdist.plot()
     >>>
 
-We'll return to normalization chapter 2...
+This gives us the letters of the alphabet, with the most frequently occurring letters
+listed first.  You might like to visualize the distribution using ``fdist.plot()``.
 
-..
-   IDLE session:
-   indexing, max()
-   set.difference()?
+Table freqdist_ gives a summary of the methods defined in frequency distributions.
 
-..
-   Forward pointers:
-   dictionaries
+.. table:: freqdist
 
-.. FreqDists in detail, [] notation
+   ============================  =======================================================
+   Example                       Description
+   ============================  =======================================================
+   ``fdist['monstrous']``        count of the number of times a given sample occurred
+   ``fdist.freq('monstrous')``   frequency of a given sample
+   ``fdist.N()``                 total number of samples
+   ``fdist.sorted()``            the samples sorted in order of decreasing frequency
+   ``for sample in fdist:``      iterate over the samples
+   ``fdist.max()``               sample with the greatest count
+   ``fdist.plot()``              graphical plot of the frequency distribution
+   ============================  =======================================================
+
+   Methods Defined in |NLTK|\ 's Frequency Distribution Module
+
+
+Our discussion of frequency distributions has introduced some important Python concepts,
+and we will look at them systematically in Section sec-making-decisions_.
+We've also touched on the topic of normalization, and we'll explore this in
+depth in Chapter chap-words_.   
+
+.. _sec-making-decisions:
 
 ---------------------------------------------------
 Back to Python: Making Decisions and Taking Control
 ---------------------------------------------------
 
-So far, our simple programs have been able to manipulate sequences of
-words, and perform some operation on each one.  We applied this to lists
-consisting of a few words, but the approach works the same for lists of
-arbitrary size, containing thousands of items.  Thus, such programs
-have some interesting qualities: (i) the ability to work with
-language, and (ii) the potential to save human effort through
-automation.  Another useful feature of programs is their ability to
-`make decisions`:em: on our behalf; this is our focus in this section.
+So far, our little programs have had some interesting qualities:
+(i) the ability to work with language, and
+(ii) the potential to save human effort through automation.
+A key feature of programming is the ability of machines to
+make decisions on our behalf, executing instructions when
+certain conditions are met, or repeatedly looping through
+text data until some condition is satisfied.  This feature
+is known as `control`:dt:, and is the focus of this section.
 
 Conditionals
 ------------
@@ -919,7 +950,10 @@ Table word-tests_.
    Some Word Comparison Operators
 
 Here are some examples of these operators being used to
-select words from our texts.
+select words from our texts.  The first example finds all
+words ending with `ableness`:lx:.  The second example finds
+words containing the substring `gnt`:lx:.  Can you explain
+what the last example does?
 
     >>> sorted(w for w in set(text1) if w.endswith("ableness"))
     ['comfortableness', 'honourableness', 'immutableness',
@@ -931,7 +965,9 @@ select words from our texts.
     ['29', '61']
     >>>
 
-We can also use ``and``, ``or``, and ``not``:    
+We can also use ``and``, ``or``, and ``not`` to create more complex
+conditions.  Examine the following four examples and see if you can
+explain what is going on in each one.    
 
     >>> sorted(w for w in set(text7) if "-" in w and "index" in w)
     ['Stock-index', 'index-arbitrage', 'index-fund',
@@ -951,12 +987,11 @@ Control Structures
 Most programming languages permit us to execute a block of code when a
 `conditional expression`:dt:, or ``if`` statement, is satisfied.  In
 the following program, we have created a variable called ``word``
-containing the string value ``'cat'``. The ``if`` statement then
-checks whether the condition ``len(word) < 5`` is true.  Because the
-conditional expression is true, the body of the ``if`` statement is
-invoked and the ``print`` statement is executed, and displays a
-message to the user.  You should indent the print statement by
-typing four spaces.
+containing the string value ``'cat'``. The ``if`` statement
+checks whether the conditional expression ``len(word) < 5`` is true.
+It is, so the body of the ``if`` statement is invoked and
+the ``print`` statement is executed, displaying a message to the user.
+Remember to indent the print statement by typing four spaces.
 
     >>> word = "cat"
     >>> if len(word) < 5:
@@ -1001,6 +1036,9 @@ to the user.  Next, it goes back to the ``for`` statement,
 and does ``word = 'me'``, before displaying this new value
 to the user, and so on.  It continues in this fashion until
 every item of the list has been processed.
+
+Combining Conditionals and Loops
+--------------------------------
 
 Now we can combine the ``if`` and ``for`` statements.
 We will loop over every item of the list, and only print
@@ -1063,29 +1101,6 @@ Python to produce its output on a single line.
     ...     print word,
     ancient ceiling conceit conceited conceive conscience
     conscientious conscientiously deceitful deceive ...
-
-Frequency Distributions
------------------------
-
-Some of the methods defined on NLTK frequency distributions are shown in Table freqdist_.
-[More discussion and examples...]
-
-.. table:: freqdist
-
-   ============================  =======================================================
-   Example                       Description
-   ============================  =======================================================
-   ``fdist['monstrous']``        count of the number of times a given sample occurred
-   ``fdist.freq('monstrous')``   frequency of a given sample
-   ``fdist.N()``                 total number of samples
-   ``fdist.sorted()``            the samples sorted in order of decreasing frequency
-   ``for sample in fdist:``      iterate over the samples
-   ``fdist.max()``               sample with the greatest count
-   ``fdist.plot()``              graphical plot of the frequency distribution
-   ============================  =======================================================
-
-   Methods Defined in the Frequency Distribution Module
-
 
 
 ------------------------------------------
