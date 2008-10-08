@@ -394,26 +394,6 @@ Case Study: T9
    T9: Text on 9 Keys
 
 
-
-Exercises
----------
-
-1. |easy| Write a program to sort words by length.  Define a helper function
-   ``cmp_len`` which uses the ``cmp`` comparison function on word
-   lengths.
-
-2. |soso| Consider the tokenized sentence
-   ``['The', 'dog', 'gave', 'John', 'the', 'newspaper']``.
-   Using the ``map()`` and ``len()`` functions, write a single line
-   program to convert this list of tokens into a list of token
-   lengths: ``[3, 3, 4, 4, 3, 9]``
-
-#. |hard| **Statistically Improbable Phrases:**
-   Design an algorithm to find the statistically improbable
-   phrases of a document collection.
-   http://www.amazon.com/gp/search-inside/sipshelp.html
-
-
 -------------------------------
 Connecting to the Outside World
 -------------------------------
@@ -504,22 +484,6 @@ writing, there seems to be a problem reading GB2312-encoded files in
     '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
 
 
-Exercises
----------
-
-#. |soso| Write a recursive function to produce an XML representation for a
-   tree, with non-terminals represented as XML elements, and leaves represented
-   as text content, e.g.:
-
-|   <S>
-|     <NP type="SBJ">
-|       <NP>
-|         <NNP>Pierre</NNP>
-|         <NNP>Vinken</NNP>
-|       </NP>
-|       <COMMA>,</COMMA>
-
-
 
 
 
@@ -536,8 +500,6 @@ that type.  In this section we show you how to create simple data
 classes and processing classes by example.  For a systematic
 introduction to Object-Oriented design, please see the Further
 Reading section at the end of this chapter.
-
-.. _sec-variable-scope:
 
 Data Classes: Trees in NLTK
 ---------------------------
@@ -960,37 +922,6 @@ Finally, we can look up a word to get approximate matches:
 
 
 
-Exercises
----------
-
-1. |soso| Consider again the problem of hyphenation across line-breaks.
-   Suppose that you have successfully written a tokenizer that
-   returns a list of strings, where some strings may contain
-   a hyphen followed by a newline character, e.g. ``long-\nterm``.
-   Write a function that iterates over the tokens in a list,
-   removing the newline character from each, in each of the following
-   ways:
-
-   a) Use doubly-nested for loops.  The outer loop will iterate over
-      each token in the list, while the inner loop will iterate over
-      each character of a string.
-
-   b) Replace the inner loop with a call to ``re.sub()``
-
-   c) Finally, replace the outer loop with call to the ``map()``
-      function, to apply this substitution to each token.
-
-   d) Discuss the clarity (or otherwise) of each of these approaches.
-
-2. |hard| Develop a simple extractive summarization tool, that prints the
-   sentences of a document which contain the highest total word
-   frequency.  Use ``FreqDist()`` to count word frequencies, and use
-   ``sum`` to sum the frequencies of the words in each sentence.
-   Rank the sentences according to their score.  Finally, print the *n*
-   highest-scoring sentences in document order.  Carefully review the
-   design of your program, especially your approach to this double
-   sorting.  Make sure the program is written as clearly as possible.
-   
 ------
 Search
 ------
@@ -1405,37 +1336,6 @@ whose members are also sets; the latter have to be defined as
 We also need to be careful to distinguish between the empty set |empty| and
 the set whose only member is the empty set: {|empty|}.
 
-Exercises
----------
-
-1. |easy| For each of the following sets, write a specification by hand in
-   predicate notation, and an implementation in Python using list
-   comprehension.
-
-   a. {2, 4, 8, 16, 32, 64}
-
-   b. {2, 3, 5, 7, 11, 13, 17}
-
-   c. {0, 2, -2, 4, -4, 6, -6, 8, -8}
-
-   
-
-#. |easy| The `powerset`:dt: of a set `A`:math: (written |power|\ `A`:math:\ ) is
-   the set of all subsets of `A`:math:, including the empty set. List
-   the members of the following sets:
-
-   a.  |power|\ {`a`:math:, `b`:math:, `c`:math:\ }:
-
-   b.  |power|\ {`a`:math:\ }
-
-   c.  |power|\ {|empty|}
-
-   d.  |power|\ |empty|
-
-#. |soso| Write a Python function to compute the powerset of an arbitrary
-   set. Remember that you will have to use ``frozenset`` for this.
-
-
 Tuples
 ------
 
@@ -1616,10 +1516,104 @@ for ``2`` and ``4`` but  `undefined`:dt: for the other elements in
 ``evens``.
 
 
+---------------
+Further Reading
+---------------
+
+Object-Oriented programming
+
+
+[Brent1995]
+
+[Hunt1999PP]_
+
+---------
 Exercises
 ---------
 
-1. |easy| Consider the relation ``doubles``, where ``evens`` is defined as in
+1. |easy| Write a program to sort words by length.  Define a helper function
+   ``cmp_len`` which uses the ``cmp`` comparison function on word
+   lengths.
+
+2. |soso| Consider the tokenized sentence
+   ``['The', 'dog', 'gave', 'John', 'the', 'newspaper']``.
+   Using the ``map()`` and ``len()`` functions, write a single line
+   program to convert this list of tokens into a list of token
+   lengths: ``[3, 3, 4, 4, 3, 9]``
+
+#. |hard| **Statistically Improbable Phrases:**
+   Design an algorithm to find the statistically improbable
+   phrases of a document collection.
+   http://www.amazon.com/gp/search-inside/sipshelp.html
+
+#. |soso| Write a recursive function to produce an XML representation for a
+   tree, with non-terminals represented as XML elements, and leaves represented
+   as text content, e.g.:
+
+|   <S>
+|     <NP type="SBJ">
+|       <NP>
+|         <NNP>Pierre</NNP>
+|         <NNP>Vinken</NNP>
+|       </NP>
+|       <COMMA>,</COMMA>
+
+#. |soso| Consider again the problem of hyphenation across line-breaks.
+   Suppose that you have successfully written a tokenizer that
+   returns a list of strings, where some strings may contain
+   a hyphen followed by a newline character, e.g. ``long-\nterm``.
+   Write a function that iterates over the tokens in a list,
+   removing the newline character from each, in each of the following
+   ways:
+
+   a) Use doubly-nested for loops.  The outer loop will iterate over
+      each token in the list, while the inner loop will iterate over
+      each character of a string.
+
+   b) Replace the inner loop with a call to ``re.sub()``
+
+   c) Finally, replace the outer loop with call to the ``map()``
+      function, to apply this substitution to each token.
+
+   d) Discuss the clarity (or otherwise) of each of these approaches.
+
+#. |hard| Develop a simple extractive summarization tool, that prints the
+   sentences of a document which contain the highest total word
+   frequency.  Use ``FreqDist()`` to count word frequencies, and use
+   ``sum`` to sum the frequencies of the words in each sentence.
+   Rank the sentences according to their score.  Finally, print the *n*
+   highest-scoring sentences in document order.  Carefully review the
+   design of your program, especially your approach to this double
+   sorting.  Make sure the program is written as clearly as possible.
+   
+#. |easy| For each of the following sets, write a specification by hand in
+   predicate notation, and an implementation in Python using list
+   comprehension.
+
+   a. {2, 4, 8, 16, 32, 64}
+
+   b. {2, 3, 5, 7, 11, 13, 17}
+
+   c. {0, 2, -2, 4, -4, 6, -6, 8, -8}
+
+   
+
+#. |easy| The `powerset`:dt: of a set `A`:math: (written |power|\ `A`:math:\ ) is
+   the set of all subsets of `A`:math:, including the empty set. List
+   the members of the following sets:
+
+   a.  |power|\ {`a`:math:, `b`:math:, `c`:math:\ }:
+
+   b.  |power|\ {`a`:math:\ }
+
+   c.  |power|\ {|empty|}
+
+   d.  |power|\ |empty|
+
+#. |soso| Write a Python function to compute the powerset of an arbitrary
+   set. Remember that you will have to use ``frozenset`` for this.
+
+#. |easy| Consider the relation ``doubles``, where ``evens`` is defined as in
    the text earlier:
 
      >>> doubles = set([(m,m*2) for m in evens])
@@ -1651,15 +1645,7 @@ Exercises
 #. |soso| Write a Python function that, for any set of pairs `R`:math:,
    returns ``True`` if and only if `R`:math: is a function.
 
----------------
-Further Reading
----------------
-
-Object-Oriented programming
 
 
-[Brent1995]
-
-[Hunt1999PP]_
 
 .. include:: footer.rst
