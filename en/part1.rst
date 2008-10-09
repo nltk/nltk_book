@@ -10,25 +10,7 @@ with basic statistical methods.
 <partintro>
     <title>The Language Challenge</title>
 
-    <para>Today, people from all walks of life Ñ including professionals, students,
-          and the general population Ñ are confronted by
-          unprecedented volumes of information, the vast bulk of which is stored
-          as unstructured text. In 2003, it was estimated that the annual
-          production of books amounted to 8 Terabytes. (A Terabyte is 1,000
-          Gigabytes, i.e., equivalent to 1,000 pickup trucks filled with books.)
-          It would take a human being about five years to read the new
-          scientific material that is produced every 24 hours.  Although these
-          estimates are based on printed materials, increasingly the information
-          is also available electronically. Indeed, there has been an explosion of text
-          and multimedia content on the World Wide Web.  For many people, a
-          large and growing fraction of work and leisure time is spent
-          navigating and accessing this universe of information.
-    </para>
-       
-    <para>The presence of so much text in electronic form is a huge challenge to
-          NLP. Arguably, the only way for humans to cope with the information
-          explosion is to exploit computational techniques that can sift
-          through huge bodies of text.  Yet language presents us with far
+  Yet language presents us with far
           more than a temporary challenge for computation.  Consider the following
           sentences which attest to the riches of language:
     </para>
