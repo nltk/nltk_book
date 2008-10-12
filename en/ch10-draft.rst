@@ -271,7 +271,7 @@ at least ``min_len`` characters long:
     ...     text = open(file).read()
     ...     tokens = nltk.wordpunct_tokenize(text)
     ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
-    ...     return freqdist.sorted()[:num]
+    ...     return freqdist.keys()[:num]
     >>> freq_words('programming.txt', 4, 10)
     ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
     'very', 'using']
@@ -286,7 +286,7 @@ list with an equals sign and a default value:
     ...     text = open(file).read()
     ...     tokens = nltk.wordpunct_tokenize(text)
     ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
-    ...     return freqdist.sorted()[:num]
+    ...     return freqdist.keys()[:num]
 
 |nopar|
 Now there are several equivalent ways to call this function:
@@ -323,7 +323,7 @@ Another common use of optional arguments is to permit a flag, e.g.:
     ...             freqdist.inc(word)
     ...             if trace and freqdist.N() % 100 == 0: print "."
     ...     if trace: print
-    ...     return freqdist.sorted()[:num]
+    ...     return freqdist.keys()[:num]
 
 Accumulative Functions
 ----------------------

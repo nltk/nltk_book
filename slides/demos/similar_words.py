@@ -33,8 +33,8 @@ def dist_sim(context_map, word, num=6):
                              if c in contexts and w!=word)
     
     print 'Words similar to %r:' % word
-    print ' '.join('%10s' % wd for wd in fd.sorted()[:num])
-    print ' '.join('%10s' % fd[wd] for wd in fd.sorted()[:num])
+    print ' '.join('%10s' % wd for wd in fd.keys()[:num])
+    print ' '.join('%10s' % fd[wd] for wd in fd.keys()[:num])
 
 ######################################################################
     
