@@ -2020,7 +2020,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         pysrc = colorizer.colorize_inline(('%s' % node[0]))
         #pysrc = colorize_doctestblock(('%s' % node[0]), markup_func, True)
         self.literal = False
-        self.body.append('\\texttt{%s}' % pysrc)
+        self.body.append('\\texttt{\\small %s}' % pysrc)
         raise docutils.nodes.SkipNode() # Content already processed
 
     def depart_literal(self, node):
@@ -2163,7 +2163,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     # To fix this, we replace the default code for visit_admonition, which
     # uses an fbox & parbox, with code that uses a boxedminipage instead.
     def visit_admonition(self, node, name=''):
-        self.body.append('\\begin{center}\\begin{sffamily}\n')
+        self.body.append('\\begin{center}\\begin{sffamily}\small\n')
         self.body.append('\\begin{boxedminipage}{\\admonitionwidth}\n')
         #self.body.append('\\fbox{\\parbox{\\admonitionwidth}{\n')
         if name:
@@ -2226,7 +2226,7 @@ class HTMLDoctestColorizer(DoctestColorizer):
                     (tag, self.encode(s)))
 
 class LaTeXDoctestColorizer(DoctestColorizer):
-    PREFIX = '\\begin{alltt}\\small\\textbf{'
+    PREFIX = '\\begin{alltt}\\scriptsize\\textbf{'
     SUFFIX = '}\\end{alltt}\n'
     def __init__(self, encode_func, wrap=False, callouts=None):
         self.encode = encode_func

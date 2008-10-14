@@ -1011,7 +1011,7 @@ class DocBookTranslator(nodes.NodeVisitor):
             if self.section > 1:  # don't number subsections
                 section_tag = 'simplesect'
                 if 'id' in atts:
-                    raise ValueError("Identifier given to un-numbered section")
+                    raise ValueError("Identifier given to un-numbered section: " + atts['id'])
             self.body.append(self.starttag(node, section_tag, **atts))
             self.stack_push(self.section_stack, section_tag)
 
