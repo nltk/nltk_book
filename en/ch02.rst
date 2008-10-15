@@ -318,6 +318,9 @@ The output is shown in Figure fig-word-len-dist_ (run the program yourself to se
    Cumulative Word Length Distributions for Several Languages
 
 
+You will probably have other text sources, stored in files on your computer or accessible
+via the web.  We'll discuss how to work with these in Chapter chap-words_.
+
 .. _sec-defining-functions:
 
 -------------------------
@@ -484,30 +487,144 @@ called a `library`:dt:.
 Lexical Resources
 -----------------
 
-Pronunciation Lexicons
-----------------------
+A lexicon is a collection of words and/or phrases along with associated information such
+as part of speech and sense definitions.  The simplest kind of lexicon is nothing more
+than a sorted list of words.  Sophisticated lexicons include complex structure within and
+across the individual entries.  In this section we'll look at some lexical resources
+included with |NLTK|.   
 
-Overview of CMU lexicon
+Wordlist Corpora
+----------------
+
+|NLTK| includes some corpora that are nothing more than wordlists.
+The Words corpus is the ``/usr/dict/words`` file from Unix, used by
+some spell checkers.  We can use it to find unusual or mis-spelt
+words in a text corpus:
+
+    >>> def unusual_words(text):
+    ...     text_vocab = set(w.lower() for w in text if w.isalpha())
+    ...     english_vocab = set(w.lower() for w in nltk.corpus.words.words())
+    ...     unusual = text_vocab.difference(english_vocab)
+    ...     return sorted(unusual)
+    ...
+    >>> unusual_words(nltk.corpus.gutenberg.words('austen-sense.txt'))
+    ['abbeyland', 'abhorrence', 'abominably', 'abridgement', 'accordant', 'accustomary', 'adieus',
+    'affability', 'affectedly', 'aggrandizement', 'alighted', 'allenham', 'amiably', 'annamaria',
+    'annuities', 'apologising', 'arbour', 'archness', 'ardour', 'artlessness', 'assiduities', ...]
+    >>> unusual_words(nltk.corpus.nps_chat.words())
+    ['aaaaaaaaaaaaaaaaa', 'aaahhhh', 'abou', 'abourted', 'abs', 'ack', 'acros', 'actualy', 'adduser',
+    'addy', 'adoted', 'adreniline', 'ae', 'afe', 'affari', 'afk', 'agaibn', 'agurlwithbigguns',
+    'ahah', 'ahahah', 'ahahh', 'ahahha', 'ahem', 'ahh', 'ahhah', 'ahhahahaha', 'ahhh', 'ahhhh', ...]
+
+There is a corpus of `stopwords`:dt:, high-frequency glue words that we sometimes
+want to filter out of a text before further processing.
+
+    >>> nltk.corpus.stopwords.words('english')
+    ['a', "a's", 'able', 'about', 'above', 'according', 'accordingly', 'across', 'actually',
+    'after', 'afterwards', 'again', 'against', "ain't", 'all', 'allow', 'allows', 'almost',
+    'alone', 'along', 'already', 'also', 'although', 'always', 'am', 'among', 'amongst', ...]
+
+Let's define a function to compute what fraction of words in a text are *not* in the
+stopwords list:
+
+    >>> def content_fraction(text):
+    ...     stopwords = nltk.corpus.stopwords.words('english')
+    ...     content = [w for w in text if w.lower() not in stopwords]
+    ...     return 1.0 * len(content) / len(text)
+    ...    
+    >>> content_fraction(nltk.corpus.reuters.words())
+    0.65997695393285261
+
+Thus, with the help of stopwords we filter out a third of the words of the text.
+
+One more wordlist corpus is the Names corpus, containing 8,000 names categorized by gender.
+The male and female names are stored in separate files.  Let's find names which appear
+in both files, i.e. names that are ambiguous for gender:
+
+    >>> names = nltk.corpus.names
+    >>> names.files()
+    ('female.txt', 'male.txt')
+    >>> [w for w in names.words('male.txt') if w in names.words('female.txt')]
+    ['Abbey', 'Abbie', 'Abby', 'Addie', 'Adrian', 'Adrien', 'Ajay', 'Alex', 'Alexis',
+    'Alfie', 'Ali', 'Alix', 'Allie', 'Allyn', 'Andie', 'Andrea', 'Andy', 'Angel',
+    'Angie', 'Ariel', 'Ashley', 'Aubrey', 'Augustine', 'Austin', 'Averil', ..]
+
+It is well known that names ending in the letter `a`:lx: are almost always female.
+We can see this, and some other patterns, in the graph in Figure fig-cfd-gender_,
+which is produced by the following code:
+
+    >>> cfd = nltk.ConditionalFreqDist((file, name[-1])
+    ...           for file in names.files()
+    ...           for name in names.words(file))
+    >>> cfd.plot()
+
+.. _fig-cfd-gender:
+.. figure:: ../images/cfd-gender.png
+   :scale: 25
+
+   Frequency of Final Letter of Female vs Male Names
+
+
+Tabular Lexicons
+----------------
+
+As we have seen, the entries in a wordlist lack internal structure |mdash| they are just words.
+A slightly richer kind of lexical resource is a table (or spreadsheet), containing a word
+plus some properties in each row.  |NLTK| includes the CMU Pronouncing Dictionary,
+used by speech synthesizers. 
+
+    >>> entries = nltk.corpus.cmudict.entries()
+    >>> len(entries)
+    127069
+    >>> for entry in entries[40000:40010]:
+    ...     print entry
+    ... 
+    ('fir', 1, ('F', 'ER1'))
+    ('fire', 1, ('F', 'AY1', 'ER0'))
+    ("fire's", 1, ('F', 'AY1', 'ER0', 'Z'))
+    ('fire', 2, ('F', 'AY1', 'R'))
+    ('firearm', 1, ('F', 'AY1', 'ER0', 'AA2', 'R', 'M'))
+    ('firearm', 2, ('F', 'AY1', 'R', 'AA2', 'R', 'M'))
+    ('firearms', 1, ('F', 'AY1', 'ER0', 'AA2', 'R', 'M', 'Z'))
+    ('firearms', 2, ('F', 'AY1', 'R', 'AA2', 'R', 'M', 'Z'))
+    ('fireball', 1, ('F', 'AY1', 'ER0', 'B', 'AO2', 'L'))
+    ('fireball', 2, ('F', 'AY1', 'R', 'B', 'AO2', 'L'))
+
+For each word it provides a pronunciation number and a list of phonetic
+codes, i.e. distinct labels for each contrastive sound.  The digits represent
+primary stress (``1``), secondary stress (``2``) and unstressed (``0``).
+Observe that `fire`:lx: has two pronunciations:
+the one-syllable ``F AY1 R``, and the two-syllable ``F AY1 ER0``.
+
+
+.. note::
+   The symbols in the CMU Pronouncing Dictionary are from the Arpabet,
+   described in more detail at ``http://en.wikipedia.org/wiki/Arpabet``
+
+
 
     >>> syllable = ('N', 'IH0', 'K', 'S')
     >>> entries = nltk.corpus.cmudict.entries()
     >>> sorted(set(word.lower() for (word, _, pron) in entries if pron[-4:] == syllable))
-    ["atlantic's", 'audiotronics', 'avionics', 'beatniks', 'calisthenics', 'centronics', 'chetniks',
-    "clinic's", 'clinics', 'conics', 'cynics', 'diasonics', "dominic's", 'ebonics', 'electronics',
-    "electronics'", 'endotronics', "endotronics'", 'enix', 'environics', 'ethnics', 'eugenics', ...]
+    ["atlantic's", 'audiotronics', 'avionics', 'beatniks', 'calisthenics', 'centronics',
+    'chetniks', "clinic's", 'clinics', 'conics', 'cynics', 'diasonics', "dominic's",
+    'ebonics', 'electronics', "electronics'", 'endotronics', "endotronics'", 'enix', ...]
 
 Function to extract stress pattern, where 1=primary stress, 2=secondary stress, 0=unstressed.
 
     >>> def stress(pron):
     ...     return [int(char) for phoneme in pron for char in phoneme if char.isdigit()] 
     >>> [word for (word, _, pron) in entries if stress(pron) == [0, 1, 0, 2, 0]]
-    ['abbreviated', 'abbreviating', 'accelerated', 'accelerating', 'accelerator', 'accentuated',
-    'accentuating', 'accommodated', 'accommodating', 'accommodative', 'accumulated', 'accumulating',
-    'accumulative', 'accumulator', 'accumulators', 'accusatory', 'adjudicated', 'adjudicating', ...]
+    ['abbreviated', 'abbreviating', 'accelerated', 'accelerating', 'accelerator',
+    'accentuated', 'accentuating', 'accommodated', 'accommodating', 'accommodative',
+    'accumulated', 'accumulating', 'accumulative', 'accumulator', 'accumulators', ...]
     >>> [word for (word, _, pron) in entries if stress(pron) == [0, 2, 0, 1, 0]]
-    ['abbreviation', 'abbreviations', 'abomination', 'abortifacient', 'abortifacients', 'academicians',
-    'accommodation', 'accommodations', 'accreditation', 'accreditations', 'accumulation', 'accumulations',
-    'acetylcholine', 'acetylcholine', 'adjudication', 'administration', "administration's", ...]
+    ['abbreviation', 'abbreviations', 'abomination', 'abortifacient', 'abortifacients',
+    'academicians', 'accommodation', 'accommodations', 'accreditation', 'accreditations',
+    'accumulation', 'accumulations', 'acetylcholine', 'acetylcholine', 'adjudication', ...]
+
+
+syllable counting task -- metrical
 
 Phonological mirrors:
 
@@ -1714,7 +1831,11 @@ Exercises
    Try to explain them in terms of your own impressionistic understanding
    of the different genres.  Can you find other closed classes of words that
    exhibit significant differences across different genres?
-   
+
+#. |soso| The CMU Pronunciation Dictionary contains multiple pronunciations
+   for certain words.  How many distinct words does it contain?  What fraction
+   of words in this dictionary have more than one possible pronunciation?
+
 #. |easy| Familiarize yourself with the WordNet interface, by reading the
    documentation available via ``help(wordnet)``.  Try out the text-based
    browser, ``wordnet.browse()``.
@@ -1867,11 +1988,12 @@ Exercises
 #. |easy| What happens if you ask the interpreter to evaluate ``msg[::-1]``?
    Explain why this is a reasonable result.
 
-#. |soso| Write code to abbreviate text by removing all the vowels.
-   Define ``sentence`` to hold any string you like, then initialize
-   a new string ``result`` to hold the empty string ``''``.  Now write
-   a ``for`` loop to process the string, one character at a time,
-   and append any non-vowel characters to the result string.
+#. |easy| Define a conditional frequency distribution over the Names corpus
+   that allows you to see which initial letters are more frequent for males
+   vs females (cf. Figure fig-cfd-gender_).
+
+#. |soso| Write a function that finds the 50 most frequently occurring words
+   of a text that are not stopwords.
 
 
 .. include:: footer.rst
