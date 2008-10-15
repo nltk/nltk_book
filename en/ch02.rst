@@ -590,53 +590,81 @@ used by speech synthesizers.
     ('fireball', 1, ('F', 'AY1', 'ER0', 'B', 'AO2', 'L'))
     ('fireball', 2, ('F', 'AY1', 'R', 'B', 'AO2', 'L'))
 
-For each word it provides a pronunciation number and a list of phonetic
-codes, i.e. distinct labels for each contrastive sound.  The digits represent
-primary stress (``1``), secondary stress (``2``) and unstressed (``0``).
-Observe that `fire`:lx: has two pronunciations:
+For each word, it provides a pronunciation number and a list of phonetic
+codes |mdash| distinct labels for each contrastive sound |mdash|
+known as `phones`:lx:.  Observe that `fire`:lx: has two pronunciations:
 the one-syllable ``F AY1 R``, and the two-syllable ``F AY1 ER0``.
+The symbols in the CMU Pronouncing Dictionary are from the *Arpabet*,
+described in more detail at ``http://en.wikipedia.org/wiki/Arpabet``
 
+Each entry consists of three pieces of information, and we can
+process these individually by complicating the ``for`` statement
+slightly.  Instead of writing ``for entry in entries:``, we replace
+``entry`` with *three* variable names.  Each of the pieces of a single
+entry are assigned to each of the three variables.  (Underscore
+is a legal variable name, and we'll use this name when we don't plan to do
+anything with the variable later.)
 
-.. note::
-   The symbols in the CMU Pronouncing Dictionary are from the Arpabet,
-   described in more detail at ``http://en.wikipedia.org/wiki/Arpabet``
+    >>> for w, _, pron in entries:
+    ...     if len(pron) == 3:
+    ...         ph1, ph2, ph3 = pron
+    ...         if ph1 == 'P' and ph3 == 'T':
+    ...             print w, ph2,
+    ...
+    pait EY1 pat AE1 pate EY1 patt AE1 peart ER1 peat IY1 peet IY1 peete IY1 pert ER1
+    pet EH1 pete IY1 pett EH1 piet IY1 piette IY1 pit IH1 pitt IH1 pot AA1 pote OW1
+    pott AA1 pout AW1 puett UW1 purt ER1 put UH1 putt AH1
 
+The above program scans the lexicon for entries with a pronunciation consisting of
+three phones (``len(pron) == 3``).  If the condition is true, we assign the contents
+of ``pron`` to three new variables ``ph1``, ``ph2`` and ``ph3``.  Notice the unusual
+form of the statement which does that work.
 
+Here's another example of the same ``for`` statement, this time used inside a list
+comprehension.  This program finds all words whose pronunciation ends with a syllable
+sounding like `nicks`:lx:.  You could use this method to find rhyming words.
 
     >>> syllable = ('N', 'IH0', 'K', 'S')
-    >>> entries = nltk.corpus.cmudict.entries()
-    >>> sorted(set(word.lower() for (word, _, pron) in entries if pron[-4:] == syllable))
+    >>> [w for w, _, pron in entries if pron[-4:] == syllable]
     ["atlantic's", 'audiotronics', 'avionics', 'beatniks', 'calisthenics', 'centronics',
     'chetniks', "clinic's", 'clinics', 'conics', 'cynics', 'diasonics', "dominic's",
     'ebonics', 'electronics', "electronics'", 'endotronics', "endotronics'", 'enix', ...]
 
-Function to extract stress pattern, where 1=primary stress, 2=secondary stress, 0=unstressed.
+Notice that the one pronunciation is spelt in several ways: `nics`:lx:, `niks`:lx:, `nix`:lx:,
+even `ntic's`:lx: with a silent `t`:lx, for the word `atlantic's`:lx:.  Let's look for some other
+mismatches between pronunciation and writing.  Can you summarize the purpose of
+the following examples and explain how they work?
+
+    >>> [w for w, _, pron in entries if pron[-1] == 'M' and w[-1] == 'n']
+    ['autumn', 'column', 'condemn', 'damn', 'goddamn', 'hymn', 'solemn']
+    >>> sorted(set(w[:2] for w, _, pron in entries if pron[0] == 'N' and w[0] != 'n'))
+    ['gn', 'kn', 'mn', 'pn']
+
+The phones contain digits, to represent 
+primary stress (``1``), secondary stress (``2``) and no stress (``0``).
+As our final example, we define a function to extract the stress digits
+and then scan our lexicon to find words having a particular stress pattern.
 
     >>> def stress(pron):
     ...     return [int(char) for phoneme in pron for char in phoneme if char.isdigit()] 
-    >>> [word for (word, _, pron) in entries if stress(pron) == [0, 1, 0, 2, 0]]
+    >>> [w for w, _, pron in entries if stress(pron) == [0, 1, 0, 2, 0]]
     ['abbreviated', 'abbreviating', 'accelerated', 'accelerating', 'accelerator',
     'accentuated', 'accentuating', 'accommodated', 'accommodating', 'accommodative',
     'accumulated', 'accumulating', 'accumulative', 'accumulator', 'accumulators', ...]
-    >>> [word for (word, _, pron) in entries if stress(pron) == [0, 2, 0, 1, 0]]
+    >>> [w for w, _, pron in entries if stress(pron) == [0, 2, 0, 1, 0]]
     ['abbreviation', 'abbreviations', 'abomination', 'abortifacient', 'abortifacients',
     'academicians', 'accommodation', 'accommodations', 'accreditation', 'accreditations',
     'accumulation', 'accumulations', 'acetylcholine', 'acetylcholine', 'adjudication', ...]
 
+Note that this example has a user-defined function inside the condition of
+a list comprehension.
 
-syllable counting task -- metrical
+[Summary of tabular lexicons; forward reference to discussion about processing CSV files]
 
-Phonological mirrors:
+Shoebox and Toolbox Lexicons
+----------------------------
 
-    >>> d1 = dict((tuple(pron), word) for (word, _, pron) in entries)
-    >>> d2 = dict((tuple(pron[::-1]), word) for (word, _, pron) in entries)
-    >>> overlap = set(d1).intersection(d2)
-    >>> [(d1[pron], d2[pron]) for pron in overlap]
-    [('ploetz', 'stolpe'), ('mallard', 'dirlam'), ('flax', 'scalf'), ('spooks', 'scoops'), ('stimac', 'commits'),
-    ('dulak', 'collude'), ('level', 'leavelle'), ('finesse', 'seneff'), ('across', 'sorcha'), ('levine', 'knievel'),
-    ("lebow's", 'zobel'), ('ababa', 'ababa'), ("states'", "states'"), ('sparred', 'drops'), ('serda', 'address'),
-    ('roxanne', 'nascar'), ('scharfe', 'frocks'), ('styx', 'skits'), ('scotts', "stocks'"), ('nascar', 'roxanne'),
-    ('address', 'serda'), ('deville', 'livid'), ('skits', 'styx'), ('negus', 'seguin'), ...]
+[basic introduction from ch 13]
 
 
 WordNet
