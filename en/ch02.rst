@@ -191,29 +191,30 @@ as set out in Table brown-categories_.
 We can access the corpus as a list of words, or a list of sentences (where each sentence
 is itself just a list of words).  We can optionally specify a section of the corpus to read:
 
-    >>> nltk.corpus.brown.categories()
+    >>> brown = nltk.corpus.brown
+    >>> brown.categories()
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
-    >>> nltk.corpus.brown.words(categories='a')
+    >>> brown.words(categories='a')
     ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', ...]
-    >>> nltk.corpus.brown.sents(categories='a')
+    >>> brown.sents(categories='a')
     [['The', 'Fulton', 'County'...], ['The', 'jury', 'further'...], ...]
 
 We can use the Brown Corpus to study systematic differences between
 genres, a kind of linguistic inquiry known as `stylistics`:dt:.
 For example, Table brown-modals_ was constructed by counting
-the number of times various modal words appear in different sections of the corpus:
+the number of times various modal words appear in different sections of the corpus.
 
 .. table:: brown-modals
 
    ==================  ===  =====  ===  =====  ====  ====
    Genre               can  could  may  might  must  will 
    ==================  ===  =====  ===  =====  ====  ====
-   skill and hobbies   273  59     130  22     83    259 
-   humor               17   33     8    8      9     13 
-   fiction: science    16   49     4    12     8     16 
-   press: reportage    94   86     66   36     50    387 
-   fiction: romance    79   195    11   51     46    43 
-   religion            84   59     79   12     54    64 
+   press: reportage    93   86     66   38     50    389
+   religion            82   59     78   12     54    71
+   skill and hobbies   268  58     131  22     83    264
+   fiction: science    16   49     4    12     8     16    
+   fiction: romance    74   193    11   51     45    43    
+   humor               16   30     8    8      9     13               
    ==================  ===  =====  ===  =====  ====  ====
 
    Use of Modals in Brown Corpus, by Genre
@@ -222,6 +223,36 @@ the number of times various modal words appear in different sections of the corp
 Observe that the most frequent modal in the reportage genre is
 `will`:lx:, suggesting a focus on the future, while the most frequent
 modal in the romance genre is `could`:lx:, suggesting a focus on possibilities.
+
+Table brown-modals_ can be thought of as a collection of frequency
+distributions, one per row.  Let's use this idea to calculate the
+values of the press row:
+
+    >>> fdist = nltk.FreqDist(w.lower for w in brown.words(categories='a'))
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> [fdist[m] for m in modals]
+    [94, 87, 93, 38, 53, 389]
+    
+We can compute all the numbers in Table brown-modals_ using |NLTK|\ 's
+support for conditional frequency distributions, as follows:
+
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> cfd = nltk.ConditionalFreqDist((g,w)
+                  for g in brown.categories()
+                  for w in brown.words(categories=g))
+    >>> cfd.tabulate(conditions='adempr', samples=modals)
+       can could  may might must will
+    a   93   86   66   38   50  389
+    d   82   59   78   12   54   71
+    e  268   58  131   22   83  264
+    m   16   49    4   12    8   16
+    p   74  193   11   51   45   43
+    r   16   30    8    8    9   13
+
+Any text corpus that can be divided into components by genre, author, period, etc,
+is amenable to exploration using conditional frequency distributions.  We
+will present conditional frequency distributions systematically in
+Section sec-getting-organized_.
 
 Reuters Corpus
 --------------
@@ -261,17 +292,43 @@ included in one or more categories:
 Inaugural Address Corpus
 ------------------------
 
-This corpus has a time dimension...
+We saw this corpus in section sect-computing-with-language-texts-and-words_,
+but treated it as a single text.  The graph in Figure fig-inaugural_,
+used word offset as one of the axes, which is difficult to interpret.
+However, this corpus is actually a collection of 55 texts,
+one for each presidential address.  An interesting property of
+this collection is its time dimension:
 
-    >>> import nltk
     >>> inaugural = nltk.corpus.inaugural
+    >>> inaugural.files()
+    ('1789-Washington.txt', '1793-Washington.txt', '1797-Adams.txt', '1801-Jefferson.txt', ...)
+    >>> [file[:4] for file in inaugural.files()]
+    ['1789', '1793', '1797', '1801', '1805', '1809', '1813', '1817', '1821', '1825', ...]
+
+Notice that the year of each text appears in its filename.  To get the year
+out of the file name, we extracted the first four characters, using ``file[:4]``.
+
+Let's look at how the words `America`:lx: and `citizen`:lx: are used over time.
+The following code will count similar words, such as plurals of these words, or
+the word `Citizens`:lx: as it would appear at the start of a sentence (how?).
+The result is shown in Figure fig-inaugural2_.
+
     >>> cfd = nltk.ConditionalFreqDist((target, file[:4])
     ...           for file in inaugural.files()
     ...           for w in inaugural.words(file)
     ...           for target in ["america", "citizen"]
     ...           if w.lower().startswith(target))
-    >>> cfd.plot([file[:4] for file in inaugural.files()])
+    >>> cfd.plot()
 
+.. _fig-inaugural2:
+.. figure:: ../images/inaugural2.png
+   :scale: 25
+
+   Conditional Frequency Distribution for Two Words in the Inaugural Address Corpus
+
+.. note::
+   For more discussion of relative word frequencies in the Inaugural Address Corpus,
+   see ``http://languagelog.ldc.upenn.edu/nll/?p=696``
 
 
 Corpora in Other Languages
@@ -309,7 +366,7 @@ The output is shown in Figure fig-word-len-dist_ (run the program yourself to se
     ...     'Greenlandic_Inuktikut', 'Hungarian_Magyar', 'Ibibio_Efik']
     >>> cfd = nltk.ConditionalFreqDist((lang, len(word)) for lang in languages
     ...          for word in nltk.corpus.udhr.words(lang + "-Latin1"))
-    >>> cfd.plot(range(36))
+    >>> cfd.plot()
 
 .. _fig-word-len-dist:
 .. figure:: ../images/word-len-dist.png
@@ -853,7 +910,7 @@ Can you think of the animal and verb sense of each word?
 NLTK also includes VerbNet, a hierarhical verb lexicon linked to WordNet.
 It can be accessed with ``nltk.corpus.verbnet``.
 
-.. _getting-organized:
+.. _sec-getting-organized:
 
 ------------------------------
 More Python: Getting Organized
@@ -1100,8 +1157,8 @@ we get them in order of decreasing frequency.
     [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
     'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', ...]
     
-Generating Random Text with Style
----------------------------------
+Conditional Frequency Distributions
+-----------------------------------
 
 We have used frequency distributions to count the number of occurrences of
 each word in a text.  Here we will generalize this idea to look at the
@@ -1109,6 +1166,9 @@ distribution of words in a given context.
 A `conditional frequency distribution`:dt: is a collection
 of frequency distributions, each one for a different condition.
 Here the condition will be the preceding word.
+
+Generating Random Text with Style
+---------------------------------
 
 In Figure random_, we've defined a function ``train_model()`` that
 uses ``ConditionalFreqDist()`` to count words as they appear
@@ -1145,685 +1205,6 @@ the available words.
    ['substance', ',', '.', 'thing', 'soul', 'creature']
    >>> generate_model(model, 'living')
    living creature that he said , and the land of the land of the land
-
-.. _sec-accessing-text:
-
--------------------------
-Accessing Text on the Web
--------------------------
-
-Electronic Books
-----------------
-
-A small sample of texts from Project Gutenberg appears in the |NLTK| corpus collection.
-However, you may be interested in analyzing other texts from Project Gutenberg.
-You can browse the catalog of 25,000 free online books at
-``http://www.gutenberg.org/catalog/``, and obtain a URL to an ASCII text file.
-Although 90% of the texts in Project Gutenberg are in English, it
-includes material in over 50 other languages, including Catalan, Chinese, Dutch,
-Finnish, French, German, Italian, Portuguese and Spanish (with more than
-100 texts each).
-
-Text number 2554 is an English translation of *Crime and Punishment*,
-and we can access it as follows:
-
-    >>> from urllib import urlopen
-    >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
-    >>> raw = urlopen(url).read()
-    >>> type(raw)
-    <type 'str'>
-    >>> len(raw)
-    1176831
-    >>> raw[:75]
-    'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
-
-.. note:: The read() process will take a few seconds as it downloads this large book.
-   If you're using an internet proxy which is not correctly detected by Python,
-   you may need to specify the proxy manually as follows:
-   
-       >>> proxies = {'http': 'http://www.someproxy.com:3128'}
-       >>> raw = urllib.urlopen(url, proxies=proxies).read()
-   
-The variable ``raw`` contains a string with 1,176,831 characters.  This is the raw
-content of the book, including many details we are not interested in such as
-whitespace, line breaks and blank lines.  Instead, we want to break it up into
-words and punctuation, as we saw in Chapter chap-introduction_.  This step is
-called `tokenization`:dt:, and it produces our familiar structure, a list of words
-and punctuation.  From now on we will call these `tokens`:dt:.
-
-    >>> tokens = nltk.wordpunct_tokenize(raw)
-    >>> type(tokens)
-    <type 'list'>
-    >>> text[:10]
-    ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
-    >>> len(text)
-    255809
-
-If we now take the further step of creating an |NLTK| text from this list, we can do
-all of the other linguistic processing we saw in Chapter chap-introduction_, along with
-the regular list operations like slicing:
-
-    >>> text = nltk.Text(tokens)
-    >>> type(text)
-    <type 'nltk.text.Text'>
-    >>> text[1020:1060]
-    ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
-    'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
-    'which', 'he', 'lodged', 'in', 'S', '.', 'Place', 'and', 'walked', 'slowly',
-    ',', 'as', 'though', 'in', 'hesitation', ',', 'towards', 'K', '.', 'bridge', '.']
-    >>> text.collocations()
-    Katerina Ivanovna; Pulcheria Alexandrovna; Avdotya Romanovna; Pyotr
-    Petrovitch; Project Gutenberg; Marfa Petrovna; Rodion Romanovitch;
-    Sofya Semyonovna; Nikodim Fomitch; did not; Hay Market; Andrey
-    Semyonovitch; old woman; Literary Archive; Dmitri Prokofitch; great
-    deal; United States; Praskovya Pavlovna; Porfiry Petrovitch; ear rings
-
-Notice that "Project Gutenberg" appears as a collocation in this text.
-Each text downloaded from Project Gutenberg contains a header with the
-name of the text, the author, the names of people who scanned and
-corrected the text, a license, and so on.  Sometimes this information
-appears in a footer at the end of the file.  We cannot reliably detect
-where the content begins and ends, and so have to resort to manual
-inspection of the file, to discover unique strings that mark the beginning
-and the end, before trimming ``raw`` to be just the content and nothing else:
-
-    >>> raw.find("PART I")
-    5303
-    >>> raw.rfind("End of Project Gutenberg's Crime")
-    1157681
-    >>> raw = raw[5303:1157681]
-
-The "find" and "reverse find" functions help us get the right index values.
-Now the raw text begins with "PART I", and goes up to (but not including) the
-phrase that marks the end of the content.
-
-This was our first brush with reality: texts found on the web may contain
-unwanted material, and there may not be an automatic way to remove it.
-With a small amount of extra work we can extract the material we need.
-
-Dealing with HTML
------------------
-
-A large amount of text on the web is in the form of |HTML| documents.
-You can use a web browser to save a page as text to a local
-file, then access this as described in Section sec-files-and-strings_.
-However, if you're going to do this a lot, its easiest to get Python
-to do the work directly.  The first step is the same as before,
-using ``urlopen``.  For fun we'll pick a BBC News story
-called *Blondes to die out in 200 years*, an entertaining
-example of an urban legend reported as established scientific
-fact (as noted on languagelog.org).
-
-    >>> url = "http://news.bbc.co.uk/2/hi/health/2284783.stm"
-    >>> html = urlopen(url).read()
-    >>> html[:60]
-    '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN'
-
-You can type ``print html`` to see the |HTML| content in all its glory,
-including meta tags, an image map, JavaScript, forms, and tables.
-
-.. note:: Remember that there's nothing special about the names of our variables,
-   such as ``url`` and ``html``; we chose them to make the code easier to follow.
-   If we called them ``var1`` and ``var2`` the result would be the same.
-
-Getting text out of |HTML| is a sufficiently common task that |NLTK| provides
-a helper function ``nltk.clean_html()``, which takes an |HTML| string and
-returns text.
-
-    >>> raw = nltk.clean_html(html)
-    >>> tokens = nltk.wordpunct_tokenize(raw)
-    >>> tokens
-    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'", 'to', 'die', 'out', ...]
-
-This still contains lots of unwanted material concerning site navigation and related
-stories.  With some trial and error you can find the start and end indexes of the
-content and select the tokens of interest, and initialize a text as before.
-
-    >>> tokens = tokens[96:399]
-    >>> text = nltk.Text(tokens)
-    >>> text.concordance('gene')
-     they say too few people now carry the gene for blondes to last beyond the next tw
-    t blonde hair is caused by a recessive gene . In order for a child to have blonde 
-    to have blonde hair , it must have the gene on both sides of the family in the gra
-    there is a disadvantage of having that gene or by chance . They don ' t disappear 
-    ondes would disappear is if having the gene was a disadvantage and I do not think 
-
-
-Processing Google Results
--------------------------
-
-[how to extract google hits]
-
-LanguageLog example for `absolutely`:lx:
-
-.. table:: absolutely
-
-   +-----------------+------------+-------------+-------------+--------------+
-   | Google hits     |`adore`:lx: | `love`:lx:  |`like`:lx:   |`prefer`:lx:  |
-   +-----------------+------------+-------------+-------------+--------------+
-   | `absolutely`:lx:|     289,000|      905,000|       16,200|           644|
-   +-----------------+------------+-------------+-------------+--------------+
-   | `definitely`:lx:|       1,460|       51,000|      158,000|        62,600|
-   +-----------------+------------+-------------+-------------+--------------+
-   | ratio           |       198:1|         18:1|         1:10|          1:97|
-   +-----------------+------------+-------------+-------------+--------------+
-
-   `Absolutely`:lx: vs `Definitely`:lx: (Liberman 2005, LanguageLog.org)
-
-
-Extracting Text from PDF, MSWord and other Binary Formats
----------------------------------------------------------
-
-ASCII text and |HTML| text are human readable formats.  Text often comes in binary
-formats |mdash| like PDF and MSWord |mdash| that can only be opened using specialized
-software.  Third-party libraries such as ``pypdf`` and ``pywin32`` can be used to access
-these formats [appendix section on this?].  For once-off conversion of a few documents,
-it is simpler to open the document with a suitable application, then save it as text
-to the local drive, and access it as described below.
-If the document is already on the web, you can enter its URL in Google's search box.
-This often includes a link to an |HTML| version of the document, which you can save
-as text.  
-
-
-The Processing Pipeline
------------------------
-
-Figure pipeline1_ summarizes what we have covered in this section, including the process
-of building a vocabulary that we saw in Chapter chap-introduction_.  (One step, normalization,
-will be discussed later in this chapter.)
-
-[Discuss types of object at each stage of the pipeline; and ``type()``]
-
-.. _pipeline1:
-.. figure:: ../images/pipeline1.png
-   :scale: 40
-
-   The Processing Pipeline
-
-Integers, strings and lists are all kinds of `data types`:dt: in
-Python, and have types ``int``, ``str`` and ``list`` respectively. In
-fact, every value in Python has a type. Python's ``type()`` function
-will tell you what an object's type is:
-
-    >>> oddments = ['cat', 'cat'.index('a'), 'cat'.split()]
-    >>> for e in oddments:
-    ...     type(e)
-    ... 
-    <type 'str'>
-    <type 'int'>
-    <type 'list'>
-
-The type determines what operations you can perform on the data
-value. So, for example, we have seen that we can index strings and
-lists, but we can't index integers:
-
-    >>> one = 'cat'
-    >>> one[0]
-    'c'
-    >>> two = [1, 2, 3]
-    >>> two[1]
-    2
-    >>> three = 1234
-    >>> three[2]
-    Traceback (most recent call last):
-    File "<pyshell#95>", line 1, in -toplevel-
-    three[2]
-    TypeError: 'int' object is unsubscriptable
-
-The fact that this is a problem with types is signalled by the class of
-error, i.e., ``TypeError``; an object being "unsubscriptable" means we
-can't index into it.
-
-Similarly, we can concatenate strings with strings, and lists with
-lists, but we cannot concatenate strings with lists:
-
-    >>> query = 'Who knows?'
-    >>> beatles = ['john', 'paul', 'george', 'ringo']
-    >>> query + beatles
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: cannot concatenate 'str' and 'list' objects
-
-You may also have noticed that our analogy between operations on
-strings and numbers works for multiplication and addition, but not
-subtraction or division:
-
-    >>> 'very' * 3 
-    'veryveryvery'
-    >>> 'very' - 'y'
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: unsupported operand type(s) for -: 'str' and 'str'
-    >>> 6 / 2
-    3
-    >>> 'very' / 2
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: unsupported operand type(s) for /: 'str' and 'int'
-
-These error messages are another example of Python telling us that we
-have got our data types in a muddle. In the first case, we are told
-that the operation of substraction (i.e., ``-``) cannot apply to
-objects of type ``str``, while in the second, we are told that
-division cannot take ``str`` and ``int`` as its two operands.
-
-Type conversions: ``str()``, ``int()``, ``list()``.
-
-.. _sec-files-and-strings:
-
------------------
-Files and Strings
------------------
-
-[Introduction]
-
-Reading Local Files
--------------------
-
-.. Monkey-patching to fake the file/web examples in this section:
-
-    >>> from StringIO import StringIO
-    >>> def fake_open(filename, mode=None):
-    ...     return StringIO('Hello World!\nThis is a test file.\n')
-    >>> def fake_urlopen(url):
-    ...     return StringIO('<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN"')
-    >>> open = fake_open
-    >>> import urllib
-    >>> urllib.urlopen = fake_urlopen
-
-It is easy to access local files in Python.  As an exercise, create a
-file called ``corpus.txt`` using a text editor, and enter the
-following text::
-
-   Time flies like an arrow.
-   Fruit flies like a banana.
-
-|nopar| 
-Be sure to save the file as plain text. You also need to make sure
-that you have saved the file in the same directory or folder in which
-you are running the Python interactive interpreter.
-
-.. Note:: If you are using |IDLE|, you can easily create this file by
-   selecting the *New Window* command in the *File* menu, typing
-   the required text into this window, and then saving the file as
-   ``corpus.txt`` in the first directory that |IDLE| offers in the
-   pop-up dialogue box.
-
-
-|nopar| 
-The next step is to `open`:dt: a file using the built-in function ``open()``
-which has two parameters, the name of the file, here ``corpus.txt``, and the
-mode to open the file with (``'r'`` means to open the file for reading,
-and ``'U'`` stands for "Universal", which lets us ignore the different
-conventions used for marking newlines).
-
-.. doctest-ignore::
-    >>> f = open('corpus.txt', 'rU')
-
-.. Note:: If the interpreter cannot find your file, it will give an
-   error like this:
-
-   .. doctest-ignore::
-      >>> f = open('corpus.txt', 'rU')
-      Traceback (most recent call last):
-      File "<pyshell#7>", line 1, in -toplevel-
-      f = open('corpus.txt', 'rU')
-      IOError: [Errno 2] No such file or directory: 'corpus.txt'
-
-   To check that the file that you are trying to open is really in the
-   right directory, use |IDLE|\ 's *Open* command in the *File* menu;
-   this will display a list of all the files in the directory where
-   |IDLE| is running. An alternative is to examine the current
-   directory from within Python:
-
-   .. doctest-ignore::
-      >>> import os
-      >>> os.listdir('.')
-
-|nopar| 
-There are several methods for reading the file.
-The following uses the method ``read()`` on the file object
-``f``; this reads the entire contents of a file into a string.
-
-.. doctest-ignore::
-    >>> f.read() 
-    'Hello World!\nThis is a test file.\n'
-
-|nopar|
-Recall that the ``'\n'`` characters are `newlines`:dt:\ ; this
-is equivalent to pressing *Enter* on a keyboard and starting a new line. 
-Note that we can open and read a file in one step:
-
-    >>> text = open('corpus.txt', 'rU').read()
-
-|nopar|
-We can also read a file one line at a time using the ``for`` loop construct:
-
-    >>> f = open('corpus.txt', 'rU')
-    >>> for line in f:
-    ...     print line[:-1]
-    Hello world!
-    This is a test file.
-
-|nopar| 
-Here we use the slice ``[:-1]`` to remove the newline character at the end of
-the input line.
-
-It is possible to use the methods described above
-with ``nltk.data.find()`` method to access and read NLTK's corpus files
-directly:
-
-    >>> file = nltk.data.find('corpora/gutenberg/melville-moby_dick.txt')
-    >>> raw = open(file, 'rU').read()
-
-
-Strings
--------
-
-When applied to strings, the ``+`` operation is called
-`concatenation`:dt:. It produces a new string that is a copy of the
-two original strings pasted together end-to-end.  Notice that
-concatenation doesn't do anything clever like insert a space between
-the words.  The Python interpreter has no way of knowing that you want
-a space; it does `exactly`:em: what it is told.  Given the example
-of ``+``, you might be able guess what multiplication will do:
-
-    >>> 'very' + 'very' + 'very'
-    'veryveryvery'
-    >>> 'very' * 3
-    'veryveryvery'
-
-.. CHARACTER BIGRAMS...
-
-Printing and Inspecting Strings
--------------------------------
-
-So far, when we have wanted to look at the contents of a variable or
-see the result of a calculation, we have just typed the variable name
-into the interpreter.  We can also see the contents of ``msg`` using
-``print msg``:
-
-    >>> monty = 'Monty Python'
-    >>> monty
-    'Monty Python'
-    >>> print monty
-    Monty Python
-
-In the first case above, we `inspect`:em: the variable by giving its
-name.  The interpreter prints the Python representation of its value.
-Since its a string, the result is quoted.  In the second case, we've
-asked the interpreter to print the contents of the variable.  Since there
-are no quotation characters inside the string itself, none are printed.
-We can use ``print`` to display more than one item on a line, in various ways:
-
-    >>> grail = 'Holy Grail'
-    >>> print monty grail
-    Monty PythonHoly Grail
-    >>> print monty, grail
-    Monty Python Holy Grail
-    >>> print monty, "and the", grail
-    Monty Python and the Holy Grail    
-    
-
-.. note:: If you have created some variable ``v`` and want to find out about
-   it, then type ``help(v)`` to read the help entry for this kind of object.
-   Type ``dir(v)`` to see a list of operations that are defined on the
-   object.
-
-Accessing Individual Characters
--------------------------------
-
-As we saw in Section sec-a-closer-look-at-python-texts-as-lists-of-words_ for lists, strings are indexed, starting from zero:
-
-    >>> msg = 'Hello World'
-    >>> msg[0]
-    'H'
-    >>> msg[3]
-    'l'
-    >>> msg[5]
-    ' '
-
-.. Note:: Be careful to distinguish between the string ``' '``, which
-   is a single whitespace character, and ``''``, which is the empty string.
-
-The easiest way to grasp this counting from zero is to think of a string
-index as specifying how many steps the computer has to take, starting from
-the beginning of the string, to get to the desired character.  As for
-lists, if we try to access an index that is outside of the string we get an
-error:
-
-    >>> msg[11]
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    IndexError: string index out of range
-
-As with lists, we can use negative indexes for strings,
-where ``-1`` is the index of the last character.
-
-    >>> msg[-1]
-    'd'
-    >>> msg[-3]
-    'r'
-    >>> msg[-6]
-    ' '
-
-We can visualize negative indexes as shown in Figure indexing02_.
-[Redo this diagram] 
-
-.. _indexing02:
-.. figure:: ../images/indexing02.png
-   :scale: 40
-
-
-   Negative Indexes
-
-Using positive and negative indexes, we have two ways to refer to
-any position in a string.  In this case, when the string had a length of 11,
-indexes ``5`` and ``-6`` both refer to the same character (a space), and:
-``5 = len(msg) - 6``.
-
-Accessing Substrings
---------------------
-
-[condense this section]
-
-In |NLP| we usually want to access more than one character at a time. This is
-also pretty simple; we just need to specify a start and end index.  For example,
-the following code accesses the substring starting at index ``1``, up to (but not including)
-index ``4``:
-
-    >>> msg[1:4]
-    'ell'
-
-The notation ``:4`` is known as a `slice`:dt:.
-Here we see the characters are ``'e'``, ``'l'`` and ``'l'`` which correspond
-to ``msg[1]``, ``msg[2]`` and ``msg[3]``, but not ``msg[4]``. This is because
-a slice `starts`:em: at the first index but finishes `one before`:em: the end index.
-This is consistent with indexing: indexing also starts from
-zero and goes up to `one before`:em: the length of the string. We can see this
-by slicing with the value of ``len()``:
-
-    >>> len(msg)
-    11
-    >>> msg[0:11]
-    'Hello World'
-
-We can also slice with negative indices |mdash| the same basic rule of starting
-from the start index and stopping one before the end index applies;
-here we stop before the space character:
-
-    >>> msg[0:-6]
-    'Hello'
-
-Python provides two shortcuts for commonly used slice values. If the
-start index is ``0`` then you can leave it out, and if the
-end index is the length of the string then you can leave it out:
-
-    >>> msg[:3]
-    'Hel'
-    >>> msg[6:]
-    'World'
-
-The first example above selects the first three characters from the string,
-and the second example selects from the character with index 6, namely ``'W'``,
-to the end of the string.
-
-We can also find the position of a substring within a string, using ``find()``:
-
-    >>> msg.find('World')
-    6
-
-Analyzing Strings
------------------
-
-* character frequency plot, e.g get text in some language using ``language_x = nltk.corpus.udhr.raw(x)``,
-  then construct its frequency distribution ``fdist = FreqDist(language_x)``, then
-  view the distribution with ``fdist.keys()`` and ``fdist.plot()``.
-
-* functions involving strings, e.g. determining past tense
-
-* built-ins, ``find()``, ``rfind()``, ``index()``, ``rindex()``
-
-* revisit string tests like ``endswith()`` from chapter 1
-
-Counting Letters
-----------------
-
-We can count individual letters as well.  For each word `w`:math:, we have
-to loop over each character contained in the word.  We can do this as follows:
-
-    >>> fdist = FreqDist(char for w in text1 for char in w)
-    >>> fdist.samples()
-    >>> ['e', 't', 'a', 'o', 'n', 's', 'i', 'h', 'r', 'l', 'd', 'u', 'm', 'c',
-        'w', 'g', 'f', ',', 'y', 'p', 'b', 'v', 'k', '.', '-', ';', 'I', '"',
-        "'", 'A', 'T', 'S', '!', 'H', 'B', 'W', 'E', 'q', 'N', 'C', 'P', 'x',
-        '?', 'O', 'L', 'j', 'R', 'F', 'M', 'D', 'G', 'z', 'Y', 'Q', 'J', 'U',
-        ')', '(', ':', 'K', 'V', '1', '0', '2', '8', '5', '7', '3', '*', '4',
-        'Z', '6', '9', '_', 'X', '[', ']', '$', '&']
-
-If we're just interested in letter frequencies, we should ignore the case
-distinction by normalizing everything to lowercase, and filter out non-alphabetic characters.
-Here's how we can do it:
-
-    >>> fdist = FreqDist(char.lower() for w in text1 for char in w if w.isalpha())
-    >>> fdist.keys()
-    ['e', 't', 'a', 'o', 'n', 'i', 's', 'h', 'r', 'l', 'd', 'u', 'm', 'c', 'w',
-    'f', 'g', 'p', 'b', 'y', 'v', 'k', 'q', 'j', 'x', 'z']
-
-This gives us the letters of the alphabet, with the most frequently occurring letters
-listed first (this is quite complicated and we'll explain it more carefully below).
-You might like to visualize the distribution using ``fdist.plot()``.
-The relative character frequencies of a text can be used in automatically identifying
-the language of the text.
-
-These methods for operating on every element of a list are surprisingly powerful.
-Let's enrich things one more time:
-
-    >>> [char.lower() for w in text1 for char in w if char.isalpha()]
-    ['m', 'o', 'b', 'y', 'd', 'i', 'c', 'k', 'b', 'y', 'h', 'e', 'r', 'm', 'a', 'n', ...]
-    >>>
-
-For every word in the text, for every character in the word, if the character is
-alphabetic, lowercase it.  There's three variables involved here, and we have to
-use them correctly or it won't work.  Here's the general template:
-``[f(x) for y in z for x in y if g(x)]``.
-
-Lists vs Strings
-----------------
-
-Strings and lists are both kind of `sequence`:dt:. As such, they can
-both be indexed and sliced:
-
-    >>> query = 'Who knows?'
-    >>> beatles = ['john', 'paul', 'george', 'ringo']
-    >>> query[2]
-    'o'
-    >>> beatles[2]
-    'george'
-    >>> query[:2]
-    'Wh'
-    >>> beatles[:2]
-    ['john', 'paul']
-
-Similarly, strings can be concatenated and so can lists (though not
-with each other!): 
-
-    >>> newstring = query + " I don't"
-    >>> newlist = beatles + ['brian', 'george']
-
-When we open a file
-for reading into a Python program, we get a string,
-corresponding to the contents of the whole file. If we try to use a ``for`` loop to
-process the elements of this string, all we can pick out are the
-individual characters |mdash| we don't get to choose the
-granularity. By contrast, the elements of a list can be as big or
-small as we like: for example, they could be paragraphs, sentence,
-phrases, words, characters. So lists have the advantage that we
-can be flexible about the elements they contain, and
-correspondingly flexible about any downstream processing.
-So one of the first things we are likely to do in a piece of NLP
-code is tokenize a string into a list of strings (Section sec-tokenization_).
-Conversely, when we want to write our results to a file, or to a terminal,
-we will usually format them as a string (Section sec-formatting_).
-
-Lists and strings do not have exactly the same functionality.
-Lists have the added power that you can change their elements. Let's
-imagine that we want to change the 0th element of ``cgi`` to
-``'colorful'``, we can do that by assigning the new value
-to the index ``cgi[0]``:
-
-    >>> cgi = ['colorless', 'green', 'ideas']
-    >>> cgi[0] = 'colorful'
-    >>> cgi
-    ['colorful', 'green', 'ideas']
-
-|nopar| On the other hand if we try to do that with a *string*
-|mdash| changing the 0th character in ``msg`` to ``'J'`` |mdash| we get:
-
-.. doctest-ignore::
-    >>> msg[0] = 'J'
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    TypeError: object does not support item assignment
-
-|nopar| This is because strings are `immutable`:dt: |mdash| you can't change a
-string once you have created it.  However, lists are `mutable`:dt:,
-and their contents can be modified at any time.  As a result, lists
-support operations that modify the original value rather than producing a new value.
-A method is a function that is associated with a particular object.
-A method is called on the object by giving the object's name,
-then a period, then the name of the method, and finally the parentheses
-containing any arguments.  For example, in the following code we use
-the ``sort()`` and ``reverse()`` methods:
-
-    >>> chomsky.sort()
-    >>> chomsky.reverse()
-    >>> chomsky
-    ['sleep', 'ideas', 'green', 'furiously', 'colorless']
-
-As you will see, the prompt reappears immediately on the line after
-``chomsky.sort()`` and ``chomsky.reverse()``. That is because these
-methods do not produce a new list, but instead modify the original list
-stored in the variable ``chomsky``.  
-
-Lists also have an ``append()`` method for adding items to the
-end of the list and an ``index()`` method for finding the index
-of particular items in the list:
-
-    >>> chomsky.append('said')
-    >>> chomsky.append('Chomsky')
-    >>> chomsky
-    ['sleep', 'ideas', 'green', 'furiously', 'colorless', 'said', 'Chomsky']
-    >>> chomsky.index('green')
-    2
-
-Finally, just as a reminder, you can create lists of any values you like.
-As you can see in the following example for a lexical entry, the values
-in a list do not even have to have the same type (though this is usually
-not a good idea, as we will explain in Section sec-back-to-the-basics_).
-
-    >>> bat = ['bat', [[1, 'n', 'flying mammal'], [2, 'n', 'striking instrument']]]
-    >>>
 
 ---------------------
 Low-Density Languages

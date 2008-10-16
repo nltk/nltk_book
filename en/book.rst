@@ -40,7 +40,6 @@ Natural Language Processing
 :raw-latex:`\part{APPENDICES}`
 
 .. appendix::
-.. include:: app-regexps.rst
 .. include:: app-unicode.rst
 .. include:: app-nlp-python.rst
 .. include:: app-modules.rst
