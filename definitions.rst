@@ -173,10 +173,11 @@
   .. |guo3| unicode:: U+56FD .. zh guo (country)
   .. |ren2| unicode:: U+4EBA .. zh ren (person)
   
-  .. People
+  .. URLs
   .. |StevenBird| replace:: `Steven Bird <http://www.csse.unimelb.edu.au/~sb/>`__
   .. |EwanKlein| replace:: `Ewan Klein <http://www.ltg.ed.ac.uk/~ewan/>`__
   .. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
+  .. |PYTHON-URL| replace:: `http://python.org/ <http://python.org/>`__
   .. |NLTK-URL| replace:: `http://nltk.org/ <http://nltk.org/>`__
   .. |NLTK-BOOK| replace:: `http://nltk.org/book.html <http://nltk.org/book.html>`__
   .. |NLTK-CODE| replace:: `http://nltk.org/nltk/ <http://nltk.org/nltk/>`__
