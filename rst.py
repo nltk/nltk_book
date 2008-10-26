@@ -2226,7 +2226,7 @@ class HTMLDoctestColorizer(DoctestColorizer):
                     (tag, self.encode(s)))
 
 class LaTeXDoctestColorizer(DoctestColorizer):
-    PREFIX = '\\begin{alltt}\\scriptsize\\textbf{'
+    PREFIX = '\\begin{alltt}\\setlength{\\parindent}{4ex}\\hspace{\\parindent}\\scriptsize\\textbf{'
     SUFFIX = '}\\end{alltt}\n'
     def __init__(self, encode_func, wrap=False, callouts=None):
         self.encode = encode_func
