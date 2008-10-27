@@ -181,6 +181,7 @@
   .. |NLTK-URL| replace:: `http://nltk.org/ <http://nltk.org/>`__
   .. |NLTK-BOOK| replace:: `http://nltk.org/book.html <http://nltk.org/book.html>`__
   .. |NLTK-CODE| replace:: `http://nltk.org/nltk/ <http://nltk.org/nltk/>`__
+  .. |NLTK-API| replace:: `http://nltk.org/doc/api/ <http://nltk.org/doc/api/>`__
   
   .. Python example - a snippet of code in running text
   .. role:: py
