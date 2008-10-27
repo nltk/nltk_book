@@ -214,13 +214,15 @@ Table brown-sources_ gives an example of each genre
   Example Document for Each Section of the Brown Corpus
 
 We can access the corpus as a list of words, or a list of sentences (where each sentence
-is itself just a list of words).  We can optionally specify a section of the corpus to read:
+is itself just a list of words).  We can optionally specify particular categories or files to read:
 
     >>> from nltk.corpus import brown
     >>> brown.categories()
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
     >>> brown.words(categories='a')
     ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', ...]
+    >>> brown.words(files=['cg22'])
+    ['Does', 'our', 'society', 'have', 'a', 'runaway', ',', ...]
     >>> brown.sents(categories='abc')
     [['The', 'Fulton', 'County'...], ['The', 'jury', 'further'...], ...]
 
@@ -625,8 +627,6 @@ the available words.
    living creature that he said , and the land of the land of the land
 
 
-
-
 .. _sec-defining-functions:
 
 -------------------------
@@ -661,7 +661,7 @@ The result in the main |IDLE| window should look like this:
 
 Now, where is the output showing the value of ``msg``? The answer is
 that the program in ``test.py`` will show a value only if you explicitly tell
-it to, using the ``print`` command. So add another line to
+it to, using the ``print`` statement. So add another line to
 ``test.py`` so that it looks as follows:
 
 ::
@@ -795,13 +795,12 @@ called a `library`:dt:.
 Lexical Resources
 -----------------
 
-A lexicon is a collection of words and/or phrases along with associated information such
-as part of speech and sense definitions.
-
-Lexical resources are secondary to texts, and are usually created enriched with the help
+A lexicon, or lexical resource, is a collection of words and/or phrases along
+with associated information such as part of speech and sense definitions.
+Lexical resources are secondary to texts, and are usually created and enriched with the help
 of texts.  For example, ``sorted(set(text))`` builds the vocabulary of a text,
 and ``FreqDist(text)`` counts the frequency of each word in the text.  Both
-of these are simple lexical resources.  A concordance tool 
+of these are simple lexical resources.  Similarly, a concordance 
 (Section sect-computing-with-language-texts-and-words_)
 gives us information about word usage that might help in the preparation of
 a dictionary.
@@ -837,10 +836,11 @@ words in a text corpus, as shown in Figure unusual_.
     'addy', 'adoted', 'adreniline', 'ae', 'afe', 'affari', 'afk', 'agaibn', 'agurlwithbigguns',
     'ahah', 'ahahah', 'ahahh', 'ahahha', 'ahem', 'ahh', 'ahhah', 'ahhahahaha', 'ahhh', 'ahhhh', ...]
 
-There is a corpus of `stopwords`:dt:, high-frequency glue words that we sometimes
+There is also a corpus of `stopwords`:dt:, high-frequency glue words that we sometimes
 want to filter out of a text before further processing.
 
-    >>> nltk.corpus.stopwords.words('english')
+    >>> from nltk.corpus import stopwords
+    >>> stopwords.words('english')
     ['a', "a's", 'able', 'about', 'above', 'according', 'accordingly', 'across', 'actually',
     'after', 'afterwards', 'again', 'against', "ain't", 'all', 'allow', 'allows', 'almost',
     'alone', 'along', 'already', 'also', 'although', 'always', 'am', 'among', 'amongst', ...]
@@ -860,21 +860,23 @@ Thus, with the help of stopwords we filter out a third of the words of the text.
 Notice that we've combined two different kinds of corpus here, using a lexical
 resource to filter the content of a text corpus.
 
-One more wordlist corpus is the Names corpus, containing 8,000 names categorized by gender.
+One more wordlist corpus is the Names corpus, containing 8,000 first names categorized by gender.
 The male and female names are stored in separate files.  Let's find names which appear
 in both files, i.e. names that are ambiguous for gender:
 
     >>> names = nltk.corpus.names
     >>> names.files()
     ('female.txt', 'male.txt')
-    >>> [w for w in names.words('male.txt') if w in names.words('female.txt')]
+    >>> male_names = names.words('male.txt')
+    >>> female_names = names.words('female.txt')
+    >>> [w for w in male_names if w in female_names]
     ['Abbey', 'Abbie', 'Abby', 'Addie', 'Adrian', 'Adrien', 'Ajay', 'Alex', 'Alexis',
     'Alfie', 'Ali', 'Alix', 'Allie', 'Allyn', 'Andie', 'Andrea', 'Andy', 'Angel',
     'Angie', 'Ariel', 'Ashley', 'Aubrey', 'Augustine', 'Austin', 'Averil', ..]
 
 It is well known that names ending in the letter `a`:lx: are almost always female.
-We can see this, and some other patterns, in the graph in Figure fig-cfd-gender_,
-which is produced by the following code:
+We can see this and some other patterns in the graph in Figure fig-cfd-gender_,
+produced by the following code:
 
     >>> cfd = nltk.ConditionalFreqDist((file, name[-1])
     ...           for file in names.files()
@@ -913,7 +915,7 @@ used by speech synthesizers.
     ('fireball', 1, ('F', 'AY1', 'ER0', 'B', 'AO2', 'L'))
     ('fireball', 2, ('F', 'AY1', 'R', 'B', 'AO2', 'L'))
 
-For each word, it provides a pronunciation number and a list of phonetic
+For each word, this lexicon provides a pronunciation number and a list of phonetic
 codes |mdash| distinct labels for each contrastive sound |mdash|
 known as `phones`:lx:.  Observe that `fire`:lx: has two pronunciations:
 the one-syllable ``F AY1 R``, and the two-syllable ``F AY1 ER0``.
@@ -921,12 +923,12 @@ The symbols in the CMU Pronouncing Dictionary are from the *Arpabet*,
 described in more detail at ``http://en.wikipedia.org/wiki/Arpabet``
 
 Each entry consists of three pieces of information, and we can
-process these individually by complicating the ``for`` statement
-slightly.  Instead of writing ``for entry in entries:``, we replace
-``entry`` with *three* variable names.  Each of the pieces of a single
-entry are assigned to each of the three variables.  (Underscore
-is a legal variable name, and we'll use this name when we don't plan to do
-anything with the variable later.)
+process these individually, using a more complex version of the ``for`` statement.
+Instead of writing ``for entry in entries:``, we replace
+``entry`` with *three* variable names.  The three pieces of a single
+entry are assigned to each of the three variables.  One of the
+variable names is "_" and we'll use this name when we don't
+plan to do anything with the variable later.
 
     >>> for w, _, pron in entries:
     ...     if len(pron) == 3:
@@ -954,7 +956,7 @@ sounding like `nicks`:lx:.  You could use this method to find rhyming words.
     'ebonics', 'electronics', "electronics'", 'endotronics', "endotronics'", 'enix', ...]
 
 Notice that the one pronunciation is spelt in several ways: `nics`:lx:, `niks`:lx:, `nix`:lx:,
-even `ntic's`:lx: with a silent `t`:lx, for the word `atlantic's`:lx:.  Let's look for some other
+even `ntic's`:lx: with a silent `t`:lx:, for the word `atlantic's`:lx:.  Let's look for some other
 mismatches between pronunciation and writing.  Can you summarize the purpose of
 the following examples and explain how they work?
 
@@ -1355,13 +1357,13 @@ seen it before we increment its count using the ``+=`` operator.
     
     >>> from operator import itemgetter
     >>> sorted(counts.items(), key=itemgetter(1), reverse=True)
-    [(',', 1962), ('.', 1235), ("'", 637), ('the', 531), (':', 477), ('and', 376), ('I', 333),
-    ('of', 315), ('to', 311), ('?', 241), ('d', 224), ('a', 214), ('you', 184), ('in', 173),
-    ('my', 170), ('And', 170), ('is', 166), ('that', 158), ('not', 155), ('it', 138), ...]
+    [(',', 1962), ('.', 1235), ("'", 637), ('the', 531), (':', 477), ('and', 376),
+    ('I', 333), ('of', 315), ('to', 311), ('?', 241), ('d', 224), ('a', 214), ('you', 184),
+    ('in', 173), ('my', 170), ('And', 170), ('is', 166), ('that', 158), ('not', 155), ...]
     >>> [w for w,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
-    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my', 'And',
-    'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', 'me', 'your',
-    'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', 'What', 'To', 'so', 'all', 'are', ...]
+    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
+    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', 'me',
+    'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', 'What', 'To', 'so', ...]
 
 The listing in Figure dictionary_ illustrates an important idiom for sorting a dictionary in terms of its
 values, to show the words in decreasing order of frequency.  We use the ``sorted()``
@@ -1437,7 +1439,29 @@ keys appear in order of decreasing frequency.
 Inverting a Dictionary
 ----------------------
 
-Inverting a dictionary.
+[simple example]
+
+A more typical case of inverting a dictionary involves handling list values in the source dictionary,
+and eliminating duplicates...  Notice that in some cases, the stress pattern changes...
+
+    >>> prondict = nltk.corpus.cmudict.transcriptions()
+    >>> prondict['kilometer']
+    [('K', 'AH0', 'L', 'AA1', 'M', 'AH0', 'T', 'ER0'), ('K', 'IH1', 'L', 'AH0', 'M', 'IY2', 'T', 'ER0')]
+    >>> prondict['pronunciation']
+    [('P', 'R', 'OW0', 'N', 'AH2', 'N', 'S', 'IY0', 'EY1', 'SH', 'AH0', 'N'),
+    ('P', 'R', 'AH0', 'N', 'AH2', 'N', 'S', 'IY0', 'EY1', 'SH', 'AH0', 'N')]
+    
+Need to iterate over each value, convert to a stress pattern, and use this as an index.  Values will
+be sets:
+
+inverted = {}
+for key in prondict:
+    for pron in prondict[key]:
+        pattern = tuple(stress(pron))
+        if pattern not in inverted:
+            inverted[pattern] = []
+        if key not in inverted[pattern]:
+            inverted[pattern].append(key)
 
 
 ..
@@ -1473,7 +1497,6 @@ Thanks to their versatility, Python dictionaries are extremely useful in most ar
    Summary of Python's Dictionary Methods
    
 
-
 ---------------
 WordNet (NOTES)
 ---------------
@@ -1481,6 +1504,9 @@ WordNet (NOTES)
 .. note::
    NLTK's WordNet interface is being changed; this section discusses the existing
    interface, and will be rewritten in the next version.
+
+.. note::
+   (Instructions on using WordNet graphical browser; URL for online version.)
 
 `WordNet`:idx: is a semantically-oriented dictionary of English,
 similar to a traditional thesaurus but with a richer structure.
@@ -1496,18 +1522,18 @@ at ``http://www.globalwordnet.org/``.
 Senses and Synonyms
 -------------------
 
-Consider the following sentence:
+Consider the sentence in carex1_.
+If we replace the word `motorcar`:lx: in carex1_ by `automobile`:lx:,
+to get carex2_, the meaning of the sentence stays pretty much the same:
 
-.. _carex1:
 .. ex::
-   Benz is credited with the invention of the motorcar.
+   .. _carex1:
+   .. ex::
+      Benz is credited with the invention of the motorcar.
 
-If we replace `motorcar`:lx: in carex1_ by `automobile`:lx:, the
-meaning of the sentence stays pretty much the same:
-
-.. _carex2:
-.. ex::
-   Benz is credited with the invention of the automobile.
+   .. _carex2:
+   .. ex::
+      Benz is credited with the invention of the automobile.
 
 Since everything else in the sentence has remained unchanged, we can
 conclude that the words `motorcar`:lx: and `automobile`:lx: have the
@@ -1559,14 +1585,13 @@ that is, which has multiple synsets:
 The WordNet Hierarchy
 ---------------------
 
-WordNet synsets correspond to abstract concepts, which may or may not
+WordNet synsets correspond to abstract concepts, and they don't always
 have corresponding words in English.  These concepts are linked together in a hierarchy.
-Some are very general, such as *Entity*, *State*, *Event* |mdash| these are called
+Some concepts are very general, such as *Entity*, *State*, *Event* |mdash| these are called
 `unique beginners`:dt:.  Others, such as *gas guzzler* and
 *hatchback*, are much more specific. A small portion of a concept
 hierarchy is illustrated in Figure wn-hierarchy_. The edges between nodes
-indicate the hypernym/hyponym relation; the dotted line at the top is
-intended to indicate that *artifact* is a non-immediate hypernym of *motorcar*. 
+indicate the hypernym/hyponym relation...
 
 .. _wn-hierarchy:
 .. figure:: ../images/wordnet-hierarchy.png
@@ -1654,13 +1679,12 @@ Can you think of the animal and verb sense of each word?
 
     >>> animals = wordnet.N['animal'][0].closure(wordnet.HYPONYM, depth=4)
     >>> sorted(set(w for synset in animals for w in synset if w in wordnet.V))
-    ['baby', 'baby', 'beetle', 'bird', 'bug', 'bug', 'bulldog', 'clam', 'cock',
-    'cockle', 'cub', 'dam', 'dog', 'escallop', 'fawn', 'fish', 'foal', 'frog',
+    ['baby', 'beetle', 'bird', 'bug', 'bulldog', 'clam', 'cock', 'cockle',
+    'cub', 'dam', 'dog', 'escallop', 'fawn', 'fish', 'foal', 'frog',
     'game', 'grouse', 'grub', 'head', 'hog', 'hound', 'kit', 'kitten', 'lamb',
     'leech', 'mate', 'orphan', 'oyster', 'parrot', 'pet', 'pooch', 'prey', 'pup',
-    'quail', 'quarry', 'queen', 'queen', 'scallop', 'scollop', 'sire', 'slug',
-    'snail', 'spat', 'sponge', 'steer', 'stray', 'stud', 'stunt', 'toy',
-    'whelp', 'worm']
+    'quail', 'quarry', 'queen', 'scallop', 'scollop', 'sire', 'slug', 'snail',
+    'spat', 'sponge', 'steer', 'stray', 'stud', 'stunt', 'toy', 'whelp', 'worm']
 
 
 NLTK also includes VerbNet, a hierarhical verb lexicon linked to WordNet.
@@ -1821,7 +1845,7 @@ Exercises
       ``msg = "I like NLP!"``
    b) Now print the contents of this variable in two ways, first
       by simply typing the variable name and pressing enter, then
-      by using the ``print`` command.
+      by using the ``print`` statement.
    c) Try various arithmetic expressions using this string, e.g.
       ``msg + msg``, and ``5 * msg``.
    d) Define a new string ``hello``, and then try ``hello + msg``.
