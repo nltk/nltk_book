@@ -855,9 +855,13 @@ class DocBookTranslator(nodes.NodeVisitor):
         pass
 
     def visit_line_block(self, node):
+        if node.parent.tagname == 'line_block':
+            raise nodes.SkipNode
         self.body.append(self.starttag(node, 'literallayout'))
 
     def depart_line_block(self, node):
+        if node.parent.tagname == 'line_block':
+            raise nodes.SkipNode
         self.body.append('</literallayout>\n')
 
     def visit_list_item(self, node):
