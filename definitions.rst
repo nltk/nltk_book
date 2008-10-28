@@ -77,14 +77,15 @@
   .. |length| unicode:: U+02D0 ..  length
   
   .. misc
-  .. |ecircumflex| unicode:: U+00EA .. e circumflex
+  .. |aumlaut| unicode:: U+00E4 .. a umlaut
+  .. |eacute| unicode:: U+00E9 .. e acute
   .. |eogonek| unicode:: U+1119 .. e ogonek
   .. |ncaron| unicode:: U+0148 .. n caron
   .. |ntilde| unicode:: U+00F1 .. n tilde
-  .. |oslash| unicode:: U+00F8 .. o slash
   .. |odacute| unicode:: U+0151 .. o double acute
+  .. |oslash| unicode:: U+00F8 .. o slash
   .. |uumlaut| unicode:: U+00FC .. u umlaut
-  .. |eacute| unicode:: U+00E9
+  .. |ecircumflex| unicode:: U+00EA .. e circumflex
 
   .. used in Unicode section
   .. |nacute| unicode:: U+0144 
