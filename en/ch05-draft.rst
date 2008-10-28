@@ -27,7 +27,7 @@ words in order to automatically guess the genre of a text (Table brown-types_).
 In Chapter chap-tag_ we saw that words ending in `ed`:lx: tend to
 be past tense verbs, and more generally, that the internal structure of words
 tells us something about their part of speech. (Section sec-regular-expression-tagger_).
-Detecting such patterns is central to many NLP tasks,
+Detecting and understanding such patterns is central to many NLP tasks,
 particularly those that try to access the meaning of a text.
 
 In order to study and model these linguistic patterns we need to be able to write
@@ -38,7 +38,7 @@ and automatic approaches in Section sec-data-modeling_.
 
 .. more motivation and overview of this simple ontology (manual vs automatic)
 
-We have already seen the application of
+We have already seen a simple application of
 classification in the case of part-of-speech tagging (Chapter chap-tag_).
 Although this is a humble beginning, it actually holds the key for a range of more
 difficult classification tasks, including those mentioned above.
@@ -103,10 +103,12 @@ language, or `corpora`:dt:.  These corpora are collected from a wide
 variety of sources, including literature, journalism, telephone
 conversations, instant messaging, and web pages.
 
-Exploratory data analysis, the focus of this section, is a technique
+`Exploratory data analysis`:dt:, the focus of this section, is a technique
 for learning about a specific linguistic pattern, or
 `construction`:dt:.  It consists of four steps, illustrated in Figure
 exploration_.
+
+.. XX add more examples of "constructions"
 
 .. _exploration:
 
@@ -153,82 +155,298 @@ constructions that we're interested in understanding.  For example, we
 can skip the search step if we already have a corpus of the relevant
 constructions; and we can skip categorization if the constructions are
 already labeled.
-       
+
 Selecting a Corpus
 ------------------
 
-collections of real-world language, or `corpora`:dt:.  These corpora
-are collected from a wide variety of sources, including literature,
-journalism, telephone conversations, instant messaging, and web pages.
+In exploratory data analysis, we learn about a specific linguistic
+pattern by objectively examining how it is used.  We therefore must
+begin by selecting a corpus (i.e., a collection of language data)
+containing the pattern we are interested in.  Often, we can use one of
+the many existing corpora that have been made freely-available by the
+researchers who assembled them.  Sometimes, we may choose instead to
+assemble a `derived corpus`:dt: by combining several existing corpora,
+or by selecting out specific subsets of a corpus (e.g., only news
+stories containing interviews).  Occasionally, we may decide to build
+a new corpus from scratch (e.g., if we wish to learn about a
+previously undocumented language).
 
-- The starting point for exploratory data analysis is a corpus.
-- corpora vary widely, and it's important to understand the
-  characteristics of the corpus, in order to understand how those
-  characteristics affect the data analysis.
+The results of our analysis will be highly dependent on the corpus
+that we select.  This should hardly be surprising, since many
+linguistic phenomena pattern differently in different contexts -- for
+example, <<add a good example -- child vs adult? written vs spoken?
+some specific phenomenon?>>.  But when selecting the corpus for
+analysis, it is important to understand how the characteristics of the
+corpus will affect results of the the data analysis.
 
-  - how specialized?  one genre vs multi-genre.  balanced?
-  
-    - analysis results do not necessarily generalize to other
-      genres, other modalities, etc.
+Source of Language Data
++++++++++++++++++++++++
 
-  - how large is it?  be careful about interpreting data from small
-    corpora.  In particular, be careful about making any negative
-    statements -- if you don't find something, that doesn't mean that
-    it never happens.
+Language is used for many different purposes, in many different
+contexts.  For example, language can be used in a novel to tell a
+complex fictional story, or it can be used in an internet chat room to
+exchange rumors about celebrities.  It can be used in a newspaper to
+report a story about a sports team, or in a workplace to form a
+collaberative plan for building a new product.  Although some
+linguistic phenomena will act uniformly across these different
+contexts, other phenomana may vary depending.
+
+Therefore, one of the most important characteristics defining a corpus
+is the source (or sources) from which its language data is drawn,
+which will determine the types of language data it includes.
+Attributes that characterize the type of language data contained in a
+corpus include:
+
+.. How should these be ordered?
+
+* *Domain*: What subject matters does the language data talk about?
+
+* *Mode*: Does the corpus contain spoken language data, written language
+  data, or both?
+
+* *Number of Speakers*: Does the corpus contain texts that are produced
+  by a single speaker, such as books or news stories, or does it contain
+  dialogues?
+
+* *Register*: Is the language data in the corpus formal or informal?
+
+* *Communcative Intent*: For what purpose was the langauge generated
+   -- e.g., to communicate, to entertain, or to persuade?
+
+* *Dialect*: Do the speakers use any specific dialects?
+
+* *Lauguage*: What language or languages are used?
+
+When making conclusions on the basis of exploratory data analysis, it
+is important to consider the extent to which those conclusions are
+dependent on the type of language data included in the corpus.  For
+example, if we discover a pattern in a corpus of newspaper articles,
+we should not necessarily assume that the same pattern will hold in
+spoken discourse.  
+
+.. The sentence "For example..." would be stronger if "a pattern" were
+   replaced with a specific example.
+
+In order to allow more general conclusions to be drawn about
+linguistic patterns, several `balanced corpora`:dt: have been created,
+which include language data from a wide variety of different language
+sources.  For example, the Brown Corpus contains documents ranging
+from science fiction to howto guidebooks to legislative council
+transcripts.  But it's worth noting that since language use is so
+diverse, it would be almost impossible to create a single corpus that
+includes *all* of the contexts in which langauge gets used.  Thus,
+even balanced corpora should be considered to cover only a subset of
+the possible linguistic sources (even if that subset is larger than
+the subset covered by many other corpora).
+
+.. Talk about the actual "balancing", i.e., picking how much of each
+   type of language data to include.  And say something about
+   sampling?
+
+Information Content
++++++++++++++++++++
+
+Corpora can vary in the amount of information they contain about the
+language data they describe.  At a minimum, a corpus will typically
+contain at least a sequence of sounds or orthographic symbols.  At the
+other end of the spectrum, a corpus could contain a large amount of
+information about the syntactic structure, morphology, prosidy, and
+semantic content of every sentence.  This extra information is called
+"annotation," and can be very helpful when performing exploratory data
+analysis.  For example, it may be much easier to find a given
+linguistic pattern if we can search for specific syntactic structures;
+and it may be easier to categorize a linguistic pattern if every word
+has been tagged with its word sense.
+
+Corpora vary widely in the amount and types of annotation that they
+include.  Some common types of information that can be annotated
+include:
+
+.. Is it useful to include a list like this here?  If yes, then it
+   needs to be fleshed out.  If no, then delete "Some common types..."
+   above, and merge the "Corpora vary widely..." sentence into the 
+   next paragraph.
+
+* *Word Tokenization*: In written English, word tokenization is often
+   marked implicitly using whitespace.  However, it spoken English,
+   and in some written languages, word tokenization may need to be
+   explicitly marked.
+
+* *Sentence Segmentation*: As we saw in Chapter chap-words_, sentence
+  segmentation can be more difficult than it seems.  Some corpora 
+  therefore use explicit annotations to mark sentence segmentation.
+
+* *Paragraph Segmentation*: Paragraphs and other structural elements
+  (headings, chapters, etc.) may be explicitly annotated.
+
+* *Part of Speech*: The syntactic category of each word in a document.
+
+* *Syntactic Structure*: A tree structure showing how each sentence
+  is constructed from its constituent pieces.
+
+* etc.
+
+
+Unfortunately, there is not much consistency between existing corpora
+in how they represent their annotations.  However, two general classes
+of annotation representation should be distinguished.  `Inline
+annotation`:dt: modifies the original document by inserting special
+symbols or control sequences that carry the annotated information.
+For example, when part-of-speech tagging a document, the string
+``"fly"`` might be replaced with the string ``"fly/NN"``, to indicate
+that the word *fly* is a noun in this context.  In contrast, `standoff
+annotation`:dt: does not modify the original document, but instead
+creates a new file that adds annotation information using pointers
+into the original document.  For example, this new document might
+contain the string ``"<word start=8 end=11 pos='NN'/>"``, to indicate
+that the word starting at character 8 and ending at character 11 is a
+noun.
+
+Corpus Size
++++++++++++
+
+The size of corpora can vary widely, from tiny corpora containing just
+a few hundred sentences up to enormous corpora containing a billion
+words or more.  In general, we perform exploratory data analysis using
+the largest appropriate corpus that's available.  This ensures that
+the results of our analysis don't just reflect a quirk of the
+particular language data contained in the corpus.  
+
+However, in some circumstances, we may be forced to perform our
+analysis using small corpora.  For example, if we are examining
+linguistic patterns in a language that is not well studied, or if our
+analysis requires specific annotations, then no large corpora may be
+available.  In these cases, we should be careful when interpreting the
+results of an exploratory data analysis.  In particular, we should
+avoid concluding that a linguistic pattern or phenomenon never occurs,
+just because we did not find it in our small sample of language data.
     
 .. SB: xref data chapter
-  
+
+.. [xx] The following table needs to get filled in/completed.  
+
+.. table:: example-corpora
+
+   ============== ============ ======== =========== ===
+   Corpus Name    Contents     Size     Annotations etc. 
+   ============== ============ ======== =========== ===
+   Penn Treebank  News stories 1m words etc.
+   Web (google)   etc.
+   ============== ============ ======== =========== ===
+
+   Example Corpora.  This table summarizes some important properties
+   of several popular corpora.
+
 Search
 ------
-- Once we've selected a corpus, we can search it for relevant instances.
-- Our search techniques will depend on the corpus type.
+
+Once we've selected or constructed a corpus, the next step is to
+search that corpus for instances of the linguistic phenomenon we're
+interested in.  The techniques that we use to search the corpus will
+depend on whether the corpus is annotated or not.
 
 Searching Unannotated Data
 ++++++++++++++++++++++++++
 
-  - corpus consists of raw text, with no extra information.
+Unannotated corpora consist of a large quantity of "raw text," with no
+extra linguistic information.  We therefore typically rely on search
+patterns to find the constructions of interest.  For example, if we
+are investigating what adjectives can be used to describe the word
+"man," we could use the following code to search for relevant phrases:
 
-    - messy.
-  
-  - most common example: web search engine such as google
-  - searches are typically formulated as word patterns
+>>> gutenberg = nltk.corpus.gutenberg.raw()
+>>> re.findall(r'a \w+ man', gutenberg.lower())
+['a young man', 'a just man', 'a wild man', 'a young man', 'a dead man', 
+ 'a plain man', 'a hairy man', 'a smooth man', 'a certain man', ...]
 
-    - simple word patterns: "give the * to him"
-    - http://itre.cis.upenn.edu/~myl/languagelog/archives/002733.html
-    - complex word patterns: regexps
+For some linguistic phenomena, it can be fairly streight-forward to
+build appropriate search patterns -- espcially when the linguistic
+phenomenon is tightly coupled with specific words.  However, for other
+linguistic phenomena, it may be necessary to be very creative to think
+up appropriate search patterns.  (For example, if we are interested in
+learning about type-instance relations, we could try searching for the
+pattern "*x* and other *y*\ s", which will match phrases such as "tea
+and other refreshments.")  If we are unable to come up with an
+appropriate search pattern for a given linguistic phenomenon, then we
+should consider whether we might need to switch to a corpus containing
+annotations that might help us to locate the occurances of the
+linguistic phenomenon we're interested in.
 
-  - It's usually possible to find some examples of the phenomenon
-    that we're interested in.
+When dealing with an unannotated corpus, it's usually possible to
+build search patterns that find some examples of the linguistic
+phenomenon we're interested in.  However, we should keep two
+limitations in mind.  First, most patterns that we write will
+occasionally match examples that we are not interested in.  For
+example, the search pattern "*x* and other *y*s" matches the string
+"eyes and other limbs," where the larger context is "other eyes and
+other limbs;" but we wouldn't want to conclude that an eye is a kind
+of limb.
 
-    - But it can be very difficult to find all examples -> so be
-      very careful about drawing any negative conclusions.
+Second, we should keep in mind that it can be difficult to write a
+pattern that finds every occurence of a given phenomenon.  Thus, as
+was the case when working with small corpora, we need to be very
+careful about drawing any negative conclusions: just because we did
+not find an example of a given pattern, does not mean that it never
+happens.  We may have just not been creative enough to think of a
+pattern that would match the context where it occurs.
 
-  - Example: google.
+Searching the Web
++++++++++++++++++
 
-    - Use quoted strings to tell google to search for a specific pattern.
-    
-      - Use "x and other ys" to look for hypernyms.
-      
-    - Use "*" for fill-in-the-blank patterns
+.. Should I mention google by name here, or leave it vague?
 
-      - Use "give * a ball" to search for nouns that can receive
-        concrete objects.
+The web can be thought of as a huge corpus of unannotated text.  Web
+search engines provide an efficient means of searching this large
+quantity of text for relevant linguistic examples.  The main advantage
+that search engines hold, when it comes to exploratory data analysis,
+is that of corpus size: since you are searching such a large set of
+documents, you are more likely to find any linguistic phenomenon you
+are interested in.  Furthermore, you can make use of very specific
+patterns, which would only match one or two examples on a smaller
+example, but which might match tens of thousands of examples when run
+on the web.  A second advantage of web search engines is that they are
+very easy to use.  Thus, they provide a very convienient tool for
+quickly checking a theory, to see if it is reasonable.
 
-      .. SB: use "as * as x" to look for properties
-             http://acl.ldc.upenn.edu/P/P07/P07-1008.pdf
+However, search engines also have several significant disadvantages.
+First, you are usually fairly severely restricted in the types of
+patterns you can search for.  Unlike local corpora, where you can
+build arbitrarily complex regular expressions, search engines
+generally just allow you to search for individual words or strings of
+words, and sometimes for fill-in-the-blank patterns.  Second, search
+engines use advanced techniques to filter web pages, in an attempt to
+block out spam and pornography.  These techniques may unintentionally
+skew the results of a web-based exploratory data analysis.  
 
-    - Google caveats:
+Finally, it should be noted that the web page counts provided by
+search engines can be misleading.  Many of the pages may contain the
+strings that you searched for, but they may be used in unexpected
+ways.  For example, many web pages include non-language text that
+might give you false matches.  Web pages that intersperse images with
+text may cause unexpected matches.  And the web page count may include
+pages with duplicated content, which do not actually represent
+seperate occurences of the search pattern.  As an example of these
+problems, most search engines will return millions of hits for the
+search pattern "the of", even though we know that this pair of words
+should (almost) never occur together in English sentences.
 
-      - If we can't find something, that doesn't mean it's not there.
-      - Counts can be misleading
 
-        - Some examples may contain the word string you searched for,
-          but may use it in an unexpected way -- each example potentially
-          needs to be verified!
-        - Duplicates, images, etc, cause problems.  E.g., count("the of")
-          is very high, even though we know it's not good english.
+.. SB: use of Google 5-gram corpus for some of these things?
+   EL: elaborate?
 
-       .. SB: use of Google 5-gram corpus for some of these things?
+.. EL: these would both make good exercises:
+
+   .. SB: use "as * as x" to look for properties
+          http://acl.ldc.upenn.edu/P/P07/P07-1008.pdf
+
+   http://itre.cis.upenn.edu/~myl/languagelog/archives/002733.html
+
+   - Use "give * a ball" to search for nouns that can receive
+     concrete objects.
+
+   - Look up the features of 2-3 search engines.  Compare how good
+     they are for exporatory data analysis.
+
 
 Searching hand-annotated corpora
 ++++++++++++++++++++++++++++++++
@@ -459,7 +677,7 @@ But all explicit models can make predictions about new "`unseen`:dt:"
 language data that was not included in the corpus used to build the
 model.  These predictions can be evaluated to assess the accuracy of
 the model.  Once a model is deemed sufficiently accurate, it can then
-be used to automatically predict information about unseen language
+be used to automatically predict information about new language
 data.  These predictive models can be combined into systems that
 perform many useful language processing tasks, such as document
 classification, automatic translation, and question answering.
@@ -511,7 +729,8 @@ label`:dt: for a given input.  Each input is considered in isolation
 from all other inputs, and set of labels is defined in advance.
 Some examples of classification tasks are:
 
-.. better examples here:?
+.. more compelling, interesting and/or more linguistically-oriented
+   examples here:?
 
   - Classify an email as "spam" or "not spam."
   - Classify a news document as "sports," "technology," "politics," or "other."
@@ -536,9 +755,6 @@ input are called `supervised`:dt: classification models.
 Feature Extraction
 ------------------
 
-.. (include diagram: relationship between label, input, feature
-   extractor, features, ML system, for training vs prediction)
-
 The first step in creating a model is deciding what information about
 the input might be relevant to the classification task; and how to
 encode that information.  In other words, we must decide which
@@ -546,7 +762,7 @@ encode that information.  In other words, we must decide which
 those features.  Most automatic learning methods restirct features to
 have simple value types, such as booleans, numbers, and strings.  But
 note that just because a feature has a simple type, does not
-necessarily mean that the feature's value is simple to expres or
+necessarily mean that the feature's value is simple to express or
 compute; indeed, it is even possible to use very complex and
 informative values, such as the output of a second supervised
 classifier, as features.
@@ -579,25 +795,25 @@ feature set:
 'leopard'
 
 Generally, feature sets are constructed from inputs using a `feature
-extraction`:dt: function.  This function takes an input, and possibly
-its context, as parameters, and returns a corresponding feature set.
-This feature set can then be passed to the machine learning algorithm
-for training, or to the learned model for prediction.  For example, we
-might use the following function to extract features for a document
-classification task:
+extraction`:dt: function.  This function takes an input value, and
+possibly its context, as parameters, and returns a corresponding
+feature set.  This feature set can then be passed to the machine
+learning algorithm for training, or to the learned model for
+prediction.  For example, we might use the following function to
+extract features for a document classification task:
 
 .. pylisting:: feature_extractor
 
-   def extract_features(word):
-       features = {} 
-       features["firstletter"] = word[0]
-       for letter in 'abcdefghijklmnopqrstuvwxyz':
-           features["cout(%s)" % letter] = word.lower().count(letter)
+    def extract_features(document):
+       features = {}
+       for word in document:
+           features['contains(%s)' % word] = True
        return features
 
-   >>> extract_features('underneath')
-   {'firstletter': 'u', 'count(u)': 1, 'count(b)': 0, 'count(w)': 0,
-    'count(l)': 0, 'count(q)': 0, 'count(n)': 2, 'count(s)': 0, ...}
+   >>> extract_features(nltk.corpus.brown.words('cj79'))
+   {'contains(of)': True, 'contains(components)': True, 
+    'contains(some)': True, 'contains(that)': True, 
+    'contains(passage)': True, 'contains(table)': True, ...}
 
 In addition to a feature extractor, we need to select or build a
 training corpus, consisting of a list of examples and corresponding
@@ -621,6 +837,15 @@ labels for unseen inputs:
 ...                     for word in unseen_labeled_words]
 >>> predicted = classifier.batch_classify(test)
 
+.. note:: When working with large corpora, constructing a single list
+   that contains the features of every instance can use up a large
+   amount of memory.  In these cases, we can make use of the function
+   ``nltk.classify.apply_features``, which returns an object that
+   acts like a list but does not store all values in memory:
+
+   >>> train = apply_features(extract_features, labeled_words)
+   >>> test = apply_features(extract_features, unseen_words)
+
 Selecting relevant features, and deciding how to encode them for the
 learning method, can have an enormous impact on its ability to extract
 a good model.  Much of the interesting work in modeling a phenomenon
@@ -640,7 +865,7 @@ should use with a given learning algorithm -- if you provide too many
 features, then the algorithm will have a higher chance of relying on
 idiosyncracies of your training data that don't generalize well to new
 examples.  This problem is known as `overfitting`:dt:, and can
-especially problematic when working with small training sets.
+ especially problematic when working with small training sets.
 
 Once a basic system is in place, a very productive method for refining
 the feature set is `error analysis`:dt:.  First, the training corpus
@@ -935,36 +1160,51 @@ those features relate to one another.
 Decision Trees
 --------------
 
-A `decision tree`:dt: is a tree-structured classification model whose
-branches contain conditions on features, and whose leaves contain
-labels.  Given an input value's feature set, the decision tree picks a
-label by walking down the tree, starting from the root node, and
-following the path selected by the feature conditions at each node.
-Once a leaf is reached, that leaf's label is assigned to the input.
-Figure decision-tree_ shows an example decision tree model for the
-name gender task.
+.. Note that they haven't necessarily seen syntax trees before this, so
+   it may seem odd to them (or at least not obvious) that these "trees"
+   are upside down.
+
+A `decision tree`:dt: is a tree-structured flowchart used to choose
+labels for input values.  This flowchart consists of `decision
+nodes`:dt:, which check feature values, and `leaf nodes`:dt:, which
+assign labels.  To choose the label for an input value, we begin at
+the flowchart's initial decision node, known as its `root node`:dt:.
+This node contains a condition that checks one of the input value's
+features, and selects a branch based on that feature's value.
+Following the branch that describes our input value, we arrive at a
+new decision node, with a new condition on the input value's features.
+We continue following the branch selected by each node's condition,
+until we arrive at a leaf node, which provides a label for the input
+value.  Figure decision-tree_ shows an example decision tree model for
+the name gender task.
 
 .. _decision-tree:
 
 .. figure:: ../images/decision-tree.png
    :scale: 50
 
-   Decision Tree model for the name gender task.
+   Decision Tree model for the name gender task.  Note that tree
+   diagrams are conventially drawn "upside down," with the root at the
+   top, and the leaves at the bottom.
 
-Before we look at the learning algorithm for decision trees, we'll
-consider a simpler task: picking the best "decision stump" for a
-corpus.  A `decision stump`:dt: is is a decision tree with a single
-node, that decides how to classify inputs based on a single feature.
-It contains one leaf for each possible feature value, specifying the
-class label that should be assigned to inputs whose features have that
-value.  The hardest part of selecting the best decision stump is
-deciding which feature should be used.  The simplest method is to just
-build a feature stump for each possible feature, and see which one
-achieves the highest accuracy on the training data; but we'll discuss
-some other alternatives below.  Once we've picked a feature, we can
-build the decision stump by assigning a label to each leaf based on
-the most frequent label for the selected examples in the training
-corpus (i.e., the examples where the selected feature has that value).
+Once we have a decision tree, it is thus fairly streight forward to
+use it to assign labels to new input values.  What's less streight
+forward is how we can build a decision tree that models a given
+training corpus.  But before we look at the learning algorithm for
+building decision trees, we'll consider a simpler task: picking the
+best "decision stump" for a corpus.  A `decision stump`:dt: is is a
+decision tree with a single node, that decides how to classify inputs
+based on a single feature.  It contains one leaf for each possible
+feature value, specifying the class label that should be assigned to
+inputs whose features have that value.  In order to build a decision
+stump, we must first decide which feature should be used.  The
+simplest method is to just build a decision stump for each possible
+feature, and see which one achieves the highest accuracy on the
+training data; but we'll discuss some other alternatives below.  Once
+we've picked a feature, we can build the decision stump by assigning a
+label to each leaf based on the most frequent label for the selected
+examples in the training corpus (i.e., the examples where the selected
+feature has that value).
 
 Given the algorithm for choosing decision stumps, the algorithm for
 growing larger decision trees is straightforward.  We
@@ -980,7 +1220,36 @@ or an "l."
 
 As we mentioned before, there are a number of methods that can be used
 to select the most informative feature for a decision stump.  One
-popular alternative is entropy.  <<talk about entropy>>.
+popular alternative is to use `information gain`:dt:, a measure of how
+much more organized the input values become when we divide them up
+using a given feature.  To measure how disorganized the original set
+of input values are, we calculate entropy of their labels, which is
+defined as:
+
+Entropy(S) = sum_{label} freq(label) * log_2(freq(label))
+
+**(how are we doing markup for math? -- also inline math?)**
+
+If most input values have the same label, then the entropy of their
+labels will be low.  In particular, labels that have low frequency
+will not contribute much to the entropy (since the first term,
+freq(label), will be low); and labels with high frequency will also
+not contribute much to the entropy (since log_2(freq(label)) will be
+low).  On the other hand, if the input values have a wide variety of
+labels, then there will be many labels with a "medium" frequency,
+where neither freq(label) nor log_2(freq(label)) is low, so the
+entropy will be high.
+
+Once we have calculated the entropy of the original set of input
+values' labels, we can figure out how much more organized the labels
+become once we apply the decision stump.  To do so, we calculate the
+entropy for each of the decision stump's leaves, and take the average
+of those leaf entropy values (weighted by the number of samples in
+each leaf).  The information gain is then equal to the original
+entropy minus this new, reduced entropy.  The higher the information
+gain, the better job the decision stump does of dividing the input
+values into coherent groups, so we can build decision trees by
+selecting the decision stumps with the highest information gain.
 
 Another consideration for decision trees is efficiency.  The simple
 algorithm for selecting decision stumps described above must construct
@@ -999,96 +1268,408 @@ hierarchical categorical distinctions can be made.  For example,
 decision trees can be very effective at modelling phylogeny trees.
 
 However, decision trees also have a few disadvantages.  One problem is
-that decision trees tend to encode ..
+that, since each branch in the decision tree splits the training data,
+the amount of training data available to train nodes lower in the tree
+can become quite small.  As a result, these lower decision nodes may
+`overfit`:dt: the training corpus, learning patterns that reflect
+idiosynracies of the training corpus, rather than genuine patterns in
+the underlying problem.  One solution to this problem is to stop
+dividing nodes once the amount of training data becomes too small.
+Another solution is to grow a full decision tree, but then to
+`prune`:dt: decision nodes that do not improve performance on a
+development corpus.
 
-Perhaps one of
-the most important is that decision trees ...
+A second problem with decision trees is that they force features to be
+checked in a specific order, even when features may act relatively
+independently of one another.  For example, when classifying documents
+into topics (such as sports, automotive, or murder mystery), features
+such as ``hasword(football)`` are highly indicative of a specific
+label, regardless of what other the feature values are.  Since there
+is limited space near the top of the decision tree, most of these
+features will need to be repeated on many different branches in the
+tree.  And since the number of branches increases exponentially as we
+go down the tree, the amount of repetition can be very large.
 
-- ends with o vs ends with a: trees get duplicated, data gets split.
-- document classification: lots of features that are individually not
-  very informative.  (combining)  can't combine -- given an input, we
-  check a few features, and then ignore all the rest.
+A related problem is that decision trees are not good at making use of
+features that are weak predictors of the correct label.  Since these
+features make relatively small incremental improvements, they tend to
+occur very low in the decision tree.  But by the time the decision
+tree learner has descended far enough to use these features, there is
+not enough training data left to reliably determine what effect they
+should have.  If we could instead look at the effect of these features
+across the entire training corpus, then we might be able to make some
+conclusions about how they should affect the choice of label.
+
+The fact that decision trees require that features be checked in a
+specific order limits their ability to make use of features that are
+relatively independent of one another.  The Naive Bayes classification
+method, which we'll discuss next, overcomes this limitation by
+allowing all features to act "in parallel."
 
 Naive Bayes Classifiers
 -----------------------
 
-- segway: one limitation of DTs is that they can't combine info from
-  multiple features.  the next learning method we'll look at, naive
-  bayes, is able to combine info.
-  
-- Each feature has a say.
-- Features can "combine" their effect
-- What a feature has to say:
-  "How likely am I, given a label?"
-- Pick whichever label has the most support.
+In `Naive Bayes`:dt: classifiers, every feature gets a say in
+determining which label should be assigned to a given input value.  To
+choose a label for an input value, the Naive Bayes classifier begins
+by calculating the `prior probability`:dt: of each label, which is
+determined by checking frequency of each label in the training corpus.
+The contribution from each feature is then combined with this prior
+probability, to arrive at a likelihood estimate for each label.  The
+label whose likelihood estimate is the highest is then assigned to the
+input value.  Figure naive-bayes-triangle_ illustrates this process.
 
-Classifying an input: E.g., the word "line"
+.. I go back and forth on whether we should include a figure like this
+   one.  I think it gives a good high-level feeling of what's going
+   on, but the details don't really line up with the algorithm's 
+   specifics, and it takes a good amount of work to explain the figure.
 
-1. Draw a bar graph showing how often each sense occurs in the
-   training corpus.
-2. Look at each input feature, and decide how likely it is given each
-   label. Decrease each label's bar by a corresponding amount.  
+.. _naive-bayes-triangle:
 
-Alternative visualization:
-- Start with a point that's "between" the labels.
-- Each feature "pushes" the point
-- Which label does it end up closest to?
+.. figure:: ../images/naive-bayes-triangle.png
+   :scale: 50
 
-Math -- give the equations.
+   An abstract illustration of the procedure used by the Naive Bayes
+   classifier to choose the topic for a document.  In the training
+   corpus, most documents are automotive, so the classifier starts out
+   at a pointer closer to the "automative" label.  But it then
+   considers the effect of each feature.  In this example, the input
+   document contains the word "dark," which is a weak indicator for
+   murder mysteries; but it also contains the word "football," which
+   is a strong indicator for sports documents.  After every feature
+   has made its contribution, the classifier checks which label it is
+   closest to, and assigns that label to the input.
 
-- Every feature has an effect.
+Individual features make their contribution to the overall decision by
+"voting against" labels that don't occur with that feature very often.
+In particular, the likelihood score for each label is reduced by
+multiplying it by the probability that an input value with that label
+would have the feature.  For example, if the word "run" occurs in 12%
+of the sports documents, 10% of the murder mystery documents, and 2%
+of the automotive documents, then the likelihood score for the sports
+label will be multiplied by 0.12; the likelihood score for the murder
+mystery label will be multiplied by 0.1; and the likelihood score for
+the automotive label will be multiplied by 0.02.  The overall effect
+will be to reduce the score of the murder mystery label slightly more
+than the score of the sports label; and to significantly reduce the
+automotive label with respect to the other two labels.  This overall
+process is illustrated in Figure naive-bayes-bargraph_.
 
-  - At the same time!
-  
-- A feature's effect is calculated by looking at the likelihood of a
-  feature, given a label.  (Just count how often a feature occurs in
-  the training data with each label.)
+.. _naive-bayes-bargraph:
 
-Smoothing: zero counts can be a problem.
+.. figure:: ../images/naive_bayes_bargraph.png
+   :scale: 50
 
-  - Do we really want to say that something has 0 probability, just
-    because we haven't seen it in the training corpus?
-  - If not, then what prob should it have?
-  - Explain basic smoothing, but don't necessarily go into great
-    detail.
-  
-Why is Naive Bayes "naive"?
+   Calculating label likelihoods with Naive Bayes.  Naive Bayes begins
+   by calculating the prior probability of each label, based on how
+   frequently each label occurs in the training data.  Every feature
+   then contributes to the likelihood estimate for each label, by
+   multiplying it by the probability that input values with that label
+   will have that feature.  The resulting likelihood score can be
+   thought of as an estimate of the probability that a randomly
+   selected value from the training corpus would have both the given
+   label and the set of features, assuming that the feature
+   probabilities are all independent.
 
-- It assumes that each feature is "independent"
-- Which is almost never true!
-- Why is this a problem?
+Underlying Probabilistic Model
+++++++++++++++++++++++++++++++
 
-  - If we include two features that are tightly correlated, then the
-    same piece of information gets counted twice!
+Another way of understanding the Naive Bayes classifier is that it
+chooses the most likely label for an input, under the assumption that
+every input value is generated by first choosing a class label for
+that input value, and then generating each feature, entirely
+independent of every other feature.  Of course, this assumption is
+unrealistic: features are often highly dependent on one another in
+ways that don't just reflect differences in the class label.  We'll
+return to some of the consequences of this assumption at the end of
+this section.  But making this simplifying assumption makes it much
+easier to combine the contributions of the different features, since
+we don't need to worry about how they should interact with one
+another.
+
+.. naive-bayes-graph:
+
+.. figure:: ../images/naive_bayes_graph.png
+   :scale: 50
+
+   A `Bayesian Network Graph`:dt: illustrating the generative process
+   that is assumed by the Naive Bayes classifier.  To generate a
+   labeled input, the model first chooses a label for the input; and
+   then it generates each of the input's features based on that label.
+   Every feature is assumed to be entirely independent of every other
+   feature, given the label.
+
+Based on this assumption, we can calculate an expression for
+`P(label|features)`, the probability that an input will have a
+particular label, given that it has a particular set of features.  To
+choose a label for a new input, we can then simply pick the label `l`
+that maximizes `P(l|features)`.
+
+To begin, we note that `P(label|features)` is equal to the probability
+that an input has a particular label *and* the specified set of
+features, divided by the probability that it has the specified set of
+features:
+
+`P(label|features) = P(features, label)/P(features)`
+
+Next, we note that `P(features)` will be the same for every choice of
+label, so if we are simply interested in finding the most likely
+label, it suffices to calculate `P(features, label)`, which we'll call
+the label likelihood.  
+
+.. Note:: If we want to generate a probability estimate for each
+   label, rather than just choosing the most likely label, then the
+   easiest way to compute P(features) is to simply calculate the sum
+   over labels of P(features, label):
+
+   `P(features) = \sum_{l \in label} P(features, label)`
+
+The label likelihood can be expanded out as the probability of the
+label times the probability of the features given the label:
+
+`P(features, label) = P(label) * P(features|label)`
+
+Furthermore, since the features are all independent of one another
+(given the label), we can seperate out the probability of each
+individual feature:
+
+`P(features, label) = P(label) * \prod_{f \in features} P(f|label)`
+
+This is exactly the equation we discussed above for calculating the
+label likelihood: P(label) is the prior probability for a given label,
+and each P(f|label) is the contribution of a single feature to the
+label likelihood.
+
+Zero Counts and Smoothing
++++++++++++++++++++++++++
+
+The simplest way to calculate `P(f|label)`, the contribution of a
+feature `f` toward the label likelihood for a label `label`, is to
+take the percentage of training instances with the given label that
+also have the given feature:
+
+`P(f|label) = count(f, label) / count(label)`
+
+However, this simple approach can become problematic when a feature
+*never* occurs with a given label in the training corpus.  In this
+case, our calculated value for `P(f|label)` will be zero, which will
+cause the label likelihood for the given label to be zero.  Thus, the
+input will never be assigned this label, regardless of how well the
+other features fit the label.
+
+The basic problem here is with our calculation of `P(f|label)`, the
+probability that an input will have a feature, given a label.  In
+particular, just because we haven't seen a feature/label combination
+occur in the training corpus, doesn't mean it's impossible for that
+combination to occur.  For example, we may not have seen any murder
+mystery documents that contained the word "football," but we wouldn't
+want to conclude that it's completely impossible for such documents to
+exist.  
+
+Thus, although `count(f,label)/count(label)` is a good estimate for
+`P(f|label)` when `count(f, label)` is relatively high, this
+estimate becomes less reliable when `count(f)` becomes smaller.
+Therefore, when building Naive Bayes models, we usually make use of
+more sophisticated techniques, known as `smoothing`:dt: techniques,
+for calculating `P(f|label)`, the probability of a feature given a
+label.  For example, the "Expected Likelihood Estimation" for the
+probability of a feature given a label basically adds 0.5 to each
+`count(f,label)` value; and the "Heldout Estimation" uses a heldout
+corpus to calculate the relationship between feature freequencies and
+feature probabilities.  For more information on smoothing techniques,
+see <<ref -- manning & schutze?>>.
+
+Non-Binary Features
++++++++++++++++++++
+
+We have assumed here that each feature is binary -- in other words
+that each input either has a feature or does not.  Label-valued
+features (e.g., a color feature which could be red, green, blue,
+white, or orange) can be converted to binary features by replacing
+them with features such as "color-is-red".  Numeric features can be
+converted to binary features by `binning`:dt:, which replaces them with
+features such as "4<x<6".  
+
+Another alternative is to use regression methods to model the
+probabilities of numeric features.  For example, if we assume that the
+height feature is gaussian, then we could estimate P(height|label) by
+finding the mean and variance of the heights of the inputs with each
+label.  In this case, `P(f=v|label)` would not be a fixed value, but
+would vary depending on the value of `v`.
+
+The Naivite of Independence
++++++++++++++++++++++++++++
+
+The reason that Naive Bayes classifiers are called "naive" is that
+it's unreasonable to assume that all features are independent of one
+another (given the label).  In particular, almost all real-world
+problems contain features with varying degrees of dependence on one
+another.  If we had to avoid any features that were dependent on one
+another, it would be very difficult to construct good feature sets
+that provide the required information to the machine learning
+algorithm.
+
+So what happens when we ignore the independence assumption, and use
+the Naive Bayes classifier with features that are not independent?
+One problem that arises is that the classifier can end up
+"double-counting" the effect of highly correlated features, pushing
+the classifier closer to a given label than is justified.
+
+To see how this can occur, consider a name gender classifier that
+contains two identical features, `f_1` and `f_2`.  In other words,
+`f_2` is an exact copy of `f_1`, and contains no new information.
+Nevertheless, when the classifier is considering an input, it will
+include the contribution of both `f_1` and `f_2` when deciding which
+label to choose.  Thus, the information content of these two features
+is given more weight than it should be.
+
+Of course, we don't usually build Naive Bayes classifiers that contain
+two identical features.  However, we do build classifiers that contain
+features which are dependent on one another.  For example, the
+features ``ends-with(a)`` and ``ends-with(vowel)`` are dependent on
+one another, because if an input value has the first feature, then it
+must also have the second feature.  For features like these, the
+duplicated information may be given more weight than is justified by
+the training corpus.
+
+The Cause of Double-Counting
+++++++++++++++++++++++++++++
+
+The basic problem that causes this double-counting issue is that
+during training, feature contributions are computed seperately; but
+when using the classifier to choose labels for new inputs, those
+feature contributions are combined.  One solution, therefore, is to
+consider the possible interactions between feature contributions
+during training.  We could then use those interactions to adjust the
+contributions that individual features make.
+
+To make this more precise, we can rewrite the equation used to
+calculate out the likelihood of a label, seperating out the
+contribution made by each feature (or label):
+
+.. _paramaterized-naive-bayes:
+
+`P(features, label) = w[label] * \prod_{f \in features} w[f, label]`
+
+Here, `w[label]` is the "starting score" for a given label; and `w[f,
+label]` is the contribution made by a given feature towards a label's
+likelihood.  We call these values `w[label]` and `w[f, label]` the
+`parameters`:dt: or `weights`:dt: for the model.  Using the Naive
+Bayes algorithm, we set each of these parameters independently:
+
+`w[label] = P(label)`
+
+`w[f, label] = P(f|label)`
+
+However, in the next section, we'll look at a classifier that
+considers the possible interactions between these parameters when
+choosing their values.
 
 Maximum Entropy Classifiers
 ---------------------------
-- Why do we get "double counting"?
-- When we decide what effect a feature should have, we only look at
-  that one feature.
-- During training, features are computed separately.
-- During prediction, features are combined.
-- What can we do about it?
-  - Consider feature interactions during training.
-  
-  .. SB: explain maximum entropy principle: least biased pdist consistent with knowledge
 
+The `Maximum Entropy`:dt: classifier uses a model that is very similar
+to the model used by the Naive Bayes classifier.  But rather than
+using probabilities to set the model's parameters, it uses search
+techniques to find a set of parameters that will maximize the
+performance of the classifier.  In particular, it looks for the set of
+parameters that maximizes the `total likelihood`:dt: of the training
+corpus, which is defined as:
 
-- MaxEnt Model is almost identical to Naive Bayes
-  (though it might not be immediately clear why if you look at the math.)
-- Main difference is in training.
-- When deciding what effect features should have, consider all features.
+`\sum_{(x) in corpus} P(label(x)|features(x))`
 
-- A feature's effects are determined by that feature's parameters (or
-  weights).
+Where `P(label|features)`, the probability that an input whose
+features are `features` will have class label `label`, is defined
+as::
+                              P(label, features)
+  P(label|features) = --------------------------------
+                       sum_{label} P(label, features)
 
-- Training:
+- the parameters that maximize total likelihood can't be found
+  analytically.
 
-  - Choose the feature parameters that would give us the highest score
-    if we were testing on our training set.
-  - I.e., maximize the likelihood of the training data.
+- therefore, maxent uses an interative technique, which starts with an
+  intitial set of parameters, and then refines them.
 
-Math.
+- unfortunately, this means that maxent can be slow to train.
+
+- but some iterative search techniques are faster than others.  there
+  are several different methods that can be used to iteratively refine
+  the parameters.  GIS, IIS, conjugate gradient, etc.
+
+- the technique, of fixing the form of the model, and searching for
+  model parameters that optimize some evaluation metric is called
+  optimization.
+
+- a number of other machine learning algorithms can be thought of as 
+  optimization systems.
+
+Input-Features vs Joint-Features
+++++++++++++++++++++++++++++++++
+
+- Another way that maxent is different from the other two classifiers
+  we've considered is in the way that it gets info from its inputs
+
+- etc.
+
+Why Is It Called "Maximum Entropy"?
++++++++++++++++++++++++++++++++++++
+
+explain maximum entropy principle: least biased pdist consistent with
+knowledge
+
+-------------------------------------------
+Classifier Properties
+-------------------------------------------
+
+Generative vs Conditional
+-------------------------
+Another important difference between Naïve Bayes and Maxent:
+
+- Naïve Bayes tries to predict the probability of an (input,output) pair: P(x,y)
+- Maxent tries to predict the probability of an output, given an input: P(y|x)
+
+Generative models are more powerful that conditional models.
+- P(y|x) = P(x,y)/P(x)
+
+Generative models can answer questions that conditional models can not.
+
+E.g., how likely is a given input?
+
+Or how likely is an output, given that the input is either x1 or x2?
+
+So why would we want a conditional model?
+
+Less powerful ->
+		Less free parameters ->
+			More data per parameter ->
+				Easier to find correct parameter values
+
+- Finding a generative model is like trying to draw a topological map
+  (x=input, y=output).
+- Finding a conditional model is like trying to draw a skyline
+- (include a picture comparing :) )
+
+Bias vs Variance
+----------------
+The term bias is used in two ways:
+
+- ML bias & Statistical bias
+
+- ML bias: an assumption implicit in a ML technique that either rules out a class of models (absolute bias) or gives preference to a class of models (relative bias)
+
+- (when) do we need ML bias?
+
+Statistical bias:
+
+  - Build a model from every possible training set (of a given size)
+  - Average those models.
+  - Statistical bias = error of this averaged model
+
+Variance:
+
+  - Average (squared) difference between an individual model and the averaged model
+  - Average model error = bias^2 + variance
 
 -------------------------------------------
 Sequence Classification & Language Modeling
