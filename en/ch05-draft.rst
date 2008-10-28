@@ -353,7 +353,7 @@ be.  (Though they will need to be for automatic methods.. coming up)
                     last2 = word[-2:],
                     last3 = word[-3:])
 
-   >>> data = [(features(word), tag) for (word, tag) in nltk.corpus.brown.tagged_words('a')]
+   >>> data = [(features(word), tag) for (word, tag) in nltk.corpus.brown.tagged_words('news')]
    >>> train = data[1000:]
    >>> test = data[:1000]
    >>> classifier = nltk.NaiveBayesClassifier.train(train)
@@ -792,7 +792,7 @@ documents by genre:
                features["%s(%d)" % (word, logfreq)] = (freq < 10**(-logfreq))
        return features
 
-   >>> genres = 'ermapd'
+   >>> genres = ['hobbies', 'humor', 'science_fiction', 'news', 'romance', 'religion'] 
    >>> train = [(modal_features4(nltk.corpus.brown.words(g)[:2000]), g) for g in genres]
    >>> test = [(modal_features4(nltk.corpus.brown.words(g)[2000:4000]), g) for g in genres]
    >>> classifier = nltk.NaiveBayesClassifier.train(train)

@@ -57,7 +57,7 @@ ways, with implications for efficiency.  Another factor influencing
 program development is *programming style*.  Consider the following
 program to compute the average length of words in the Brown Corpus:
 
-    >>> tokens = nltk.corpus.brown.words(categories='a')
+    >>> tokens = nltk.corpus.brown.words(categories='news')
     >>> count = 0
     >>> total = 0
     >>> for token in tokens:

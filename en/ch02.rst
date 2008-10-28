@@ -218,68 +218,51 @@ is itself just a list of words).  We can optionally specify particular categorie
 
     >>> from nltk.corpus import brown
     >>> brown.categories()
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r']
-    >>> brown.words(categories='a')
+    ['adventure', 'belles_lettres', 'editorial', 'fiction', 'government', 'hobbies', 'humor',
+    'learned', 'lore', 'mystery', 'news', 'religion', 'reviews', 'romance', 'science_fiction']
+    >>> brown.words(categories='news')
     ['The', 'Fulton', 'County', 'Grand', 'Jury', 'said', ...]
     >>> brown.words(files=['cg22'])
     ['Does', 'our', 'society', 'have', 'a', 'runaway', ',', ...]
-    >>> brown.sents(categories='abc')
+    >>> brown.sents(categories=['news', 'editorial', 'reviews'])
     [['The', 'Fulton', 'County'...], ['The', 'jury', 'further'...], ...]
 
 We can use the Brown Corpus to study systematic differences between
 genres, a kind of linguistic inquiry known as `stylistics`:dt:.
-For example, Table brown-modals_ was constructed by counting
-the number of times various modal words appear in different sections of the corpus.
+Let's compare genres in their usage of modal verbs.  The first step
+is to produce the counts for a particular genre:
 
-.. table:: brown-modals
-
-   ==================  ===  =====  ===  =====  ====  ====
-   Genre               can  could  may  might  must  will 
-   ==================  ===  =====  ===  =====  ====  ====
-   press: reportage    93   86     66   38     50    389
-   religion            82   59     78   12     54    71
-   skill and hobbies   268  58     131  22     83    264
-   fiction: science    16   49     4    12     8     16    
-   fiction: romance    74   193    11   51     45    43    
-   humor               16   30     8    8      9     13               
-   ==================  ===  =====  ===  =====  ====  ====
-
-   Use of Modals in Brown Corpus, by Genre
-
-|nopar|
-Observe that the most frequent modal in the reportage genre is
-`will`:lx:, suggesting a focus on the future, while the most frequent
-modal in the romance genre is `could`:lx:, suggesting a focus on possibilities.
-
-Table brown-modals_ can be thought of as a collection of frequency
-distributions, one per row.  Let's use this idea to calculate the
-values of the press row:
-
-    >>> fdist = nltk.FreqDist(w.lower for w in brown.words(categories='a'))
+    >>> news_text = brown.words(categories='news')
+    >>> fdist = nltk.FreqDist(w.lower() for w in news_text)
     >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
-    >>> [fdist[m] for m in modals]
-    [94, 87, 93, 38, 53, 389]
-    
-We can compute all the numbers in Table brown-modals_ using |NLTK|\ 's
-support for conditional frequency distributions, as follows:
+    >>> for m in modals:
+    ...     print m + ':' + fdist[m],
+    ...
+    can:94 could:87 may:93 might:38 must:53 will:389
+
+Next, we need to do this for each genre of interest.  To save re-typing,
+we can put the above code into a function, and use the function several
+times over.  However, there is an even better way, using
+|NLTK|\ 's support for conditional frequency distributions
+(Section sec-conditional-frequency-distributions_), as follows:
 
     >>> cfd = nltk.ConditionalFreqDist((g,w)
                   for g in brown.categories()
                   for w in brown.words(categories=g))
+    >>> genres = ['news', 'religion', 'hobbies', 'science_fiction', 'romance', 'humor']
     >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
-    >>> cfd.tabulate(conditions='adempr', samples=modals)
-       can could  may might must will
-    a   93   86   66   38   50  389
-    d   82   59   78   12   54   71
-    e  268   58  131   22   83  264
-    m   16   49    4   12    8   16
-    p   74  193   11   51   45   43
-    r   16   30    8    8    9   13
+    >>> cfd.tabulate(conditions=genres, samples=modals)
+                     can could  may might must will
+               news   93   86   66   38   50  389
+           religion   82   59   78   12   54   71
+            hobbies  268   58  131   22   83  264
+    science_fiction   16   49    4   12    8   16
+            romance   74  193   11   51   45   43
+              humor   16   30    8    8    9   13
 
-Any text corpus that can be divided into components by genre, author, period, etc,
-is amenable to exploration using conditional frequency distributions.  We
-will present conditional frequency distributions systematically in
-Section sec-conditional-frequency-distributions_.
+Observe that the most frequent modal in the news genre is
+`will`:lx:, suggesting a focus on the future, while the most frequent
+modal in the romance genre is `could`:lx:, suggesting a focus on possibilities.
 
 Reuters Corpus
 --------------
@@ -507,13 +490,13 @@ Let's break this down, and look at just two genres, news and romance.  For each
 genre, we loop over every word in the genre, producing pairs consisting of
 the genre and the word:
 
-    >>> pairs = [(g,w) for g in ['a', 'p'] for w in brown.words(categories=g)]
+    >>> pairs = [(g,w) for g in ['news', 'romance'] for w in brown.words(categories=g)]
     >>> len(pairs)
     170576
     >>> pairs[:5]
-    [('a', 'The'), ('a', 'Fulton'), ('a', 'County'), ('a', 'Grand'), ('a', 'Jury')]
+    [('news', 'The'), ('news', 'Fulton'), ('news', 'County'), ('news', 'Grand'), ('news', 'Jury')]
     >>> pairs[-5:]
-    [('p', "I'm"), ('p', 'afraid'), ('p', 'not'), ('p', "''"), ('p', '.')]
+    [('romance', "I'm"), ('romance', 'afraid'), ('romance', 'not'), ('romance', "''"), ('romance', '.')]
 
 We can now use this list of pairs to create a ``ConditionalFreqDist``, and
 save it in a variable ``cfd``.  As usual, we can type the name of the
@@ -524,20 +507,20 @@ variable to inspect it, and verify it has two conditions:
     >>> cfd
     <ConditionalFreqDist with 2 conditions>
     >>> cfd.conditions()
-    ['a', 'p']
+    ['news', 'romance']
 
 Let's access the two conditions, and satisfy ourselves that each is just
 a frequency distribution:
 
-    >>> cfd['a']
+    >>> cfd['news']
     <FreqDist with 100554 samples>
-    >>> cfd['p']
+    >>> cfd['romance']
     <FreqDist with 70022 samples>
-    >>> list(cfd['p'])
+    >>> list(cfd['romance'])
     [',', '.', 'the', 'and', 'to', 'a', 'of', '``', "''", 'was', 'I', 'in', 'he', 'had',
     '?', 'her', 'that', 'it', 'his', 'she', 'with', 'you', 'for', 'at', 'He', 'on', 'him',
     'said', '!', '--', 'be', 'as', ';', 'have', 'but', 'not', 'would', 'She', 'The', ...]
-    >>> cfd['p']['could']
+    >>> cfd['romance']['could']
     193
 
 Apart from combining two or more frequency distributions, and being easy to initialize,
@@ -548,9 +531,9 @@ of the week, to see which days are most newsworthy, and which are most romantic:
 
     >>> days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     >>> cfd.tabulate(samples=days)
-      Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-    a   54   43   22   20   41   33   51
-    p    2    3    3    1    3    4    5
+           Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+    news      54   43   22   20   41   33   51
+    romance    2    3    3    1    3    4    5
 
 The ``plot()`` method has the same parameters, and has been illustrated elsewhere in this
 chapter.  (For further details please consult the online documentation at |NLTK-API|.)
