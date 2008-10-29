@@ -8,6 +8,8 @@
 .. TODO: negative indices of lists
 .. TODO: TextCollection
 .. TODO: extracting dates from a tokenized text
+.. TODO: finding a sequence of words matching some pattern
+.. TODO: non-mutability of dictionary keys
 
 .. _chap-corpora:
 
@@ -1309,7 +1311,6 @@ additional mappings:
     >>> translate['perro']
     'dog'
     
-    
 
 Incrementally Updating a Dictionary
 ----------------------------------- 
@@ -1345,8 +1346,8 @@ seen it before we increment its count using the ``+=`` operator.
     ('in', 173), ('my', 170), ('And', 170), ('is', 166), ('that', 158), ('not', 155), ...]
     >>> [w for w,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
     [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
-    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', 'me',
-    'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', 'What', 'To', 'so', ...]
+    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue',
+    'me', 'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', 'What', ...]
 
 The listing in Figure dictionary_ illustrates an important idiom for sorting a dictionary in terms of its
 values, to show the words in decreasing order of frequency.  We use the ``sorted()``
@@ -1422,47 +1423,48 @@ keys appear in order of decreasing frequency.
 Inverting a Dictionary
 ----------------------
 
-[simple example]
+Dictionaries support efficient lookup, so long as you want to get the value for
+any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
+immediately obtain the value.  Finding a key given a value is slower and more
+cumbersome:
 
-A more typical case of inverting a dictionary involves handling list values in the source dictionary,
-and eliminating duplicates...  Notice that in some cases, the stress pattern changes...
+    >>> [key for key,value in counts.items() if value == 16]
+    ['call', 'sleepe', 'take', 'where', 'Your', 'Father', 'looke', 'owne']
 
-    >>> prondict = nltk.corpus.cmudict.transcriptions()
-    >>> prondict['kilometer']
-    [('K', 'AH0', 'L', 'AA1', 'M', 'AH0', 'T', 'ER0'), ('K', 'IH1', 'L', 'AH0', 'M', 'IY2', 'T', 'ER0')]
-    >>> prondict['pronunciation']
-    [('P', 'R', 'OW0', 'N', 'AH2', 'N', 'S', 'IY0', 'EY1', 'SH', 'AH0', 'N'),
-    ('P', 'R', 'AH0', 'N', 'AH2', 'N', 'S', 'IY0', 'EY1', 'SH', 'AH0', 'N')]
-    
-Need to iterate over each value, convert to a stress pattern, and use this as an index.  Values will
-be sets:
+If we expect to do this kind of "reverse lookup" often, it helps to construct
+a dictionary that maps values to keys.  In the case that no two keys have
+the same value, this is an easy thing to do.  We just get all the key-value
+pairs in the dictionary, and create a new dictionary of value-key pairs:
 
-inverted = {}
-for key in prondict:
-    for pron in prondict[key]:
-        pattern = tuple(stress(pron))
-        if pattern not in inverted:
-            inverted[pattern] = []
-        if key not in inverted[pattern]:
-            inverted[pattern].append(key)
+    >>> pos2 = dict((value, key) for (key, value) in pos.items())
+    >>> pos2['noun']
+    'ideas'
 
+Let's make our part of speech dictionary a bit more realistic and add some more words,
+to create the situation where multiple keys have the same value.  The above method
+will not work in this case (why not?).  Instead, we need to use our method of incrementally
+updating a dictionary, as follows:
 
-..
-    >>> nouns = dict((w, [N[w][i].gloss for i in range(len(N[w]))]) for w in N)
-    >>> nouns['dog']
-    ['a member of the genus Canis (probably descended from the common wolf) that has been domesticated by man since prehistoric times; occurs in many breeds; "the dog barked all night"', 'a dull unattractive unpleasant girl or woman; "she got a reputation as a frump"; "she\'s a real dog"', 'informal term for a man; "you lucky dog"', 'someone who is morally reprehensible; "you dirty dog"', 'a smooth-textured sausage of minced beef or pork usually smoked; often served on a bread roll', 'a hinged catch that fits into a notch of a ratchet to move a wheel forward or prevent it from moving backward', 'metal supports for logs in a fireplace; "the andirons were too hot to touch"']
+    >>> pos.update({'cats': 'noun', 'scratch': 'verb', 'peacefully': 'adverb', 'old': 'adjective'})
+    >>> pos2 = {}
+    >>> for key,value in pos.items():
+    ...     if value not in pos2:
+    ...         pos2[value] = []
+    ...     pos2[value].append(key)
+    ... 
+    >>> pos2['adverb']
+    ['peacefully', 'furiously']
 
-
-Saving a Dictionary
--------------------
-
-pickle
-
+Now, we have inverted the ``pos`` dictionary, and can look up any part of speech and find
+all words having that part of speech.
 
 Summary
 -------
 
 Thanks to their versatility, Python dictionaries are extremely useful in most areas of |NLP|.
+We already made heavy use of dictionaries in Chapter chap-introduction_, since
+|NLTK|\ 's ``FreqDist`` objects are just a special case of dictionaries for counting things.
+Table tab-dict_ lists the most important dictionary methods you should know. 
 
 .. table:: tab-dict
 
@@ -1681,6 +1683,8 @@ Summary
 
 * A text corpus is a balanced collection of texts.  NLTK comes with many corpora,
   e.g. the Brown Corpus, ``nltk.corpus.brown``.
+* Some text corpora are categorized, e.g. by genre or topic; sometimes the
+  categories of a corpus overlap each other.
 * A dictionary is used to map between arbitrary types of information,
   such as a string and a number: ``freq['cat'] = 12``.  We create
   dictionaries using the brace notation: ``pos = {}``,
@@ -1876,6 +1880,53 @@ Exercises
 #. |soso| Write a function that finds the 50 most frequently occurring words
    of a text that are not stopwords.
 
+#. |easy| Use the corpus module to read ``austen-persuasion.txt``.
+   How many word tokens does this book have?  How many word types?
+
+#. |easy| Use the Brown corpus reader ``nltk.corpus.brown.words()`` or the Web text corpus
+   reader ``nltk.corpus.webtext.words()`` to access some sample text in two different genres.
+
+#. |easy| Use the Brown corpus reader ``nltk.corpus.brown.sents()`` to find sentence-initial
+   examples of the word `however`:lx:.  Check whether these conform to Strunk and White's
+   prohibition against sentence-initial `however`:lx: used to mean "although".
+
+.. above exercise needs a more contemporary corpus to test against: news?
+
+#. |easy| Read in the texts of the *State of the Union* addresses, using the
+   ``state_union`` corpus reader.  Count occurrences of ``men``, ``women``,
+   and ``people`` in each document.  What has happened to the usage of these
+   words over time?
+
+#. |hard| Define a function ``find_language()`` that takes a string
+   as its argument, and returns a list of languages that have that
+   string as a word.  Use the ``udhr`` corpus and limit your searches
+   to files in the Latin-1 encoding.
+
+#. |soso| Write a program to guess the number of syllables contained in a text,
+   making use of the CMU Pronouncing Dictionary.
+
+#. |soso| Define a function ``hedge(text)`` which processes a
+   text and produces a new version with the word
+   ``'like'`` between every third word.
+
+#. |soso| Write a program to score the similarity of two nouns as the depth
+   of their first common hypernym.
+
+#. |hard| Use one of the predefined similarity measures to score
+   the similarity of each of the following pairs of words.
+   Rank the pairs in order of decreasing similarity.
+   How close is your ranking to the order given here?
+   (Note that this order was established experimentally
+   by [MillerCharles1998]_.)
+
+::
+      car-automobile, gem-jewel, journey-voyage, boy-lad,
+      coast-shore, asylum-madhouse, magician-wizard, midday-noon,
+      furnace-stove, food-fruit, bird-cock, bird-crane, tool-implement,
+      brother-monk, lad-brother, crane-implement, journey-car,
+      monk-oracle, cemetery-woodland, food-rooster, coast-hill,
+      forest-graveyard, shore-woodland, monk-slave, coast-forest,
+      lad-wizard, chord-smile, glass-magician, rooster-voyage, noon-string.      
 
 .. include:: footer.rst
 
