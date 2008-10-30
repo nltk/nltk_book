@@ -951,7 +951,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     #////////////////////////////////////////////////////////////
     # Sections
     #////////////////////////////////////////////////////////////
-    max_section_depth = 3
+    max_section_depth = 2
     no_section_numbers_in_preface = True
     TOP_SECTION = 'chapter'
 
