@@ -29,7 +29,7 @@
   .. |Fol| replace:: First-order logic
   .. PTB removed since it must be indexed
   .. WN removed since it must be indexed
-  .. |TRY| replace:: **Your Turn!**
+  .. |TRY| replace:: **Your Turn:**
   
   .. misc & punctuation
   .. cdots was unicode U+22EF but not working

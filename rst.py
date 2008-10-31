@@ -2164,7 +2164,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     # uses an fbox & parbox, with code that uses a boxedminipage instead.
     def visit_admonition(self, node, name=''):
         self.body.append('\n')
-        self.body.append('\\begin{table}\n')
+        self.body.append('\\begin{table}[h]\n')
         self.body.append('\\begin{minipage}[t]{8ex}\\includegraphics{../images/jigsaw.png}\\end{minipage}\n')
         self.body.append('\\begin{minipage}[t]{\\admonitionwidth}\\begin{sffamily}\\small\\vspace*{-5ex}\n')
         #self.body.append('\\fbox{\\parbox{\\admonitionwidth}{\n')
