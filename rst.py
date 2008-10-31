@@ -2163,18 +2163,18 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
     # To fix this, we replace the default code for visit_admonition, which
     # uses an fbox & parbox, with code that uses a boxedminipage instead.
     def visit_admonition(self, node, name=''):
-        self.body.append('\\begin{center}\\begin{sffamily}\small\n')
-        self.body.append('\\begin{boxedminipage}{\\admonitionwidth}\n')
+        self.body.append('\n')
+        self.body.append('\\begin{table}\n')
+        self.body.append('\\begin{minipage}[t]{8ex}\\includegraphics{../images/jigsaw.png}\\end{minipage}\n')
+        self.body.append('\\begin{minipage}[t]{\\admonitionwidth}\\begin{sffamily}\\small\\vspace*{-5ex}\n')
         #self.body.append('\\fbox{\\parbox{\\admonitionwidth}{\n')
-        if name:
+        if name and name.lower() != 'note':
             self.body.append('\\textbf{\\large '+ self.language.labels[name] + '}\n');
-        self.body.append('\\vspace{2mm}\n')
 
 
     def depart_admonition(self, node=None):
         #self.body.append('}}\n') # end parbox fbox
-        self.body.append('\\end{boxedminipage}\n')
-        self.body.append('\\end{sffamily}\n\\end{center}\n');
+        self.body.append('\\end{sffamily}\\end{minipage}\\end{table}\n');
         
     #def depart_title(self, node):
     #    LaTeXTranslator.depart_title(self, node)
