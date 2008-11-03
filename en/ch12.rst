@@ -74,11 +74,69 @@ imitated a human. Then, according to Turing, we should be prepared to
 say that the computer can think and be said to be intelligent. Now, if
 you accept that a computer that passes the Turing test is intelligent,
 you should also accept that the computer understands natural language.
+What is important here is not so much the specifics of Turing's
+imitation game, but rather the proposal to judge 'understanding'
+in terms of observable behaviour on the part of the computer.
 
+Pursuing this approach further, consider the following task: we type in
+a query in English, and the computer responds with an appropriate (and
+if we are lucky, correct) answer. Building software that allows this
+task to be carried out in general way is extremely hard, but solving
+it for a particular case is close to trivial. We start off by assuming
+that we have some relevant data in a structured form. To be concrete,
+we use a database table whose first few rows are as follows:
 
+.. table:: cities
 
+    ============    ===============	===========
+    City            Country		Population
+    ============    ===============	===========
+    athens	    greece		1368
+    bangkok	    thailand		1178
+    barcelona	    spain		1280
+    berlin	    east_germany	3481
+    birmingham	    united_kingdom	1112
+    ============    ===============	===========
 
+    Table of cities, countries and populations
 
+Next, we build a toy grammar to parse English queries.
+
+.. pylisting:: sql-fcfg
+   :caption: Toy grammar that outputs SQL
+    
+    >>> nltk.data.show_cfg('grammars/sql.fcfg')
+    % start S
+    S[sem=(?np + ?vp)] -> NP[sem=?np] VP[sem=?vp]
+    VP[sem=(?v + ?pp)] -> IV[sem=?v] PP[sem=?pp]
+    VP[sem=(?v + ?np)] -> TV[sem=?v] NP[sem=?np]
+    NP[sem=(?det + ?n)] -> Det[sem=?det] N[sem=?n]
+    NP[sem='Country="japan"'] -> 'Japan'
+    NP[sem='Country="united_states"'] -> 'USA'
+    Det[sem='SELECT'] -> 'Which'
+    N[sem='City FROM city_table'] -> 'cities'
+    IV[sem='WHERE'] -> 'are'
+    PP[sem=?np] -> P[sem=?p] NP[sem=?np]
+    P -> 'in'
+
+This allows us to parse a query into SQL.
+
+    >>> from nltk.parse import load_earley
+    >>> from string import join
+    >>> cp = load_earley('grammars/sql.fcfg')
+    >>> query = 'Which cities are in USA'
+    >>> trees = cp.nbest_parse(query.split())
+    >>> answer = trees[0].node['sem']
+    >>> q = join(answer)
+    >>> print q
+    SELECT City FROM city_table WHERE Country="united_states"
+
+Finally, we execute the query over the database.
+
+    >>> from nltk.sem import chat80
+    >>> rows = chat80.sql_query(path, q)
+    >>> for r in rows: print "%s" % r,
+    chicago detroit los_angeles new_york philadelphia
 
 There are many |NLP| applications where it would be useful to have some
 representation of the `meaning`:em: of a natural language
