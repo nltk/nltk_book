@@ -754,7 +754,14 @@ which could be an individual character like ``m``, a set like ``[fed]`` or a ran
 Now let's replace "``+``" with "``*``" which means "zero or more instances of the preceding item".
 The regular expression |l|\ ``^m*i*n*e*$``\ |r| will match everything that we found using
 |l|\ ``^m+i+n+e+$``\ |r|, but also words where some of the letters don't appear at all,
-e.g. `me`:lx:, `min`:lx:, and `mmmmm`:lx:. 
+e.g. `me`:lx:, `min`:lx:, and `mmmmm`:lx:.
+
+The "``^``" operator has another function when it appears inside square brackets.  For
+example |l|\ ``[^aeiouAEIOU]``\ |r| matches any character other than a vowel.
+We can search the Chat corpus for words that are made up entirely of non-vowel
+characters using |l|\ ``^[^aeiouAEIOU]+$``\ |r| to find items like these:
+``:):):)``, ``grrr``, ``cyb3r`` and ``zzzzzzzz``.  Notice this includes non-alphabetic
+characters.
 
 .. note:: |TRY|
    Study the following examples and work out what the ``\``, ``{}`` and ``(..|..)`` notations mean:
@@ -783,21 +790,22 @@ The meta-characters we have seen are summarized in Table regexp-meta-characters1
 
 .. table:: regexp-meta-characters1
 
-   ===============  ======================================================================================
+   ===============  =======================================================================================
    Operator         Behavior
-   ===============  ======================================================================================
+   ===============  =======================================================================================
    ``.``            Wildcard, matches any character
    ``^abc``         Matches some pattern `abc`:math: at the start of a string
    ``abc$``         Matches some pattern `abc`:math: at the end of a string
    ``[abc]``        Matches a set of characters
    ``[A-Z0-9]``     Matches a range of characters
    ``(ed|ing|s)``   Matches one of the specified strings 
-   ``*``            Zero or more of previous item, e.g. ``a*``, ``[a-z]*`` (also known as *Kleene Closure*
+   ``*``            Zero or more of previous item, e.g. ``a*``, ``[a-z]*`` (also known as *Kleene Closure*)
    ``+``            One or more of previous item, e.g. ``a+``, ``[a-z]+``
    ``?``            Zero or one of the previous item (i.e. optional), e.g. ``a?``, ``[a-z]?``
    ``{n}``          Exactly `n`:math: repeats where n is a non-negative integer
    ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats (`m`:math:, `n`:math: optional)
-   ===============  ======================================================================================
+   ``(abc)+``       Grouping parentheses that indicate the scope of the ``+`` operator
+   ===============  =======================================================================================
 
    Basic Regular Expression Meta-Characters, Including Wildcards, Ranges and Closures
 
@@ -877,224 +885,19 @@ distribution", which is evidence that they are not distinct phonemes in the lang
 Thus, we could conceivably drop `s`:lx: from the Rotokas alphabet and simply
 have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when followed by `i`:lx:.
 
------------------------------------
-Regular Expressions 2: Tokenization
------------------------------------
-
-Focus on punctuation etc
-
-predefined character ranges
-
-\b
-
-findall
-
-.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
-
-
-We can see exactly where a regular expression matches against a string
-using NLTK's ``re_show`` function.  Readers are encouraged to use
-``re_show`` to explore the behavior of regular expressions.
-
-    >>> string = """
-    ... It's probably worth paying a premium for funds that invest in markets
-    ... that are partially closed to foreign investors, such as South Korea, ...
-    ... """
-    >>> nltk.re_show('t...', string)
-    I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
-    {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
-
-
-
-
-Spanning a Line Break
----------------------
-
-Occasionally we need to match material that spans a line-break.  For
-example, we may want to strip out the HTML markup from a document.
-To do this we must delete material between angle brackets.
-The most obvious expression is: |<.*>|.  However, this has two
-problems: it will not match an HTML tag that contains a line-break,
-and the |.*| will consume as much material as possible (including the
-``>`` character).  To permit matching over a line-break we must use
-Python's ``DOTALL`` flag, and to ensure that the ``>`` matches
-against the first instance of the character we must do non-greedy
-matching using ``*?``:
-
-    >>> text = """one two three <font
-    ...           color="red">four</font> five"""
-    >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
-
-
-------------------------------------
-Regular Expressions 3: Normalization
-------------------------------------
-
-substitutions
-
-.. note:: |TRY|
-   Consolidate your understanding of regular expression patterns and substitutions using
-   ``nltk.misc.finding_nemo()``
-
-searching for doubled final consonants: .*([bdgptk])\1ed
-
-transforming date strings
-HTML stripping
-spelling correction
-textonyms
-
-
----------
-OLD STUFF
----------
-
-Beyond this pattern matching on the *content* of a text, we often want
-to process the *formatting* and *markup* of a text.  We may want to
-check the formatting of a document (e.g. to ensure that every sentence
-begins with a capital letter) or to reformat a document
-(e.g. replacing sequences of space characters with a single space).
-We may want to find all date strings and extract the year.  We may
-want to extract all words contained inside the ``<abbrev> </abbrev>``
-markup in order to construct a list of abbreviations.
-
-Processing the content, format and markup of strings is a central task
-in most kinds of NLP.  The most widespread method for string
-processing uses *regular expressions*.
-    
-
-
-
-
-
-As an example of multi-character choices, suppose that we wanted
-to create a program to simplify English prose, replacing rare words
-(like ``abode``) with a more frequent, synonymous word (like
-``home``).  In this situation, we need to map from a potentially large
-set of words to an individual word.  We can match the set of words
-using the choice operator.  In the case of the word ``home``, we would
-want to match the regular expression |dwelling|domicile|abode|\ .
-
-.. Note:: Note that the choice operator has wide scope, so that |123|456|
-   is a choice between ``123`` and ``456``, and not between ``12356`` and
-   ``12456``.  The latter choice must be written using parentheses: |12(3|4)56|\ .
-
-Complementation
----------------
-
-We just saw that the character class |[b-df-hj-np-tv-z]+| allows us to
-match sequences of consonants. However, this expression is quite
-cumbersome. A better alternative is to say: let's match anything which
-isn't a vowel. To do this, we need a way of expressing
-*complementation*.  We do this using the symbol "``^``" as the first
-character inside a class expression ``[]``. Let's look at an example.
-The regular expression |[^aeiou]| is just like our earlier character
-class |[aeiou]|, except now the set of vowels is preceded
-by ``^``. The expression as a whole is interpreted as matching
-anything which *fails* to match |[aeiou]|\ . In other
-words, it matches all lowercase consonants (plus all uppercase letters
-and non-alphabetic characters).
-
-Finally, note that character class complementation also works with
-ranges. Thus |[^a-z]| matches anything other than the lower case
-alphabetic characters ``a`` through ``z``.
-
-Common Special Symbols
-----------------------
-
-So far, we have only looked at patterns which match with the content
-of character strings. However, it is also useful to be able to refer
-to formatting properties of texts. Two important symbols in this
-regard are "``^``" and "``$``" which are used to *anchor* matches to
-the beginnings or ends of lines in a file.
-
-.. Note:: "``^``" has two quite distinct uses: it is interpreted as
-   complementation when it occurs as the first symbol within a character
-   class, and as matching the beginning of lines when it occurs elsewhere
-   in a pattern.
-
-For example, suppose we wanted to find all the words that occur at the
-beginning of lines in the WSJ text above. Our first attempt might look
-like |^[A-Za-z]+|\ . This says: starting at the beginning of a line,
-look for one or more alphabetic characters (upper or lower case),
-followed by a space. This will match the words ``that``, ``some``,
-``been``, and ``even``. However, it fails to match ``It's``, since
-``'`` isn't an alphabetic character. A second attempt might be
-|^[^ ]+|\ , which says to match any string starting at the
-beginning of a line, followed by one or more characters which are
-*not* the space character, followed by a space. This matches all the
-previous words, together with ``It's``, ``skyrocketed``, ``1992s``,
-``I'm`` and ``"Mr.``. As a second example, |[a-z]*s$| will
-match words ending in ``s`` that occur at the end of a line. Finally,
-consider the pattern |^$|\ ; this matches strings where no
-character occurs between the beginning and the end of a line |mdash| in
-other words, empty lines!
-
-As we have seen, special characters like "``.``", "``*``", "``+``" and
-"``$``" give us powerful means to generalize over character
-strings. But suppose we wanted to match against a string which itself
-contains one or more special characters? An example would be the
-arithmetic statement ``$5.00 * ($3.05 + $0.85)``. In this case, we
-need to resort to the so-called *escape* character "``\``"
-("backslash"). For example, to match a dollar amount, we might use
-|l|\ ``\$[1-9][0-9]*\.[0-9][0-9]``\ |r|\ .  The same goes for matching
-other special characters.
-
-.. Advanced Regular Expressions
-   zero-width assertions
-   more special symbols: \b etc
-
-.. table:: tab-re-symbols:
-
-   ===========  ===================================================================
-   Symbol       Function
-   ===========  ===================================================================
-   ``\b``       Word boundary (zero width)
-   ``\d``       Any decimal digit (equivalent to ``[0-9]``)
-   ``\D``       Any non-digit character (equivalent to ``[^0-9]``)
-   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``
-   ``\S``       Any non-whitespace character (equivalent to ``[^ \t\n\r\f\v]``)
-   ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
-   ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
-   ===========  ===================================================================
-
-   Regular Expression Symbols
-
-Merge with previous section
----------------------------
-
-Characters preceded by a ``\``, such as ``'\s'``, have a
-special interpretation inside regular expressions; thus, ``'\s'``
-matches a whitespace character. We could have used ``' '`` in our
-pattern, but ``'\s'`` is better practice in general. One reason is
-that the sense of "whitespace" we are using is more general than you
-might have imagined; it includes not just inter-word spaces, but also
-tabs and newlines. If you try to inspect the variable ``s``, you
-might initially get a shock:
-
-.. doctest-ignore::
-    >>> s
-    "Google Analytics is very very very nice (now)\nBy Jason Hoffman 
-    18 August 06\nGoogle
-    ...
-    >>>
-
-|nopar| You might recall that ``'\n'`` is a special character that corresponds
-to a newline in a string. The following example shows how newline is
-matched by ``'\s'``.
-
-    >>> s2 = "I'm very very\nvery happy"
-    >>> nltk.re_show('very\s', s2)
-    I'm {very }{very
-    }{very }happy
-    >>>
-
+.. note::
+   You need to take care when using grouping parentheses inside a regular expression.
+   Some functions including ``re.findall()`` interpret the parentheses as selecting
+   material to be returned in the result.  If you need to tell ``re.findall()`` not
+   to do anything special with these parentheses, add ``?:``, e.g.
+   |l|\ ``(?:ed|ing|s)``\ |r|.
 
 
 .. _sec-tokenization:
 
----------------------------------
-Tokenization: From Files to Texts
----------------------------------
+-----------------------------------
+Regular Expressions 2: Tokenization
+-----------------------------------
 
 Consider the following code, which splits a string into a list of words: 
 
@@ -1187,13 +990,6 @@ consider a variety of factors in determining what counts as
 the same word, and we need to be careful in how we
 identify tokens in the first place.
 
-NLTK Tokenizers
----------------
-
-Tokenization based solely on whitespace is too simplistic for most applications...
-
-NLTK's tokenizers: wordpunct, ...
-
 Tokenization with Regular Expressions
 -------------------------------------
 
@@ -1226,35 +1022,42 @@ Also gives us empty strings (explain why).
     >>> re.findall('\w+|\S+', sentence)
     ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '.']
 
-Merge with previous section
----------------------------
 
-Python's ``re.findall(``\ `patt`:ph:, `s`:ph:\ ``)`` function is a useful
-way to find all the substrings in `s`:ph: that are matched by `patt`:ph:.
-Before illustrating, let's introduce  two further
-special characters, ``'\d'`` and ``'\w'``: the first
-will match any digit, and the second will match any alphanumeric character.
-Before we can use ``re.findall()`` we have to load Python's regular
-expression module, using ``import re``.
+Focus on punctuation etc
 
-    >>> import re
-    >>> re.findall('\d\d', s)
-    ['18', '06', '10']
-    >>> re.findall('\s\w\w\w\s', s)
-    [' the ', ' the ', ' its\n', ' the ', ' and ', ' you ']
-    >>> 
+predefined character ranges
 
-|nopar| As you will see, the second example matches three-letter
-words. However, this regular expression is not quite what we
-want. First, the leading and trailing spaces are extraneous. Second,
-it will fail to match against strings such as ``'the San'``, where two
-three-letter words are adjacent. To solve this problem, we can use
-another special character, namely ``'\b'``. This is sometimes called a
-"zero-width" character; it matches against the empty string, but only
-at the beginning and end of words:
+\b
 
-    >>> re.findall(r'\b\w\w\w\b', s)
-    ['now', 'the', 'the', 'San', 'its', 'the', 'ago', 'and', 'you']
+findall
+
+.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
+
+
+
+.. Advanced Regular Expressions
+   zero-width assertions
+   more special symbols: \b etc
+
+.. table:: tab-re-symbols:
+
+   ===========  ===================================================================
+   Symbol       Function
+   ===========  ===================================================================
+   ``\b``       Word boundary (zero width)
+   ``\d``       Any decimal digit (equivalent to ``[0-9]``)
+   ``\D``       Any non-digit character (equivalent to ``[^0-9]``)
+   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``
+   ``\S``       Any non-whitespace character (equivalent to ``[^ \t\n\r\f\v]``)
+   ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
+   ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
+   ``\t``       The tab character
+   ``\n``       The newline character
+   ===========  ===================================================================
+
+   Regular Expression Symbols
+
+
 
 .. Note:: This example uses a Python `raw string`:dt:\:
    ``r'\b\w\w\w\b'``. The specific justification here is that in an
@@ -1271,26 +1074,13 @@ at the beginning and end of words:
    ``'\\\\'``. However, with a raw string, this reduces down to
    ``r'\\'``. 
 
-Returning to the case of repeated words, we might want to look for
-cases involving ``'very'`` or ``'really'``, and for this we use the
-disjunction operator ``|``.
-
-    >>> nltk.re_show('((very|really)\s)+', s)
-    Google Analytics is {very very very }nice (now)
-    By Jason Hoffman 18 August 06
-    Google Analytics, the result of Google's acquisition of the San
-    Diego-based Urchin Software Corporation, {really really }opened its
-    doors to the world a couple of days ago, and it allows you to
-    track up to 10 sites within a single google account.
-    >>>
-
-In addition to the matches just illustrated, the regular expression
-``'((very|really)\s)+'`` will also match cases where the two disjuncts
-occur with each other, such as the string ``'really very really '``.
 
 
 NLTK's Regular Expression Tokenizer
 -----------------------------------
+
+Tokenization based solely on whitespace is too simplistic for most applications...
+
 
 The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
 regular expression, and returns the list of substrings that match the
@@ -1347,136 +1137,84 @@ tokenizer directly, as ``nltk.WhitespaceTokenizer(text)``.
 (However, in this case is generally better to use Python's ``split()``
 method, defined on strings: ``text.split()``.)
 
+--
 
-------------------------------------------------------
-More Powerful Regular Expression Processing (Optional)
-------------------------------------------------------
 
-Substitutions
--------------
+We can see exactly where a regular expression matches against a string
+using NLTK's ``re_show`` function.  Readers are encouraged to use
+``re_show`` to explore the behavior of regular expressions.
 
-Let's now look at how to perform substitutions, using the ``re.sub()``
-function.  In the first instance we replace
-all instances of ``l`` with ``s``.  Note that this generates a string
-as output, and doesn't modify the original string.  Then we replace
-any instances of ``green`` with ``red``.
+    >>> string = """
+    ... It's probably worth paying a premium for funds that invest in markets
+    ... that are partially closed to foreign investors, such as South Korea, ...
+    ... """
+    >>> nltk.re_show('t...', string)
+    I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
+    {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
 
-    >>> sent = "colorless green ideas sleep furiously"
-    >>> re.sub('l', 's', sent)
-    'cosorsess green ideas sseep furioussy'
-    >>> re.sub('green', 'red', sent)
-    'colorless red ideas sleep furiously'
-    >>>
 
-We can also disjoin individual characters using a square bracket
-notation.  For example, ``[aeiou]`` matches any of ``a``, ``e``,
-``i``, ``o``, or ``u``, that is, any vowel.  The expression
-``[^aeiou]`` matches any single character that is `not`:em: a vowel.
-In the following example, we match sequences consisting of a non-vowel
-followed by a vowel.
 
-    >>> nltk.re_show('[^aeiou][aeiou]', sent)
-    {co}{lo}r{le}ss g{re}en{ i}{de}as s{le}ep {fu}{ri}ously
-    >>>
 
-|nopar|
-Using the same regular expression, the function ``re.findall()``
-returns a list of all the substrings in ``sent`` that are matched:
+Spanning a Line Break
+---------------------
 
-    >>> re.findall('[^aeiou][aeiou]', sent)
-    ['co', 'lo', 'le', 're', ' i', 'de', 'le', 'fu', 'ri']
-    >>>
+Occasionally we need to match material that spans a line-break.  For
+example, we may want to strip out the HTML markup from a document.
+To do this we must delete material between angle brackets.
+The most obvious expression is: |<.*>|.  However, this has two
+problems: it will not match an HTML tag that contains a line-break,
+and the |.*| will consume as much material as possible (including the
+``>`` character).  To permit matching over a line-break we must use
+Python's ``DOTALL`` flag, and to ensure that the ``>`` matches
+against the first instance of the character we must do non-greedy
+matching using ``*?``:
 
-Groupings
+    >>> text = """one two three <font
+    ...           color="red">four</font> five"""
+    >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
+
+
+------------------------------------
+Regular Expressions 3: Normalization
+------------------------------------
+
+substitutions: normalize a string.
+
+
+.. note:: |TRY|
+   Consolidate your understanding of regular expression patterns and substitutions using
+   ``nltk.misc.finding_nemo()``
+
+searching for doubled final consonants: .*([bdgptk])\1ed
+
+transforming date strings
+HTML stripping
+spelling correction
+textonyms
+
+
+---------
+OLD STUFF
 ---------
 
-Returning briefly to our earlier problem with unwanted whitespace
-around three-letter words, we note that ``re.findall()`` behaves
-slightly differently if we create `groups`:dt: in the regular
-expression using parentheses; it only returns strings that occur
-within the groups:
+Beyond this pattern matching on the *content* of a text, we often want
+to process the *formatting* and *markup* of a text.  We may want to
+check the formatting of a document (e.g. to ensure that every sentence
+begins with a capital letter) or to reformat a document
+(e.g. replacing sequences of space characters with a single space).
+We may want to find all date strings and extract the year.  We may
+want to extract all words contained inside the ``<abbrev> </abbrev>``
+markup in order to construct a list of abbreviations.
 
-    >>> re.findall('\s(\w\w\w)\s', s)
-    ['the', 'the', 'its', 'the', 'and', 'you']
-    >>>
+Processing the content, format and markup of strings is a central task
+in most kinds of NLP.  The most widespread method for string
+processing uses *regular expressions*.
+    
 
-|nopar|
-The same device allows us to select only the non-vowel characters
-that appear before a vowel:
 
-    >>> re.findall('([^aeiou])[aeiou]', sent)
-    ['c', 'l', 'l', 'r', ' ', 'd', 'l', 'f', 'r']
-    >>>
 
-By delimiting a second group in the regular expression, we can even
-generate pairs (or `tuples`:dt:) that we may then go on and
-tabulate.
-
-    >>> re.findall('([^aeiou])([aeiou])', sent)
-    [('c', 'o'), ('l', 'o'), ('l', 'e'), ('r', 'e'), (' ', 'i'),
-    ('d', 'e'), ('l', 'e'), ('f', 'u'), ('r', 'i')]
-    >>>
-
-Our next example also makes use of groups. One further special
-character is the so-called wildcard element, ``'.'``; this has the
-distinction of matching any single character (except ``'\n'``). Given
-the string ``s3``, our task is to pick out login names and email domains:
-
-    >>> s3 = """
-    ... <hart@vmd.cso.uiuc.edu>
-    ... Final editing was done by Martin Ward <Martin.Ward@uk.ac.durham>
-    ... Michael S. Hart <hart@pobox.com>
-    ... Prepared by David Price, email <ccx074@coventry.ac.uk>"""
-
-The task is made much easier by the fact that all the email addresses
-in the example are delimited by angle brackets, and we can exploit
-this feature in our regular expression:
-
-    >>> re.findall(r'<(.+)@(.+)>', s3)
-    [('hart', 'vmd.cso.uiuc.edu'), ('Martin.Ward', 'uk.ac.durham'), 
-    ('hart', 'pobox.com'), ('ccx074', 'coventry.ac.uk')]
-    >>>
 
 |nopar|
-Since ``'.'`` matches any single character, ``'.+'`` will match any
-non-empty `string`:em: of characters, including punctuation symbols
-such as the period.  
-
-One question that might occur to you is how do
-we specify a match against a period? The answer is that we have to
-place a ``'\'`` immediately before the ``'.'`` in order to escape its
-special interpretation.
-
-    >>> re.findall(r'(\w+\.)', s3)
-    ['vmd.', 'cso.', 'uiuc.', 'Martin.', 'uk.', 'ac.', 'S.', 
-    'pobox.', 'coventry.', 'ac.']
-    >>>
-
-Now, let's suppose that we wanted to match occurrences of both
-``'Google'`` and ``'google'`` in our sample text. If you have been
-following up till now, you would reasonably expect that this regular
-expression with a disjunction would do the trick:
-``'(G|g)oogle'``. But look what happens when we try this with
-``re.findall()``:
-
-    >>> re.findall('(G|g)oogle', s)
-    ['G', 'G', 'G', 'g']
-    >>> 
-
-|nopar|
-What is going wrong? We innocently used
-the parentheses to indicate the scope of the operator ``'|'``, but
-``re.findall()`` has interpreted them as marking a group. In order to
-tell ``re.findall()``  "don't try to do anything special with these
-parentheses", we need an extra piece of notation:
-
-    >>> re.findall('(?:G|g)oogle', s)
-    ['Google', 'Google', 'Google', 'google']
-    >>> 
-
-|nopar|
-Placing ``'?:'`` immediately after the opening parenthesis makes it
-explicit that the parentheses are just being used for scoping.
 
 Practice Makes Perfect
 ----------------------
@@ -1487,27 +1225,8 @@ encouraged to try out a variety of tasks using ``re_show()`` and
 ``re.findall()`` in order to develop your intuitions further; the
 exercises below should help get you started.  We suggest that you build up a
 regular expression in small pieces, rather than trying to get it
-completely right first time.  Table regexp-operators_ lists some operators
-and sequences that are commonly used in natural language processing.
+completely right first time.
 
-.. table:: regexp-operators
-
-   ===========  ====================================================================
-   Operator     Behavior
-   ===========  ====================================================================
-   ``*``        Zero or more, e.g. ``a*``, ``[a-z]*``
-   ``+``        One or more, e.g. ``a+``, ``[a-z]+``
-   ``?``        Zero or one (i.e. optional), e.g. ``a?``, ``[a-z]?``
-   ``[..]``     A set or range of characters, e.g. ``[aeiou]``, ``[a-z0-9]``
-   ``(..)``     Grouping parentheses, e.g. ``(the|a|an)``
-   ``\d``       Any decimal digit (``\D`` is any non-digit)
-   ``\s``       Any whitespace character (``\S`` is any non-whitespace character)
-   ``\w``       Any alphanumeric character (``\W`` is any non-alphanumeric character)
-   ``\t``       The tab character
-   ``\n``       The newline character
-   ===========  ====================================================================
-
-   Commonly-used Operators and Sequences
 
 
 Stripping HTML with Regular Expressions
