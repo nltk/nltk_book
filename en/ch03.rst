@@ -18,6 +18,10 @@
 .. TODO: material on chatbots
 .. TODO: map and reduce
 .. FreqDist of CHARACTER BIGRAMS...
+.. TODO: corpus of word frequencies, so we can do certain tasks on the n most frequent words
+.. TODO: plain wsj corpus
+.. TODO: cover tag soup when talking about HTML
+.. TODO: type conversion using int(), list(), etc
 
 .. _chap-words:
 
@@ -643,128 +647,250 @@ support operations that modify the original value rather than producing a new va
 
 .. _sec-regular-expressions:
 
+------------------------------------
+Regular Expressions 1: Word Patterns
+------------------------------------
+
+Many linguistic processing tasks involve pattern matching.
+For example, we can find words ending with `ed`:lx: using
+``endswith('ed')``.  We saw a variety of such "word tests"
+in Figure word-tests_.
+Regular expressions give us a more powerful and flexible
+method for describing the character patterns we are interested in.
+
+.. note::
+   There are many other published introductions to regular expressions,
+   organized around the syntax of regular expressions and applied to searching
+   text files.  Instead, we will focus on the use of regular expressions
+   at different stages of linguistic processing.  As usual, we'll adopt
+   a problem-based approach and present new features only as they are
+   needed to solve practical problems.  In our discussion we will mark
+   regular expressions using chevrons like this: |patt|\ .
+
+To use regular expressions in Python we need to import the "re" library using: ``import re``.
+We also need a list of words to search; we'll use the words corpus again (Section sec-lexical-resources_).
+We will preprocess it to remove any proper names.
+
+    >>> import re
+    >>> wordlist = [w for w in nltk.corpus.words.words() if w.islower()]
+
+Using Basic Meta-Characters
+---------------------------
+
+Let's find words ending with `ed`:lx: using the regular expression |l|\ ``ed$``\ |r|.
+We need to specify the characters of interest, and use the dollar sign which has a
+special behavior in the context of regular expressions in that it matches
+the end of the word:
+
+    >>> [w for w in wordlist if re.search('ed$', w)]
+    ['abaissed', 'abandoned', 'abased', 'abashed', 'abatised', 'abed', 'aborted', ...]
+
+The "``.``" `wildcard`:dt: symbol matches any single character.
+Suppose we have room in a crossword puzzle for an 8-letter word
+with `j`:lx: as its third letter and `t`:lx: as its sixth letter.
+In place of each blank cell we use a period:
+
+    >>> [w for w in wordlist if re.search('^..j..t..$', w)]
+    ['abjectly', 'adjuster', 'dejected', 'dejectly', 'injector', 'majestic', ...]
+
+.. note:: |TRY|
+   The caret symbol ``^`` matches the start of the word, just like the ``$`` matches
+   the end of the word.  What results to we get with the above example if we leave out
+   both of these, and search for |l|\ ``..j..t..``\ |r|?
+
+Finally, the "``?``" symbol specifies that the previous character is optional.
+Thus |l|\ ``e-?mail``\ |r| will match both `email`:lx: and `e-mail`:lx:.
+We could count the total number of occurrences of this word (in either spelling)
+using ``len(w for w in text if re.search('e-?mail', w))``.
+
+Ranges and Closures
 -------------------
-Regular Expressions
--------------------
 
-We have already noted that a text can be viewed as a string of
-characters. What kinds of processing are performed at the character
-level?  Perhaps word games are the most familiar example of such
-processing.  In completing a crossword we may want to know which
-3-letter English words end with the letter ``c`` (e.g.  ``arc``).  We
-might want to know how many words can be formed from the letters:
-``a``, ``c``, ``e``, ``o``, and ``n`` (e.g. ``ocean``).  We may want
-to find out which unique English word contains the substring ``gnt``
-(left as an exercise for the reader).  In all these examples, we are
-considering which word |mdash| drawn from a large set of candidates |mdash|
-matches a given pattern. To put this in a more computational
-framework, we could imagine searching through a large digital corpus
-in order to find all words that match a particular pattern. There are
-many serious uses of this so-called *pattern matching*.
+.. _T9:
+.. figure:: ../images/T9.png
+   :scale: 20
 
-One instructive example is the task of finding all doubled words in a
-text; an example would be the string ``for for example``. Notice that
-we would be particularly interested in finding cases where the words
-were split across a linebreak (in practice, most erroneously doubled
-words occur in this context). Consequently, even with such a
-relatively banal task, we need to be able to describe patterns which
-refer not just to "ordinary" characters, but also to formatting
-information.
+   T9: Text on 9 Keys
 
-There are conventions for indicating structure in strings, also known
-as *formatting*. For example, there are a number of alternative ways
-of formatting a "date string", such as ``23/06/2002``, ``6/23/02``, or
-``2002-06-23``.  Whole texts may be formatted, such as an email
-message which contains header fields followed by the message
-body. Another familiar form of formatting involves visual structure,
-such as tabular format and bulleted lists.
+The `T9`:dt: system is used for entering text on mobile phones.  Two or more words that
+are entered using the same sequence of keystrokes are known as `textonyms`:dt:.
+For example, both `hole`:lx: and `golf`:lx: are entered using 4653.  What other words
+could be produced with the same sequence?  Here we use the regular expression
+|l|\ ``^[ghi][mno][jlk][def]$``\ |r|:
+ 
+    >>> [w for w in wordlist if re.search('^[ghi][mno][jlk][def]$', w)]
+    ['gold', 'golf', 'hold', 'hole', 'gold', 'hole']
 
-Finally, texts may contain explicit "markup", such as
-``<abbrev>Phil</abbrev>``, which provides information about the
-interpretation or presentation of some piece of text.  To summarize,
-in language processing, strings are ubiquitous, and they often contain
-important structure.
+The first part of the expression, |l|\ ``^[ghi]``\ |r|, matches the start of
+a word followed by `g`:lx:, `h`:lx:, or `i`:lx:.  The next part of the expression,
+|l|\ ``[mno]``\ |r|, constrains the second character to be
+`m`:lx:, `n`:lx:, or `o`:lx:.  The third and fourth characters are also constrained.
+Only six words satisfy all these constraints.
+Note that the order of characters inside the square brackets is not significant, so we
+could have written |l|\ ``^[hig][nom][ljk][fed]$``\ |r| and matched the same
+words.
 
-So far we have seen elementary examples of pattern matching, the
-matching of individual characters.  More often we are interested in
-matching *sequences* of characters.  For example, part of the
-operation of a naive spell-checker could be to remove a word-final
-``s`` from a suspect word token, in case the word is a plural, and see
-if the putative singular form exists in the dictionary.  For this we
-must locate ``s`` and remove it, but only if it precedes a word
-boundary.  This requires matching a pattern consisting of two
-characters.
+.. note:: |TRY|
+   Look for some "finger-twisters", by searching for words that only use part
+   of the number-pad.  For example |l|\ ``^[g-o]+$``\ |r| will match words
+   that only use keys 4, 5, 6 in the center row, and |l|\ ``^[a-fj-o]+$``\ |r|
+   will match words that use keys 2, 3, 5, 6 in the top-right corner.
+   What do "``-``" and "``+``" mean?
 
-Beyond this pattern matching on the *content* of a text, we often want
-to process the *formatting* and *markup* of a text.  We may want to
-check the formatting of a document (e.g. to ensure that every sentence
-begins with a capital letter) or to reformat a document
-(e.g. replacing sequences of space characters with a single space).
-We may want to find all date strings and extract the year.  We may
-want to extract all words contained inside the ``<abbrev> </abbrev>``
-markup in order to construct a list of abbreviations.
+Let's explore the "``+``" symbol a bit further.  Notice that it can be applied to
+individual letters, or to bracketed sets of letters:
 
-Processing the content, format and markup of strings is a central task
-in most kinds of NLP.  The most widespread method for string
-processing uses *regular expressions*.
-    
-Simple Regular Expressions
---------------------------
+    >>> chat_words = sorted(set(w for w in nltk.corpus.nps_chat.words()))
+    >>> [w for w in chat_words if re.search('^m+i+n+e+$', w)]
+    ['miiiiiiiiiiiiinnnnnnnnnnneeeeeeeeee', 'miiiiiinnnnnnnnnneeeeeeee', 'mine',
+    'mmmmmmmmiiiiiiiiinnnnnnnnneeeeeeee']
+    >>> [w for w in chat_words if re.search('^[ha]+$', w)]
+    ['a', 'aaaaaaaaaaaaaaaaa', 'aaahhhh', 'ah', 'ahah', 'ahahah', 'ahh',
+    'ahhahahaha', 'ahhh', 'ahhhh', 'ahhhhhh', 'ahhhhhhhhhhhhhh', 'h', 'ha', 'haaa',
+    'hah', 'haha', 'hahaaa', 'hahah', 'hahaha', 'hahahaa', 'hahahah', 'hahahaha', ...]
 
-In this section we will see the building blocks for simple regular
-expressions, along with a selection of linguistic examples. We can
-think of a regular expression as *a specialized notation for
-describing patterns that we want to match*. In order to make explicit
-when we are talking about a pattern *patt*, we will
-use the notation |patt|\ . The first thing to say
-about regular expressions is that most letters match themselves. For
-example, the pattern |l|\ ``sing``\ |r| exactly matches the
-string ``sing``.  Here's an example of exact matching:
+It should be clear that "``+``" simply means "one or more instances of the preceding item",
+which could be an individual character like ``m``, a set like ``[fed]`` or a range like ``[d-f]``.
+Now let's replace "``+``" with "``*``" which means "zero or more instances of the preceding item".
+The regular expression |l|\ ``^m*i*n*e*$``\ |r| will match everything that we found using
+|l|\ ``^m+i+n+e+$``\ |r|, but also words where some of the letters don't appear at all,
+e.g. `me`:lx:, `min`:lx:, and `mmmmm`:lx:. 
 
-  >>> r1 = re.compile('aa') 
-  >>> wordlist = nltk.corpus.words.words('en')
-  >>> [w for w in wordlist if r1.search(w)]
-  ['Afrikaans', 'bazaar', 'bazaars', 'Canaan', 'Haag', 'Haas', 'Isaac', 'Isaacs', 'Isaacson', 'Izaak', 'Salaam', 'Transvaal', 'Waals']
+.. note:: |TRY|
+   Study the following examples and work out what the ``\``, ``{}`` and ``(..|..)`` notations mean:
 
-In addition, regular expressions provide us with a
-set of *special characters* which give us a way to match *sets of
-strings*, and we will now look at these.
-These "special characters" are often called *meta-characters*; that is,
-characters which express properties of (ordinary) characters.
+      >>> wsj = sorted(set(nltk.corpus.treebank.words()))
+      >>> [w for w in wsj if re.search('^[0-9]+\.[0-9]+$', w)]
+      ['0.0085', '0.05', '0.1', '0.16', '0.2', '0.25', '0.28', '0.3', '0.4', '0.5',
+      '0.50', '0.54', '0.56', '0.60', '0.7', '0.82', '0.84', '0.9', '0.95', '0.99',
+      '1.01', '1.1', '1.125', '1.14', '1.1650', '1.17', '1.18', '1.19', '1.2', ...]
+      >>> [w for w in wsj if re.search('^[A-Z]+\$$', w)]
+      ['C$', 'US$']
+      >>> [w for w in wsj if re.search('^[0-9]{4}$', w)]
+      ['1614', '1637', '1787', '1901', '1903', '1917', '1925', '1929', '1933', ...]
+      >>> [w for w in wsj if re.search('^[0-9]+-[a-z]{3,5}$', w)]
+      ['10-day', '10-lap', '10-year', '100-share', '12-point', '12-year', ...]
+      >>> [w for w in wsj if re.search('^[a-z]{5,}-[a-z]{2,3}-[a-z]{,6}$', w)]
+      ['black-and-white', 'bread-and-butter', 'father-in-law', 'machine-gun-toting', 'savings-and-loan']
+      >>> EXAMPLE WITH (  |  |  )
 
-The Wildcard
-------------
+You probably worked out that a backslash means that the following character is
+deprived of its special powers and must literally match a specific character in the
+word.  Thus, while "``.``" is special, "``\.``" only matches a period.
+The brace characters are used to specify the number of repeats of the previous item.
 
-The "``.``" symbol is called a *wildcard*: it matches any single
-character. For example, the regular expression |s.ng| matches the
-following English words: ``sang``, ``sing``, ``song``, and
-``sung``. Note that |.| will match not only alphabetic characters, but
-also numeric and whitespace characters. Consequently, |s.ng| will also
-match non-words such as ``s3ng``.
+The meta-characters we have seen are summarized in Table regexp-meta-characters1_. 
 
-We can also use the wildcard symbol for counting characters. For
-instance |....zy| matches six-letter strings that end in ``zy``.  The
-pattern |....berry| finds words like ``cranberry``. In our text from
-Wall Street Journal below, the pattern |t...| will match the words
-``that`` and ``term``, and will also match the word sequence ``to a``
-(since the third "``.``" in the pattern can match the space
-character)::
+.. table:: regexp-meta-characters1
 
-  Paragraph 12 from wsj_0034:
-  It's probably worth paying a premium for funds that invest in markets
-  that are partially closed to foreign investors, such as South Korea,
-  some specialists say.  But some European funds recently have
-  skyrocketed; Spain Fund has surged to a startling 120% premium.  It has
-  been targeted by Japanese investors as a good long-term play tied to
-  1992's European economic integration.  And several new funds that aren't
-  even fully invested yet have jumped to trade at big premiums.
+   ===============  ======================================================================================
+   Operator         Behavior
+   ===============  ======================================================================================
+   ``.``            Wildcard, matches any character
+   ``^abc``         Matches some pattern `abc`:math: at the start of a string
+   ``abc$``         Matches some pattern `abc`:math: at the end of a string
+   ``[abc]``        Matches a set of characters
+   ``[A-Z0-9]``     Matches a range of characters
+   ``(ed|ing|s)``   Matches one of the specified strings 
+   ``*``            Zero or more of previous item, e.g. ``a*``, ``[a-z]*`` (also known as *Kleene Closure*
+   ``+``            One or more of previous item, e.g. ``a+``, ``[a-z]+``
+   ``?``            Zero or one of the previous item (i.e. optional), e.g. ``a?``, ``[a-z]?``
+   ``{n}``          Exactly `n`:math: repeats where n is a non-negative integer
+   ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats (`m`:math:, `n`:math: optional)
+   ===============  ======================================================================================
 
-  "I'm very alarmed to see these rich valuations," says Smith Barney's
-  Mr. Porter.
+   Basic Regular Expression Meta-Characters, Including Wildcards, Ranges and Closures
 
-.. Note:: Note that the wildcard matches *exactly* one character, and must be
-   repeated for as many characters as should be matched.  To match a
-   variable number of characters we must use notation for *optionality*.
+Extracting Parts of Words With Regular Expressions
+--------------------------------------------------
+
+The above examples all involved searching for words `w`:math:
+that match some regular expression `regexp`:lx: using ``re.search(regexp, w)``.
+Apart from checking if a regular expression matches a word, we can use a
+regular expression to extract material from a word.
+
+The "find all" method finds all (non-overlapping) matches of the given
+regular expression.  Let's find all the vowels in a word, then count them:
+
+    >>> word = 'supercalifragulisticexpialidocious'
+    >>> re.findall('[aeiou]', word)
+    ['u', 'e', 'a', 'i', 'a', 'u', 'i', 'i', 'e', 'i', 'a', 'i', 'o', 'i', 'o', 'u']
+    >>> len(re.findall('[aeiou]', word))
+    16
+
+Let's look for all sequences of two or more vowels in some text,
+and determine their relative frequency:
+
+    >>> wsj = sorted(set(nltk.corpus.treebank.words()))
+    >>> fd = nltk.FreqDist(vs for word in wsj
+    ...                       for vs in re.findall('[aeiou]{2,}', word))
+    >>> fd.items()
+    [('io', 549), ('ea', 476), ('ie', 331), ('ou', 329), ('ai', 261), ('ia', 253),
+    ('ee', 217), ('oo', 174), ('ua', 109), ('au', 106), ('ue', 105), ('ui', 95),
+    ('ei', 86), ('oi', 65), ('oa', 59), ('eo', 39), ('iou', 27), ('eu', 18), ...]
+
+.. note:: |TRY|
+   In the W3C Date Time Format, dates are represented like this: 2009-12-31.
+   Replace the ``?`` in the following Python code with a regular expression,
+   in order to convert the string ``'2009-12-31'`` to a list of integers
+   ``[2009, 12, 31]``.
+
+   ``[int(n) for n in re.findall(?, '2009-12-31')]``
+
+It is sometimes noted that English text is highly redundant, and it is still
+easy to read when word-internal vowels are left out.  For example,
+`declaration`:lx: becomes `dclrtn`:lx:, and `inalienable`:lx: becomes `inlnble`:lx:
+(retaining peripheral vowels): 
+
+    >>> regexp = '^[AEIOUaeiou]+|[^AEIOUaeiou]|[AEIOUaeiou]+$'
+    >>> def compress(word):
+    ...     return ''.join(re.findall(regexp, word))
+    ...
+    >>> english_udhr = nltk.corpus.udhr.words('English-Latin1')
+    >>> print nltk.tokenwrap(compress(w) for w in english_udhr[:75])
+    Unvrsl Dclrtn of Hmn Rghts Prmble Whrs rcgntn of the inhrnt dgnty and
+    of the eql and inlnble rghts of all mmbrs of the hmn fmly is the fndtn
+    of frdm , jstce and pce in the wrld , Whrs dsrgrd and cntmpt fr hmn
+    rghts hve rsltd in brbrs acts whch hve outrgd the cnscnce of mnknd ,
+    and the advnt of a wrld in whch hmn bngs shll enjy frdm of spch and
+
+Finally, let's combine regular expressions with conditional frequency
+distributions.  Here we will extract all consonant-vowel sequences
+from the words of Rotokas, such as `ka`:lx: and `si`:lx:.  Since each of
+these is a pair, it can be used to initialize a conditional frequency
+distribution.  We then tabulate the frequency of each pair:
+
+    >>> rotokas_words = nltk.corpus.toolbox.words('rotokas.dic')
+    >>> cvs = [cv for w in rotokas_words for cv in re.findall('[ptksvr][aeiou]', w)]
+    >>> cfd = nltk.ConditionalFreqDist(cvs)
+    >>> cfd.tabulate()
+         a    e    i    o    u
+    k  418  148   94  420  173
+    p   83   31  105   34   51
+    r  187   63   84   89   79
+    s    0    0  100    2    1
+    t   47    8    0  148   37
+    v   93   27  105   48   49
+
+Examining the rows for `s`:lx: and `t`:lx:, we see they are in "complementary
+distribution", which is evidence that they are not distinct phonemes in the language.
+Thus, we could conceivably drop `s`:lx: from the Rotokas alphabet and simply
+have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when followed by `i`:lx:.
+
+-----------------------------------
+Regular Expressions 2: Tokenization
+-----------------------------------
+
+Focus on punctuation etc
+
+predefined character ranges
+
+\b
+
+findall
+
+.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
+
 
 We can see exactly where a regular expression matches against a string
 using NLTK's ``re_show`` function.  Readers are encouraged to use
@@ -778,29 +904,12 @@ using NLTK's ``re_show`` function.  Readers are encouraged to use
     I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
     {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
 
-Matching Optional and Repeatable Elements
------------------------------------------
 
-The "``?``" symbol indicates that the immediately preceding regular
-expression is optional.  The regular expression |colou?r| matches both
-British and American spellings, ``colour`` and ``color``.  The
-expression that precedes the ``?`` may be punctuation, such as an
-optional hyphen.  For instance |e-?mail| matches both ``e-mail`` and
-``email``.
-      
-The "``+``" symbol indicates that the immediately preceding expression
-is repeatable, up to an arbitrary number of times.  For example, the
-regular expression |coo+l| matches ``cool``, ``coool``, and so on.
-This symbol is particularly effective when combined with the ``.``
-symbol.  For example, |f.+f| matches all strings of length greater
-than two, that begin and end with the letter ``f`` (e.g.
-``foolproof``).  The expression |.+ed| finds strings that potentially
-have the past-tense ``-ed`` suffix.
-      
-The "``*``" symbol indicates that the immediately preceding expression
-is both optional and repeatable. For example |.*gnt.*| matches all
-strings that contain ``gnt``.
-      
+
+
+Spanning a Line Break
+---------------------
+
 Occasionally we need to match material that spans a line-break.  For
 example, we may want to strip out the HTML markup from a document.
 To do this we must delete material between angle brackets.
@@ -817,33 +926,45 @@ matching using ``*?``:
     >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
 
 
-Choices
--------
+------------------------------------
+Regular Expressions 3: Normalization
+------------------------------------
 
-Patterns using the wildcard symbol are very effective, but there are
-many instances where we want to limit the set of characters that the
-wildcard can match.  In such cases we can use the ``[]`` notation,
-which enumerates the set of characters to be matched |mdash| this is called
-a *character class*.  For example, we can match any English vowel, but
-no consonant, using |[aeiou]|\ . Note that this pattern can be
-interpreted as saying "match ``a`` or ``e`` or ... or ``u``"; that
-is, the pattern resembles the wildcard in only matching a string of
-length one; unlike the wildcard, it restricts the characters matched
-to a specific class (in this case, the vowels).  Note that the order
-of vowels in the regular expression is insignificant, and we would
-have had the same result with the expression |[uoiea]|\ . As a second
-example, the expression |p[aeiou]t| matches the words: ``pat``,
-``pet``, ``pit``, ``pot``, and ``put``.
+substitutions
 
-.. 
-   entries = nltk.corpus.cmudict.entries()
-   for w, _, pron in entries:
-       if re.match(r'[^aeiou][aeiou]+[^aeiou]$', w):
-           print pron
+.. note:: |TRY|
+   Consolidate your understanding of regular expression patterns and substitutions using
+   ``nltk.misc.finding_nemo()``
 
-We can combine the ``[]`` notation with our notation for
-repeatability.  For example, expression |p[aeiou]+t| matches the words
-listed above, along with: ``peat``, ``poet``, and ``pout``.
+searching for doubled final consonants: .*([bdgptk])\1ed
+
+transforming date strings
+HTML stripping
+spelling correction
+textonyms
+
+
+---------
+OLD STUFF
+---------
+
+Beyond this pattern matching on the *content* of a text, we often want
+to process the *formatting* and *markup* of a text.  We may want to
+check the formatting of a document (e.g. to ensure that every sentence
+begins with a capital letter) or to reformat a document
+(e.g. replacing sequences of space characters with a single space).
+We may want to find all date strings and extract the year.  We may
+want to extract all words contained inside the ``<abbrev> </abbrev>``
+markup in order to construct a list of abbreviations.
+
+Processing the content, format and markup of strings is a central task
+in most kinds of NLP.  The most widespread method for string
+processing uses *regular expressions*.
+    
+
+
+
+
 
 As an example of multi-character choices, suppose that we wanted
 to create a program to simplify English prose, replacing rare words
@@ -857,27 +978,6 @@ want to match the regular expression |dwelling|domicile|abode|\ .
    is a choice between ``123`` and ``456``, and not between ``12356`` and
    ``12456``.  The latter choice must be written using parentheses: |12(3|4)56|\ .
 
-Ranges
-------
-
-Earlier we saw how the ``[]`` notation could be used to express a set
-of choices between individual characters.  Instead of listing each
-character, it is also possible to express a *range* of characters,
-using the ``-`` operator.  For example, |[a-z]| matches any lowercase
-letter.  This allows us to avoid the over-permissive matching we noted
-above with the pattern |t...|\ . If we were to use the pattern
-|t[a-z][a-z][a-z]|, then we would no longer match the two word
-sequence ``to a``.
-
-As expected, ranges can be combined with other operators. For example
-|[A-Z][a-z]*| matches words that have an initial capital letter
-followed by any number of lowercase letters.  The pattern
-|20[0-4][0-9]| matches year expressions in the range 2000 to 2049.
-  
-Ranges can be combined, e.g.  |[a-zA-Z]| which matches any lowercase
-or uppercase letter.  The expression |[b-df-hj-np-tv-z]+| matches
-words consisting only of consonants (e.g. ``pygmy``).
-  
 Complementation
 ---------------
 
@@ -893,17 +993,6 @@ by ``^``. The expression as a whole is interpreted as matching
 anything which *fails* to match |[aeiou]|\ . In other
 words, it matches all lowercase consonants (plus all uppercase letters
 and non-alphabetic characters).
-
-As another example, suppose we want to match any string which is
-enclosed by the HTML tags for boldface, namely ``<B>`` and ``</B>``.
-We might try something like this: |<B>.*</B>|\ . This would
-successfully match ``<B>important</B>``, but would also match
-``<B>important</B> and <B>urgent</B>``, since the |.*| sub-pattern will
-happily match all the characters from the end of ``important`` to the
-end of ``urgent``. One way of ensuring that we only look at matched
-pairs of tags would be to use the expression |l|\ ``<B>[^<]*</B>``\
-|r|\ , where the character class matches anything other than a left
-angle bracket.
 
 Finally, note that character class complementation also works with
 ranges. Thus |[^a-z]| matches anything other than the lower case
@@ -999,52 +1088,6 @@ matched by ``'\s'``.
     }{very }happy
     >>>
 
-Python Interface
-----------------
-
-Suppose now that we want to find all three-letter words ending in the
-letter "``c``". Our first attempt might be as follows:
-
-  >>> r1 = re.compile('..c') 
-  >>> [w for w in wordlist if r1.match(w)][:10]
-  ['accede', 'acceded', 'accedes', 'accelerate', 'accelerated', 'accelerates', 'accelerating', 'acceleration', 'accelerations', 'accelerator']
-
-The problem is that we have matched words containing three-letter
-sequences ending in "``c``" which occur *anywhere within a word*. For
-example, the pattern will match "``c``" in words like ``aback``,
-``Aerobacter`` and ``albacore``.  Instead, we must revise our pattern
-so that it is anchored to the beginning and ends of the word: |l|\ ``^...$``\ |r|\ :
-
-  >>> r2 = re.compile('^..c$')
-  >>> [w for w in wordlist if r2.match(w)]
-  ['arc', 'Doc', 'Lac', 'Mac', 'Vic']
-
-In the section on complementation, we briefly looked at the task of
-matching strings which were enclosed by HTML markup. Our first attempt
-is illustrated in the following code example, where we incorrectly
-match the whole string, rather than just the substring
-"``<B>important</B>``".
-
-  >>> html = '<B>important</B> and <B>urgent</B>'
-  >>> r2 = re.compile('<B>.*</B>')
-  >>> print r2.findall(html)
-  ['<B>important</B> and <B>urgent</B>']
-
-As we pointed out, one solution is to use a character class which
-matches with the complement of "``<``":
-
-  >>> r4 = re.compile('<B>[^<]*</B>')
-  >>> print r4.findall(html)
-  ['<B>important</B>', '<B>urgent</B>']
-
-However, there is another way of approaching this problem.
-|<B>.*</B>| gets the wrong results because the
-|*| operator tries to consume as much input as
-possible. That is, the matching is said to be *greedy*. In the current
-case, |*| matches everything after the first
-``<B>``, including the following ``</B>`` and ``<B>``.  If we instead
-use the non-greedy star operator |*?|\ , we get the
-desired match, since |*?| tries to consume as little input as possible.
 
 
 .. _sec-tokenization:
@@ -1515,6 +1558,51 @@ through a series of substitutions, the result of operating on ``page``
 gets assigned as the new value of ``page``. This approach allows us to
 decompose the transformations we need into a series of simple regular
 expression substitutions, each of which can be tested and debugged on its own.
+
+
+
+As another example, suppose we want to match any string which is
+enclosed by the HTML tags for boldface, namely ``<B>`` and ``</B>``.
+We might try something like this: |<B>.*</B>|\ . This would
+successfully match ``<B>important</B>``, but would also match
+``<B>important</B> and <B>urgent</B>``, since the |.*| sub-pattern will
+happily match all the characters from the end of ``important`` to the
+end of ``urgent``. One way of ensuring that we only look at matched
+pairs of tags would be to use the expression |l|\ ``<B>[^<]*</B>``\
+|r|\ , where the character class matches anything other than a left
+angle bracket.
+
+
+In the section on complementation, we briefly looked at the task of
+matching strings which were enclosed by HTML markup. Our first attempt
+is illustrated in the following code example, where we incorrectly
+match the whole string, rather than just the substring
+"``<B>important</B>``".
+
+  >>> html = '<B>important</B> and <B>urgent</B>'
+  >>> r2 = re.compile('<B>.*</B>')
+  >>> print r2.findall(html)
+  ['<B>important</B> and <B>urgent</B>']
+
+As we pointed out, one solution is to use a character class which
+matches with the complement of "``<``":
+
+  >>> r4 = re.compile('<B>[^<]*</B>')
+  >>> print r4.findall(html)
+  ['<B>important</B>', '<B>urgent</B>']
+
+However, there is another way of approaching this problem.
+|<B>.*</B>| gets the wrong results because the
+|*| operator tries to consume as much input as
+possible. That is, the matching is said to be *greedy*. In the current
+case, |*| matches everything after the first
+``<B>``, including the following ``</B>`` and ``<B>``.  If we instead
+use the non-greedy star operator |*?|\ , we get the
+desired match, since |*?| tries to consume as little input as possible.
+
+
+More general question of appropriateness of using regular expressions to manipulate HTML or XML markup.
+
 
 Sentence Segmentation
 ---------------------
@@ -2119,13 +2207,13 @@ Exercises
    Convert this to an integer and return it.
 
 #. |easy| Describe the class of strings matched by the following regular
-   expressions. Note that ``'*'`` means: match zero or more
-   occurrences of the preceding regular expression.
+   expressions.
 
    a) ``[a-zA-Z]+``
    #) ``[A-Z][a-z]*``
+   #) ``p[aeiou]{,2}t``
    #) ``\d+(\.\d+)?``
-   #) ``([bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz])*``
+   #) ``([^aeiou][aeiou][^aeiou])*``
    #) ``\w+|[^\w\s]+``
 
    Test your answers using ``re_show()``.
