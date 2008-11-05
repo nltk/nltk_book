@@ -568,6 +568,11 @@ We can also find the position of a substring within a string, using ``find()``:
     >>> monty.find('Python')
     6
 
+.. note: |TRY|
+   Make up a sentence and assign it to a variable, e.g. ``sent = 'my sentence...'``.
+   Now write slice expressions to pull out individual words.  (This is obviously
+   not a convenient way to process the words of a text!)
+
 Analyzing Strings
 -----------------
 
@@ -799,13 +804,13 @@ The meta-characters we have seen are summarized in Table regexp-meta-characters1
    ``abc$``         Matches some pattern `abc`:math: at the end of a string
    ``[abc]``        Matches a set of characters
    ``[A-Z0-9]``     Matches a range of characters
-   ``(ed|ing|s)``   Matches one of the specified strings 
+   ``ed|ing|s``     Matches one of the specified strings (disjunction)
    ``*``            Zero or more of previous item, e.g. ``a*``, ``[a-z]*`` (also known as *Kleene Closure*)
    ``+``            One or more of previous item, e.g. ``a+``, ``[a-z]+``
    ``?``            Zero or one of the previous item (i.e. optional), e.g. ``a?``, ``[a-z]?``
    ``{n}``          Exactly `n`:math: repeats where n is a non-negative integer
    ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats (`m`:math:, `n`:math: optional)
-   ``(abc)+``       Grouping parentheses that indicate the scope of the ``+`` operator
+   ``(ab|c)+``      Parentheses that indicate the scope of the operators
    ===============  =======================================================================================
 
    Basic Regular Expression Meta-Characters, Including Wildcards, Ranges and Closures
@@ -861,12 +866,17 @@ plot them.
 
 It is sometimes noted that English text is highly redundant, and it is still
 easy to read when word-internal vowels are left out.  For example,
-`declaration`:lx: becomes `dclrtn`:lx:, and `inalienable`:lx: becomes `inlnble`:lx:
-(retaining peripheral vowels): 
+`declaration`:lx: becomes `dclrtn`:lx:, and `inalienable`:lx: becomes `inlnble`:lx:,
+retaining any initial or final vowel sequences.   This regular expression
+matches initial vowel sequences, final vowel sequences, and all consonants;
+everything else is ignored.  We use ``re.findall()`` to extract all the matching
+pieces, and ``''.join()`` to join them together (see Section sec-formatting_ for
+more about the join operation). 
 
-    >>> regexp = '^[AEIOUaeiou]+|[^AEIOUaeiou]|[AEIOUaeiou]+$'
+    >>> regexp = '^[AEIOUaeiou]+|[AEIOUaeiou]+$|[^AEIOUaeiou]'
     >>> def compress(word):
-    ...     return ''.join(re.findall(regexp, word))
+    ...     pieces = re.findall(regexp, word)
+    ...     return ''.join(pieces)
     ...
     >>> english_udhr = nltk.corpus.udhr.words('English-Latin1')
     >>> print nltk.tokenwrap(compress(w) for w in english_udhr[:75])
@@ -876,7 +886,7 @@ easy to read when word-internal vowels are left out.  For example,
     rghts hve rsltd in brbrs acts whch hve outrgd the cnscnce of mnknd ,
     and the advnt of a wrld in whch hmn bngs shll enjy frdm of spch and
 
-Finally, let's combine regular expressions with conditional frequency
+Next, let's combine regular expressions with conditional frequency
 distributions.  Here we will extract all consonant-vowel sequences
 from the words of Rotokas, such as `ka`:lx: and `si`:lx:.  Since each of
 these is a pair, it can be used to initialize a conditional frequency
@@ -902,73 +912,87 @@ have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when fol
 Finding Word Stems
 ------------------
 
-When we use a web search engine to find documents containing particular words,
-we usually don't mind if word endings don't match exactly.  A query for
-`laptops`:lx: finds documents containing `laptop`:lx: and vice versa.
-In fact, we would say that `laptop`:lx: and `laptops`:lx: are two forms
-of the *same* word.  This has many implications for our earlier word
-counting activities.
+When we use a web search engine, we usually don't mind (or even notice)
+if the words in the document differ from our search terms in having
+different endings.  A query for `laptops`:lx: finds documents
+containing `laptop`:lx: and vice versa.
+Indeed, `laptop`:lx: and `laptops`:lx: are just two forms of the *same* word.
+For some language processing tasks we want to ignore word endings, and just
+deal with word stems.
 
-There are various ways we can get at the stem of a word.  Here's a simple-minded
-approach which just strips off something that looks like a suffix:
+There are various ways we can pull out the stem of a word.  Here's a simple-minded
+approach which just strips off anything that looks like a suffix:
 
     >>> def stem(word):
-    ...     if word.endswith('ing') or word.endswith('ous'):
-    ...         return word[:-3]
-    ...     elif word.endswith('ed') or word.endswith('ly') or word.endswith('es'):
-    ...         return word[:-2]
-    ...     elif word.endswith('s'):
-    ...         return word[:-1]
-    ...     else:
-    ...         return word
+    ...     for suffix in ['ing', 'ly', 'ed', 'ious', 'ies', 's', 'es']:
+    ...         if word.endswith(suffix):
+    ...             return word[:-len(suffix)]
+    ...     return word
 
 Although we will ultimately use |NLTK|\ 's built-in stemmers, its interesting
 to see how we can use regular expressions for this task.  Our first step is
-to build up a disjunction of all the suffixes, 
+to build up a disjunction of all the suffixes.  We need to enclose it in parentheses
+in order to limit the scope of the disjunction.
 
     >>> re.findall('^.*(ing|ly|ed|ious|ies|s|es)$', 'processing')
     ['ing']
 
-You need to take care when using grouping parentheses inside a regular expression.
-Some functions including ``re.findall()`` interpret the parentheses as selecting
-material to be returned in the result.  If you need to tell ``re.findall()`` not
-to do anything special with these parentheses, add ``?:``, e.g.:
+Here, ``re.findall()`` just gave us the suffix even though the regular expression
+matched the entire word.  This is because the parentheses have a second function,
+to select substrings to be extracted.  If we want to use the parentheses for
+scoping the disjunction but not for selecting output, we have to add ``?:``
+(just one of many arcane subtleties of regular expressions).
+Here's the revised version.
 
     >>> re.findall('^.*(?:ing|ly|ed|ious|ies|es|s)$', 'processing')
     ['processing']
 
-See the split -- both parenthesised:
+However, we'd actually like to split the word into stem and suffix.
+Instead, we should just parenthesize both parts of the regular expression:
 
     >>> re.findall('^(.*)(ing|ly|ed|ious|ies|es|s)$', 'processing')
     [('process', 'ing')]
 
-Greedyness problem, use non-greedy version of ``*``.
+This looks promising, but still has a problem.  Let's look at a different
+word, `processes`:lx::
 
+    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|es|s)$', 'processes')
+    [('processe', 's')]
+
+The regular expression incorrectly found an `-s`:lx: suffix instead of
+an `-es`:lx: suffix.  This demonstrates another subtlety: the star operator
+is "greedy" and the ``.*`` part of the expression tries to consume as much of the input
+as possible.  If we use the "non-greedy" version of the star operator, written ``*?``,
+we get what we want:
+ 
     >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)$', 'processes')
     [('process', 'es')]
 
-This works even when we allow empty suffix:
+This works even when we allow empty suffix, by making the content of the
+second parentheses optional:
 
     >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)?$', 'language')
     [('language', '')]
 
-Use this on a wordlist.
+This approach still has many problems (can you spot them?) but we will move
+on to define a stemming function and apply it to a whole text:
+
+    >>> def stem(word):
+    ...     regexp = '^(.*?)(ing|ly|ed|ious|ies|es|s)?$'
+    ...     stem, suffix = re.findall(regexp, word)[0] 
+    ...     return stem
+    ...
+    >>> sent = []
+    >>> [stem(w) for w in sent]
+    
+
+the bold sir robin quickly chases after the holy grail
 
 
-Now a version which outputs all words (even those without an affix)
+stemmer interface, Lancaster, morphy, ...
 
+include special treatment for irregular forms...
 
-
-
-* just want the "stems":
-
-    >>> [stem for word in wsj for stem in re.findall('^([a-z]*)(?:ing|ly|ed|ious|ies|s|es)$', word)]
-    ['abandon', 'abat', 'abolish', 'abortion', 'abound', 'abridg', 'absolute',
-    'absorb', 'academic', 'acced', 'accelerat', 'acceptanc', 'accept', 'accept',
-    'acces', 'accessor', 'accidental', 'accident', 'accommodation', 'accomplishment',
-    'accord', 'accountant', 'account', 'account', 'account', 'accru', 'accumulat', ...]
-
-Stemming interface:
 
 
 Indexing
@@ -986,99 +1010,7 @@ Indexing
 
 
 
---------------------------------
-Techniques for Normalizing Words
---------------------------------
 
-So far, we have generally accessed texts with the help of |NLTK|\ 's
-corpus readers, which have taken care of the work of dividing a text
-file into tokens.  We've had to do some extra work to ignore
-punctuation and case distinctions, using code like this::
-
-    set(w.lower() for w in text if w.isalpha())
-
-
-unknown words
-
-
-
-
-If we ask how many words there are in ``sentence``, we get
-different answers depending on whether we count duplicates. 
-Clearly we are using different senses of "word" here.
-
-Consider the following code, which splits a string into a list of words: 
-
-    >>> sentence = "This is the time -- and this is the record of the time."
-    >>> words = sentence.split()
-    >>> words
-    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
-    >>> len(words)
-    13
-    >>> len(set(words))
-    10
-
-
-
-A word `token`:dt: is an individual occurrence
-of a word in a concrete context; it exists in time and space.  A word
-`type`:dt: is a more abstract; it's what we're talking about when we
-say that the three occurrences of ``the`` in ``sentence`` are  "the same word."
-As it happens, Python can tell us if two strings are the same token or not:
-
-    >>> words[2]
-    'the'
-    >>> words[2] == words[8]
-    True
-    >>> words[2] is words[8]
-    False
-    >>> words[2] is words[2]
-    True
-
-The operator ``==`` tests whether two expressions are equal, and in
-this case, it is testing for string-identity. This is the notion of
-identity that was assumed by our use of ``set()`` above. By contrast, the
-``is`` operator tests whether two objects are stored in the same
-location of memory, and is therefore analogous to token-identity.  
-When we used ``split()`` to turn a string into a list of words,
-our tokenization method was to say that any strings that
-are delimited by whitespace count as a word token. But this simple
-approach doesn't always give the desired results.
-Also, testing string-identity isn't a very useful criterion for
-assigning tokens to types. We therefore need to address two questions
-in more detail:
-*Tokenization:* Which substrings of the original text should be treated as word tokens?
-*Type definition:* How do we decide whether two tokens have the same type?
-
-To see the problems with our first stab at defining tokens and types
-in ``sentence``, let's look at the actual tokens we found:
-
-    >>> set(words)
-    set(['and', 'this', 'record', 'This', 'of', 'is', '--', 'time.', 'time', 'the'])
-
-|nopar|
-Observe that ``'time'`` and ``'time.'`` are incorrectly
-treated as distinct types since the trailing period
-has been bundled with the rest of the word.
-Although ``'--'`` is some kind of token, it's not a `word`:em: token.
-Additionally, ``'This'`` and ``'this'`` are incorrectly distinguished
-from each other, because of a difference in capitalization that should
-be ignored.
-
-If we turn to languages other than English, tokenizing text is even more
-challenging.  In Chinese text there is no visual representation of word
-boundaries.  Consider the following
-three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
-ai4 "love" (verb), guo3 "country", ren2 "person"). This could
-either be segmented as [|ai4|\ |guo3|]\ |ren2|\ ,
-"country-loving person" or as |ai4|\ [|guo3|\ |ren2|]\ ,
-"love country-person."
-
-To summarize, we cannot just say that two word tokens have the same type if they are
-the same string of characters.  We need to
-consider a variety of factors in determining what counts as
-the same word, and we need to be careful in how we
-identify tokens in the first place.
 
 
 
@@ -1089,7 +1021,12 @@ substitutions: normalize a string.
 
 .. note:: |TRY|
    Consolidate your understanding of regular expression patterns and substitutions using
-   ``nltk.misc.finding_nemo()``
+   ``nltk.re_show(p, s)`` which annotates the string ``s`` to show every place where
+   pattern ``p`` was matched, and ``nltk.misc.finding_nemo()`` which provides a graphical
+   interface for exploring regular expressions.
+
+
+
 
 searching for doubled final consonants: .*([bdgptk])\1ed
 
@@ -1097,19 +1034,6 @@ transforming date strings
 HTML stripping
 spelling correction
 textonyms
-
-
-Practice Makes Perfect
-----------------------
-
-Regular expressions are very flexible and very powerful. However, they
-often don't do what you expect. For this reason, you are strongly
-encouraged to try out a variety of tasks using ``re_show()`` and
-``re.findall()`` in order to develop your intuitions further; the
-exercises below should help get you started.  We suggest that you build up a
-regular expression in small pieces, rather than trying to get it
-completely right first time.
-
 
 
 Stripping HTML with Regular Expressions
@@ -1591,6 +1515,15 @@ matching using ``*?``:
     >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
 
 
+.. note::
+   If we turn to languages other than English, tokenizing text is even more
+   challenging.  In Chinese text there is no visual representation of word
+   boundaries.  Consider the following
+   three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
+   ai4 "love" (verb), guo3 "country", ren2 "person"). This could
+   either be segmented as [|ai4|\ |guo3|]\ |ren2|\ ,
+   "country-loving person" or as |ai4|\ [|guo3|\ |ren2|]\ ,
+   "love country-person."
 
 ---------------------
 Sentence Segmentation
