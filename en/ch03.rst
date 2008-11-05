@@ -328,7 +328,7 @@ will be discussed later in this chapter.)
 
 .. _pipeline1:
 .. figure:: ../images/pipeline1.png
-   :scale: 80
+   :scale: 40
 
    The Processing Pipeline
 
@@ -644,11 +644,11 @@ string once you have created it.  However, lists are `mutable`:dt:,
 and their contents can be modified at any time.  As a result, lists
 support operations that modify the original value rather than producing a new value.
 
-.. _sec-regular-expressions:
+.. _sec-regular-expressions-word-patterns:
 
-------------------------------------
-Regular Expressions 1: Word Patterns
-------------------------------------
+-----------------------------------------------
+Regular Expressions for Detecting Word Patterns
+-----------------------------------------------
 
 Many linguistic processing tasks involve pattern matching.
 For example, we can find words ending with `ed`:lx: using
@@ -779,7 +779,8 @@ characters.
       >>> [w for w in wsj if re.search('^[a-z]{5,}-[a-z]{2,3}-[a-z]{,6}$', w)]
       ['black-and-white', 'bread-and-butter', 'father-in-law', 'machine-gun-toting',
       'savings-and-loan']
-      >>> EXAMPLE WITH (  |  |  )
+      >>> [w for w in wsj if re.search('(ed|ing)$', w)]
+      ['62%-owned', 'Absorbed', 'According', 'Adopting', 'Advanced', 'Advancing', ...] 
 
 You probably worked out that a backslash means that the following character is
 deprived of its special powers and must literally match a specific character in the
@@ -809,13 +810,19 @@ The meta-characters we have seen are summarized in Table regexp-meta-characters1
 
    Basic Regular Expression Meta-Characters, Including Wildcards, Ranges and Closures
 
-Extracting Parts of Words With Regular Expressions
---------------------------------------------------
+
+------------------------------------------
+Useful Applications of Regular Expressions
+------------------------------------------
 
 The above examples all involved searching for words `w`:math:
 that match some regular expression `regexp`:lx: using ``re.search(regexp, w)``.
-Apart from checking if a regular expression matches a word, we can use a
-regular expression to extract material from a word.
+Apart from checking if a regular expression matches a word, we can use
+regular expressions to extract material from words, or to modify words
+in specific ways.
+
+Extracting Word Pieces
+----------------------
 
 The "find all" method finds all (non-overlapping) matches of the given
 regular expression.  Let's find all the vowels in a word, then count them:
@@ -844,6 +851,13 @@ and determine their relative frequency:
    ``[2009, 12, 31]``.
 
    ``[int(n) for n in re.findall(?, '2009-12-31')]``
+
+Doing More with Word Pieces
+---------------------------
+
+Once we can use ``re.findall()`` to extract material from words, there's
+interesting things to do with the pieces, like glue them back together or
+plot them.
 
 It is sometimes noted that English text is highly redundant, and it is still
 easy to read when word-internal vowels are left out.  For example,
@@ -885,25 +899,113 @@ distribution", which is evidence that they are not distinct phonemes in the lang
 Thus, we could conceivably drop `s`:lx: from the Rotokas alphabet and simply
 have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when followed by `i`:lx:.
 
-.. note::
-   You need to take care when using grouping parentheses inside a regular expression.
-   Some functions including ``re.findall()`` interpret the parentheses as selecting
-   material to be returned in the result.  If you need to tell ``re.findall()`` not
-   to do anything special with these parentheses, add ``?:``, e.g.
-   |l|\ ``(?:ed|ing|s)``\ |r|.
+Finding Word Stems
+------------------
+
+When we use a web search engine to find documents containing particular words,
+we usually don't mind if word endings don't match exactly.  A query for
+`laptops`:lx: finds documents containing `laptop`:lx: and vice versa.
+In fact, we would say that `laptop`:lx: and `laptops`:lx: are two forms
+of the *same* word.  This has many implications for our earlier word
+counting activities.
+
+There are various ways we can get at the stem of a word.  Here's a simple-minded
+approach which just strips off something that looks like a suffix:
+
+    >>> def stem(word):
+    ...     if word.endswith('ing') or word.endswith('ous'):
+    ...         return word[:-3]
+    ...     elif word.endswith('ed') or word.endswith('ly') or word.endswith('es'):
+    ...         return word[:-2]
+    ...     elif word.endswith('s'):
+    ...         return word[:-1]
+    ...     else:
+    ...         return word
+
+Although we will ultimately use |NLTK|\ 's built-in stemmers, its interesting
+to see how we can use regular expressions for this task.  Our first step is
+to build up a disjunction of all the suffixes, 
+
+    >>> re.findall('^.*(ing|ly|ed|ious|ies|s|es)$', 'processing')
+    ['ing']
+
+You need to take care when using grouping parentheses inside a regular expression.
+Some functions including ``re.findall()`` interpret the parentheses as selecting
+material to be returned in the result.  If you need to tell ``re.findall()`` not
+to do anything special with these parentheses, add ``?:``, e.g.:
+
+    >>> re.findall('^.*(?:ing|ly|ed|ious|ies|es|s)$', 'processing')
+    ['processing']
+
+See the split -- both parenthesised:
+
+    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|es|s)$', 'processing')
+    [('process', 'ing')]
+
+Greedyness problem, use non-greedy version of ``*``.
+
+    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)$', 'processes')
+    [('process', 'es')]
+
+This works even when we allow empty suffix:
+
+    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)?$', 'language')
+    [('language', '')]
+
+Use this on a wordlist.
 
 
-.. _sec-tokenization:
+Now a version which outputs all words (even those without an affix)
 
------------------------------------
-Regular Expressions 2: Tokenization
------------------------------------
+
+
+
+* just want the "stems":
+
+    >>> [stem for word in wsj for stem in re.findall('^([a-z]*)(?:ing|ly|ed|ious|ies|s|es)$', word)]
+    ['abandon', 'abat', 'abolish', 'abortion', 'abound', 'abridg', 'absolute',
+    'absorb', 'academic', 'acced', 'accelerat', 'acceptanc', 'accept', 'accept',
+    'acces', 'accessor', 'accidental', 'accident', 'accommodation', 'accomplishment',
+    'accord', 'accountant', 'account', 'account', 'account', 'accru', 'accumulat', ...]
+
+Stemming interface:
+
+
+Indexing
+--------
+
+    >>> idx = nltk.defaultdict(list)
+    >>> for word in wsj:
+    ...     key = stem(word)
+    ...     idx[key].append(word)
+    ...
+    >>> def similar(word):
+    ...     return idx[compress(word)]
+    ...
+    >>> 
+
+
+
+--------------------------------
+Techniques for Normalizing Words
+--------------------------------
+
+So far, we have generally accessed texts with the help of |NLTK|\ 's
+corpus readers, which have taken care of the work of dividing a text
+file into tokens.  We've had to do some extra work to ignore
+punctuation and case distinctions, using code like this::
+
+    set(w.lower() for w in text if w.isalpha())
+
+
+unknown words
+
+
+
 
 If we ask how many words there are in ``sentence``, we get
 different answers depending on whether we count duplicates. 
 Clearly we are using different senses of "word" here.
-
-
 
 Consider the following code, which splits a string into a list of words: 
 
@@ -980,193 +1082,7 @@ identify tokens in the first place.
 
 
 
-Tokenization with Regular Expressions
--------------------------------------
-
-Tokenization is the task of cutting a string into
-identifiable linguistic units that constitute a piece of language data. In our first attempt to
-carry out this task, we started off with a string of characters, and
-used the ``split()`` method to break the string at whitespace
-characters (including tabs and newlines).
-In this section we will take a more sophisticated approach, using
-regular expressions to specify which character sequences should be
-treated as words.
-
-Let's begin by splitting the string on whitespace (this includes tabs and newline)
-
-    >>> re.split(r'\s', sentence)
-    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
-
-[need a better example of tokenization problems, including "don't".
-
-The above method includes sentence-ending punctuation with a word...  What happens when we use the
-'\W' operator to consume these?
-
-    >>> re.split(r'\W', sentence)
-    ['This', 'is', 'the', 'time', '', '', '', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '']
-
-Also gives us empty strings (explain why).
-
-    >>> re.findall('\w+', sentence)
-    ['This', 'is', 'the', 'time', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time']
-    >>> re.findall('\w+|\S+', sentence)
-    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '.']
-
-
-Focus on punctuation etc
-
-predefined character ranges
-
-\b
-
-findall
-
-.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
-
-
-
-.. Advanced Regular Expressions
-   zero-width assertions
-   more special symbols: \b etc
-
-.. table:: tab-re-symbols:
-
-   ===========  ===================================================================
-   Symbol       Function
-   ===========  ===================================================================
-   ``\b``       Word boundary (zero width)
-   ``\d``       Any decimal digit (equivalent to ``[0-9]``)
-   ``\D``       Any non-digit character (equivalent to ``[^0-9]``)
-   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``
-   ``\S``       Any non-whitespace character (equivalent to ``[^ \t\n\r\f\v]``)
-   ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
-   ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
-   ``\t``       The tab character
-   ``\n``       The newline character
-   ===========  ===================================================================
-
-   Regular Expression Symbols
-
-
-
-.. Note:: This example uses a Python `raw string`:dt:\:
-   ``r'\b\w\w\w\b'``. The specific justification here is that in an
-   ordinary string, ``\b`` is interpreted as a backspace character.
-   Python will convert it to a backspace in a regular expression
-   unless you use the ``r`` prefix to create a raw string as shown
-   above. Another use for raw strings is to match strings that
-   include backslashes. Suppose we want to match 'either\\or'. In order
-   to create a regular expression, the backslash needs to be escaped,
-   since it is a special character; 
-   so we want to pass the pattern ``\\`` to the regular expression
-   interpreter. But to express this as a Python string literal, each
-   backslash must be escaped again, yielding the string
-   ``'\\\\'``. However, with a raw string, this reduces down to
-   ``r'\\'``. 
-
-
-
-NLTK's Regular Expression Tokenizer
------------------------------------
-
-Tokenization based solely on whitespace is too simplistic for most applications...
-
-
-The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
-regular expression, and returns the list of substrings that match the
-regular expression.  To define a tokenizer that includes punctuation
-as separate tokens, we could do the following:
-
-    >>> text = '''Hello.  Isn't this fun?'''
-    >>> pattern = r'\w+|[^\w\s]+'
-    >>> nltk.tokenize.regexp_tokenize(text, pattern)
-    ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
-
-|nopar| 
-The regular expression in this example will match a sequence
-consisting of one or more word characters ``\w+``.  It will also match
-a sequence consisting of one or more punctuation characters (or
-non-word, non-space characters ``[^\w\s]+``).  This is another negated range
-expression; it matches one or more characters that are not word
-characters (i.e., not a match for ``\w``) and not a whitespace
-character (i.e., not a match for ``\s``).  We use the disjunction
-operator ``|`` to combine these into a single complex expression
-``\w+|[^\w\s]+``.
-
-There are a number of ways we could improve on this regular
-expression.  For example, it currently breaks `$22.50`:lx: into four
-tokens; we might want it to treat this as a single token.
-Similarly, `U.S.A.` should count as a single token.  We can
-deal with these by adding further cases to the regular
-expression.  For readability we will break it up and insert comments, and
-insert the special ``(?x)`` "verbose flag" so that Python knows
-to strip out the embedded whitespace and comments.
-
-    >>> text = 'That poster costs $22.40.'
-    >>> pattern = r'''(?x)
-    ...     \w+               # sequences of 'word' characters
-    ...   | \$?\d+(\.\d+)?    # currency amounts, e.g. $12.50
-    ...   | ([A-Z]\.)+        # abbreviations, e.g. U.S.A.
-    ...   | [^\w\s]+          # sequences of punctuation
-    ... '''
-    >>> nltk.tokenize.regexp_tokenize(text, pattern)
-    ['That', 'poster', 'costs', '$22.40', '.']
-
-It is sometimes more convenient to write a regular expression
-matching the material that appears *between* tokens, such as whitespace
-and punctuation.  The ``nltk.tokenize.regexp_tokenize()`` function permits
-an optional boolean parameter ``gaps``; when set to ``True`` the
-pattern is matched against the gaps.  For example, we could define
-a whitespace tokenizer as follows:
-
-    >>> nltk.tokenize.regexp_tokenize(text, pattern=r'\s+', gaps=True)
-    ['That', 'poster', 'costs', '$22.40.']
-
-It is more convenient to call |NLTK|\ 's whitespace
-tokenizer directly, as ``nltk.WhitespaceTokenizer(text)``.
-(However, in this case is generally better to use Python's ``split()``
-method, defined on strings: ``text.split()``.)
-
---
-
-
-We can see exactly where a regular expression matches against a string
-using NLTK's ``re_show`` function.  Readers are encouraged to use
-``re_show`` to explore the behavior of regular expressions.
-
-    >>> string = """
-    ... It's probably worth paying a premium for funds that invest in markets
-    ... that are partially closed to foreign investors, such as South Korea, ...
-    ... """
-    >>> nltk.re_show('t...', string)
-    I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
-    {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
-
-
-
-
-Spanning a Line Break
----------------------
-
-Occasionally we need to match material that spans a line-break.  For
-example, we may want to strip out the HTML markup from a document.
-To do this we must delete material between angle brackets.
-The most obvious expression is: |<.*>|.  However, this has two
-problems: it will not match an HTML tag that contains a line-break,
-and the |.*| will consume as much material as possible (including the
-``>`` character).  To permit matching over a line-break we must use
-Python's ``DOTALL`` flag, and to ensure that the ``>`` matches
-against the first instance of the character we must do non-greedy
-matching using ``*?``:
-
-    >>> text = """one two three <font
-    ...           color="red">four</font> five"""
-    >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
-
-
-------------------------------------
-Regular Expressions 3: Normalization
-------------------------------------
+type vs token
 
 substitutions: normalize a string.
 
@@ -1475,6 +1391,205 @@ Indexing Texts
 (Discussion of the use of normalization in indexing a text collection; better concordancing)
 
 .. soundex concordancing, wordnet concordancing
+
+
+
+
+
+
+.. _sec-tokenization:
+
+-----------------------------------
+Regular Expressions 2: Tokenization
+-----------------------------------
+
+delayed this since the regular expressions are complex, and since tokenization is
+often already done for you...
+
+
+Tokenization with Regular Expressions
+-------------------------------------
+
+Tokenization is the task of cutting a string into
+identifiable linguistic units that constitute a piece of language data. In our first attempt to
+carry out this task, we started off with a string of characters, and
+used the ``split()`` method to break the string at whitespace
+characters (including tabs and newlines).
+In this section we will take a more sophisticated approach, using
+regular expressions to specify which character sequences should be
+treated as words.
+
+Let's begin by splitting the string on whitespace (this includes tabs and newline)
+
+    >>> re.split(r'\s', sentence)
+    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
+
+[need a better example of tokenization problems, including "don't".
+
+The above method includes sentence-ending punctuation with a word...  What happens when we use the
+'\W' operator to consume these?
+
+    >>> re.split(r'\W', sentence)
+    ['This', 'is', 'the', 'time', '', '', '', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '']
+
+Also gives us empty strings (explain why).
+
+    >>> re.findall('\w+', sentence)
+    ['This', 'is', 'the', 'time', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time']
+    >>> re.findall('\w+|\S+', sentence)
+    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '.']
+
+
+Focus on punctuation etc
+
+predefined character ranges
+
+\b
+
+findall
+
+.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
+
+
+
+.. Advanced Regular Expressions
+   zero-width assertions
+   more special symbols: \b etc
+
+.. table:: tab-re-symbols:
+
+   ===========  ===================================================================
+   Symbol       Function
+   ===========  ===================================================================
+   ``\b``       Word boundary (zero width)
+   ``\d``       Any decimal digit (equivalent to ``[0-9]``)
+   ``\D``       Any non-digit character (equivalent to ``[^0-9]``)
+   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``
+   ``\S``       Any non-whitespace character (equivalent to ``[^ \t\n\r\f\v]``)
+   ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
+   ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
+   ``\t``       The tab character
+   ``\n``       The newline character
+   ===========  ===================================================================
+
+   Regular Expression Symbols
+
+
+
+.. Note:: This example uses a Python `raw string`:dt:\:
+   ``r'\b\w\w\w\b'``. The specific justification here is that in an
+   ordinary string, ``\b`` is interpreted as a backspace character.
+   Python will convert it to a backspace in a regular expression
+   unless you use the ``r`` prefix to create a raw string as shown
+   above. Another use for raw strings is to match strings that
+   include backslashes. Suppose we want to match 'either\\or'. In order
+   to create a regular expression, the backslash needs to be escaped,
+   since it is a special character; 
+   so we want to pass the pattern ``\\`` to the regular expression
+   interpreter. But to express this as a Python string literal, each
+   backslash must be escaped again, yielding the string
+   ``'\\\\'``. However, with a raw string, this reduces down to
+   ``r'\\'``. 
+
+
+
+NLTK's Regular Expression Tokenizer
+-----------------------------------
+
+Tokenization based solely on whitespace is too simplistic for most applications...
+
+
+The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
+regular expression, and returns the list of substrings that match the
+regular expression.  To define a tokenizer that includes punctuation
+as separate tokens, we could do the following:
+
+    >>> text = '''Hello.  Isn't this fun?'''
+    >>> pattern = r'\w+|[^\w\s]+'
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
+    ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
+
+|nopar| 
+The regular expression in this example will match a sequence
+consisting of one or more word characters ``\w+``.  It will also match
+a sequence consisting of one or more punctuation characters (or
+non-word, non-space characters ``[^\w\s]+``).  This is another negated range
+expression; it matches one or more characters that are not word
+characters (i.e., not a match for ``\w``) and not a whitespace
+character (i.e., not a match for ``\s``).  We use the disjunction
+operator ``|`` to combine these into a single complex expression
+``\w+|[^\w\s]+``.
+
+There are a number of ways we could improve on this regular
+expression.  For example, it currently breaks `$22.50`:lx: into four
+tokens; we might want it to treat this as a single token.
+Similarly, `U.S.A.` should count as a single token.  We can
+deal with these by adding further cases to the regular
+expression.  For readability we will break it up and insert comments, and
+insert the special ``(?x)`` "verbose flag" so that Python knows
+to strip out the embedded whitespace and comments.
+
+    >>> text = 'That poster costs $22.40.'
+    >>> pattern = r'''(?x)
+    ...     \w+               # sequences of 'word' characters
+    ...   | \$?\d+(\.\d+)?    # currency amounts, e.g. $12.50
+    ...   | ([A-Z]\.)+        # abbreviations, e.g. U.S.A.
+    ...   | [^\w\s]+          # sequences of punctuation
+    ... '''
+    >>> nltk.tokenize.regexp_tokenize(text, pattern)
+    ['That', 'poster', 'costs', '$22.40', '.']
+
+It is sometimes more convenient to write a regular expression
+matching the material that appears *between* tokens, such as whitespace
+and punctuation.  The ``nltk.tokenize.regexp_tokenize()`` function permits
+an optional boolean parameter ``gaps``; when set to ``True`` the
+pattern is matched against the gaps.  For example, we could define
+a whitespace tokenizer as follows:
+
+    >>> nltk.tokenize.regexp_tokenize(text, pattern=r'\s+', gaps=True)
+    ['That', 'poster', 'costs', '$22.40.']
+
+It is more convenient to call |NLTK|\ 's whitespace
+tokenizer directly, as ``nltk.WhitespaceTokenizer(text)``.
+(However, in this case is generally better to use Python's ``split()``
+method, defined on strings: ``text.split()``.)
+
+--
+
+
+We can see exactly where a regular expression matches against a string
+using NLTK's ``re_show`` function.  Readers are encouraged to use
+``re_show`` to explore the behavior of regular expressions.
+
+    >>> string = """
+    ... It's probably worth paying a premium for funds that invest in markets
+    ... that are partially closed to foreign investors, such as South Korea, ...
+    ... """
+    >>> nltk.re_show('t...', string)
+    I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
+    {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
+
+
+
+
+Spanning a Line Break
+---------------------
+
+Occasionally we need to match material that spans a line-break.  For
+example, we may want to strip out the HTML markup from a document.
+To do this we must delete material between angle brackets.
+The most obvious expression is: |<.*>|.  However, this has two
+problems: it will not match an HTML tag that contains a line-break,
+and the |.*| will consume as much material as possible (including the
+``>`` character).  To permit matching over a line-break we must use
+Python's ``DOTALL`` flag, and to ensure that the ``>`` matches
+against the first instance of the character we must do non-greedy
+matching using ``*?``:
+
+    >>> text = """one two three <font
+    ...           color="red">four</font> five"""
+    >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
+
 
 
 ---------------------
