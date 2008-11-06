@@ -21,6 +21,8 @@
 .. TODO: plain wsj corpus
 .. TODO: cover tag soup when talking about HTML
 .. TODO: type conversion using int(), list(), etc
+.. TODO: vowel harmony example: extract vowel sequence using re.findall; extract bigrams from the
+   vowel sequences; then build a conditional frequency distribution
 
 .. _chap-words:
 
@@ -768,7 +770,7 @@ characters using |l|\ ``^[^aeiouAEIOU]+$``\ |r| to find items like these:
 characters.
 
 .. note:: |TRY|
-   Study the following examples and work out what the ``\``, ``{}`` and ``(..|..)`` notations mean:
+   Study the following examples and work out what the ``\``, ``{}`` and ``|`` notations mean:
 
       >>> wsj = sorted(set(nltk.corpus.treebank.words()))
       >>> [w for w in wsj if re.search('^[0-9]+\.[0-9]+$', w)]
@@ -909,6 +911,21 @@ distribution", which is evidence that they are not distinct phonemes in the lang
 Thus, we could conceivably drop `s`:lx: from the Rotokas alphabet and simply
 have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when followed by `i`:lx:.
 
+If we want to be able to inspect the words behind the numbers in the above table,
+it would be helpful to have an index.  We can do that as follows:
+
+    >>> idx = nltk.defaultdict(list)
+    >>> for w in rotokas_words:
+    ...     for cv in re.findall('[ptksvr][aeiou]', w):
+    ...         idx[cv].append(w)
+    ... 
+    >>> idx['su']
+    ['kasuari']
+    >>> idx['po']
+    ['kaapo', 'kaapopato', 'kaipori', 'kaiporipie', 'kaiporivira', 'kapo', 'kapoa',
+    'kapokao', 'kapokapo', 'kapokapo', 'kapokapoa', 'kapokapoa', 'kapokapora', ...]
+
+
 Finding Word Stems
 ------------------
 
@@ -924,7 +941,7 @@ There are various ways we can pull out the stem of a word.  Here's a simple-mind
 approach which just strips off anything that looks like a suffix:
 
     >>> def stem(word):
-    ...     for suffix in ['ing', 'ly', 'ed', 'ious', 'ies', 's', 'es']:
+    ...     for suffix in ['ing', 'ly', 'ed', 'ious', 'ies', 'ive', 'es', 's', 'ment']:
     ...         if word.endswith(suffix):
     ...             return word[:-len(suffix)]
     ...     return word
@@ -934,7 +951,7 @@ to see how we can use regular expressions for this task.  Our first step is
 to build up a disjunction of all the suffixes.  We need to enclose it in parentheses
 in order to limit the scope of the disjunction.
 
-    >>> re.findall('^.*(ing|ly|ed|ious|ies|s|es)$', 'processing')
+    >>> re.findall('^.*(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     ['ing']
 
 Here, ``re.findall()`` just gave us the suffix even though the regular expression
@@ -944,19 +961,19 @@ scoping the disjunction but not for selecting output, we have to add ``?:``
 (just one of many arcane subtleties of regular expressions).
 Here's the revised version.
 
-    >>> re.findall('^.*(?:ing|ly|ed|ious|ies|es|s)$', 'processing')
+    >>> re.findall('^.*(?:ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     ['processing']
 
 However, we'd actually like to split the word into stem and suffix.
 Instead, we should just parenthesize both parts of the regular expression:
 
-    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|es|s)$', 'processing')
+    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     [('process', 'ing')]
 
 This looks promising, but still has a problem.  Let's look at a different
 word, `processes`:lx::
 
-    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|es|s)$', 'processes')
+    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
     [('processe', 's')]
 
 The regular expression incorrectly found an `-s`:lx: suffix instead of
@@ -965,58 +982,113 @@ is "greedy" and the ``.*`` part of the expression tries to consume as much of th
 as possible.  If we use the "non-greedy" version of the star operator, written ``*?``,
 we get what we want:
  
-    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)$', 'processes')
+    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
     [('process', 'es')]
 
 This works even when we allow empty suffix, by making the content of the
 second parentheses optional:
 
-    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|es|s)?$', 'language')
+    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$', 'language')
     [('language', '')]
 
 This approach still has many problems (can you spot them?) but we will move
 on to define a stemming function and apply it to a whole text:
 
     >>> def stem(word):
-    ...     regexp = '^(.*?)(ing|ly|ed|ious|ies|es|s)?$'
-    ...     stem, suffix = re.findall(regexp, word)[0] 
+    ...     regexp = '^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
+    ...     stem, suffix = re.findall(regexp, word)[0]
     ...     return stem
     ...
-    >>> sent = []
-    >>> [stem(w) for w in sent]
-    
+    >>> raw = """DENNIS: Listen, strange women lying in ponds distributing swords
+    ... is no basis for a system of government.  Supreme executive power derives from
+    ... a mandate from the masses, not from some farcical aquatic ceremony."""
+    >>> tokens = nltk.wordpunct_tokenize(raw)
+    >>> [stem(t) for t in tokens]
+    ['DENNIS', ':', 'Listen', ',', 'strange', 'women', 'ly', 'in', 'pond',
+    'distribut', 'sword', 'i', 'no', 'basi', 'for', 'a', 'system', 'of', 'govern',
+    '.', 'Supreme', 'execut', 'power', 'deriv', 'from', 'a', 'mandate', 'from',
+    'the', 'mass', ',', 'not', 'from', 'some', 'farcical', 'aquatic', 'ceremony', '.']
 
-the bold sir robin quickly chases after the holy grail
+Notice that our regular expression removed the `s`:lx: from `ponds`:lx: but also from `is`:lx:
+and `basis`:lx:.  It produced some non-words like `distribut`:lx: and `deriv`:lx:, but these
+are acceptable stems.
+
+NLTK Stemmers
+-------------
+
+|NLTK| includes several off-the-shelf stemmers, and if you ever need
+a stemmer you should use one of these in preference to crafting your own
+using regular expressions, since these handle a wide range of irregular cases.
+The Porter Stemmer strips affixes and knows about some special cases,
+e.g. that `lie`:lx: not `ly`:lx: is the stem of `lying`:lx:.
+
+    >>> porter = nltk.PorterStemmer()
+    >>> wordnet = nltk.WordnetStemmer()
+    >>> [porter.stem(t) for t in tokens]
+    >>> ['DENNI', ':', 'Listen', ',', 'strang', 'women', 'lie', 'in', 'pond',
+    'distribut', 'sword', 'is', 'no', 'basi', 'for', 'a', 'system', 'of', 'govern',
+    '.', 'Suprem', 'execut', 'power', 'deriv', 'from', 'a', 'mandat', 'from',
+    'the', 'mass', ',', 'not', 'from', 'some', 'farcic', 'aquat', 'ceremoni', '.']
+    >>> [wordnet.stem(t) for t in tokens]
+    ['DENNIS', ':', 'Listen', ',', 'strange', 'woman', 'lying', 'in', 'pond',
+    'distributing', 'sword', 'is', 'no', 'basis', 'for', 'a', 'system', 'of',
+    'government', '.', 'Supreme', 'executive', 'power', 'derives', 'from', 'a',
+    'mandate', 'from', 'the', 'mass', ',', 'not', 'from', 'some', 'farcical',
+    'aquatic', 'ceremony', '.']
+
+The WordNet Stemmer only removes affixes if the resulting word is in its dictionary
+(and this additional checking process makes it slower).
+It doesn't handle `lying`:lx:, but it converts `women`:lx: to `woman`:lx.
+
+Stemming is not a well-defined process, and we typically pick the stemmer that best
+suits the application we have in mind.  The Porter Stemmer is a good choice if you
+are indexing some texts and want to support search using alternative forms of
+words (illustrated in Figure stemmer-indexing_).
+The WordNet Stemmer is a good choice if you want to compile the vocabulary
+of some texts and want a list of valid lexical items.
+
+.. pylisting:: stemmer-indexing
+   :caption: Indexing a Text Using a Stemmer
+
+    class IndexedText(object):
+
+        def __init__(self, stemmer, text):
+            self._text = text
+            self._stemmer = stemmer
+            self._idx = nltk.defaultdict(list)
+            for i in range(len(text)):
+                word = text[i]
+                if word.isalpha():
+                    key = self._stem(word)
+                    self._idx[key].append(i)
+
+        def concordance(self, word):
+            key = self._stem(word)
+            for i in self._idx[key]:
+                target = '_' + self._text[i] + '_'
+                print ' '.join(self._text[i-8:i] + [target] + self._text[i+1:i+8])
+
+        def _stem(self, word):
+            return self._stemmer.stem(word).lower()
+
+    >>> porter = nltk.PorterStemmer()
+    >>> grail = nltk.corpus.webtext.words('grail.txt')
+    >>> text = IndexedText(porter, grail)
+    >>> text.concordance('lie')
+    king ! DENNIS : Listen , strange women _lying_ in ponds distributing swords is no basis
+    a very brave retreat . ROBIN : All _lies_ ! MINSTREL : [ singing ] Bravest
+    Nay . Come . Come . You may _lie_ here . Oh , but you are
+    immediately ! No , no , please ! _Lie_ down . [ clap clap ] PIGLET
+    is much danger , for beyond the cave _lies_ the Gorge of Eternal Peril , which
+    Oh ... TIM : To the north there _lies_ a cave -- the cave of Caerbannog
+    and lived ! Bones of full fifty men _lie_ strewn about its lair . So ,
+    our fight ' til each one of you _lies_ dead , and the Holy Grail returns
 
 
-stemmer interface, Lancaster, morphy, ...
+.. note:: The code in Figure stemmer-indexing_ uses Python's support for
+   *Object Oriented Programming*, which we will describe systematically
+   in Chapter REF.
 
-include special treatment for irregular forms...
-
-
-
-Indexing
---------
-
-    >>> idx = nltk.defaultdict(list)
-    >>> for word in wsj:
-    ...     key = stem(word)
-    ...     idx[key].append(word)
-    ...
-    >>> def similar(word):
-    ...     return idx[compress(word)]
-    ...
-    >>> 
-
-
-
-
-
-
-
-type vs token
-
-substitutions: normalize a string.
 
 
 .. note:: |TRY|
@@ -1027,13 +1099,12 @@ substitutions: normalize a string.
 
 
 
-
-searching for doubled final consonants: .*([bdgptk])\1ed
-
-transforming date strings
-HTML stripping
-spelling correction
-textonyms
+.. 
+   searching for doubled final consonants: .*([bdgptk])\1ed
+   transforming date strings
+   HTML stripping
+   spelling correction
+   textonyms
 
 
 Stripping HTML with Regular Expressions
@@ -2129,7 +2200,6 @@ Exercises
    between all synsets of the word and all synsets of the
    words in its context.  (Note that this is a crude
    approach; doing it well is an open research problem.)
-
 
 
 .. include:: footer.rst
