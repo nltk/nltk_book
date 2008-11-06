@@ -99,22 +99,28 @@ What is important here is not so much the specifics of Turing's
 imitation game, but rather the proposal to judge 'understanding'
 in terms of observable behaviour on the part of the computer.
 
-Pursuing this approach further, consider the following task: we type in
+-------------------
+Querying a Database
+-------------------
+
+There a variety of tasks that a computer could perform which might be
+considered as involving some amount of natural language
+understanding. We will look at one in particular: we type in
 a query in English, and the computer responds with an appropriate (and
 if we are lucky, correct) answer. For example:
 
 .. _ex-dbq0:
 .. ex::
    .. _ex-dbq01:
-   .. ex:: Which country is Caracas in?
+   .. ex:: Which country is Athens in?
    .. _ex-dbq02:
-   .. ex:: Venezuela.
+   .. ex:: Greece.
 
-Building software that allows this
-task to be carried out in general way is extremely hard, but solving
-it for a particular case is close to trivial. We start off by assuming
-that we have data about cities and countries in a structured form. To be concrete,
-we will use a database table whose first few rows are as follows:
+Building software that allows this task to be carried out in general
+way is extremely hard, but solving it for a particular case is close
+to trivial. We start off by assuming that we have data about cities
+and countries in a structured form. To be concrete, we will use a
+database table whose first few rows are as follows:
 
 .. table:: cities
 
@@ -134,56 +140,72 @@ we will use a database table whose first few rows are as follows:
 NB. Note on data, provenance
 
 The obvious way to retrieve answers from this tabular data involves
-writing queries in a database query language such as SQL. Thus, rather
-than using the English query ex-dbq01_, we might have used ex-dbq1_ to
-pull out the value ``'venezuela'``.
-
+writing queries in a database query language such as SQL. For example,
+executing the query ex-dbq1_ will pull out the value ``'greece'``:
+  
 .. _ex-dbq1:
-.. ex::
-   SELECT Country FROM city_table WHERE City = 'caracas'
-
+  .. ex::
+     SELECT Country FROM city_table WHERE City = 'athens'
+  
 .. Note::
-   If you want to find out more about SQL,
-   `<http://www.w3schools.com/sql/>`_ is a convenient online reference.
-
-But we can also translate English queries into SQL. 
-
-
-.. pylisting:: sql-fcfg
-   :caption: Toy grammar that outputs SQL
-    
-    >>> nltk.data.show_cfg('grammars/sql.fcfg')
+     If you want to find out more about SQL,
+     `<http://www.w3schools.com/sql/>`_ is a convenient online reference.
+  
+Let's look at how we can get the same effect using English as our
+input to the query system. Using the feature-based grammar formalism
+developed in Chapter chap-featgram_ we can translate from English to
+SQL. The grammar ``sql0.fcfg`` illustrates how we can assemble a
+meaning representation for a sentence by in
+tandem with parsing the sentence. Each phrase structure rule is
+supplemented with a recipe for constructing a value for the feature
+``sem`` As you will see, these recipes are extremely simple; in each
+case, we use the string concatenation operation ``+`` (XREF to featgram
+chapter) to splice the values for the daughter constituents so as to
+make a value for the mother constituent. 
+  
+    >>> nltk.data.show_cfg('grammars/sql0.fcfg')
     % start S
     S[sem=(?np + ?vp)] -> NP[sem=?np] VP[sem=?vp]
     VP[sem=(?v + ?pp)] -> IV[sem=?v] PP[sem=?pp]
-    VP[sem=(?v + ?np)] -> TV[sem=?v] NP[sem=?np]
+    VP[sem=(?v + ?ap)] -> IV[sem=?v] AP[sem=?ap]
     NP[sem=(?det + ?n)] -> Det[sem=?det] N[sem=?n]
-    NP[sem='Country="japan"'] -> 'Japan'
+    PP[sem=?np] -> P[sem=?p] NP[sem=?np]
+    AP[sem=?pp] -> A[sem=?a] PP[sem=?pp]
+    NP[sem='Country="greece"'] -> 'Greece'
     NP[sem='Country="united_states"'] -> 'USA'
-    Det[sem='SELECT'] -> 'Which'
+    Det[sem='SELECT'] -> 'Which' | 'What'
     N[sem='City FROM city_table'] -> 'cities'
     IV[sem='WHERE'] -> 'are'
-    PP[sem=?np] -> P[sem=?p] NP[sem=?np]
+    A -> 'located'
     P -> 'in'
-
+  
 This allows us to parse a query into SQL.
-
+  
     >>> from nltk.parse import load_earley
     >>> from string import join
-    >>> cp = load_earley('grammars/sql.fcfg')
-    >>> query = 'Which cities are in USA'
+    >>> cp = load_earley('grammars/sql0.fcfg')
+    >>> query = 'What cities are located in USA'
     >>> trees = cp.nbest_parse(query.split())
     >>> answer = trees[0].node['sem']
     >>> q = join(answer)
     >>> print q
     SELECT City FROM city_table WHERE Country="united_states"
 
-Finally, we execute the query over the database.
+.. note:: |TRY|
+   Run the parser with maximum tracing on, i.e.,
+   ``cp = load_earley('grammars/sql0.fcfg', trace=3)``, and examine
+   how the values of ``sem`` are built up as complete edges are added
+   to the chart.
+
+Finally, we execute the query over the database ``city.db``.
 
     >>> from nltk.sem import chat80
-    >>> rows = chat80.sql_query(path, q)
+    >>> rows = chat80.sql_query('samples/city.db', q)
     >>> for r in rows: print "%s" % r,
-    chicago detroit los_angeles new_york philadelphia
+    canton chungking dairen harbin kowloon mukden peking shanghai sian tientsin
+
+
+
 
 There are many |NLP| applications where it would be useful to have some
 representation of the `meaning`:em: of a natural language
