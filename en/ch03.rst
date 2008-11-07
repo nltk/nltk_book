@@ -8,7 +8,6 @@
 
 .. TODO: more on regular expressions, including ()
 .. TODO: talk about fact that English lexicon is open set (e.g. malware = malicious software)
-.. TODO: add section on sentence tokenization (or sentence segmentation), and punkt
 .. TODO: add pointers to regexp toolkits (e.g. Kodos)
 .. TODO: other issues
    - nltk.corpus.brown.items returns a tuple, not a list (cf discussion in ch 6)
@@ -1043,7 +1042,8 @@ It doesn't handle `lying`:lx:, but it converts `women`:lx: to `woman`:lx.
 Stemming is not a well-defined process, and we typically pick the stemmer that best
 suits the application we have in mind.  The Porter Stemmer is a good choice if you
 are indexing some texts and want to support search using alternative forms of
-words (illustrated in Figure stemmer-indexing_).
+words (illustrated in Figure stemmer-indexing_, which uses *object oriented*
+programming techniques that will be covered in Chapter REF). 
 The WordNet Stemmer is a good choice if you want to compile the vocabulary
 of some texts and want a list of valid lexical items.
 
@@ -1085,9 +1085,6 @@ of some texts and want a list of valid lexical items.
     our fight ' til each one of you _lies_ dead , and the Holy Grail returns
 
 
-.. note:: The code in Figure stemmer-indexing_ uses Python's support for
-   *Object Oriented Programming*, which we will describe systematically
-   in Chapter REF.
 
 
 
@@ -1107,98 +1104,6 @@ of some texts and want a list of valid lexical items.
    textonyms
 
 
-Stripping HTML with Regular Expressions
----------------------------------------
-
-Web pages are usually in |HTML| format.  To extract the text, we
-need to strip out the |HTML| markup, i.e. remove all material enclosed in
-angle brackets. Let's digress briefly to consider how to carry out
-this task using regular expressions. Our first attempt might look as
-follows:
-
-    >>> line = '<title>BBC NEWS | News Front Page</title>'
-    >>> new = re.sub(r'<.*>', '', line)
-
-So the regular expression ``'<.*>'`` is intended to match a
-pair of left and right angle brackets, with a string of any characters
-intervening. However, look at what the result is:
-
-    >>> new
-    '' 
-
-|nopar| 
-What has happened here? The problem is twofold. First,
-the wildcard ``'.'`` matches any character other than ``'\n'``,
-so it will match ``'>'`` and ``'<'``.
-Second, the ``'*'`` operator is "greedy", in the sense that it matches
-as many characters as it can. In the above example,
-``'.*'`` will return not the shortest match, namely
-``'title'``, but the longest match, ``'title>BBC NEWS | News Front
-Page</title'``.   To get the *shortest* match we have to use the ``'*?'`` operator.
-We will also normalize whitespace, replacing any sequence
-of spaces, tabs or newlines (``'\s+'``) with a single space character.
-
-    >>> page = re.sub('<.*?>', '', page)
-    >>> page = re.sub('\s+', ' ', page)
-    >>> print page[:60]
-     BBC NEWS | News Front Page News Sport Weather World Service
-
-.. Note:: Note that your output for the above code may differ from ours,
-   because the BBC home page may have been changed since this
-   example was created.
-
-.. TODO: fix above example?  (make it current; issue with script on BBC site)
-
-You will probably find it useful to borrow the structure of the above code
-snippet for future tasks involving regular expressions: each time
-through a series of substitutions, the result of operating on ``page``
-gets assigned as the new value of ``page``. This approach allows us to
-decompose the transformations we need into a series of simple regular
-expression substitutions, each of which can be tested and debugged on its own.
-
-
-
-As another example, suppose we want to match any string which is
-enclosed by the HTML tags for boldface, namely ``<B>`` and ``</B>``.
-We might try something like this: |<B>.*</B>|\ . This would
-successfully match ``<B>important</B>``, but would also match
-``<B>important</B> and <B>urgent</B>``, since the |.*| sub-pattern will
-happily match all the characters from the end of ``important`` to the
-end of ``urgent``. One way of ensuring that we only look at matched
-pairs of tags would be to use the expression |l|\ ``<B>[^<]*</B>``\
-|r|\ , where the character class matches anything other than a left
-angle bracket.
-
-
-In the section on complementation, we briefly looked at the task of
-matching strings which were enclosed by HTML markup. Our first attempt
-is illustrated in the following code example, where we incorrectly
-match the whole string, rather than just the substring
-"``<B>important</B>``".
-
-  >>> html = '<B>important</B> and <B>urgent</B>'
-  >>> r2 = re.compile('<B>.*</B>')
-  >>> print r2.findall(html)
-  ['<B>important</B> and <B>urgent</B>']
-
-As we pointed out, one solution is to use a character class which
-matches with the complement of "``<``":
-
-  >>> r4 = re.compile('<B>[^<]*</B>')
-  >>> print r4.findall(html)
-  ['<B>important</B>', '<B>urgent</B>']
-
-However, there is another way of approaching this problem.
-|<B>.*</B>| gets the wrong results because the
-|*| operator tries to consume as much input as
-possible. That is, the matching is said to be *greedy*. In the current
-case, |*| matches everything after the first
-``<B>``, including the following ``</B>`` and ``<B>``.  If we instead
-use the non-greedy star operator |*?|\ , we get the
-desired match, since |*?| tries to consume as little input as possible.
-
-
-More general question of appropriateness of using regular expressions to manipulate HTML or XML markup.
 
 
 
@@ -1220,21 +1125,8 @@ example, only the noun `saw`:lx: will occur immediately after
 determiners such as `the`:lx:.  Distinct words that have the same
 written form are called `homographs`:dt:. We can distinguish
 homographs with the help of context; often the previous word suffices.
-We will explore this idea of context briefly, before addressing the
-main topic of this section.
+[WSD]
 
-As a first approximation to discovering the distribution of a word, we
-can look at all the bigrams it occurs in.
-A `bigram`:dt: is simply a pair of words.
-For example, in the sentence `She sells sea shells by the sea shore`:lx:,
-the bigrams are
-`She sells`:lx:,
-`sells sea`:lx:,
-`sea shells`:lx:,
-`shells by`:lx:,
-`by the`:lx:,
-`the sea`:lx:,
-`sea shore`:lx:.
 
 You will also see that this list includes different grammatical forms
 of the same verb. We can form separate groups consisting of
@@ -1281,37 +1173,8 @@ are combined into a single line.
     often appear    6
     often call      5
 
-Lemmatization is a rather sophisticated process that uses rules
-for the regular word patterns, and table look-up for
-the irregular patterns. Within |NLTK|, we can use off-the-shelf
-stemmers, such as the `Porter Stemmer`:dt:, the `Lancaster Stemmer`:dt:,
-and the stemmer that comes with WordNet, e.g.:
 
-    >>> stemmer = nltk.PorterStemmer()
-    >>> verbs = ['appears', 'appear', 'appeared', 'calling', 'called']
-    >>> stems = [stemmer.stem(verb) for verb in verbs]
-    >>> sorted(set(stems))
-    ['appear', 'call']
 
-Stemmers for other languages are added to NLTK as they are contributed,
-e.g. the RSLP Portuguese Stemmer, ``nltk.RSLPStemmer()``.
-
-Lemmatization and stemming are special cases of `normalization`:dt:.
-They identify a canonical representative for a set of related word forms.
-Normalization collapses distinctions.  Exactly how we normalize words depends
-on the application.  Often, we convert everything into lower
-case so that we can ignore the written distinction between sentence-initial
-words and the rest of the words in the sentence.
-The Python string method ``lower()`` will accomplish this for us:
-
-    >>> str = 'This is the time'
-    >>> str.lower()
-    'this is the time'
-
-.. We need to be careful, however; case normalization will also collapse the `New`:lx:
-   of `New York`:lx: with the `new`:lx: of `my new car`:lx:.
-   [SB: this mixes the issue with named entity detection, and should probably
-   be left to the engineering chapter]
 
 A final issue for normalization is the presence of contractions, such
 as `didn't`:lx:.  If we are analyzing the meaning
@@ -1600,6 +1463,9 @@ matching using ``*?``:
 Sentence Segmentation
 ---------------------
 
+[Explain how sentence segmentation followed by word tokenization can give
+different results to word tokenization on its own.]
+
 Manipulating texts at the level of individual words often presupposes
 the ability to divide a text into individual sentences.  As we have
 seen, some corpora already provide access at the sentence level.  In
@@ -1858,7 +1724,8 @@ Summary
   patterns. Once we have imported the ``re`` module, we can use
   ``re.findall()`` to find all substrings in a string that match a pattern,
   and we can use ``re.sub()`` to replace substrings of one sort with another.
-
+* Normalization of words collapses distinctions, and is useful when indexing texts.
+<
 ---------------
 Further Reading
 ---------------

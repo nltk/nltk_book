@@ -52,7 +52,7 @@ LATEX_VALIGN_IS_BROKEN = True
    submitted a patch to docutils, so hopefully this wil be fixed
    soon."""
 
-LATEX_DPI = 140
+LATEX_DPI = 36
 """The scaling factor that should be used to display bitmapped images
    in latex/pdf output (specified in dots per inch).  E.g., if a
    bitmapped image is 100 pixels wide, it will be scaled to

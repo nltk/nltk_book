@@ -38,11 +38,11 @@ Requires Imagemagick C{convert}.
 """
 
 import re, sys, os
-from nltk.draw import *
-from nltk.draw.tree import *
 import tkFont
 import tempfile
 import pickle
+from nltk.draw.util import SequenceWidget, TreeSegmentWidget, TextWidget,\
+        SpaceWidget, CanvasFrame
 
 CONVERT = 'convert'
 
