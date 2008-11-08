@@ -146,6 +146,11 @@ executing the query ex-dbq1_ will pull out the value ``'greece'``:
 .. _ex-dbq1:
   .. ex::
      SELECT Country FROM city_table WHERE City = 'athens'
+
+This specifies a result set consisting of all values for the column
+``Country`` in data rows where the value of the ``City`` column is
+``'athens'``.
+
   
 .. Note::
      If you want to find out more about SQL,
@@ -164,32 +169,18 @@ chapter) to splice the values for the daughter constituents so as to
 make a value for the mother constituent. 
   
     >>> nltk.data.show_cfg('grammars/sql0.fcfg')
-    % start S
-    S[sem=(?np + ?vp)] -> NP[sem=?np] VP[sem=?vp]
-    VP[sem=(?v + ?pp)] -> IV[sem=?v] PP[sem=?pp]
-    VP[sem=(?v + ?ap)] -> IV[sem=?v] AP[sem=?ap]
-    NP[sem=(?det + ?n)] -> Det[sem=?det] N[sem=?n]
-    PP[sem=?np] -> P[sem=?p] NP[sem=?np]
-    AP[sem=?pp] -> A[sem=?a] PP[sem=?pp]
-    NP[sem='Country="greece"'] -> 'Greece'
-    NP[sem='Country="united_states"'] -> 'USA'
-    Det[sem='SELECT'] -> 'Which' | 'What'
-    N[sem='City FROM city_table'] -> 'cities'
-    IV[sem='WHERE'] -> 'are'
-    A -> 'located'
-    P -> 'in'
-  
+
 This allows us to parse a query into SQL.
   
     >>> from nltk.parse import load_earley
     >>> from string import join
     >>> cp = load_earley('grammars/sql0.fcfg')
-    >>> query = 'What cities are located in USA'
+    >>> query = 'What cities are located in China'
     >>> trees = cp.nbest_parse(query.split())
     >>> answer = trees[0].node['sem']
     >>> q = join(answer)
     >>> print q
-    SELECT City FROM city_table WHERE Country="united_states"
+    SELECT City FROM city_table WHERE Country="china"
 
 .. note:: |TRY|
    Run the parser with maximum tracing on, i.e.,
@@ -197,15 +188,71 @@ This allows us to parse a query into SQL.
    how the values of ``sem`` are built up as complete edges are added
    to the chart.
 
-Finally, we execute the query over the database ``city.db``.
+Finally, we execute the query over the database ``city.db`` and
+retrieve some results.
 
     >>> from nltk.sem import chat80
     >>> rows = chat80.sql_query('samples/city.db', q)
     >>> for r in rows: print "%s" % r,
     canton chungking dairen harbin kowloon mukden peking shanghai sian tientsin
 
+Let's review what we've just learned. We claimed earlier that one way
+of getting a computer to 'understand' English was making it perform
+tasks that seem to require some processing of meaning. The specific
+task that we've just examined involves the computer giving useful data
+back in response to a natural language query, and we implemented this
+by translating a small subset of English into SQL. So to the extent
+that our software already 'understands' SQL, in the sense of being
+able to execute SQL queries against a database, it also undertands
+queries such as `What cities are located in China?`:lx:. The grammar
+``sql0.fcfg``, together with the NLTK Earley parser, has been
+instrumental in carrying out the translation. The grammar is a mixed
+bag. On the one hand, it assigns some kind of meaning to the parts of
+sentences. For example, `what cities`:lx: receives the meaning
+``SELECT City from city_table``. The parts can then be combined to
+make a translation for the whole sentence, so one can imagine that the
+approach could be adopted for other queries of a similar
+sort. Nevertheless, the grammar is, to be blunt, a hack. First off, we
+have hard-wired an embarrassing amount of detail about the database:
+we need to know the name of the relevant table (e.g., ``city_table``)
+and the names of the fields. But our database could have contained
+exactly the same rows of data yet used a different table name and
+field names, in which case the grammar would crash and burn. Equally,
+we could have stored our data in a different format, such as XML, in
+which case retrieving the same results would require us to translate
+our English queries into an XML query language. 
 
+In order to sharpen the point, let's consider another English query
+and its translation into SQL.
 
+.. _ex-dbq2:
+.. ex::
+   .. _ex-dbq21:
+   .. ex:: What	cities are in China and have populations above 1,000,000?
+   .. _ex-dbq22:
+   .. ex:: SELECT City FROM city_table WHERE Country = 'china' AND
+           Population > 1000
+
+.. note:: |TRY|
+   Extend the grammar ``sql0.fcfg`` so that it will translate
+   ex-dbq21_ into ex-dbq22_, and check the return values given by
+   executing the query. You will probably find it easiest to first
+   extend the grammar to handle queries like `What cities have
+   populations above 1,000,000`:lx:. After you have had a go at this,
+   you can compare your solution to ``grammars/sql1.fcfg`` in the NLTK
+   data distribution.
+
+As you can see, the `and`:lx: conjunction in ex-dbq21_ gets translated
+into an ``AND`` in the SQL counterpart, ex-dbq22_. The latter tells us
+to select results from rows where two conditions are true
+together: the value of the ``Country`` column is ``'china'`` and the
+value of the ``Population`` column is greater than 1000. This
+interpretation for `and`:lx: returns to an idea we mentioned earlier,
+namely it talks about what is true in some particular
+situation. Moreover, although we haven't exhausted the meaning of
+`and`:lx: in English, we have given it a meaning which is independent
+of any query language. In fact, we have given it the standard
+interpretation from `propositional logic`:dt:
 
 There are many |NLP| applications where it would be useful to have some
 representation of the `meaning`:em: of a natural language
