@@ -10,6 +10,15 @@
 .. TODO: extracting dates from a tokenized text
 .. TODO: finding a sequence of words matching some pattern (including doubled words, e.g. "the thing is is that")
 .. TODO: non-mutability of dictionary keys
+.. TODO: The Lexicon:
+   * words are more than just the output of tokenization
+   * explore what it means for a document to contain a word
+   * ways this can fail: mis-spelling; different endings; synonyms; homonyms
+   * type vs token distinction; connection of types to lemmas
+   * concept of "word", many-to-many mapping between forms and meanings
+   * why the lexicon is an open set, lexical productivity and challenge for NLP
+   * morphology
+
 
 .. _chap-corpora:
 
@@ -834,7 +843,13 @@ and ``FreqDist(text)`` counts the frequency of each word in the text.  Both
 of these are simple lexical resources.  Similarly, a concordance 
 (Section sect-computing-with-language-texts-and-words_)
 gives us information about word usage that might help in the preparation of
-a dictionary.
+a dictionary.  Standard terminology for lexicons is illustrated in Figure fig-lexicon_.
+
+.. _fig-lexicon:
+.. figure:: ../images/lexicon.png
+   :scale: 50
+   
+   Lexicon Terminology
 
 The simplest kind of lexicon is nothing more than a sorted list of words.
 Sophisticated lexicons include complex structure within and across
@@ -1079,17 +1094,30 @@ in several languages.  The languages are identified using an ISO 639 two-letter 
 We can also access cognate words from multiple languages using the ``entries()`` method,
 specifying a list of languages.  With one further step we can convert this into a simple dictionary.
 
-    >>> swadesh.entries(['en', 'fr'])
-    [('I', 'je'), ('you (singular), thou', 'tu, vous'), ('he', 'il'), ('we', 'nous'),
-    ('you (plural)', 'vous'), ('they', 'ils, elles'), ('this', 'ceci'), ('that', 'cela'), ...]
-    >>> en2fr = dict(swadesh.entries(['en', 'fr']))
-    >>> en2fr['dog']
-    'chien'
-    >>> en2fr['throw']
-    'jeter'
+    >>> fr2en = swadesh.entries(['fr', 'en'])
+    >>> fr2en
+    [('je', 'I'), ('tu, vous', 'you (singular), thou'), ('il', 'he'), ('nous', 'we'), ...]
+    >>> translate = dict(fr2en)
+    >>> translate['chien']
+    'dog'
+    >>> translate['jeter']
+    'throw'
 
-(We will explore this example in the context of our systematic presentation of Python
-dictionaries in Section sec-dictionaries_.)
+We can make our simple translator more useful by adding other source languages.
+Let's get the German-English and Spanish-English pairs, convert each to a
+dictionary, then *update* our original ``translate`` dictionary with these
+additional mappings:
+
+    >>> de2en = swadesh.entries(['de', 'en'])    # German-English
+    >>> es2en = swadehs.entries(['es', 'en'])    # Spanish-English
+    >>> translate.update(dict(de2en))
+    >>> translate.update(dict(es2en))
+    >>> translate['Hund']
+    'dog'
+    >>> translate['perro']
+    'dog'
+    
+(We will return to Python's dictionary data type ``dict()`` in Section sec-dictionaries_.)
 We can compare words in various Germanic and Romance languages:
 
     >>> languages = ['en', 'de', 'nl', 'es', 'fr', 'pt', 'it', 'la']
@@ -1100,45 +1128,6 @@ We can compare words in various Germanic and Romance languages:
     ('sing', 'singen', 'zingen', 'cantar', 'chanter', 'cantar', 'cantare', 'canere')
     ('play', 'spielen', 'spelen', 'jugar', 'jouer', 'jogar, brincar', 'giocare', 'ludere')
     ('float', 'schweben', 'zweven', 'flotar', 'flotter', 'flutuar, boiar', 'galleggiare', 'fluctuare')
-
-WordNet
--------
-
-Perhaps the most popular electronic lexical resource is known as a `wordnet`:dt:, a sophisticated kind of
-`semantic network`:dt:.  |NLTK| includes the English WordNet, and it is
-accessible to you in the variable ``wordnet`` (so long as you have already imported
-the book module, using ``from nltk.book import *``).
-
-    >>> for synset in wordnet.synsets('dish'):
-    ...     print synset.name, synset.definition
-    ...
-    dish.n.01 a piece of dishware normally used as a container for holding or serving food
-    dish.n.02 a particular item of prepared food
-    dish.n.03 the quantity that a dish will hold
-    smasher.n.02 a very attractive or seductive looking woman
-    dish.n.05 directional antenna consisting of a parabolic reflector for microwave or radio frequency radiation
-    cup_of_tea.n.01 an activity that you like or at which you are superior
-    serve.v.06 provide (usually but not necessarily food)
-    dish.v.02 make concave; shape like a dish
-    >>>
-
-Each synset is characterized by a set of synonymous words:
-    
-    >>> wn.synset('dish.n.04').lemma_names
-    ['smasher', 'stunner', 'knockout', 'beauty', 'ravisher', 'sweetheart',
-    'peach', 'lulu', 'looker', 'mantrap', 'dish']
-    >>>
-
-We can access semantically related forms.  The `hypernyms`:dt: of a word sense are more general terms... 
-
-    >>> wordnet.synset('dish.n.01').hypernyms()
-    [Synset('container.n.01'), Synset('crockery.n.01')]
-    >>> wordnet.synset('crockery.n.01').hypernyms()
-    [Synset('tableware.n.01')]
-    >>>
-
-WordNet is an important resource for many areas of Natural Language Processing.
-We will discuss it in more detail in Section wordnet_.
 
 Shoebox and Toolbox Lexicons
 ----------------------------
@@ -1177,441 +1166,6 @@ we will return to this topic in Chapter chap-data_.
    Rotokas is notable for having the smallest alphabet of any written language
    (12 letters), ``http://en.wikipedia.org/wiki/Rotokas_language``
     
-
-.. _sec-dictionaries:
-
-------------------------
-The Dictionary Data Type
-------------------------
-
-A text, as we have seen, is treated in Python as a list of words.
-An important property of lists is that we can "look up" a particular
-item by giving its index, e.g. ``text1[100]``.  Notice how we specify
-a number, and get back a word.  We can think of a list as a simple
-kind of table, as shown in Figure maps01_.
-
-.. _maps01:
-.. figure:: ../images/maps01.png
-   :scale: 30
-
-   List Look-up
-
-Contrast this situation with frequency distributions (section computing-with-language-simple-statistics_),
-where we specify a word, and get back a number, e.g. ``fdist['monstrous']``, which
-tells us the number of times a given word has occurred in a text.  Look-up using words is
-familiar to anyone who has used a dictionary.  Some more examples are shown in
-Figure maps02_.
-
-.. _maps02:
-.. figure:: ../images/maps02.png
-   :scale: 22
-
-   Dictionary Look-up
-
-In the case of a phonebook, we look up an entry using a `name`:em:,
-and get back a number.  When we type a domain name in a web browser,
-the computer looks this up to get back an IP address.  A word
-frequency table allows us to look up a word and find its frequency in
-a text collection.  In all these cases, we are mapping from names to
-numbers, rather than the other way round.
-In general, we would like to be able to map between
-arbitrary types of information.  Table linguistic-objects_ lists a variety
-of linguistic objects, along with what they map.
-
-.. table:: linguistic-objects
-
-    +--------------------+-------------------------------------------------+
-    | Linguistic Object  |                      Maps                       |
-    |                    +------------+------------------------------------+
-    |                    |    from    | to                                 |
-    +====================+============+====================================+
-    |Document Index      |Word        |List of pages (where word is found) |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
-    |Thesaurus           |Word sense  |List of synonyms                    |
-    +--------------------+------------+------------------------------------+
-    |Dictionary          |Headword    |Entry (part of speech, sense        |
-    |                    |            |definitions, etymology)             |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
-    |Comparative Wordlist|Gloss term  |Cognates (list of words, one per    |
-    |                    |            |language)                           |
-    +--------------------+------------+------------------------------------+
-    |Morph Analyzer      |Surface form|Morphological analysis (list of     |
-    |                    |            |component morphemes)                |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
-
-    Linguistic Objects as Mappings from Keys to Values
-
-Most often, we are mapping from a "word" to some structured object.
-For example, a document index maps from a word (which we can represent
-as a string), to a list of pages (represented as a list of integers).
-In this section, we will see how to represent such mappings in Python.
-
-Dictionaries in Python
-----------------------
-
-Python provides a `dictionary`:dt: data type that can be used for
-mapping between arbitrary types.  It is like a conventional dictionary,
-in that it gives you an efficient way to look things up.  However,
-as we will see, it has a much wider range of uses.  Let's revisit
-the CMU Pronouncing Dictionary, this time using Python's dictionary
-interface:
-
-    >>> prondict = nltk.corpus.cmudict.transcriptions()
-    >>> prondict['fire']
-    [('F', 'AY1', 'ER0'), ('F', 'AY1', 'R')]
-    >>> prondict['blog']
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    KeyError: 'blog'
-    >>> prondict['blog'] = [('B', 'L', 'AA1', 'G')]
-    >>> prondict['blog']
-    [('B', 'L', 'AA1', 'G')]
-
-We look up a dictionary by specifying its name, followed by a `key`:dt:
-(such as the word `fire`:lx:) inside square brackets: ``prondict['fire']``.
-If we try to look up a non-existent key, we get a ``KeyError``,
-as we did when indexing a list with an integer that was too large.
-The word `blog`:lx: is missing from the pronouncing dictionary,
-so we tweak our version by assigning a value for this key
-(this has no effect on the |NLTK| corpus; next time we access it,
-`blog`:lx: will still be absent).
-
-Now let's experiment with dictionaries on a smaller scale, building up
-one of our own.
-Here we define ``pos`` to be an empty dictionary and then add four
-entries to it, specifying the part-of-speech of some words.  We add
-entries to a dictionary using the familiar square bracket notation:
-
-    >>> pos = {}
-    >>> pos['colorless'] = 'adjective'
-    >>> pos['ideas'] = 'noun'
-    >>> pos['sleep'] = 'verb'
-    >>> pos['furiously'] = 'adverb'
-
-So, for example, ``pos['colorless'] = 'adjective'`` says that
-the part-of-speech of `colorless`:lx: is "adjective", or more
-specifically, that the look-up value of the key ``'colorless'`` in ``pos``
-is the value ``'adjective'``.  Now we can look up our dictionary
-using these keys:
-
-    >>> pos['ideas']
-    'noun'
-    >>> pos['colorless']
-    'adjective'
-    >>> pos['missing']
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    KeyError: 'missing'
-
-A Closer Look at Python Dictionaries
-------------------------------------
-
-We have just seen how to access a dictionary entry, and what happens
-when an entry does not exist.  This raises an important question.
-Unlike lists and strings, where we
-can use ``len()`` to work out which integers will be legal indices, how
-do we work out the legal keys for a dictionary?  We simply convert the
-dictionary to a list, or use the dictionary in a context where a list
-is expected:
-
-    >>> list(pos)
-    ['ideas', 'furiously', 'colorless', 'sleep']
-    >>> sorted(pos)
-    ['colorless', 'furiously', 'ideas', 'sleep']
-    >>> [w for w in pos if w.endswith('s')]
-    ['colorless', 'ideas']
-
-.. note::
-   When you type `list(pos)` you might see a different order
-   to the one shown above.  This is because
-   dictionaries are not sequences but mappings (cf Figure maps02_),
-   and the keys are not inherently ordered.  If we want
-   to see them in order, we simply need to sort them.
-
-The last example above used a ``for`` loop to iterate over all keys
-in the dictionary.  We can also use the ``for`` loop in another way,
-just we did for printing lists:
-
-    >>> for word in sorted(pos):
-    ...     print word ":", pos[word]
-    ... 
-    colorless: adjective
-    furiously: adverb
-    sleep: verb
-    ideas: noun
-
-We can see what the contents of the dictionary look like by inspecting
-the variable ``pos``.
-
-    >>> pos
-    {'furiously': 'adverb', 'ideas': 'noun', 'colorless': 'adjective', 'sleep': 'verb'}
-
-Here, the contents of the dictionary are shown as `key-value
-pairs`:dt:, separated by a colon.  As you can see,  the order
-of the key-value pairs is different
-from the order in which they were originally entered.
-
-We can use the same key-value pair format to create a dictionary:
-
-    >>> pos = {'colorless': 'adjective', 'ideas': 'noun', 'sleep': 'verb', 'furiously': 'adverb'}
-
-Using the dictionary methods ``keys()``, ``values()`` and ``items()``,
-we can access the keys and values as separate lists,
-and also the key-value pairs:
-
-    >>> pos.keys()
-    ['colorless', 'furiously', 'sleep', 'ideas']
-    >>> pos.values()
-    ['adjective', 'adverb', 'verb', 'noun']
-    >>> pos.items()
-    [('colorless', 'adjective'), ('furiously', 'adverb'), ('sleep', 'verb'), ('ideas', 'noun')]
-    >>> for key, val in sorted(pos.items()):
-    ...     print key ":", val
-    ...
-    colorless: adjective
-    furiously: adverb
-    ideas: noun
-    sleep: verb
-
-Note that keys are forced to be unique.
-Suppose we try to use a dictionary to store the fact that the
-word `sleep`:lx: can be used as a verb and as a noun:
-
-    >>> pos['sleep'] = 'verb'
-    >>> pos['sleep'] = 'noun'
-    >>> pos['sleep']
-    'noun'
-
-Initially, ``pos['sleep']`` is given the value ``'verb'``, and this is
-immediately overwritten with the new value ``'noun'``.
-In other words, there is only one entry for ``'sleep'``.
-If we wanted to store multiple values in that entry, we could use a list,
-e.g. ``pos['sleep'] = ['noun', 'verb']``.  In fact, this is what we
-saw at the start of this section for the CMU Pronouncing Dictionary,
-so that we could have multiple pronunciations for a single word.
-
-Default Dictionaries
---------------------
-
-Since Python 2.5, a special kind of dictionary has been available, which
-can automatically create a default entry for a given key.  (It is provided
-as ``nltk.defaultdict`` for the benefit of readers who are using Python 2.4).
-In order to use it, we have to supply a parameter which can be used to
-create an empty entry, e.g. ``int``:
-
-    >>> frequency = nltk.defaultdict(int)
-    >>> frequency['colorless'] = 4
-    >>> frequency['ideas']
-    0
-
-We can supply our own function to be used for creating the initial value.
-Let's return to our part-of-speech example, and create a dictionary
-whose default value for any entry is ``'noun'``:  
-
-    >>> def default_pos():
-    ...     return 'noun'
-    ...
-    >>> pos = nltk.defaultdict(default_pos)
-    >>> pos['colorless'] = 'adjective'
-    >>> pos['blog']
-    'noun'
-
-
-Converting Lists to Dictionaries
---------------------------------
-
-We've just seen how ``list(pos)`` created a list of keys from a dictionary
-consisting of key-value mappings.  Sometimes we need to go the other way,
-and convert a stream of input tokens into a dictionary, in order to be able
-to conveniently and quickly look them up later.  We do this by creating
-a list of pairs, and converting it to a dictionary using ``dict()``: 
-
-    >>> from nltk.corpus import swadesh
-    >>> word_pairs = swadesh.entries(['fr', 'en'])
-    >>> word_pairs
-    [('je', 'I'), ('tu, vous', 'you (singular), thou'), ('il', 'he'), ('nous', 'we'), ...]
-    >>> translate = dict(word_pairs)
-    >>> translate['chien']
-    'dog'
-    >>> translate['jeter']
-    'throw'
-
-We can make our simple translator more useful by adding other source languages.
-Let's get the German-English and Spanish-English pairs, convert each to a
-dictionary, then *update* our original ``translate`` dictionary with these
-additional mappings:
-
-    >>> translate.update(dict(swadesh.entries(['de', 'en'])))
-    >>> translate.update(dict(swadesh.entries(['es', 'en'])))
-    >>> translate['Hund']
-    'dog'
-    >>> translate['perro']
-    'dog'
-    
-
-Incrementally Updating a Dictionary
------------------------------------ 
-
-We can use dictionaries to count word occurrences, emulating the
-method used for tallying words (Figure tally_).  We begin by initializing
-an empty dictionary, then process each word of the text.  If the word hasn't
-been seen before, we add it to our list with a zero count.  If we've
-seen it before we increment its count using the ``+=`` operator.
-
-.. pylisting:: dictionary
-   :caption: Incrementally Updating a Dictionary, and Sorting by Value
-
-    >>> counts = nltk.defaultdict(int)
-    >>> for word in nltk.corpus.gutenberg.words('shakespeare-macbeth.txt'):
-    ...     counts[word] += 1
-    ...
-    >>> counts['Scotland']
-    12
-    >>> counts['the']
-    692
-    >>> list(counts)
-    ['Lead', 'doubts', 'felt', 'hath', 'protest', 'sleep', 'thirst', 'Barke', 'hate',
-    'goodnesse', 'forget', 'whose', 'Hose', 'solliciting', 'euery', 'Keepes', ...]
-    
-    >>> from operator import itemgetter
-    >>> sorted(counts.items(), key=itemgetter(1), reverse=True)
-    [(',', 1962), ('.', 1235), ("'", 637), ('the', 531), (':', 477), ('and', 376),
-    ('I', 333), ('of', 315), ('to', 311), ('?', 241), ('d', 224), ('a', 214),
-    ('you', 184), ('in', 173), ('my', 170), ('And', 170), ('is', 166), ...]
-    >>> [w for w,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
-    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in',
-    'my', 'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The',
-    'haue', 'me', 'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', ...]
-
-The listing in Figure dictionary_ illustrates an important idiom for sorting a dictionary in terms of its
-values, to show the words in decreasing order of frequency.  We use the ``sorted()``
-function, with ``key`` and ``reverse`` parameters.  The sort key is the second element of
-each pair, which we would normally access using an index ``[1]``.  We can't use this expression
-on its own (i.e. ``key=[1]``) since ``[1]`` looks like a list containing the integer 1.
-Instead we use ``itemgetter(1)``, a function which does the same thing:
-
-    >>> pair = ('?', 241)
-    >>> pair[1]
-    241
-    >>> itemgetter(1)(pair)
-    241
-
-The listing in Figure dictionary_ illustrates an important programming idiom
-for working with dictionaries, and we'll give a schematic version here:
-
-|    ``my_dictionary = nltk.defaultdict(``\ *function to create default value*\ ``)``
-|    ``for`` *item* ``in`` *sequence*\ ``:``
-|        *update* ``my_dictionary[``\ *item_key*\ ``]`` *with information about item*
-
-Here's another example, where we index the words according to their last two letters:
-
-    >>> last_letters = nltk.defaultdict(list)
-    >>> for word in words:
-    ...     key = word[-2:]
-    ...     last_letters[key].append(word)
-    ...
-    >>> last_letters['ly']
-    ['abjectly', 'ably', 'abnormally', 'abortively', 'abruptly', 'absently', 'absolutely',
-    'abstractly', 'absurdly', 'abundantly', 'abysmally', 'academically', 'acceptably', ...]
-    >>> last_letters['zy']
-    ['breezy', 'buzzy', 'cozy', 'crazy', 'dizzy', 'frenzy', 'fuzzy', 'hazy', 'jazzy', ...]
-
-The following example uses the same pattern to create an anagram dictionary.
-(You might experiment with the third line to get an idea of why this program works.)
-
-    >>> anagrams = nltk.defaultdict(list)
-    >>> for word in words:
-    ...     key = ''.join(sorted(word))
-    ...     anagrams[key].append(word)
-    ...
-    >>> anagrams['aegilnrt']
-    ['alerting', 'altering', 'integral', 'relating', 'triangle']
-
-Frequency Distributions
------------------------
-
-|NLTK|\ 's frequency distribution support (``nltk.FreqDist``) is just
-a special kind of dictionary which has extra functions for sorting
-and plotting that are needed in language processing.  Instead of the
-lengthy code in Figure dictionary_, we can write the following:
-
-    >>> text = nltk.corpus.gutenberg.words('shakespeare-macbeth.txt')
-    >>> counts = nltk.FreqDist(text)
-    >>> counts['Scotland']
-    12
-    >>> list(counts)
-    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
-    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', ...]
-
-Notice that we can initialize a ``FreqDist`` with a list, without bothering
-to expicitly process the items of the list one at a time in our program.
-Unlike a regular dictionary, when we convert a ``FreqDist`` into a list, the
-keys appear in order of decreasing frequency.
-
-Inverting a Dictionary
-----------------------
-
-Dictionaries support efficient lookup, so long as you want to get the value for
-any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
-immediately obtain the value.  Finding a key given a value is slower and more
-cumbersome:
-
-    >>> [key for key,value in counts.items() if value == 16]
-    ['call', 'sleepe', 'take', 'where', 'Your', 'Father', 'looke', 'owne']
-
-If we expect to do this kind of "reverse lookup" often, it helps to construct
-a dictionary that maps values to keys.  In the case that no two keys have
-the same value, this is an easy thing to do.  We just get all the key-value
-pairs in the dictionary, and create a new dictionary of value-key pairs:
-
-    >>> pos2 = dict((value, key) for (key, value) in pos.items())
-    >>> pos2['noun']
-    'ideas'
-
-Let's make our part of speech dictionary a bit more realistic and add some more words,
-to create the situation where multiple keys have the same value.  The above method
-will not work in this case (why not?).  Instead, we need to use our method of incrementally
-updating a dictionary, as follows:
-
-    >>> pos.update({'cats': 'noun', 'scratch': 'verb', 'peacefully': 'adverb', 'old': 'adjective'})
-    >>> pos2 = {}
-    >>> for key,value in pos.items():
-    ...     if value not in pos2:
-    ...         pos2[value] = []
-    ...     pos2[value].append(key)
-    ... 
-    >>> pos2['adverb']
-    ['peacefully', 'furiously']
-
-Now, we have inverted the ``pos`` dictionary, and can look up any part of speech and find
-all words having that part of speech.
-
-Summary
--------
-
-Thanks to their versatility, Python dictionaries are extremely useful in most areas of |NLP|.
-We already made heavy use of dictionaries in Chapter chap-introduction_, since
-|NLTK|\ 's ``FreqDist`` objects are just a special case of dictionaries for counting things.
-Table tab-dict_ lists the most important dictionary methods you should know. 
-
-.. table:: tab-dict
-
-   ==================================  ==========================================================
-   Example                             Description
-   ==================================  ==========================================================
-   ``d = {}``                          create an empty dictionary and assign it to ``d``
-   ``d[key] = value``                  assign a value to a given dictionary key
-   ``list(d)``, ``d.keys()``           the list of keys of the dictionary
-   ``key in d``                        test whether a particular key is in the dictionary
-   ``d.values()``                      the list of values in the dictionary
-   ``dict([(k1,v1), (k2,v2), ...])``   create a dictionary from a list of key-value pairs
-   ==================================  ==========================================================
-
-   Summary of Python's Dictionary Methods
-
 .. _wordnet:   
 
 -------
@@ -1620,15 +1174,38 @@ WordNet
 
 `WordNet`:idx: is a semantically-oriented dictionary of English,
 similar to a traditional thesaurus but with a richer structure.
-WordNet groups words into synonym sets, or `synsets`:dt:, each with
-its own definition and with links to other synsets.
-WordNet 3.0 data is distributed with NLTK, and includes 155,287 words
-and 117,659 synsets.
+|NLTK| includes the English WordNet, with 155,287 words
+and 117,659 "synonym sets" or synsets.  It is
+accessible to you in the variable ``wordnet`` (so long as you have already imported
+the book module, using ``from nltk.book import *``).
 
-Although WordNet was originally developed for research
-in psycholinguistics, it is widely used in NLP and Information Retrieval.
-WordNets are being developed for many other languages, as documented
-at ``http://www.globalwordnet.org/``.
+    >>> for synset in wordnet.synsets('dish'):
+    ...     print synset.name, synset.definition
+    ...
+    dish.n.01 a piece of dishware normally used as a container for holding or serving food
+    dish.n.02 a particular item of prepared food
+    dish.n.03 the quantity that a dish will hold
+    smasher.n.02 a very attractive or seductive looking woman
+    dish.n.05 directional antenna consisting of a parabolic reflector for microwave or radio frequency radiation
+    cup_of_tea.n.01 an activity that you like or at which you are superior
+    serve.v.06 provide (usually but not necessarily food)
+    dish.v.02 make concave; shape like a dish
+    >>>
+
+Each synset is characterized by a set of synonymous words:
+    
+    >>> wn.synset('dish.n.04').lemma_names
+    ['smasher', 'stunner', 'knockout', 'beauty', 'ravisher', 'sweetheart',
+    'peach', 'lulu', 'looker', 'mantrap', 'dish']
+    >>>
+
+We can access semantically related forms.  The `hypernyms`:dt: of a word sense are more general terms... 
+
+    >>> wordnet.synset('dish.n.01').hypernyms()
+    [Synset('container.n.01'), Synset('crockery.n.01')]
+    >>> wordnet.synset('crockery.n.01').hypernyms()
+    [Synset('tableware.n.01')]
+    >>>
 
 .. note::
    |NLTK| includes a convenient web-browser interface to WordNet
@@ -1636,6 +1213,9 @@ at ``http://www.globalwordnet.org/``.
 
 Senses and Synonyms
 -------------------
+
+.. senses in order of decreasing frequency?
+.. how to access frequency?
 
 Consider the sentence in carex1_.
 If we replace the word `motorcar`:lx: in carex1_ by `automobile`:lx:,
@@ -1700,7 +1280,7 @@ ambiguous:
     [Synset('car.n.01'), Synset('car.n.02'), Synset('car.n.03'), Synset('car.n.04'),
     Synset('cable_car.n.01')]
 
-Each of these five synsets has lemmas: 
+Each of these five synsets has its own lemmas: 
 
     >>> for synset in wn.synsets('car'):
     ...     print synset.lemma_names
@@ -1717,6 +1297,7 @@ as follows:
     >>> wn.lemmas('car')
     [Lemma('car.n.01.car'), Lemma('car.n.02.car'), Lemma('car.n.03.car'),
     Lemma('car.n.04.car'), Lemma('cable_car.n.01.car')]
+
 
 The WordNet Hierarchy
 ---------------------
@@ -1820,22 +1401,38 @@ Many verbs have entailments:
 
 [Some adjectives have antonyms...]
 
-Semantic Similarity (NEEDS TO BE UPDATED)
------------------------------------------
+Semantic Similarity
+-------------------
 
 .. TODO: discuss WSD, mention Semcor, give pine cone example
 
-.. It is often useful to be able to tell whether two lexical concepts are
-   `semantically related`:dt:. For example, in order to check whether a
-   particular instance of the word `bank`:lx: means
-   *financial institution*, we can count the number of nearby words
-   that are semantically related to this sense.  Using WordNet, we can
-   investigate whether semantic relatedness can be
-   expressed in terms of the graph structure of the concept hierarchy. 
+The 117,659 synsets of WordNet are linked by a complex network of
+lexical relations.  We can use this network to discover how
+closely related any pair of concepts are.  A simple method is
+to find the most specific hypernym(s) that are shared by
+two synsets.  In the following examples, we see that 
 
-We would expect that the semantic similarity of two concepts
-would correlate with the length of the path between them in WordNet.
-The ``wordnet`` package includes a variety of measures
+    >>> grail = wn.synset('grail.n.01')
+    >>> swallow = wn.synset('swallow.n.03')
+    >>> python = wn.synset('python.n.01')
+    >>> comedy = wn.synset('comedy.n.01')
+    >>> comedy.lowest_common_hypernyms(grail)
+    [Synset('abstraction.n.06')]
+    >>> wn.synset('abstraction.n.06').min_depth()
+    1
+    >>> grail.lowest_common_hypernyms(swallow)
+    [Synset('entity.n.01')]
+    >>> wn.synset('entity.n.01').min_depth()
+    0
+    >>> swallow.lowest_common_hypernyms(python)
+    [Synset('vertebrate.n.01')]
+    >>> wn.synset('vertebrate.n.01').min_depth()
+    8
+
+From this we might conclude that `swallow`:lx: is
+more closely related to `python`:lx: than to `grail`:lx:.
+
+The WordNet package includes a variety of sophisticated measures
 that incorporate this basic insight.  For example,
 ``path_similarity`` assigns a score in the range ``0``\ |ndash|\
 ``1``, based on the shortest path that connects the concepts in the hypernym
@@ -1843,14 +1440,12 @@ hierarchy (``-1`` is returned in those cases where a path cannot be
 found).  A score of 1 represents identity, i.e., comparing a sense with
 itself will return ``1``.
 
-    >>> wordnet.N['poodle'][0].path_similarity(wordnet.N['dalmatian'][1])
-    0.33333333333333331
-    >>> wordnet.N['dog'][0].path_similarity(wordnet.N['cat'][0])
-    0.20000000000000001
-    >>> wordnet.V['run'][0].path_similarity(wordnet.V['walk'][0])
-    0.25
-    >>> wordnet.V['run'][0].path_similarity(wordnet.V['think'][0])
-    -1
+    >>> comedy.path_similarity(grail)
+    ?
+    >>> grail.path_similarity(swallow)
+    ?
+    >>> swallow.path_similarity(python)
+    ?
 
 Several other similarity measures are provided in ``wordnet``:
 Leacock-Chodorow, Wu-Palmer, Resnik, Jiang-Conrath, and Lin.
@@ -1947,6 +1542,10 @@ LDC, ELRA
 The online documentation at |NLTK-API| contains extensive reference material
 for all |NLTK| modules.
 
+Although WordNet was originally developed for research
+in psycholinguistics, it is widely used in NLP and Information Retrieval.
+WordNets are being developed for many other languages, as documented
+at ``http://www.globalwordnet.org/``.
 
 ---------
 Exercises

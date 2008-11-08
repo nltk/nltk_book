@@ -22,6 +22,8 @@
 .. TODO: type conversion using int(), list(), etc
 .. TODO: vowel harmony example: extract vowel sequence using re.findall; extract bigrams from the
    vowel sequences; then build a conditional frequency distribution
+.. TODO: spelling correction (a kind of normalization);
+   Soundex -- indexing strings in a dictionary (key = soundex code; value = list of words)
 
 .. _chap-words:
 
@@ -650,6 +652,7 @@ string once you have created it.  However, lists are `mutable`:dt:,
 and their contents can be modified at any time.  As a result, lists
 support operations that modify the original value rather than producing a new value.
 
+
 .. _sec-regular-expressions-word-patterns:
 
 -----------------------------------------------
@@ -911,19 +914,25 @@ Thus, we could conceivably drop `s`:lx: from the Rotokas alphabet and simply
 have a pronunciation rule that the letter `t`:lx: is pronounced `s`:lx: when followed by `i`:lx:.
 
 If we want to be able to inspect the words behind the numbers in the above table,
-it would be helpful to have an index.  We can do that as follows:
+it would be helpful to have an index, allowing us to quickly find the list of words
+that contains a given consonant-vowel pair, e.g. ``cv_index['su']`` should give us
+all words containing `su`:lx:.  Here's how we can do this:
 
-    >>> idx = nltk.defaultdict(list)
-    >>> for w in rotokas_words:
-    ...     for cv in re.findall('[ptksvr][aeiou]', w):
-    ...         idx[cv].append(w)
-    ... 
-    >>> idx['su']
+    >>> cv_word_pairs = [(cv, w) for w in rotokas_words
+                                 for cv in re.findall('[ptksvr][aeiou]', w)]
+    >>> cv_index = nltk.Index(cv_word_pairs)
+    >>> cv_index['su']
     ['kasuari']
-    >>> idx['po']
+    >>> cv_index['po']
     ['kaapo', 'kaapopato', 'kaipori', 'kaiporipie', 'kaiporivira', 'kapo', 'kapoa',
     'kapokao', 'kapokapo', 'kapokapo', 'kapokapoa', 'kapokapoa', 'kapokapora', ...]
 
+This program processes each word ``w`` in turn, and for each one, finds every
+substring that matches the regular expression |l|\ ``[ptksvr][aeiou]``\ |r|.
+In the case of the word `kasuari`:lx:, it finds `ka`:lx:, `su`:lx: and `ri`:lx:.
+Therefore, the ``cv_word_pairs`` list will contain ``('ka', 'kasuari')``,
+``('su', 'kasuari')`` and ``('ri', 'kasuari')``.  One further step, using
+``nltk.Index()``, converts this into a useful index.
 
 Finding Word Stems
 ------------------
@@ -1055,16 +1064,12 @@ of some texts and want a list of valid lexical items.
         def __init__(self, stemmer, text):
             self._text = text
             self._stemmer = stemmer
-            self._idx = nltk.defaultdict(list)
-            for i in range(len(text)):
-                word = text[i]
-                if word.isalpha():
-                    key = self._stem(word)
-                    self._idx[key].append(i)
+            self._index = nltk.Index((self._stem(word), i)
+                                     for (i, word) in enumerate(text))
 
         def concordance(self, word):
             key = self._stem(word)
-            for i in self._idx[key]:
+            for i in self._index[key]:
                 target = '_' + self._text[i] + '_'
                 print ' '.join(self._text[i-8:i] + [target] + self._text[i+1:i+8])
 
@@ -1083,8 +1088,6 @@ of some texts and want a list of valid lexical items.
     Oh ... TIM : To the north there _lies_ a cave -- the cave of Caerbannog
     and lived ! Bones of full fifty men _lie_ strewn about its lair . So ,
     our fight ' til each one of you _lies_ dead , and the Holy Grail returns
-
-
 
 
 
@@ -1180,41 +1183,6 @@ A final issue for normalization is the presence of contractions, such
 as `didn't`:lx:.  If we are analyzing the meaning
 of a sentence, it would probably be more useful to normalize this
 form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
-
-The Lexicon
------------
-
-* words are more than just the output of tokenization
-* explore what it means for a document to contain a word
-* ways this can fail: mis-spelling; different endings; synonyms; homonyms
-* type vs token distinction; connection of types to lemmas
-* concept of "word", many-to-many mapping between forms and meanings
-* why the lexicon is an open set, lexical productivity and challenge for NLP
-* morphology
-
-.. _fig-lexicon:
-.. figure:: ../images/lexicon.png
-   :scale: 50
-   
-   Lexicon Terminology
-
-
-String Similarity
------------------
-
-* spelling correction (a kind of normalization)
-* stemming (``nltk.stem``)
-* Soundex -- indexing strings in a dictionary (key = soundex code; value = list of words)
-* anagrams -- key = sorted letters of word; value = list of words with these letters
-
-Indexing Texts
---------------
-
-(Discussion of the use of normalization in indexing a text collection; better concordancing)
-
-.. soundex concordancing, wordnet concordancing
-
-
 
 
 
