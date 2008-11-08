@@ -1186,65 +1186,86 @@ form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
 
 
 
-
 .. _sec-tokenization:
 
------------------------------------
-Regular Expressions 2: Tokenization
------------------------------------
-
-delayed this since the regular expressions are complex, and since tokenization is
-often already done for you...
-
-
-Tokenization with Regular Expressions
--------------------------------------
+---------------------------------------
+Regular Expressions for Tokenizing Text
+---------------------------------------
 
 Tokenization is the task of cutting a string into
-identifiable linguistic units that constitute a piece of language data. In our first attempt to
-carry out this task, we started off with a string of characters, and
-used the ``split()`` method to break the string at whitespace
-characters (including tabs and newlines).
-In this section we will take a more sophisticated approach, using
-regular expressions to specify which character sequences should be
-treated as words.
+identifiable linguistic units that constitute a piece of language data.
+Although it is a fundamental task, we have been able to
+delay it til now because many corpora are already tokenized,
+and because |NLTK| includes some tokenizers.
+Now that you are familiar with regular expressions,
+you can learn how to use them to tokenize text, and to
+have much more control over the process.
 
-Let's begin by splitting the string on whitespace (this includes tabs and newline)
+Simple Approaches to Tokenization
+---------------------------------
 
-    >>> re.split(r'\s', sentence)
-    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time.']
+The very simplest method for tokenizing text is to split on whitespace.
+Consider the following text:
 
-[need a better example of tokenization problems, including "don't".
+    >>> raw = """ARTHUR and BLACK KNIGHT: Aaah!, hiyaah!, etc. [ARTHUR chops the BLACK KNIGHT's left arm off] 
+    ... ARTHUR: Now stand aside, worthy adversary.
+    ... BLACK KNIGHT: 'Tis but a scratch.
+    ... ARTHUR: A scratch?  Your arm's off!
+    ... BLACK KNIGHT: No, it isn't.
+    """
 
-The above method includes sentence-ending punctuation with a word...  What happens when we use the
-'\W' operator to consume these?
+We could split this raw text on whitespace using ``raw.split()``.
+To do the same using a regular expression, we need to match any number
+of spaces, tabs, or newlines.
 
-    >>> re.split(r'\W', sentence)
-    ['This', 'is', 'the', 'time', '', '', '', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '']
+    >>> re.split(r'[ \t\n]+', raw)
+    ['ARTHUR', 'and', 'BLACK', 'KNIGHT:', 'Aaah!,', 'hiyaah!,', 'etc.', '[ARTHUR',
+    'chops', 'the', 'BLACK', "KNIGHT's", 'left', 'arm', 'off]', 'ARTHUR:', 'Now',
+    'stand', 'aside,', 'worthy', 'adversary.', 'BLACK', 'KNIGHT:', "'Tis", 'but',
+    'a', 'scratch.', 'ARTHUR:', 'A', 'scratch?', 'Your', "arm's", 'off!', 'BLACK',
+    'KNIGHT:', 'No,', 'it', "isn't."]
+    
+The regular expression |l|\ ``[ \t\n]+``\ |r| matches one or more space, tab (``\t``)
+or newline (``\n``).  Other whitespace characters, such as carriage-return and
+form-feed should really be included too.  Instead, we will can use a built-in
+abbreviation, ``\s``, which means any whitespace character.  The above
+statement can be rewritten as ``re.split(r'\s+', raw)``.
 
-Also gives us empty strings (explain why).
+.. note::
+   When using regular expressions that contain the backslash character, you should
+   prefix the string with the letter ``r`` (meaning "raw"), which instructs the Python
+   interpreter to treat them as literal backslashes.
 
-    >>> re.findall('\w+', sentence)
-    ['This', 'is', 'the', 'time', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time']
-    >>> re.findall('\w+|\S+', sentence)
-    ['This', 'is', 'the', 'time', '--', 'and', 'this', 'is', 'the', 'record', 'of', 'the', 'time', '.']
+Splitting on whitespace gives us tokens like ``[Arthur`` and ``scratch?``.
+An alternative is to split on anything other than a word character:
 
+    >>> re.split(r'\W+', raw)
+    ['ARTHUR', 'and', 'BLACK', 'KNIGHT', 'Aaah', 'hiyaah', 'etc', 'ARTHUR', 'chops',
+    'the', 'BLACK', 'KNIGHT', 's', 'left', 'arm', 'off', 'ARTHUR', 'Now', 'stand',
+    'aside', 'worthy', 'adversary', 'BLACK', 'KNIGHT', 'Tis', 'but', 'a', 'scratch',
+    'ARTHUR', 'A', 'scratch', 'Your', 'arm', 's', 'off', 'BLACK', 'KNIGHT', 'No',
+    'it', 'isn', 't', '']
 
-Focus on punctuation etc
+[Also gives us empty strings (explain why).]  We get the same result using
+``re.findall(r'\w+', raw)``, using a pattern that matches the words instead of the spaces.
+[``\w`` is complement of ``\W``]
 
-predefined character ranges
+    >>> re.findall('\w+|\S+', raw)
+    ['ARTHUR', 'and', 'BLACK', 'KNIGHT', ':', 'Aaah', '!,', 'hiyaah', '!,', 'etc',
+    '.', '[ARTHUR', 'chops', 'the', 'BLACK', 'KNIGHT', "'s", 'left', 'arm', 'off',
+    ']', 'ARTHUR', ':', 'Now', 'stand', 'aside', ',', 'worthy', 'adversary', '.',
+    'BLACK', 'KNIGHT', ':', "'Tis", 'but', 'a', 'scratch', '.', 'ARTHUR', ':', 'A',
+    'scratch', '?', 'Your', 'arm', "'s", 'off', '!', 'BLACK', 'KNIGHT', ':', 'No',
+    ',', 'it', 'isn', "'t."]
 
-\b
+[Discuss disjunctive regexp: all word characters or all non-space characters (superset);
+left-to-right interpretation of disjunction.]
 
-findall
+[warning about ``\b``]
 
-.. todo: change nps_chat.posts() to nps_chat.turns() for consistency with switchboard...
+[compiling regular expressions]
 
-
-
-.. Advanced Regular Expressions
-   zero-width assertions
-   more special symbols: \b etc
+[zero-width assertions]
 
 .. table:: tab-re-symbols:
 
@@ -1263,23 +1284,6 @@ findall
    ===========  ===================================================================
 
    Regular Expression Symbols
-
-
-
-.. Note:: This example uses a Python `raw string`:dt:\:
-   ``r'\b\w\w\w\b'``. The specific justification here is that in an
-   ordinary string, ``\b`` is interpreted as a backspace character.
-   Python will convert it to a backspace in a regular expression
-   unless you use the ``r`` prefix to create a raw string as shown
-   above. Another use for raw strings is to match strings that
-   include backslashes. Suppose we want to match 'either\\or'. In order
-   to create a regular expression, the backslash needs to be escaped,
-   since it is a special character; 
-   so we want to pass the pattern ``\\`` to the regular expression
-   interpreter. But to express this as a Python string literal, each
-   backslash must be escaped again, yielding the string
-   ``'\\\\'``. However, with a raw string, this reduces down to
-   ``r'\\'``. 
 
 
 
