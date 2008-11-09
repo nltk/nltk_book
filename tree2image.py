@@ -41,8 +41,8 @@ import re, sys, os
 import tkFont
 import tempfile
 import pickle
-from nltk.draw.util import SequenceWidget, TreeSegmentWidget, TextWidget,\
-        SpaceWidget, CanvasFrame
+from nltk.draw.util import SequenceWidget, TextWidget, SpaceWidget, CanvasFrame
+from nltk.draw.tree import TreeSegmentWidget
 
 CONVERT = 'convert'
 
