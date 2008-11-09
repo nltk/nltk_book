@@ -1211,7 +1211,7 @@ Consider the following text:
     ... ARTHUR: Now stand aside, worthy adversary.
     ... BLACK KNIGHT: 'Tis but a scratch.
     ... ARTHUR: A scratch?  Your arm's off!
-    ... BLACK KNIGHT: No, it isn't.
+    ... BLACK KNIGHT: No, it isn't...
     """
 
 We could split this raw text on whitespace using ``raw.split()``.
@@ -1223,7 +1223,7 @@ of spaces, tabs, or newlines.
     'chops', 'the', 'BLACK', "KNIGHT's", 'left', 'arm', 'off]', 'ARTHUR:', 'Now',
     'stand', 'aside,', 'worthy', 'adversary.', 'BLACK', 'KNIGHT:', "'Tis", 'but',
     'a', 'scratch.', 'ARTHUR:', 'A', 'scratch?', 'Your', "arm's", 'off!', 'BLACK',
-    'KNIGHT:', 'No,', 'it', "isn't."]
+    'KNIGHT:', 'No,', 'it', "isn't..."]
     
 The regular expression |l|\ ``[ \t\n]+``\ |r| matches one or more space, tab (``\t``)
 or newline (``\n``).  Other whitespace characters, such as carriage-return and
@@ -1236,7 +1236,7 @@ statement can be rewritten as ``re.split(r'\s+', raw)``.
    prefix the string with the letter ``r`` (meaning "raw"), which instructs the Python
    interpreter to treat them as literal backslashes.
 
-Splitting on whitespace gives us tokens like ``[Arthur`` and ``scratch?``.
+Splitting on whitespace gives us tokens like ``[ARTHUR`` and ``scratch?``.
 An alternative is to split on anything other than a word character:
 
     >>> re.split(r'\W+', raw)
@@ -1250,22 +1250,36 @@ An alternative is to split on anything other than a word character:
 ``re.findall(r'\w+', raw)``, using a pattern that matches the words instead of the spaces.
 [``\w`` is complement of ``\W``]
 
-    >>> re.findall('\w+|\S+', raw)
-    ['ARTHUR', 'and', 'BLACK', 'KNIGHT', ':', 'Aaah', '!,', 'hiyaah', '!,', 'etc',
-    '.', '[ARTHUR', 'chops', 'the', 'BLACK', 'KNIGHT', "'s", 'left', 'arm', 'off',
-    ']', 'ARTHUR', ':', 'Now', 'stand', 'aside', ',', 'worthy', 'adversary', '.',
-    'BLACK', 'KNIGHT', ':', "'Tis", 'but', 'a', 'scratch', '.', 'ARTHUR', ':', 'A',
-    'scratch', '?', 'Your', 'arm', "'s", 'off', '!', 'BLACK', 'KNIGHT', ':', 'No',
-    ',', 'it', 'isn', "'t."]
+    >>> re.findall(r'\w+|\S\w*', raw)
+    ['ARTHUR', 'and', 'BLACK', 'KNIGHT', ':', 'Aaah', '!', ',', 'hiyaah', '!', ',',
+    'etc', '.', '[ARTHUR', 'chops', 'the', 'BLACK', 'KNIGHT', "'s", 'left', 'arm',
+    'off', ']', 'ARTHUR', ':', 'Now', 'stand', 'aside', ',', 'worthy', 'adversary',
+    '.', 'BLACK', 'KNIGHT', ':', "'Tis", 'but', 'a', 'scratch', '.', 'ARTHUR', ':',
+    'A', 'scratch', '?', 'Your', 'arm', "'s", 'off', '!', 'BLACK', 'KNIGHT', ':',
+    'No', ',', 'it', 'isn', "'t", '.', '.', '.']
 
-[Discuss disjunctive regexp: all word characters or all non-space characters (superset);
-left-to-right interpretation of disjunction.]
+The regular expression |l|\ ``\w+|\S\w*``\ |r| will first try to match any sequence
+of word characters.  If no match is found, it will try to match any
+*non*\ -whitespace character (``\S`` is the complement of ``\s``) followed by
+further word characters.  This means that punctuation is grouped with any following
+letters (e.g. `'Tis`:lx:, `'t`:lx:) but that sequences of two or more punctuation
+characters are separated.  Unfortunately, we still have the token `[ARTHUR`:lx:.
+We can add the open bracket as a special case.  For good measure we'll also create
+a single token out of `...`:lx: and `BLACK KNIGHT`:lx:\ :
 
-[warning about ``\b``]
+    >>> print re.findall(r"[A-Z]+\s+[A-Z]+|\[|\.+|\w+|\S\w*", raw)
+    ['ARTHUR', 'and', 'BLACK KNIGHT', ':', 'Aaah', '!', ',', 'hiyaah', '!', ',',
+    'etc', '.', '[', 'ARTHUR', 'chops', 'the', 'BLACK KNIGHT', "'s", 'left', 'arm',
+    'off', ']', 'ARTHUR', ':', 'Now', 'stand', 'aside', ',', 'worthy', 'adversary',
+    '.', 'BLACK KNIGHT', ':', "'Tis", 'but', 'a', 'scratch', '.', 'ARTHUR', ':',
+    'A', 'scratch', '?', 'Your', 'arm', "'s", 'off', '!', 'BLACK KNIGHT', ':',
+    'No', ',', 'it', 'isn', "'t", '...']
 
-[compiling regular expressions]
+None of these regular expressions has included parentheses for grouping sub-expressions.
+Remember that ``re.findall`` interprets these specially, so they have to include the
+``?:`` after the open parenthesis.
 
-[zero-width assertions]
+
 
 .. table:: tab-re-symbols:
 
@@ -1286,114 +1300,31 @@ left-to-right interpretation of disjunction.]
    Regular Expression Symbols
 
 
-
 NLTK's Regular Expression Tokenizer
 -----------------------------------
 
-Tokenization based solely on whitespace is too simplistic for most applications...
+The function ``nltk.regexp_tokenize()`` is like ``re.findall``, except it
+is more efficient and it avoids the need for special treatment of parentheses.
+For readability we break up the regular expression over several lines
+and add a comment about each line.  The special ``(?x)`` "verbose flag"
+tells Python to strip out the embedded whitespace and comments.
 
-
-The function ``nltk.tokenize.regexp_tokenize()`` takes a text string and a
-regular expression, and returns the list of substrings that match the
-regular expression.  To define a tokenizer that includes punctuation
-as separate tokens, we could do the following:
-
-    >>> text = '''Hello.  Isn't this fun?'''
-    >>> pattern = r'\w+|[^\w\s]+'
-    >>> nltk.tokenize.regexp_tokenize(text, pattern)
-    ['Hello', '.', 'Isn', "'", 't', 'this', 'fun', '?']
-
-|nopar| 
-The regular expression in this example will match a sequence
-consisting of one or more word characters ``\w+``.  It will also match
-a sequence consisting of one or more punctuation characters (or
-non-word, non-space characters ``[^\w\s]+``).  This is another negated range
-expression; it matches one or more characters that are not word
-characters (i.e., not a match for ``\w``) and not a whitespace
-character (i.e., not a match for ``\s``).  We use the disjunction
-operator ``|`` to combine these into a single complex expression
-``\w+|[^\w\s]+``.
-
-There are a number of ways we could improve on this regular
-expression.  For example, it currently breaks `$22.50`:lx: into four
-tokens; we might want it to treat this as a single token.
-Similarly, `U.S.A.` should count as a single token.  We can
-deal with these by adding further cases to the regular
-expression.  For readability we will break it up and insert comments, and
-insert the special ``(?x)`` "verbose flag" so that Python knows
-to strip out the embedded whitespace and comments.
-
-    >>> text = 'That poster costs $22.40.'
-    >>> pattern = r'''(?x)
-    ...     \w+               # sequences of 'word' characters
-    ...   | \$?\d+(\.\d+)?    # currency amounts, e.g. $12.50
-    ...   | ([A-Z]\.)+        # abbreviations, e.g. U.S.A.
-    ...   | [^\w\s]+          # sequences of punctuation
+    >>> text = 'That U.S.A. poster-print costs $12.40...'
+    >>> pattern = r'''(?x)    # set flag to allow verbose regexps
+    ...     \w+(-\w+)*        # words with optional internal hyphens
+    ...   | \$?\d+(\.\d+)?%?  # currency and percentages, e.g. $12.40, 82%
+    ...   | ([A-Z]\.)+        # abbreviations, e.g. U.S.A. 
+    ...   | \.\.\.            # ellipsis
+    ...   | [][.,;"'?():-_`]  # these are separate tokens
     ... '''
-    >>> nltk.tokenize.regexp_tokenize(text, pattern)
-    ['That', 'poster', 'costs', '$22.40', '.']
+    >>> nltk.regexp_tokenize(text, pattern)
+    ['That', 'U.S.A.', 'poster-print', 'costs', '$12.40', '...']
 
-It is sometimes more convenient to write a regular expression
-matching the material that appears *between* tokens, such as whitespace
-and punctuation.  The ``nltk.tokenize.regexp_tokenize()`` function permits
-an optional boolean parameter ``gaps``; when set to ``True`` the
-pattern is matched against the gaps.  For example, we could define
-a whitespace tokenizer as follows:
+``The ``regexp_tokenize()`` function has an optional ``gaps`` parameter.
+When set to ``True``, the regular expression is applied to the gaps
+between tokens (cf ``re.split()``).
 
-    >>> nltk.tokenize.regexp_tokenize(text, pattern=r'\s+', gaps=True)
-    ['That', 'poster', 'costs', '$22.40.']
-
-It is more convenient to call |NLTK|\ 's whitespace
-tokenizer directly, as ``nltk.WhitespaceTokenizer(text)``.
-(However, in this case is generally better to use Python's ``split()``
-method, defined on strings: ``text.split()``.)
-
---
-
-
-We can see exactly where a regular expression matches against a string
-using NLTK's ``re_show`` function.  Readers are encouraged to use
-``re_show`` to explore the behavior of regular expressions.
-
-    >>> string = """
-    ... It's probably worth paying a premium for funds that invest in markets
-    ... that are partially closed to foreign investors, such as South Korea, ...
-    ... """
-    >>> nltk.re_show('t...', string)
-    I{t's }probably wor{th p}aying a premium for funds {that} inves{t in} markets
-    {that} are par{tial}ly closed {to f}oreign inves{tors}, such as Sou{th K}orea, ...
-
-
-
-
-Spanning a Line Break
----------------------
-
-Occasionally we need to match material that spans a line-break.  For
-example, we may want to strip out the HTML markup from a document.
-To do this we must delete material between angle brackets.
-The most obvious expression is: |<.*>|.  However, this has two
-problems: it will not match an HTML tag that contains a line-break,
-and the |.*| will consume as much material as possible (including the
-``>`` character).  To permit matching over a line-break we must use
-Python's ``DOTALL`` flag, and to ensure that the ``>`` matches
-against the first instance of the character we must do non-greedy
-matching using ``*?``:
-
-    >>> text = """one two three <font
-    ...           color="red">four</font> five"""
-    >>> re.sub(r'<.*?>', ' ', text, re.DOTALL)
-
-
-.. note::
-   If we turn to languages other than English, tokenizing text is even more
-   challenging.  In Chinese text there is no visual representation of word
-   boundaries.  Consider the following
-   three-character string: |ai4|\ |guo3|\ |ren2| (in pinyin plus tones:
-   ai4 "love" (verb), guo3 "country", ren2 "person"). This could
-   either be segmented as [|ai4|\ |guo3|]\ |ren2|\ ,
-   "country-loving person" or as |ai4|\ [|guo3|\ |ren2|]\ ,
-   "love country-person."
+.. _sec-sentence-segmentation:
 
 ---------------------
 Sentence Segmentation
@@ -1444,61 +1375,26 @@ strings.  This is reasonable behavior for most applications.
 Formatting: From Lists to Strings
 ---------------------------------
 
-Converting Between Strings and Lists
-------------------------------------
-
-... use the ``join()`` method...
-
-``join()`` only works on a list of strings (what we have been calling a text).
-(Thus we could say this type is privileged in Python.)
+Converting Between Strings and Lists (notes)
+--------------------------------------------
 
 We specify the string to be used as the "glue", followed by a
 period, followed by the ``join()`` function.
 
-    >>> ' '.join(chomsky)
-    'colorless green ideas sleep furiously'
-    >>> ';'.join(chomsky)
-    'colorless;green;ideas;sleep;furiously'
+    >>> saying = ['After', 'all', 'is', 'said', 'and', 'done', ',',
+    ...           'more', 'is', 'said', 'than', 'done', '.']
+    >>> ' '.join(saying)
+    'After all is said and done , more is said than done .'
+    >>> ';'.join(saying)
+    'After;all;is;said;and;done;,;more;is;said;than;done;.'
 
-So ``' '.join(chomsky)`` means: take all the items in ``chomsky`` and
+So ``' '.join(saying)`` means: take all the items in ``saying`` and
 concatenate them as one big string, using ``' '`` as a spacer between
-the items. 
+the items.  (Many people find the notation for ``join()`` rather
+unintuitive.)
 
-To be honest, many people find the notation for ``join()`` rather
-unintuitive. 
-
-.. Note::
-   Move Elsewhere:
-   We will see other examples of statements with ``import`` later in this
-   chapter.  In general, we use ``import`` statements when we want to get
-   access to Python code that doesn't already come as part of core
-   Python. This code will exist somewhere as one or more files. Each such
-   file corresponds to a Python `module`:dt: |mdash| this is a way of
-   grouping together code and data that we regard as reusable. When you
-   write down some Python statements in a file, you are in effect
-   creating a new Python module. And you can make your code depend on
-   another module by using the ``import`` statement. In our example
-   earlier, we imported the module ``string`` and then used the
-   ``join()`` function from that module. By adding ``string.`` to the
-   beginning of ``join()``, we make it clear to the Python interpreter
-   that the definition of ``join()`` is given in the ``string``
-   module. An alternative, and equally valid, approach is to use the
-   ``from`` *module* ``import`` *identifier* statement, as shown in the
-   next example:
-
-    >>> from string import join
-    >>> join(chomsky)
-    'colorless green ideas sleep furiously'  
-    >>>
-
-In this case, the name ``join`` is added to all the other identifier that we
-have defined in the body of our programme, and we can use it to call a
-function like any other.
-
-.. Note:: If you are creating a file to contain some of your Python
-   code, do *not* name your file ``nltk.py``: it may get imported in
-   place of the "real" NLTK package. (When it imports modules, Python
-   first looks in the current folder / directory.)
+Notice that ``join()`` only works on a list of strings (what we have been calling a text).
+(Thus we could say this type is privileged in Python.)
 
 Formatting Output
 -----------------
@@ -1516,10 +1412,9 @@ There are many ways we might want to format such output.  For
 instance, we might want to place the length value in parentheses `after`:em: the
 word, and print all the output on a single line:
 
-    >>> for word in chomsky:
-    ...     print word, '(', len(word), '),',
-    colorless ( 9 ), green ( 5 ), ideas ( 5 ), sleep ( 5 ), furiously ( 9 ),
-    >>>
+    >>> for word in saying:
+    ...     print word, '(' + len(word) + '),',
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),'
 
 However, this approach has a couple of problems.  First, the ``print``
 statement intermingles variables and punctuation, making it a little
@@ -1535,7 +1430,6 @@ and then a value ``v``. Python then returns a new string where
 
     >>> "I want a %s right now" % "coffee"
     'I want a coffee right now'
-    >>>
 
 In fact, we can have a number of placeholders, but following the ``%`` operator
 we need to specify exactly the same number of values.  Note that the
@@ -1570,10 +1464,9 @@ called a `format string`:dt:.
 Picking up on the ``print`` example that we opened this section with,
 here's how we can use two different kinds of conversion specifier:
 
-    >>> for word in chomsky:
+    >>> for word in saying:
     ...     print "%s (%d)," % (word, len(word)),
-    colorless (9), green (5), ideas (5), sleep (5), furiously (9), 
-    >>>
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),'
 
 To summarize, string formatting is accomplished with a three-part
 object having the syntax: `format`:ph: ``%`` `values`:ph:.  The
@@ -1591,26 +1484,21 @@ printing of a newline. Suppose, on the other hand, that we want to
 introduce some additional newlines in our output. We can accomplish
 this by inserting the "special" character ``\n`` into the ``print`` string:
 
-    >>> for word in chomsky:
-    ...	   print "Word = %s\nIndex = %s\n*****" % (word, chomsky.index(word))
+    >>> for i, word in enumerate(saying[:6]):
+    ...	   print "Word = %s\nIndex = %s" % (word, i)
     ...
-    Word = colorless
+    Word = After
     Index = 0
-    *****
-    Word = green
+    Word = all
     Index = 1
-    *****
-    Word = ideas
+    Word = is
     Index = 2
-    *****
-    Word = sleep
+    Word = said
     Index = 3
-    *****
-    Word = furiously
+    Word = and
     Index = 4
-    *****
-    >>> 
-
+    Word = done
+    Index = 5
 
 
 ----------
@@ -1661,7 +1549,7 @@ Summary
   ``re.findall()`` to find all substrings in a string that match a pattern,
   and we can use ``re.sub()`` to replace substrings of one sort with another.
 * Normalization of words collapses distinctions, and is useful when indexing texts.
-<
+
 ---------------
 Further Reading
 ---------------
@@ -1680,6 +1568,16 @@ A guide on accessing |NLTK| corpora is available at:
 ``http://nltk.org/doc/guides/corpus.html``.
 Chapters 2 and 3 of [JurafskyMartin2008]_ contain more advanced
 material on regular expressions and morphology.
+
+For languages with a non-Roman script, tokenizing text is even more
+challenging.  For example, in Chinese text there is no visual representation of word
+boundaries.  The three-character string: |ai4|\ |guo3|\ |ren2|
+(ai4 "love" (verb), guo3 "country", ren2 "person") could
+be tokenized as |ai4|\ |guo3| |ren2|\ , "country-loving person"
+or as |ai4| |guo3|\ |ren2|\ , "love country-person."
+The problem of tokenizing Chinese text is a major focus of SIGHAN,
+the ACL Special Interest Group on Chinese Language Processing
+``http://sighan.org/``.
 
 Regular Expressions
 -------------------
@@ -1956,7 +1854,7 @@ Exercises
    ``import test``, in which case Python should be able to
    evaluate the expression ``test.msg`` at the prompt.  
 
-#. |soso| Process the list ``chomsky`` using a ``for`` loop, and store the
+#. |soso| Process the list ``saying`` using a ``for`` loop, and store the
    result in a new list ``lengths``.  Hint: begin by assigning the
    empty list to ``lengths``, using ``lengths = []``. Then each time
    through the loop, use ``append()`` to add another length value to
@@ -1966,8 +1864,8 @@ Exercises
    ``'newly formed bland ideas are inexpressible in an infuriating
    way'``.  (This happens to be the legitimate interpretation that
    bilingual English-Spanish speakers can assign to Chomsky's
-   famous phrase, according to Wikipedia).  Now write code to perform
-   the following tasks:
+   famous nonsense phrase, `colorless green ideas sleep furiously`:lx:
+   according to Wikipedia).  Now write code to perform the following tasks:
 
    a) Split ``silly`` into a list of strings, one per
       word, using Python's ``split()`` operation, and save
