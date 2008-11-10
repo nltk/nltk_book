@@ -11,6 +11,8 @@
   .. CAP abbreviations (map to small caps in LaTeX)
   
   .. |CFG| replace:: CFG
+  .. |DRT| replace:: DRT
+  .. |DRS| replace:: DRS
   .. |CoNLL| replace:: CoNLL
   .. |CYK| replace:: CYK
   .. |FOL| replace:: FOL
