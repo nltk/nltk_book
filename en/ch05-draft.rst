@@ -13,6 +13,8 @@
 5. Data-Intensive Language Processing
 =====================================
 
+.. nomenclature note: training corpus/test corpus or training set/test set??
+
 .. _ch05-introduction:
 
 ------------
@@ -156,6 +158,7 @@ can skip the search step if we already have a corpus of the relevant
 constructions; and we can skip categorization if the constructions are
 already labeled.
 
+------------------
 Selecting a Corpus
 ------------------
 
@@ -180,7 +183,7 @@ analysis, it is important to understand how the characteristics of the
 corpus will affect results of the the data analysis.
 
 Source of Language Data
-+++++++++++++++++++++++
+-----------------------
 
 Language is used for many different purposes, in many different
 contexts.  For example, language can be used in a novel to tell a
@@ -244,7 +247,7 @@ the subset covered by many other corpora).
    sampling?
 
 Information Content
-+++++++++++++++++++
+-------------------
 
 Corpora can vary in the amount of information they contain about the
 language data they describe.  At a minimum, a corpus will typically
@@ -252,7 +255,7 @@ contain at least a sequence of sounds or orthographic symbols.  At the
 other end of the spectrum, a corpus could contain a large amount of
 information about the syntactic structure, morphology, prosidy, and
 semantic content of every sentence.  This extra information is called
-"annotation," and can be very helpful when performing exploratory data
+:dt:`annotation`, and can be very helpful when performing exploratory data
 analysis.  For example, it may be much easier to find a given
 linguistic pattern if we can search for specific syntactic structures;
 and it may be easier to categorize a linguistic pattern if every word
@@ -303,7 +306,7 @@ that the word starting at character 8 and ending at character 11 is a
 noun.
 
 Corpus Size
-+++++++++++
+-----------
 
 The size of corpora can vary widely, from tiny corpora containing just
 a few hundred sentences up to enormous corpora containing a billion
@@ -337,6 +340,7 @@ just because we did not find it in our small sample of language data.
    Example Corpora.  This table summarizes some important properties
    of several popular corpora.
 
+------
 Search
 ------
 
@@ -346,7 +350,7 @@ interested in.  The techniques that we use to search the corpus will
 depend on whether the corpus is annotated or not.
 
 Searching Unannotated Data
-++++++++++++++++++++++++++
+--------------------------
 
 Unannotated corpora consist of a large quantity of "raw text," with no
 extra linguistic information.  We therefore typically rely on search
@@ -391,7 +395,7 @@ happens.  We may have just not been creative enough to think of a
 pattern that would match the context where it occurs.
 
 Searching the Web
-+++++++++++++++++
+-----------------
 
 .. Should I mention google by name here, or leave it vague?
 
@@ -448,42 +452,82 @@ should (almost) never occur together in English sentences.
      they are for exporatory data analysis.
 
 
-Searching hand-annotated corpora
-++++++++++++++++++++++++++++++++
+Searching annotated corpora
+---------------------------
 
-  - Searching unannotated corpora is fairly easy; but it has several
-    drawbacks: it can be very difficult to search for some types of
-    patterns; and it can be hard to find all occurrences of a given
-    phenomenon.
+Large unannotated corpora are widely available; and it is fairly easy
+to search these corpora for simple string patterns.  However, many of
+the linguistic phenomena that we may be interested can not be captured
+with simple string patterns.  For example, it would be very difficult
+to write a search pattern that finds all verbs that take sentential
+complements.  
+
+Partially to help address these concerns, a large number of manually
+annotated corpora have been created.  These corpora are augmented with
+a wide variety of extra information about the language data they
+contain.  The exact types and extents of this additional information
+will vary from corpus to corpus, but common annotation types include
+tokeniation and segmentation information; information about words'
+parts of speech or word sense; and information about sentences'
+syntactic structure.  We can make use of this extra information to
+perform more advanced searches over the corpus.  Often, this extra
+information will make it possible to find all of (or most of) the
+occurences of a given linguistic phenomenon, especially if the
+phenomenon is closely related to the type of information contained in
+the corpus's annotations.
+
+However, building annotated corpora is a very labor-intensive process,
+and these corpora therefore tend to be significantly smaller than
+corresponding unannotated corpora.  As we mentioned when discussing
+corpus size, we should therefore be careful about concluding that a
+linguistic pattern or phenomenon never occurs, just because we did not
+find it in a small annotated corpus.
     
-    - sb: examples searching for words in context, tag context, syn context, etc
+Because the format and information content of annotations can vary
+widely from one corpus to the next, there is no single tool for
+searching annotated corpora.  One solution is to use one of the many
+specialized tools have been built for searching popular corporus
+formats.  For example, the ``tgrep`` tool can be used to search for
+specific syntactic patterns in a corpus that is annotated with the
+syntactic structure of each sentence.  This can be a very efficient
+solution if your corpus is in the required format, and if the tool
+supports the search pattern you wish to construct.
 
-  - Partially to help address these concerns, a large number of manually
-    annotated corpora have been created.
+.. These examples need to be walked through in more detail!  We haven't
+   necessarily talked about parse trees yet. :-/
 
-    - Make it easier to find occurrences of specific types of phenomena
+But a more general solution is to simply write a short Python script
+that loads the corpus and then scans through it for any occurences of
+the linguistic pattern you are interested in.  For example, if we are
+interested in searching for occurences of the pattern ``"<Verb> to
+<Verb>"`` in the Brown corpus, we could use the following short script:
 
-      - Often, this makes it possible to find all of the occurrences of
-        a given phenomenon (if phenomenon & annotation info are closely
-        related.)
-        
-      - But annotated corpora are usually small, so still be careful
-        about negative conclusions.
-
-  - Search techniques:
-
-    - Use existing tools (tgrep, treesearch, etc)
-    - Write short programs
-    - Walk through several examples
-
-  .. SB: NB a later discussion of XML will include XPath, another method for tree search
-
->>> grammar = r"""
-...   CHUNK: {<V.*> <TO> <V.*>}
-... """
->>> cp = nltk.RegexpChunker(grammar)
 >>> brown = nltk.corpus.brown
->>> for sent in brown.tagged_sents()[:500]:
+>>> for sent in brown.tagged_sents():
+...     # Look at each 3-word window in the sentence.
+...     for i in range(len(sent)-2):
+...         # Get the part-of-speech tags for this 3-word window.
+...         tags = [t for (w,t) in sent[i:i+3]]
+...         # Check if they match our pattern.
+...         if ( tags[0].startswith('V') and tags[1]=='TO' and
+...              tags[2].startswith('V') ):
+...             print sent[i:i+3]
+[('combined', 'VBN'), ('to', 'TO'), ('achieve', 'VB')]
+[('continue', 'VB'), ('to', 'TO'), ('place', 'VB')]
+[('serve', 'VB'), ('to', 'TO'), ('protect', 'VB')]
+[('wanted', 'VBD'), ('to', 'TO'), ('wait', 'VB')]
+[('allowed', 'VBN'), ('to', 'TO'), ('place', 'VB')]
+[('expected', 'VBN'), ('to', 'TO'), ('become', 'VB')]
+      ...
+[('seems', 'VBZ'), ('to', 'TO'), ('overtake', 'VB')]
+[('want', 'VB'), ('to', 'TO'), ('buy', 'VB')]
+
+In Chapter chap-chunk_, we'll learn about the "regular expression
+chunker," which can be used to make this search script even simpler:
+
+>>> cp = nltk.RegexpChunker("CHUNK: {<V.*> <TO> <V.*>}")
+>>> brown = nltk.corpus.brown
+>>> for sent in brown.tagged_sents():
 ...     tree = cp.parse(sent)
 ...     for subtree in tree.subtrees():
 ...         if subtree.node == 'CHUNK': print subtree
@@ -493,9 +537,13 @@ Searching hand-annotated corpora
 (CHUNK wanted/VBD to/TO wait/VB)
 (CHUNK allowed/VBN to/TO place/VB)
 (CHUNK expected/VBN to/TO become/VB)
-(CHUNK expected/VBN to/TO approve/VB)
-(CHUNK expected/VBN to/TO make/VB)
-(CHUNK intends/VBZ to/TO make/VB)
+...
+(CHUNK seems/VBZ to/TO overtake/VB)
+(CHUNK want/VB to/TO buy/VB)
+
+As a second example, the script show in Listing sentential_complement_
+uses a simple filter to find all verbs in a given corpus that take
+sentential complements.
         
 .. pylisting:: sentential_complement
 
@@ -518,17 +566,27 @@ Searching hand-annotated corpora
            (IN of)
            (NP (DT this) (JJ British) (JJ industrial) (NN conglomerate))))))
 
+
+  .. SB: NB a later discussion of XML will include XPath, another method for tree search
+
 Searching Automatically Annotated Data
-++++++++++++++++++++++++++++++++++++++
+--------------------------------------
 
-- sometimes hand-annotated corpora are too small, but annotated corpora
-  don't have enough info.
-  
-- solution: automatically annotated data
+In some cases, we may find that the hand-annotated corpora that are
+available are too small to perform the analysis we desire; but that
+unannotated corpora do not contain the information we need to perform
+a search.  One solution in these cases is to build an automatically
+annotated corpus, and then to search that corpus.  
 
-  - use hand-annotated corpora to train a system
-  - automatically annotate more data
-  - search the automatically annotated data
+For example, if we wish to search for a relatively rare syntactic
+configuration, we might first train an automatic parser using a corpus
+that has been hand-annotated with syntactic parses (such as the
+Treebank corpus); and then use that parser to generate parse trees for
+a much larger unannotated corpus.  We could then use those
+automatically generated parse trees to create a new annotated corpus,
+and finally we could search this annotated corpus for the syntactic
+configuration we're interested in.
+
   - is this safe?
 
     - yes, sometimes.
@@ -880,7 +938,7 @@ then be adjusted accordingly, and the error analysis procedure can be
 repeated, ideally using a different development/training split.
 
 Example: Predicting Name Genders
-++++++++++++++++++++++++++++++++
+--------------------------------
 
 In section `Exploratory Data Analysis`_, we looked at some of the
 factors that might influence whether an English name sounds more like
@@ -946,7 +1004,7 @@ classifier across a collection of unseen names with known labels:
     0.688
 
 Example: Predicting Sentiment
-+++++++++++++++++++++++++++++
+-----------------------------
 
 Movie review domain; ACL 2004 paper by Lillian Lee and Bo Pang.
 Movie review corpus included with NLTK.
@@ -1064,26 +1122,84 @@ Exercises
 Evaluation
 ----------
 
-(*There's some material for this in eng.txt*)
+In order to decide whether a classification model is accurately
+capturing a pattern, we must evaluate that model.  The result of this
+evaluation is important for deciding how trustworthy the model is, and
+for what purposes we can use it.  Evaluation can also be a useful tool
+for guiding us in making future improvements to the model.
 
-Before we go into detail about how various classification models work,
-we'll take a look at how we can decide whether they're doing what we
-want.
-
-There's several ways to measure how well a system does, and each has
-its pluses and minuses.
+.. There are several techniques that can be used to measure how well a
+   system does, and each has its pluses and minuses.
 
 Evaluation Set
 --------------
 
-Don't test on train!!!!   (Explain why, etc)  includes heldout(aka development)!
+Most evaluation techniques calculate a score for a model by comparing
+the labels that it generates for the inputs in an `evaluation set`:dt:
+with the correct labels for those inputs.  This evaluation set
+typically has the same format as the training corpus.  However, it is
+very important that the evaluation set be distinct from the training
+corpus: if we simply re-used the training corpus as the evaluation
+set, then a model that simply memorized its input, without learning
+how to generalize to new examples, would receive very high scores.
+Similarly, if we use a development corpus, then it must be distinct
+from the evaluation set as well.  Otherwise, we risk building a model
+that does not generlize well to new inputs; and our evaluation scores
+may be misleadingly high.
 
-Which data should be used?  (eg random sampling vs single chunk)
+If we are actively developing a model, by adjusting the features that
+it uses or any hand-tuned parameters, then we may want to make use of
+two evaluation sets.  We would use the first evaluation set while
+developing the model, to evaluate whether specific changes to the
+model are beneficial.  However, once we've made use of this first
+evaluation set to help develop the model, we can no longer trust that
+it will give us an accurate idea of how well the model would perform
+on new data.  We therefore save the second evaluation set until our
+model development is complete, at which point we can use it to check
+how well our model will perform on new input values.
 
-.. SB: test vs train vs devtest
+When building an evaluation set, we must be careful to ensure that is
+sufficiently different from the training corpus that it will
+effectively evaluate the performance of the model on new inputs.  For
+example, if our evaluation set and training corpus are both drawn from
+the same underlying data source, then the results of our evaluation
+will only tell us how well the model is likely to do on other texts
+that come from the same (or a similar) data source.  
+
+.. Which data should be used?  (eg random sampling vs single chunk)
 
 Accuracy
 --------
+
+The simplest metric that can be used to evaluate a classifier,
+`accuracy`:dt:, measures the percentage of inputs in the evaluation
+set that the classifier correctly labeled.  For example, a name gender
+classifier that predicts the correct name 60 times in an evaluation
+set containing 80 names would have an accuracy of 60/80 = 75%.  The
+function ``nltk.classify.accuracy`` can be used to calculate the
+accuracy of a classifier model on a given evaluation set:
+
+   >>> classifier = nltk.NaiveBayesClassifier.train(train)
+   >>> print 'Accuracy: %4.2f' % nltk.classify.accuracy(classifier, test)
+   0.75
+
+When interpreting the accuracy score of a classifier, it is important
+to take into consideration the frequencies of the individual class
+labels in the evaluation set.  For example, consider a classifier that
+determines the correct word sense for each occurance of the word
+"bank."  If we evaluate this classifier on financial newswire text,
+then we may find that the ``financial-institution`` sense is used 19
+times out of 20.  In that case, an accuracy of 95% would hardly be
+impressive, since we could achieve that accuracy with a model that
+always returns the ``finanical-institution`` sense.  However, if we
+instead evaluate the classifier on a more balanced corpus, where the
+most frequent word sense has a frequency of 40%, then a 95% accuracy
+score would be a much more positive result.
+
+
+
+
+
 
 - Simplest metric: accuracy.  Describe what it is, where it can be
   limited in usefulness.
@@ -1112,6 +1228,9 @@ negatives (FN) or Type II errors.  Two standard measures are
 and *recall*, the fraction of correct chunks that were identified
 TP/(TP+FN).  A third measure, the *F measure*, is the harmonic mean
 of precision and recall, i.e. 1/(0.5/Precision + 0.5/Recall).
+
+Confusion Matrices
+------------------
 
 Cross-Validation
 ----------------
@@ -1157,6 +1276,7 @@ And an understanding of the generated models can allow us to extract
 useful information about which features are most informative, and how
 those features relate to one another.
 
+--------------
 Decision Trees
 --------------
 
@@ -1372,7 +1492,7 @@ process is illustrated in Figure naive-bayes-bargraph_.
    probabilities are all independent.
 
 Underlying Probabilistic Model
-++++++++++++++++++++++++++++++
+------------------------------
 
 Another way of understanding the Naive Bayes classifier is that it
 chooses the most likely label for an input, under the assumption that
@@ -1441,7 +1561,7 @@ and each P(f|label) is the contribution of a single feature to the
 label likelihood.
 
 Zero Counts and Smoothing
-+++++++++++++++++++++++++
+-------------------------
 
 The simplest way to calculate `P(f|label)`, the contribution of a
 feature `f` toward the label likelihood for a label `label`, is to
@@ -1480,7 +1600,7 @@ feature probabilities.  For more information on smoothing techniques,
 see <<ref -- manning & schutze?>>.
 
 Non-Binary Features
-+++++++++++++++++++
+-------------------
 
 We have assumed here that each feature is binary -- in other words
 that each input either has a feature or does not.  Label-valued
@@ -1498,7 +1618,7 @@ label.  In this case, `P(f=v|label)` would not be a fixed value, but
 would vary depending on the value of `v`.
 
 The Naivite of Independence
-+++++++++++++++++++++++++++
+---------------------------
 
 The reason that Naive Bayes classifiers are called "naive" is that
 it's unreasonable to assume that all features are independent of one
@@ -1533,7 +1653,7 @@ duplicated information may be given more weight than is justified by
 the training corpus.
 
 The Cause of Double-Counting
-++++++++++++++++++++++++++++
+----------------------------
 
 The basic problem that causes this double-counting issue is that
 during training, feature contributions are computed seperately; but
@@ -1565,6 +1685,7 @@ However, in the next section, we'll look at a classifier that
 considers the possible interactions between these parameters when
 choosing their values.
 
+---------------------------
 Maximum Entropy Classifiers
 ---------------------------
 
@@ -1585,17 +1706,35 @@ as::
   P(label|features) = --------------------------------
                        sum_{label} P(label, features)
 
-- the parameters that maximize total likelihood can't be found
-  analytically.
+Because of the potentially complex iteractions between the effects of
+related features, there is no way to directly calculate the model
+parameters that maximize the likelihood of the training corpus.
+Therefore, Maximium Entropy classifiers choose the model paremeters
+using `iterative optimization`:dt: techniques, which initialze the
+model's parameters to random values, and then repeatedly refine those
+parameters to bring them closer to the optimal solution.  The
+iterative optimization techniques guarantee that each refinement of
+the parameters will bring them closer to the optimal values; but do
+not necessarily provide a means of determining when those optimal
+values have been reached.  Because the parameters for Maximum Entropy
+classifiers are seleced using iterative optimization techniques, they
+can take a long time to train.  This is especially true when the size
+of the training corpus, the number of features, and the number of
+labels are all large.
 
-- therefore, maxent uses an interative technique, which starts with an
-  intitial set of parameters, and then refines them.
 
-- unfortunately, this means that maxent can be slow to train.
+The 
 
-- but some iterative search techniques are faster than others.  there
-  are several different methods that can be used to iteratively refine
-  the parameters.  GIS, IIS, conjugate gradient, etc.
+
+The use of iterative optimization techniques is a 
+
+
+.. note:: Some iterative optimization techniques are much faster than
+   others.  When training Maximum Entropy models, avoid the use of
+   Generalized Iterative Scaling (GIS) or Improved Iterative Scaling
+   (IIS), which are both considerably slower than the Conjucate
+   Gradient (CG) and the BFGS optimization methods.
+
 
 - the technique, of fixing the form of the model, and searching for
   model parameters that optimize some evaluation metric is called
@@ -1605,7 +1744,7 @@ as::
   optimization systems.
 
 Input-Features vs Joint-Features
-++++++++++++++++++++++++++++++++
+--------------------------------
 
 - Another way that maxent is different from the other two classifiers
   we've considered is in the way that it gets info from its inputs
@@ -1613,7 +1752,7 @@ Input-Features vs Joint-Features
 - etc.
 
 Why Is It Called "Maximum Entropy"?
-+++++++++++++++++++++++++++++++++++
+-----------------------------------
 
 explain maximum entropy principle: least biased pdist consistent with
 knowledge
@@ -1638,9 +1777,9 @@ E.g., how likely is a given input?
 
 Or how likely is an output, given that the input is either x1 or x2?
 
-So why would we want a conditional model?
+So why would we want a conditional model?::
 
-Less powerful ->
+  Less powerful ->
 		Less free parameters ->
 			More data per parameter ->
 				Easier to find correct parameter values
@@ -1671,19 +1810,60 @@ Variance:
   - Average (squared) difference between an individual model and the averaged model
   - Average model error = bias^2 + variance
 
--------------------------------------------
-Sequence Classification & Language Modeling
--------------------------------------------
+--------------------
+Joint Classification
+--------------------
 
-would go here.  This includes HMMs.
+.. better name for this section/concept?
 
-* smoothing, unseen data
+- classification assigns a label to each input, independently of the 
+  other inputs.
 
-(*There's some material for this in eng.txt*)
+- often, we're interested in doing several classification problems that
+  are related to one another.
 
----------------------
-Information Retrieval
----------------------
+- e.g.: part of speech tagging.
+
+  - best tag in isolation, vs best tag in sequence.
+
+- in these cases, we can use `joint classification`:dt: models, which 
+  find a good overall solution, taking into affect the constraints
+  between output tags.
+
+- three examples: Greedy, HMMs and TBL.  Give a brief description of each.
+
+  - Greedy: Do the first problem, then use our answer to that problem
+    to generate features for the next problem.
+
+  - HMMs: Use P(word|tag) to model the individual problems, just as we
+    did for classifiers.  But also add in P(tag[i]|tag[i-1]), which is
+    used to help capture the likelihood of different tag sequences.
+    Pick the sequence of tags that maximizes all the P(word|tag) and 
+    P(tag[i]|tag[i-1]) scores.
+
+  - TBL: Start with an initial tagging (done locally), but then use
+    transformations to "fix up" suspicious looking tag sequences.
+
+.. ------------------------------------------------------------
+   Include this section?
+
+   Structured Prediction
+   ---------------------
+
+   - problems where we want to generate a single complex output value
+     (e.g., a syntax tree).
+
+   - break the problem down into smaller pieces, and use joint
+     classification models to find a solution.
+   ------------------------------------------------------------
+
+.. ------------------------------------------------------------
+   I don't think we'll have room for IR in this chapter; and we don't
+   have much in the toolkit for it anyway.
+   ---------------------
+   Information Retrieval
+   ---------------------
+   ------------------------------------------------------------
 
 ---------------------
 Unsupervised Learning
