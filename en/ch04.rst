@@ -1451,6 +1451,142 @@ part-of-speech disambiguation, without reference to deeper sources of
 linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
 on chunk parsing, we shall see that it can.
 
+----------------------------
+Transformation-Based Tagging
+----------------------------
+
+A potential issue with n-gram taggers is the size of their n-gram
+table (or language model).  If tagging is to be employed in a variety
+of language technologies deployed on mobile computing devices, it is
+important to strike a balance between model size and tagger
+performance.  An n-gram tagger with backoff may store trigram and
+bigram tables, large sparse arrays which may have hundreds of millions
+of entries.
+
+A second issue concerns context.  The only information an n-gram
+tagger considers from prior context is tags, even though words
+themselves might be a useful source of information.  It is simply
+impractical for n-gram models to be conditioned on the identities of
+words in the context.  In this section we examine Brill tagging,
+a statistical tagging method which performs very well using models
+that are only a tiny fraction of the size of n-gram taggers.
+
+Brill Tagging
+-------------
+
+Brill tagging is a kind of *transformation-based learning*, named
+after its inventor [REF].  The
+general idea is very simple: guess the tag of each word, then go back
+and fix the mistakes.  In this way, a Brill tagger successively
+transforms a bad tagging of a text into a better one.  As with n-gram
+tagging, this is a *supervised learning* method, since we need
+annotated training data.  However, unlike n-gram tagging, it does
+not count observations but compiles a list of transformational
+correction rules.
+
+The process of Brill tagging is usually explained by analogy with
+painting.  Suppose we were painting a tree, with all its details of
+boughs, branches, twigs and leaves, against a uniform sky-blue
+background.  Instead of painting the tree first then trying to paint
+blue in the gaps, it is simpler to paint the whole canvas blue, then
+"correct" the tree section by over-painting the blue background.  In
+the same fashion we might paint the trunk a uniform brown before going
+back to over-paint further details with even finer brushes.  Brill
+tagging uses the same idea: begin with broad brush strokes then fix up
+the details, with successively finer changes.  Table brill-tagging_
+illustrates this process, first tagging with the unigram tagger, then
+fixing the errors.
+
+.. table:: brill-tagging
+
+   ==============  =======  ========  =================================  =============================
+   Sentence:       Gold:    Unigram:  Replace ``NN`` with ``VB``         Replace ``TO`` with ``IN``
+                                      when the previous word is ``TO``   when the next tag is ``NNS`` 
+   ==============  =======  ========  =================================  =============================
+   The             AT       AT
+   President       NN-TL    NN-TL
+   said            VBD      VBD
+   he              PPS      PPS
+   will            MD       MD
+   ask             VB       VB
+   Congress        NP       NP
+   to              TO       TO
+   increase        VB       *NN*      *VB*
+   grants          NNS      NNS
+   to              IN       *TO*      *TO*                               *IN*
+   states          NNS      NNS
+   for             IN       IN
+   vocational      JJ       JJ
+   rehabilitation  NN       NN
+   ==============  =======  ========  =================================  =============================
+
+   Steps in Brill Tagging
+ 
+In this table we see two rules.  All such rules are generated from a
+template of the following form: form "replace *T*\ :subscript:`1` with
+*T*\ :subscript:`2` in the context *C*".  Typical contexts are the
+identity or the tag of the preceding or following word, or the
+appearance of a specific tag within 2-3 words of of the current word.  During
+its training phase, the tagger guesses values for *T*\ :subscript:`1`,
+*T*\ :subscript:`2` and *C*, to create thousands of candidate rules.
+Each rule is scored according to its net benefit: the
+number of incorrect tags that it corrects, less the number of correct
+tags it incorrectly modifies.
+
+Using NLTK's Brill Tagger
+-------------------------
+
+Figure brill-demo_ demonstrates |NLTK|\ 's Brill tagger...
+
+.. pylisting:: brill-demo
+   :caption: NLTK's Brill tagger
+
+    >>> nltk.tag.brill.demo
+    Training Brill tagger on 80 sentences...
+    Finding initial useful rules...
+        Found 6555 useful rules.
+
+               B      |     
+       S   F   r   O  |        Score = Fixed - Broken
+       c   i   o   t  |  R     Fixed = num tags changed incorrect -> correct
+       o   x   k   h  |  u     Broken = num tags changed correct -> incorrect
+       r   e   e   e  |  l     Other = num tags changed incorrect -> incorrect
+       e   d   n   r  |  e
+    ------------------+-------------------------------------------------------
+      12  13   1   4  | NN -> VB if the tag of the preceding word is 'TO'
+       8   9   1  23  | NN -> VBD if the tag of the following word is 'DT'
+       8   8   0   9  | NN -> VBD if the tag of the preceding word is 'NNS'
+       6   9   3  16  | NN -> NNP if the tag of words i-2...i-1 is '-NONE-'
+       5   8   3   6  | NN -> NNP if the tag of the following word is 'NNP'
+       5   6   1   0  | NN -> NNP if the text of words i-2...i-1 is 'like'
+       5   5   0   3  | NN -> VBN if the text of the following word is '*-1'
+       ...
+    >>> print(open("errors.out").read())
+                 left context |    word/test->gold     | right context
+    --------------------------+------------------------+--------------------------
+                              |      Then/NN->RB       | ,/, in/IN the/DT guests/N
+    , in/IN the/DT guests/NNS |       '/VBD->POS       | honor/NN ,/, the/DT speed
+    '/POS honor/NN ,/, the/DT |    speedway/JJ->NN     | hauled/VBD out/RP four/CD
+    NN ,/, the/DT speedway/NN |     hauled/NN->VBD     | out/RP four/CD drivers/NN
+    DT speedway/NN hauled/VBD |      out/NNP->RP       | four/CD drivers/NNS ,/, c
+    dway/NN hauled/VBD out/RP |      four/NNP->CD      | drivers/NNS ,/, crews/NNS
+    hauled/VBD out/RP four/CD |    drivers/NNP->NNS    | ,/, crews/NNS and/CC even
+    P four/CD drivers/NNS ,/, |     crews/NN->NNS      | and/CC even/RB the/DT off
+    NNS and/CC even/RB the/DT |    official/NNP->JJ    | Indianapolis/NNP 500/CD a
+                              |     After/VBD->IN      | the/DT race/NN ,/, Fortun
+    ter/IN the/DT race/NN ,/, |    Fortune/IN->NNP     | 500/CD executives/NNS dro
+    s/NNS drooled/VBD like/IN |  schoolboys/NNP->NNS   | over/IN the/DT cars/NNS a
+    olboys/NNS over/IN the/DT |      cars/NN->NNS      | and/CC drivers/NNS ./.
+
+
+Brill taggers have another interesting property: the rules are
+linguistically interpretable.  Compare this with the n-gram taggers,
+which employ a potentially massive table of n-grams.  We cannot learn
+much from direct inspection of such a table, in comparison to the
+rules learned by the Brill tagger.
+
+.. TODO: saving a Brill tagger to a file, reloading
+
 ---------------------------------------
 How to Determine the Category of a Word
 ---------------------------------------
@@ -1594,6 +1730,8 @@ NLTK.
 
 List of available taggers:
 ``http://www-nlp.stanford.edu/links/statnlp.html``
+
+NLTK's HMM tagger, ``nltk.HiddenMarkovModelTagger``
 
 * HMM and Brill Tagging are discussed in Sections 5.5 and 5.6 of [JurafskyMartin2008]_.
 
@@ -1843,5 +1981,20 @@ Exercises
    such as *Lidstone* or *Laplace* estimation, to develop a statistical
    tagger that does a better job than ngram backoff taggers in cases where
    contexts encountered during testing were not seen during training.
+
+#. |soso|
+   Consult the documentation for the Brill tagger demo function,
+   using ``help(nltk.tag.brill.demo)``.
+   Experiment with the tagger by setting different values for the parameters.
+   Is there any trade-off between training time (corpus size) and performance?
+
+#. |hard|
+   Inspect the diagnostic files created by the tagger ``rules.out`` and
+   ``errors.out``.  Obtain the demonstration code (``http://nltk.org/nltk/tag/brill.py``)
+   and create your own version of the Brill tagger.
+   Delete some of the rule templates, based on what you learned from inspecting ``rules.out``.
+   Add some new rule templates which employ contexts that might help to
+   correct the errors you saw in ``errors.out``.
+
 
 .. include:: footer.rst
