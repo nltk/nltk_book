@@ -19,6 +19,7 @@
   .. |FSRL| replace:: FSRL
   .. |HTML| replace:: HTML
   .. |IDLE| replace:: IDLE
+  .. |LF| replace:: LF
   .. |NE|  replace:: NE
   .. |NLP|  replace:: NLP
   .. |NLTK| replace:: NLTK
@@ -159,6 +160,7 @@
   .. |alpha| unicode:: U+03B1
   .. |beta| unicode:: U+03B2
   .. |gamma| unicode:: U+03B3
+  .. |Gamma| unicode:: U+0393
   .. |kappaX| unicode:: U+03BA
   .. |kappa| replace:: K
   .. |lambda| unicode:: U+03BB
