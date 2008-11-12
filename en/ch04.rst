@@ -7,6 +7,7 @@
 
 .. TODO: exercise on cascaded tagging
 .. TODO: simplified tagset (N, V, J, A) -- WordNet
+.. TODO: other simplified tagset
 .. TODO: better approach to tagging unknown words using special UNK token
 .. TODO: motivate trigram tagging by showing some cases where bigram tagging doesn't work
 .. TODO: xref to unicode section in prog chapter
@@ -37,6 +38,11 @@ answer the following questions:
 #. what is a good Python data structure for storing words and their categories
 #. how can we automatically tag each word of a text with its word class?
 
+Along the way, we'll cover some fundamental techniques in NLP, including
+sequence labeling, n-gram models, backoff, and evaluation.  These techniques
+are useful in many areas, and tagging gives us a simple context in which
+to present them.
+
 Before we go further, let's look for words based on similar distribution
 in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
 `over`:lx: (a preposition), and `the`:lx: (a determiner), using
@@ -58,7 +64,7 @@ in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
 This function takes a word `w`:math:, finds all contexts
 `w`:math:\ `1`:subscript:\ `w`:math: `w`:math:\ `2`:subscript:,
 then finds all words `w'`:math: that appear in the same context,
-i.e. `w`:math:\ `1`:subscript:\ `w'`:math: `w`:math:\ `2`:subscript:.
+i.e. `w`:math:\ `1`:subscript:\ `w'`:math:\ `w`:math:\ `2`:subscript:.
 (You can find the implementation online at ``http://nltk.org/nltk/text.py``)    
 
 Observe that searching for `woman`:lx: finds *nouns*;
@@ -72,6 +78,12 @@ These groups of words are so important that they have several names,
 all in common use: `word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
 We'll use these names interchangeably.
 
+The process of classifying words into their parts-of-speech and
+labeling them accordingly is known as `part-of-speech tagging`:dt:,
+`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
+used for a particular task is known as a `tag set`:dt:.  Our emphasis
+in this chapter is on exploiting tags, and tagging text automatically.
+
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
@@ -80,43 +92,62 @@ We'll use these names interchangeably.
 Tagged Corpora
 --------------
 
-Tagsets
--------
+A Simplified Part-of-Speech Tagset
+----------------------------------
 
-Several of the corpora included with NLTK have been `tagged`:dt: for their part-of-speech.
-Now, instead of just
-looking at the words that immediately follow `often`:lx:, we can
-look at the `part-of-speech tags`:dt: (or `POS tags`:dt:).  Table often_
-lists the top eight, ordered by frequency, along with explanations of
-each tag.  As we can see, the majority of words following `often`:lx: are verbs.
+Tagged corpora use many different conventions for tagging words.
+To help us get started, we will be looking at a simplified tagset
+(shown in Table simplified-tagset_).
 
-.. table:: often
 
-   ======  ====  ==================================  ===================================
-   Tag     Freq  Example                             Comment
-   ======  ====  ==================================  ===================================
-   VBN     61    `burnt`:lx:, `gone`:lx:             verb: past participle
-   VB      51    `make`:lx:, `achieve`:lx:           verb: base form
-   VBD     36    `saw`:lx:, `looked`:lx:             verb: simple past tense
-   JJ      30    `ambiguous`:lx:, `acceptable`:lx:   adjective
-   VBZ     24    `sees`:lx:, `goes`:lx:              verb: third-person singular present
-   IN      18    `by`:lx:, `in`:lx:                  preposition
-   AT      18    `a`:lx:, `this`:lx:                 article
-   ,       16    `,`:lx:                             comma
-   ======  ====  ==================================  ===================================
+.. table:: simplified-tagset
 
-   Part of Speech Tags Following `often`:lx: in the Brown Corpus
+    ===  ==================  ==========================================
+    Tag  Meaning             Examples
+    ===  ==================  ==========================================
+    ADJ  adjective           `new, good, high, special, big, local`:lx:
+    ADV  adverb              `really, already, still, early, now`:lx:
+    CNJ  conjunction         `and, or, but, if, while, although`:lx:
+    DET  determiner          `the, a, some, most, every, no`:lx:
+    EX   existential         `there, there's`:lx:
+    FW   foreign word        `dolce, ersatz, esprit, quo, maitre`:lx:
+    MOD  modal verb          `will, can, would, may, must, should`:lx:
+    N    noun                `year, home, costs, time, education`:lx:
+    NP   proper noun         `Alison, Africa, April, Washington`:lx:
+    NUM  number              `twenty-four, fourth, 1991, 14:24`:lx: 
+    PRO  pronoun             `he, their, her, its, my, I, us`:lx:
+    P    preposition         `on, of, at, with, by, into, under`:lx:
+    TO   the word `to`:lx:   `to`:lx:
+    UH   interjection        `ah, bang, ha, whee, hmpf, oops`:lx:
+    V    verb                `is, has, get, do, make, see, run`:lx:
+    VD   past tense          `said, took, told, made, asked`:lx:
+    VG   present participle  `making, going, playing, working`:lx:
+    VN   past participle     `given, taken, begun, sung`:lx:
+    WH   wh determiner       `who, which, when, what, where, how`:lx:
+    ===  ==================  ==========================================
 
-The process of classifying words into their parts-of-speech and
-labeling them accordingly is known as `part-of-speech tagging`:dt:,
-`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
-used for a particular task is known as a `tag set`:dt:.  Our emphasis
-in this chapter is on exploiting tags, and tagging text automatically.
+    Simplified Part-of-Speech Tagset
+
+Let's look at which tags are the most common:
+
+    >>> brown_news = nltk.corpus.brown.tagged_words(categories='news')
+    >>> tag_fd = nltk.FreqDist(tag for (word, tag) in brown_news)
+    >>> tag_fd.keys()
+    ['N', 'P', 'DET', 'NP', 'V', 'ADJ', ',', '.', 'CNJ', 'PRO', 'ADV', 'VD', ...]
+
+.. note:: |TRY|
+   Plot the above frequency distribution using ``tag_fd.plot(cumulative=True)``.
+   What percentage of words are tagged using the first five tags of the above list? 
+
+We can use these tags to do powerful concordance searches using
+``nltk.draw.pos_concordance()``.
+
+.. Screenshot
 
 Reading Tagged Corpora
 ----------------------
 
-We can access several tagged corpora directly from Python.
+Several of the corpora included with NLTK have been `tagged`:dt: for their part-of-speech.
 If a corpus contains tagged text, then it will have a ``tagged_words()``
 method.  Please see the ``README`` file included with each corpus
 for documentation of its tagset.
@@ -130,6 +161,29 @@ for documentation of its tagset.
     >>> nltk.corpus.treebank.tagged_words()
     [('Pierre', 'NNP'), ('Vinken', 'NNP'), (',', ','), ...]
 
+Tagged corpus files represent tags in a variety of ways.
+Here's an example from the Brown Corpus:
+
+  The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
+  other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
+  Fulton/np-tl County/nn-tl purchasing/vbg departments/nns which/wdt it/pps
+  said/vbd ``/`` are/ber well/ql operated/vbn and/cc follow/vb generally/rb
+  accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
+  interest/nn of/in both/abx governments/nns ''/'' ./.
+
+The corpus readers take care of the various formats so that you don't have
+to be concerned with them.
+The NLTK Brown Corpus reader converts part-of-speech tags to uppercase,
+as this has become standard practice since the Brown Corpus was published.
+
+Initially we want to avoid the complications of these tagsets,
+so we use a built-in mapping to a simplified tagset:
+
+    >>> nltk.corpus.brown.tagged_words(simplify_tags=True)
+    [('The', 'DET'), ('Fulton', 'NP'), ('County', 'N'), ...]
+    >>> nltk.corpus.treebank.tagged_words(simplify_tags=True)
+    [('Pierre', 'NP'), ('Vinken', 'NP'), (',', ','), ...]
+    
 Tagged corpora for several other languages are distributed with NLTK,
 including Chinese, Hindi, Portuguese, Spanish, Dutch and Catalan.
 These usually contain non-ASCII text,
@@ -166,13 +220,8 @@ a ``tagged_sents()`` method that returns a list of tagged sentences.
 This will be useful when we come to training automatic taggers,
 as they typically function on a sentence at a time.
 
-Nouns and Verbs
----------------
-
-Linguists recognize several major categories of words in
-English, such as nouns, verbs, adjectives and determiners.  In this
-section we will discuss the most important categories, namely nouns
-and verbs.
+Nouns
+-----
 
 Nouns generally refer to people, places, things, or concepts, e.g.:
 `woman, Scotland, book, intelligence`:lx:.  Nouns can appear after
@@ -192,18 +241,17 @@ verb, as shown in Table syntax-nouns_.
 
    Syntactic Patterns involving some Nouns
 
-Nouns can be classified as `common nouns`:dt: and `proper nouns`:dt:.
-Proper nouns identify particular individuals or entities,
-e.g. `Moses`:lx: and `Scotland`:lx:.  Common nouns are all the rest.
-Another distinction exists between `count nouns`:dt: and `mass
-nouns`:dt:. Count nouns are thought of as distinct entities that can
-be counted, such as `pig`:lx: (e.g. `one pig, two pigs, many
-pigs`:lx:).  They cannot occur with the word `much`:lx: (i.e. \*\
-`much pigs`:lx:).  Mass nouns, on the other hand, are not thought of
-as distinct entities (e.g. `sand`:lx:).  They cannot be pluralized,
-and do not occur with numbers (e.g. \*\ `two sands`:lx:, \*\ `many
-sands`:lx:).  However, they can occur with `much`:lx: (i.e. `much
-sand`:lx:).
+The simplified noun tags are ``N`` for common nouns like `book`:lx:,
+and ``NP`` for proper nouns like `Scotland`:lx:.
+
+Let's inspect some tagged text to see what parts of speech occur before a noun,
+with the most frequent ones first:
+
+    >>> list(nltk.FreqDist(a[1] for (a, b) in nltk.bigrams(brown_news) if b[1] == 'N'))
+    ['DET', 'ADJ', 'N', 'P', 'NP', 'NUM', 'V', 'PRO', 'CNJ', '.', ',', 'VG', 'VN', ...]
+
+Verbs
+-----
 
 Verbs are words that describe events and actions, e.g. `fall`:lx:,
 `eat`:lx: in Table syntax-verbs_.
@@ -221,80 +269,46 @@ involving the referents of one or more noun phrases.
 
    Syntactic Patterns involving some Verbs
 
-`\pagebreak`:raw-latex:
 
-Verbs can be classified according to the number of arguments (usually
-noun phrases) that they require.  The word `fall`:lx: is
-`intransitive`:dt:, requiring exactly one argument (the entity that
-falls).  The word `eat`:lx: is `transitive`:dt:, requiring two
-arguments (the eater and the eaten).  Other verbs are more complex;
-for instance `put`:lx: requires three arguments, the agent doing the
-putting, the entity being put somewhere, and a location.  We will return
-to this topic when we come to look at grammars and parsing (see Chapter chap-parse_).
+What are the most common verbs in news text?  Let's sort all the verbs by frequency:
 
-In the Brown Corpus, verbs have a range of possible tags, e.g.:
-``give/VB`` (present), ``gives/VBZ`` (present, 3ps),
-``giving/VBG`` (present continuous; gerund)
-``gave/VBD`` (simple past),
-and ``given/VBN`` (past participle).
-We will discuss these tags in more detail in a later section.
+    >>> wsj = nltk.corpus.treebank.tagged_words(simplify_tags=True)
+    >>> word_tag_fd = nltk.FreqDist(wsj)
+    >>> [word + "/" + tag for (word, tag) in word_tag_fd if tag.startswith('V')]
+    ['is/V', 'said/VD', 'was/VD', 'are/V', 'be/V', 'has/V', 'have/V', 'says/V',
+    'were/VD', 'had/VD', 'been/VN', "'s/V", 'do/V', 'say/V', 'make/V', 'did/VD',
+    'rose/VD', 'does/V', 'expected/VN', 'buy/V', 'take/V', 'get/V', 'sell/V',
+    'help/V', 'added/VD', 'including/VG', 'according/VG', 'made/VN', 'pay/V']
 
-Nouns and Verbs in Tagged Corpora
----------------------------------
+Note that the items being counted in the frequency distribution are word-tag pairs.
+Since words and tags are paired, we can treat the word as a condition and the tag
+as an event, and initialize a conditional frequency distribution with a list of
+condition-event pairs.  This lets us see a frequency-ordered list of tags given a word:
 
-Now that we are able to access tagged corpora, we can write simple
-programs to garner statistics about the tags.  In this section
-we will focus on the nouns and verbs.
+    >>> cfd1 = nltk.ConditionalFreqDist(wsj)
+    >>> cfd1['yield'].keys()
+    ['N', 'V']
+    >>> cfd1['cut'].keys()
+    ['V', 'VD', 'N', 'VN']
 
-What are the most common verbs?  We can write a program to find all
-words tagged with `VB`:gc:, `VBZ`:gc:, `VBG`:gc:, `VBD`:gc: or `VBN`:gc:.
+We can reverse the order of the pairs, so that the tags are the conditions, and the
+words are the events.  Now we can see likely words for a given tag:
 
-    >>> brown_news = nltk.corpus.brown.tagged_words(categories='news')
-    >>> fd = nltk.FreqDist(word + "/" + tag
-                           for (word, tag) in brown_news if tag[:2] == 'VB')
-    >>> fd.keys()
-    ['said/VBD', 'get/VB', 'made/VBN', 'United/VBN-TL', 'take/VB', 'took/VBD',
-    'told/VBD', 'made/VBD', 'make/VB', 'got/VBD', 'came/VBD', 'go/VB',
-    'see/VB', 'went/VBD', 'given/VBN', 'expected/VBN', 'began/VBD', ...]
+    >>> cfd2 = nltk.ConditionalFreqDist((tag, word) for (word, tag) in wsj)
+    >>> cfd2['VN'].keys()
+    ['been', 'expected', 'made', 'compared', 'based', 'priced', 'used', 'sold',
+    'named', 'designed', 'held', 'fined', 'taken', 'paid', 'traded', 'said', ...]
 
-Let's study nouns, and find the most frequent nouns of each noun
-part-of-speech type.  The program in Figure findtags_ finds all
-tags starting with `NN`:gc:, and provides a few example words for each
-one.  Observe that there are many noun tags; the most important
-of these have ``$`` for possessive nouns, `S`:gc: for plural nouns (since plural
-nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
+To clarify the distinction between ``VD`` and ``VN``, let's find words which can be
+both ``VD`` and ``VN``, and see some surrounding text:
 
-.. pylisting:: findtags
-   :caption: Program to Find the Most Frequent Noun Tags
 
-   def findtags(tag_prefix, tagged_text):
-       cfd = nltk.ConditionalFreqDist((word, tag) for (word, tag) in tagged_text
-                                      if tg.startswith(tag_prefix))
-       return dict((tag, cfd[tag].keys()[:5]
-                   for tag in cfd.conditions())
 
-   >>> tagdict = findtags('NN', nltk.corpus.brown.tagged_words(categories='news'))
-   >>> for tg in sorted(tagdict):
-   ...     print tg, tagdict[tg]
-   NN ['year', 'time', 'state', 'week', 'man']
-   NN$ ["year's", "world's", "state's", "nation's", "company's"]
-   NN$-HL ["Golf's", "Navy's"]
-   NN$-TL ["President's", "University's", "League's", "Gallery's", "Army's"]
-   NN-HL ['cut', 'Salary', 'condition', 'Question', 'business']
-   NN-NC ['eva', 'ova', 'aya']
-   NN-TL ['President', 'House', 'State', 'University', 'City']
-   NN-TL-HL ['Fort', 'City', 'Commissioner', 'Grove', 'House']
-   NNS ['years', 'members', 'people', 'sales', 'men']
-   NNS$ ["children's", "women's", "men's", "janitors'", "taxpayers'"]
-   NNS$-HL ["Dealers'", "Idols'"]
-   NNS$-TL ["Women's", "States'", "Giants'", "Officers'", "Bombers'"]
-   NNS-HL ['years', 'idols', 'Creations', 'thanks', 'centers']
-   NNS-TL ['States', 'Nations', 'Masters', 'Rules', 'Communists']
-   NNS-TL-HL ['Nations']
 
-Some tags contain a plus sign; these are compound tags, and are
-assigned to words that contain two parts normally treated separately.
-Some tags contain a minus sign; this indicates disjunction.
+.. note::
+   We found the relevant POS tags using ``tg.startswith('VB')``.  We could
+   also have written ``tg[:2] == 'VB'``.  However, we think that the former
+   choice is more readable.
 
 Adjectives and Adverbs
 ----------------------
@@ -329,7 +343,7 @@ of phrases, as illustrated in fruit-flies_.
 .. ex::
    .. tree:: (S (NP (Adj Fruit) (N flies)) (VP (V like) (NP (Det a) (N banana))))
 
-Syntactic analysis will be dealt with in more detail in Part II.
+Syntactic analysis will be dealt with in more detail in later chapters.
 For now, we simply want to make the connection between the labels used in
 syntactic parse trees and part-of-speech tags.  Table word-classes_
 shows the correspondence:
@@ -350,22 +364,6 @@ shows the correspondence:
 
    Word Class Labels and Brown Corpus Tags
 
-
-File formats
-------------
-
-Tagged corpus files typically contain text
-of the following form (this example is from the Brown Corpus)::
-
-  The/at grand/jj jury/nn commented/vbd on/in a/at number/nn of/in
-  other/ap topics/nns ,/, among/in them/ppo the/at Atlanta/np and/cc
-  Fulton/np-tl County/nn-tl purchasing/vbg departments/nns which/wdt it/pps
-  said/vbd ``/`` are/ber well/ql operated/vbn and/cc follow/vb generally/rb
-  accepted/vbn practices/nns which/wdt inure/vb to/in the/at best/jjt
-  interest/nn of/in both/abx governments/nns ''/'' ./.
-
-.. note:: The NLTK Brown Corpus reader converts part-of-speech tags to uppercase,
-          as this has become standard practice since the Brown Corpus was published.
 
 Tuples
 ------
@@ -418,7 +416,47 @@ each of these into a tuple (using ``str2tuple()``).
     [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
     ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
 
-[MORE ABOUT TUPLES]
+Unsimplified Tags
+-----------------
+
+Let's find the most frequent nouns of each noun
+part-of-speech type.  The program in Figure findtags_ finds all
+tags starting with `NN`:gc:, and provides a few example words for each
+one.  Observe that there are many noun tags; the most important
+of these have ``$`` for possessive nouns, `S`:gc: for plural nouns (since plural
+nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
+
+.. pylisting:: findtags
+   :caption: Program to Find the Most Frequent Noun Tags
+
+   def findtags(tag_prefix, tagged_text):
+       cfd = nltk.ConditionalFreqDist((word, tag) for (word, tag) in tagged_text
+                                      if tg.startswith(tag_prefix))
+       return dict((tag, cfd[tag].keys()[:5]
+                   for tag in cfd.conditions())
+
+   >>> tagdict = findtags('NN', nltk.corpus.brown.tagged_words(categories='news'))
+   >>> for tg in sorted(tagdict):
+   ...     print tg, tagdict[tg]
+   NN ['year', 'time', 'state', 'week', 'man']
+   NN$ ["year's", "world's", "state's", "nation's", "company's"]
+   NN$-HL ["Golf's", "Navy's"]
+   NN$-TL ["President's", "University's", "League's", "Gallery's", "Army's"]
+   NN-HL ['cut', 'Salary', 'condition', 'Question', 'business']
+   NN-NC ['eva', 'ova', 'aya']
+   NN-TL ['President', 'House', 'State', 'University', 'City']
+   NN-TL-HL ['Fort', 'City', 'Commissioner', 'Grove', 'House']
+   NNS ['years', 'members', 'people', 'sales', 'men']
+   NNS$ ["children's", "women's", "men's", "janitors'", "taxpayers'"]
+   NNS$-HL ["Dealers'", "Idols'"]
+   NNS$-TL ["Women's", "States'", "Giants'", "Officers'", "Bombers'"]
+   NNS-HL ['years', 'idols', 'Creations', 'thanks', 'centers']
+   NNS-TL ['States', 'Nations', 'Masters', 'Rules', 'Communists']
+   NNS-TL-HL ['Nations']
+
+Some tags contain a plus sign; these are compound tags, and are
+assigned to words that contain two parts normally treated separately.
+Some tags contain a minus sign; this indicates disjunction.
 
 
 .. _sec-dictionaries:
