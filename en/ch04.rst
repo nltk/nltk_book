@@ -20,6 +20,9 @@
 .. TODO: type conversions: ``str()``, ``int()``, ``list()``.
 .. TODO: explain how nltk.Index is a defaultdict
 .. TODO: tagging for language analysis: find all pairs of nouns which occur in the same sentence
+.. TODO: possibly add section on exploring tagged corpora
+.. TODO: fix up tag-context.png
+.. TODO: add back in short section on Brill and HMM tagging
 
 .. _chap-tag:
 
@@ -130,8 +133,9 @@ To help us get started, we will be looking at a simplified tagset
 
 Let's look at which tags are the most common:
 
-    >>> brown_news = nltk.corpus.brown.tagged_words(categories='news')
-    >>> tag_fd = nltk.FreqDist(tag for (word, tag) in brown_news)
+    >>> from nltk.corpus import brown
+    >>> brown_news_tagged = brown.tagged_words(categories='news')
+    >>> tag_fd = nltk.FreqDist(tag for (word, tag) in brown_news_tagged)
     >>> tag_fd.keys()
     ['N', 'P', 'DET', 'NP', 'V', 'ADJ', ',', '.', 'CNJ', 'PRO', 'ADV', 'VD', ...]
 
@@ -247,7 +251,8 @@ and ``NP`` for proper nouns like `Scotland`:lx:.
 Let's inspect some tagged text to see what parts of speech occur before a noun,
 with the most frequent ones first:
 
-    >>> list(nltk.FreqDist(a[1] for (a, b) in nltk.bigrams(brown_news) if b[1] == 'N'))
+    >>> word_tag_pairs = nltk.bigrams(brown_news_tagged)
+    >>> list(nltk.FreqDist(a[1] for (a, b) in word_tag_pairs if b[1] == 'N'))
     ['DET', 'ADJ', 'N', 'P', 'NP', 'NUM', 'V', 'PRO', 'CNJ', '.', ',', 'VG', 'VN', ...]
 
 Verbs
@@ -280,6 +285,12 @@ What are the most common verbs in news text?  Let's sort all the verbs by freque
     'rose/VD', 'does/V', 'expected/VN', 'buy/V', 'take/V', 'get/V', 'sell/V',
     'help/V', 'added/VD', 'including/VG', 'according/VG', 'made/VN', 'pay/V']
 
+.. note::
+   We found the relevant POS tags using ``tag.startswith('V')``.  We could
+   also have written ``tag[0] == 'V'``.  However, we think that the former
+   choice is preferrable as it is more readable (even though it is slightly
+   less efficient).
+
 Note that the items being counted in the frequency distribution are word-tag pairs.
 Since words and tags are paired, we can treat the word as a condition and the tag
 as an event, and initialize a conditional frequency distribution with a list of
@@ -302,13 +313,14 @@ words are the events.  Now we can see likely words for a given tag:
 To clarify the distinction between ``VD`` and ``VN``, let's find words which can be
 both ``VD`` and ``VN``, and see some surrounding text:
 
-
-
-
-.. note::
-   We found the relevant POS tags using ``tg.startswith('VB')``.  We could
-   also have written ``tg[:2] == 'VB'``.  However, we think that the former
-   choice is more readable.
+    >>> [w for w in cfd1.conditions() if 'VD' in cfd1[w] and 'VN' in cfd1[w]]
+    ['Asked', 'accelerated', 'accepted', 'accused', 'acquired', 'added', 'adopted', ...]
+    >>> idx1 = wsj.index(('kicked', 'VD'))
+    >>> wsj[idx1-4:idx1+1]
+    [('While', 'P'), ('program', 'N'), ('trades', 'N'), ('swiftly', 'ADV'), ('kicked', 'VD')]
+    >>> idx2 = wsj.index(('kicked', 'VN'))
+    >>> wsj[idx2-4:idx2+2]
+    [('head', 'N'), ('of', 'P'), ('state', 'N'), ('has', 'V'), ('kicked', 'VN')]
 
 Adjectives and Adverbs
 ----------------------
@@ -458,12 +470,51 @@ Some tags contain a plus sign; these are compound tags, and are
 assigned to words that contain two parts normally treated separately.
 Some tags contain a minus sign; this indicates disjunction.
 
+When we come to constructing part-of-speech taggers later in this chapter,
+we will use the unsimplified tags.
+
+Exploring Tagged Corpora (NOTES)
+--------------------------------
+
+We can continue the kinds of exploration of corpora we saw in previous chapters,
+but exploiting the tags...
+
+Suppose we're studying the word `often`:lx: and want to see how it is used
+in text.  We could ask to see the following words:
+
+    >>> brown_news_text = brown.tagged_words(categories='news', simplify_tags=True)
+    >>> word_pairs = nltk.bigrams(brown_news_text)
+    >>> list(nltk.FreqDist(b for (a, b) in word_pairs if a == 'often'))
+    ['a', 'ambiguous', 'needs', 'mar', 'that', 'did', 'acceptable', ',', '.',
+    'enough', 'hear', 'build', 'in', 'obstructed']
+
+However, its probably more instructive to look at the part-of-speech tag of the following
+words:
+
+    >>> brown_news_tagged = brown.tagged_words(categories='news', simplify_tags=True)
+    >>> word_tag_pairs = nltk.bigrams(tagged_text)
+    >>> list(nltk.FreqDist(b[1] for (a, b) in word_tag_pairs if a[0] == 'often'))
+    ['V', 'ADJ', 'DET', 'VD', ',', '.', 'P', 'VBZ', 'CNJ']
 
 .. _sec-dictionaries:
 
-------------------------
-The Dictionary Data Type
-------------------------
+-----------------------------------------------------
+Mapping Words to Properties Using Python Dictionaries
+-----------------------------------------------------
+
+As we have seen, a tagged word of the form ``(word, tag)`` is
+an association between a word and a part-of-speech tag.
+Once we start doing part-of-speech tagging, we will be creating
+programs that assign a tag to a word, the tag which is most
+likely in a given context.  We can think of this process as
+`mapping`:dt: from words to tags.  The most natural way to
+store mappings in Python uses the dictionary data type.
+In this section we look at dictionaries and see how they can
+represent a variety of language information, including
+parts of speech.
+
+Indexing Lists vs Dictionaries
+------------------------------
 
 A text, as we have seen, is treated in Python as a list of words.
 An important property of lists is that we can "look up" a particular
@@ -501,27 +552,15 @@ of linguistic objects, along with what they map.
 
 .. table:: linguistic-objects
 
-    +--------------------+-------------------------------------------------+
-    | Linguistic Object  |                      Maps                       |
-    |                    +------------+------------------------------------+
-    |                    |    from    | to                                 |
-    +====================+============+====================================+
-    |Document Index      |Word        |List of pages (where word is found) |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
-    |Thesaurus           |Word sense  |List of synonyms                    |
-    +--------------------+------------+------------------------------------+
-    |Dictionary          |Headword    |Entry (part of speech, sense        |
-    |                    |            |definitions, etymology)             |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
-    |Comparative Wordlist|Gloss term  |Cognates (list of words, one per    |
-    |                    |            |language)                           |
-    +--------------------+------------+------------------------------------+
-    |Morph Analyzer      |Surface form|Morphological analysis (list of     |
-    |                    |            |component morphemes)                |
-    |                    |            |                                    |
-    +--------------------+------------+------------------------------------+
+    ======================  ============  ====================================================
+    Linguistic Object       Maps From     Maps To
+    ======================  ============  ====================================================
+    Document Index          Word          List of pages (where word is found)
+    Thesaurus               Word sense    List of synonyms
+    Dictionary              Headword      Entry (part of speech, sense definitions, etymology)
+    Comparative Wordlist    Gloss term    Cognates (list of words, one per language)
+    Morph Analyzer          Surface form  Morphological analysis (list of component morphemes)
+    ======================  ============  ====================================================
 
     Linguistic Objects as Mappings from Keys to Values
 
@@ -536,63 +575,33 @@ Dictionaries in Python
 Python provides a `dictionary`:dt: data type that can be used for
 mapping between arbitrary types.  It is like a conventional dictionary,
 in that it gives you an efficient way to look things up.  However,
-as we will see, it has a much wider range of uses.  Let's revisit
-the CMU Pronouncing Dictionary, this time using Python's dictionary
-interface:
-
-    >>> prondict = nltk.corpus.cmudict.transcriptions()
-    >>> prondict['fire']
-    [('F', 'AY1', 'ER0'), ('F', 'AY1', 'R')]
-    >>> prondict['blog']
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    KeyError: 'blog'
-    >>> prondict['blog'] = [('B', 'L', 'AA1', 'G')]
-    >>> prondict['blog']
-    [('B', 'L', 'AA1', 'G')]
-
-We look up a dictionary by specifying its name, followed by a `key`:dt:
-(such as the word `fire`:lx:) inside square brackets: ``prondict['fire']``.
-If we try to look up a non-existent key, we get a ``KeyError``,
-as we did when indexing a list with an integer that was too large.
-The word `blog`:lx: is missing from the pronouncing dictionary,
-so we tweak our version by assigning a value for this key
-(this has no effect on the |NLTK| corpus; next time we access it,
-`blog`:lx: will still be absent).
-
-Now let's experiment with dictionaries on a smaller scale, building up
-one of our own.
+as we see from Table linguistic-objects_, it has a much wider range of uses.
 Here we define ``pos`` to be an empty dictionary and then add four
 entries to it, specifying the part-of-speech of some words.  We add
 entries to a dictionary using the familiar square bracket notation:
 
     >>> pos = {}
-    >>> pos['colorless'] = 'adjective'
-    >>> pos['ideas'] = 'noun'
-    >>> pos['sleep'] = 'verb'
-    >>> pos['furiously'] = 'adverb'
+    >>> pos['colorless'] = 'ADJ'
+    >>> pos['ideas'] = 'N'
+    >>> pos['sleep'] = 'V'
+    >>> pos['furiously'] = 'ADV'
 
-So, for example, ``pos['colorless'] = 'adjective'`` says that
-the part-of-speech of `colorless`:lx: is "adjective", or more
+So, for example, ``pos['colorless'] = 'ADJ'`` says that
+the part-of-speech of `colorless`:lx: is adjective, or more
 specifically, that the look-up value of the key ``'colorless'`` in ``pos``
-is the value ``'adjective'``.  Now we can look up our dictionary
+is the value ``'ADJ'``.  Now we can look up our dictionary
 using these keys:
 
     >>> pos['ideas']
-    'noun'
+    'N'
     >>> pos['colorless']
-    'adjective'
+    'ADJ'
     >>> pos['missing']
     Traceback (most recent call last):
       File "<stdin>", line 1, in ?
     KeyError: 'missing'
 
-A Closer Look at Python Dictionaries
-------------------------------------
-
-We have just seen how to access a dictionary entry, and what happens
-when an entry does not exist.  This raises an important question.
-Unlike lists and strings, where we
+This raises an important question.  Unlike lists and strings, where we
 can use ``len()`` to work out which integers will be legal indices, how
 do we work out the legal keys for a dictionary?  We simply convert the
 dictionary to a list, or use the dictionary in a context where a list
@@ -609,8 +618,8 @@ is expected:
    When you type `list(pos)` you might see a different order
    to the one shown above.  This is because
    dictionaries are not sequences but mappings (cf Figure maps02_),
-   and the keys are not inherently ordered.  If we want
-   to see them in order, we simply need to sort them.
+   and the keys are not inherently ordered.  If you want
+   to see the keys in order, just sort them.
 
 The last example above used a ``for`` loop to iterate over all keys
 in the dictionary.  We can also use the ``for`` loop in another way,
@@ -619,60 +628,58 @@ just we did for printing lists:
     >>> for word in sorted(pos):
     ...     print word ":", pos[word]
     ... 
-    colorless: adjective
-    furiously: adverb
-    sleep: verb
-    ideas: noun
+    colorless: ADJ
+    furiously: ADV
+    sleep: V
+    ideas: N
 
 We can see what the contents of the dictionary look like by inspecting
 the variable ``pos``.
 
     >>> pos
-    {'furiously': 'adverb', 'ideas': 'noun', 'colorless': 'adjective', 'sleep': 'verb'}
+    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
 
-Here, the contents of the dictionary are shown as `key-value
-pairs`:dt:, separated by a colon.  As you can see,  the order
-of the key-value pairs is different
-from the order in which they were originally entered.
+Here, the contents of the dictionary are shown as `key-value pairs`:dt:,
+separated by a colon.  As you can see,  the order of the key-value pairs
+is different from the order in which they were originally entered.
 
 We can use the same key-value pair format to create a dictionary:
 
-    >>> pos = {'colorless': 'adjective', 'ideas': 'noun', 'sleep': 'verb', 'furiously': 'adverb'}
+    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
 
 Using the dictionary methods ``keys()``, ``values()`` and ``items()``,
-we can access the keys and values as separate lists,
-and also the key-value pairs:
+we can access the keys, values, and key-value pairs as separate lists:
 
     >>> pos.keys()
     ['colorless', 'furiously', 'sleep', 'ideas']
     >>> pos.values()
-    ['adjective', 'adverb', 'verb', 'noun']
+    ['ADJ', 'ADV', 'V', 'N']
     >>> pos.items()
-    [('colorless', 'adjective'), ('furiously', 'adverb'), ('sleep', 'verb'), ('ideas', 'noun')]
+    [('colorless', 'ADJ'), ('furiously', 'ADV'), ('sleep', 'V'), ('ideas', 'N')]
     >>> for key, val in sorted(pos.items()):
     ...     print key ":", val
     ...
-    colorless: adjective
-    furiously: adverb
-    ideas: noun
-    sleep: verb
+    colorless: ADJ
+    furiously: ADV
+    ideas: N
+    sleep: V
 
 Note that keys are forced to be unique.
 Suppose we try to use a dictionary to store the fact that the
 word `sleep`:lx: can be used as a verb and as a noun:
 
-    >>> pos['sleep'] = 'verb'
-    >>> pos['sleep'] = 'noun'
+    >>> pos['sleep'] = 'V'
+    >>> pos['sleep'] = 'N'
     >>> pos['sleep']
-    'noun'
+    'N'
 
-Initially, ``pos['sleep']`` is given the value ``'verb'``, and this is
-immediately overwritten with the new value ``'noun'``.
+Initially, ``pos['sleep']`` is given the value ``'V'``, and this is
+immediately overwritten with the new value ``'N'``.
 In other words, there is only one entry for ``'sleep'``.
 If we wanted to store multiple values in that entry, we could use a list,
-e.g. ``pos['sleep'] = ['noun', 'verb']``.  In fact, this is what we
-saw at the start of this section for the CMU Pronouncing Dictionary,
-so that we could have multiple pronunciations for a single word.
+e.g. ``pos['sleep'] = ['N', 'V']``.  In fact, this is what we
+saw in Section sec-lexical-resources_ for the CMU Pronouncing Dictionary,
+so that we could store multiple pronunciations for a single word.
 
 Default Dictionaries
 --------------------
@@ -690,50 +697,42 @@ create an empty entry, e.g. ``int``:
 
 We can supply our own function to be used for creating the initial value.
 Let's return to our part-of-speech example, and create a dictionary
-whose default value for any entry is ``'noun'``:  
+whose default value for any entry is ``'N'``:  
 
     >>> def default_pos():
-    ...     return 'noun'
+    ...     return 'N'
     ...
     >>> pos = nltk.defaultdict(default_pos)
-    >>> pos['colorless'] = 'adjective'
+    >>> pos['colorless'] = 'ADJ'
     >>> pos['blog']
-    'noun'
-
+    'N'
 
 Incrementally Updating a Dictionary
 ----------------------------------- 
 
-We can use dictionaries to count word occurrences, emulating the
+We can use dictionaries to count occurrences, emulating the
 method used for tallying words (Figure tally_).  We begin by initializing
-an empty dictionary, then process each word of the text.  If the word hasn't
-been seen before, we add it to our list with a zero count.  If we've
+an empty dictionary, then process each part-of-speech tag in the text.
+If the tag hasn't been seen before, we add it to our list with a zero count.  If we've
 seen it before we increment its count using the ``+=`` operator.
 
 .. pylisting:: dictionary
    :caption: Incrementally Updating a Dictionary, and Sorting by Value
 
     >>> counts = nltk.defaultdict(int)
-    >>> for word in nltk.corpus.gutenberg.words('shakespeare-macbeth.txt'):
-    ...     counts[word] += 1
+    >>> for (word, tag) in brown_news_tagged:
+    ...     counts[tag] += 1
     ...
-    >>> counts['Scotland']
-    12
-    >>> counts['the']
-    692
-    >>> list(counts)
-    ['Lead', 'doubts', 'felt', 'hath', 'protest', 'sleep', 'thirst', 'Barke', 'hate',
-    'goodnesse', 'forget', 'whose', 'Hose', 'solliciting', 'euery', 'Keepes', ...]
+    >>> counts['N']
+    22226
+    >>> list(counts)[:40]
+    ['FW', 'DET', 'WH', 'VBZ', 'ADJ', 'PRO', '-', 'TO', 'NUM', 'NP', ':', 'ADV', ...]
     
     >>> from operator import itemgetter
     >>> sorted(counts.items(), key=itemgetter(1), reverse=True)
-    [(',', 1962), ('.', 1235), ("'", 637), ('the', 531), (':', 477), ('and', 376),
-    ('I', 333), ('of', 315), ('to', 311), ('?', 241), ('d', 224), ('a', 214),
-    ('you', 184), ('in', 173), ('my', 170), ('And', 170), ('is', 166), ...]
-    >>> [w for w,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
-    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in',
-    'my', 'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The',
-    'haue', 'me', 'your', 'our', '-', 'him', 'for', 'That', 'Enter', 'this', 'he', ...]
+    [('N', 22226), ('P', 10845), ('DET', 10648), ('NP', 8336), ('V', 7313), ...]
+    >>> [t for t,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
+    ['N', 'P', 'DET', 'NP', 'V', 'ADJ', ',', '.', 'CNJ', 'PRO', 'ADV', 'VD', ...]
 
 The listing in Figure dictionary_ illustrates an important idiom for sorting a dictionary in terms of its
 values, to show the words in decreasing order of frequency.  We use the ``sorted()``
@@ -758,6 +757,7 @@ for working with dictionaries, and we'll give a schematic version here:
 Here's another example, where we index the words according to their last two letters:
 
     >>> last_letters = nltk.defaultdict(list)
+    >>> words = nltk.corpus.words.words('en')
     >>> for word in words:
     ...     key = word[-2:]
     ...     last_letters[key].append(word)
@@ -779,26 +779,15 @@ The following example uses the same pattern to create an anagram dictionary.
     >>> anagrams['aegilnrt']
     ['alerting', 'altering', 'integral', 'relating', 'triangle']
 
-Frequency Distributions
------------------------
+.. note:: Since accumulating words like this is such a common task,
+   |NLTK| provides a more convenient way of creating a ``defaultdict(list)``:
 
-|NLTK|\ 's frequency distribution support (``nltk.FreqDist``) is just
-a special kind of dictionary which has extra functions for sorting
-and plotting that are needed in language processing.  Instead of the
-lengthy code in Figure dictionary_, we can write the following:
+      >>> anagrams = nltk.Index((''.join(sorted(w)), w) for w in words)
 
-    >>> text = nltk.corpus.gutenberg.words('shakespeare-macbeth.txt')
-    >>> counts = nltk.FreqDist(text)
-    >>> counts['Scotland']
-    12
-    >>> list(counts)
-    [',', '.', "'", 'the', ':', 'and', 'I', 'of', 'to', '?', 'd', 'a', 'you', 'in', 'my',
-    'And', 'is', 'that', 'not', 'it', 'Macb', 'with', 's', 'his', 'be', 'The', 'haue', ...]
-
-Notice that we can initialize a ``FreqDist`` with a list, without bothering
-to expicitly process the items of the list one at a time in our program.
-Unlike a regular dictionary, when we convert a ``FreqDist`` into a list, the
-keys appear in order of decreasing frequency.
+.. note:: ``nltk.FreqDist`` is essentially a ``defaultdict(int)`` with extra
+   support for initialization, sorting and plotting that are needed in language processing.
+   Similarly ``nltk.Index`` is a ``defaultdict(list)`` with extra support for
+   initialization.
 
 Inverting a Dictionary
 ----------------------
@@ -808,7 +797,7 @@ any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
 immediately obtain the value.  Finding a key given a value is slower and more
 cumbersome:
 
-    >>> [key for key,value in counts.items() if value == 16]
+    >>> [key for (key, value) in counts.items() if value == 16]
     ['call', 'sleepe', 'take', 'where', 'Your', 'Father', 'looke', 'owne']
 
 If we expect to do this kind of "reverse lookup" often, it helps to construct
@@ -816,8 +805,9 @@ a dictionary that maps values to keys.  In the case that no two keys have
 the same value, this is an easy thing to do.  We just get all the key-value
 pairs in the dictionary, and create a new dictionary of value-key pairs:
 
+    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
     >>> pos2 = dict((value, key) for (key, value) in pos.items())
-    >>> pos2['noun']
+    >>> pos2['N']
     'ideas'
 
 Let's make our part of speech dictionary a bit more realistic and add some more words,
@@ -825,18 +815,21 @@ to create the situation where multiple keys have the same value.  The above meth
 will not work in this case (why not?).  Instead, we need to use our method of incrementally
 updating a dictionary, as follows:
 
-    >>> pos.update({'cats': 'noun', 'scratch': 'verb', 'peacefully': 'adverb', 'old': 'adjective'})
+    >>> pos.update({'cats': 'N', 'scratch': 'V', 'peacefully': 'ADV', 'old': 'ADJ'})
     >>> pos2 = {}
-    >>> for key,value in pos.items():
+    >>> for key, value in pos.items():
     ...     if value not in pos2:
     ...         pos2[value] = []
     ...     pos2[value].append(key)
     ... 
-    >>> pos2['adverb']
+    >>> pos2['ADV']
     ['peacefully', 'furiously']
 
 Now, we have inverted the ``pos`` dictionary, and can look up any part of speech and find
-all words having that part of speech.
+all words having that part of speech.  We can do the same thing using |NLTK|\ 's support
+for indexing as follows:
+
+    >>> pos2 = nltk.Index((value, key) for (key, value) in pos.items())
 
 Summary
 -------
@@ -902,23 +895,25 @@ tag each word with the most likely word.  (This kind of tagger is
 known as a `majority class classifier`:dt:).  What then, is the most
 frequent tag?  We can find out using a one-line program:
 
-    >>> nltk.FreqDist(tag for (word, tag) in brown_news).max()
+    >>> nltk.FreqDist(tag for (word, tag) in brown_news_tagged).max()
     'NN'
 
 Now we can create a tagger, called ``default_tagger``, that
 tags everything as `NN`:gc:.
 
-    >>> tokens = 'John saw 3 polar bears .'.split()
+    >>> raw = 'I do not like green eggs and ham, I do not like them Sam I am!'
+    >>> tokens = nltk.wordpunct_tokenize(raw)
     >>> default_tagger = nltk.DefaultTagger('NN')
     >>> default_tagger.tag(tokens)
-    [('John', 'NN'), ('saw', 'NN'), ('3', 'NN'), ('polar', 'NN'),
-    ('bears', 'NN'), ('.', 'NN')]
+    [('I', 'NN'), ('do', 'NN'), ('not', 'NN'), ('like', 'NN'), ('green', 'NN'),
+    ('eggs', 'NN'), ('and', 'NN'), ('ham', 'NN'), (',', 'NN'), ('I', 'NN'),
+    ('do', 'NN'), ('not', 'NN'), ('like', 'NN'), ('them', 'NN'), ('Sam', 'NN'),
+    ('I', 'NN'), ('am', 'NN'), ('!', 'NN')]
 
-This is a simple algorithm, and it performs poorly when used on its
-own. On a typical corpus, it will tag only about an eighth of the tokens
-correctly:
+This method performs poorly when used on its own.
+On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
-    >>> nltk.tag.accuracy(default_tagger, nltk.corpus.brown.tagged_sents(categories='news'))
+    >>> nltk.tag.accuracy(default_tagger, brown.tagged_sents(categories='news'))
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
@@ -935,7 +930,7 @@ Let's find some of these words and their tags.  The
 following code takes a list of sentences and counts up the words,
 and prints the 100 most frequent words:
 
-    >>> fd = nltk.FreqDist(nltk.corpus.brown.words(categories='news'))
+    >>> fd = nltk.FreqDist(brown.words(categories='news'))
     >>> most_freq_words = fd.keys()[:100]
     >>> most_freq_words
     ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that', '``',
@@ -949,45 +944,24 @@ and prints the 100 most frequent words:
     'state', '?', 'any', 'President', 'could', 'before', 'week', 'under', 'against',
     'we', 'now']
 
-|nopar|
-Next, let's inspect the tags that these words have.  First we will do
-this in the most obvious (but highly inefficient) way:
+Next, let's inspect the tags that these words have.
 
-    >>> [(w,t) for (w,t) in nltk.corpus.brown.tagged_words(categories='news')
-    ...        if w in most_freq_words]
-    [('The', 'AT'), ('said', 'VBD'), ('an', 'AT'), ('of', 'IN'),
-    ('``', '``'), ('no', 'AT'), ("''", "''"), ('that', 'CS'), 
-    ('any', 'DTI'), ('.', '.'), ..., ("''", "''")]
-
-|nopar|
-A much better approach is to set up a dictionary that maps each of the
-100 most frequent words to its most likely tag.  We can do this by
-setting up a frequency distribution ``cfd`` over the tagged words,
-i.e. the frequency of the different tags that occur with each word.
-
-    >>> cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words(categories='news'))
-
-|nopar|
-Now for any word that appears in this section of the corpus,
-we can determine its most likely tag:
-
-    >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
-    >>> likely_tags['The']
-    'AT'
+    >>> cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
+    >>> cfd['The'].max()
 
 |nopar|
 Finally, we can create and evaluate a simple tagger that assigns tags to words
 based on this table:
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
-    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='news'))
+    >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
     0.45578495136941344
 
 This is surprisingly good; just knowing the tags for the 100 most frequent
 words enables us to tag nearly half of all words correctly!  Let's see
 what it does on some untagged input text:
 
-    >>> baseline_tagger.tag(nltk.corpus.brown.sents(categories='news')[3])
+    >>> baseline_tagger.tag(brown.sents(categories='news')[3])
     [('``', '``'), ('Only', None), ('a', 'AT'), ('relative', None),
     ('handful', None), ('of', 'IN'), ('such', None), ('reports', None), 
     ('was', 'BEDZ'), ('received', None), ("''", "''"), (',', ','),
@@ -1002,6 +976,70 @@ Notice that a lot of these words have been assigned a tag of ``None``.
 That is because they were not among the 100 most frequent words.
 In these cases we would like to assign the default tag of ``NN``,
 a process known as backoff.
+
+Getting Better Coverage with Backoff
+------------------------------------
+
+So far the performance of our simple taggers has been disappointing.
+Before we embark on a process to get 90+% performance, we need to do
+two more things.  First, we need to establish a more principled
+baseline performance than the default tagger, which was too
+simplistic, and the regular expression tagger, which was too
+arbitrary.  Second, we need a way to connect multiple taggers
+together, so that if a more specialized tagger is unable to assign
+a tag, we can "back off" to a more generalized tagger.
+
+How do we combine these taggers?  We want to use the lookup table
+first, and if it is unable to assign a tag, then use the default tagger.
+We do this by specifying the default tagger as an argument to the
+lookup tagger.  The lookup tagger will call the default tagger just
+in case it can't assign a tag itself.
+
+    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
+    >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
+    0.58177695566561249
+
+We will return to this technique in the context of a broader discussion
+on combining taggers in Section sec-n-gram-tagging_.
+
+We can put all this together to write a simple (but somewhat inefficient) program to create and
+evaluate lookup taggers having a range of sizes, as shown in Figure baseline-tagger_.
+We include a backoff tagger that tags everything as a noun.  A consequence
+of using this backoff tagger is that the lookup tagger only has to store word/tag
+pairs for words other than nouns.
+
+.. pylisting:: baseline-tagger
+   :caption: Lookup Tagger Performance with Varying Model Size
+
+   def performance(cfd, wordlist):
+       lt = dict((word, cfd[word].max()) for word in wordlist)
+       baseline_tagger = nltk.UnigramTagger(model=lt, backoff=nltk.DefaultTagger('NN'))
+       return nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
+
+   def display():
+       import pylab
+       words_by_freq = nltk.FreqDist(brown.words(categories='news')).keys()
+       cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
+       sizes = 2 ** pylab.arange(15)
+       perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
+       pylab.semilogx(sizes, perfs, '-bo')
+       pylab.title('Lookup Tagger Performance with Varying Model Size')
+       pylab.xlabel('Model Size')
+       pylab.ylabel('Performance')
+       pylab.show()
+
+   >>> display()                                  # doctest: +SKIP
+
+.. _tag-lookup:
+.. figure:: ../images/tag-lookup.png
+   :scale: 20
+
+   Lookup Tagger
+
+Observe that performance initially increases rapidly as the model size grows, eventually
+reaching a plateau, when large increases in model size yield little improvement
+in performance.  (This example used the ``pylab`` plotting package; we will
+return to this in Section sec-presenting-results_).
 
 .. _sec-regular-expression-tagging:
 
@@ -1131,7 +1169,7 @@ Note that these are processed in order, and the first one that matches is applie
 Now we can set up a tagger and use it to tag some text.
 
     >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> regexp_tagger.tag(nltk.corpus.brown.sents(categories='news')[3])
+    >>> regexp_tagger.tag(brown.sents(categories='news')[3])
     [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
     ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
     ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
@@ -1140,7 +1178,7 @@ Now we can set up a tagger and use it to tag some text.
 
 How well does this do?
 
-    >>> nltk.tag.accuracy(regexp_tagger, nltk.corpus.brown.tagged_sents(categories='news'))
+    >>> nltk.tag.accuracy(regexp_tagger, brown.tagged_sents(categories='news'))
     0.20326391789486245
 
 The regular expression is a catch-all that tags everything as a noun.
@@ -1160,7 +1198,8 @@ sense.)  For example, the following tagger will consider suffixes of
 length 3 (e.g. *-ize*, *-ion*), for words having at least 5
 characters.
 
-    >>> affix_tagger = nltk.AffixTagger(brown_news, affix_length=-2, min_stem_length=3)
+    >>> affix_tagger = nltk.AffixTagger(brown.tagged_sents(categories='news'),
+    ...                     affix_length=-2, min_stem_length=3)
     >>> affix_tagger.tag(sent)
     [('Various', 'JJ'), ('of', None), ('the', None), ('apartments', 'NNS'), ('are', None),
     ('of', None), ('the', None), ('terrace', 'NN'), ('type', None), (',', None),
@@ -1168,78 +1207,6 @@ characters.
     ('so', None), ('that', None), ('entrance', 'NN'), ('is', None), ('direct', 'NN'),
     ('.', None)]
 
-
-
------------------------
-Getting Better Coverage
------------------------
-
-So far the performance of our simple taggers has been disappointing.
-Before we embark on a process to get 90+% performance, we need to do
-two more things.  First, we need to establish a more principled
-baseline performance than the default tagger, which was too
-simplistic, and the regular expression tagger, which was too
-arbitrary.  Second, we need a way to connect multiple taggers
-together, so that if a more specialized tagger is unable to assign
-a tag, we can "back off" to a more generalized tagger.
-
-Backoff
--------
-
-How do we combine these taggers?  We want to use the lookup table
-first, and if it is unable to assign a tag, then use the default tagger.
-We do this by specifying the default tagger as an argument to the
-lookup tagger.  The lookup tagger will call the default tagger just
-in case it can't assign a tag itself.
-
-    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='news'))
-    0.58177695566561249
-
-We will return to this technique in the context of a broader discussion
-on combining taggers in Section sec-n-gram-tagging_.
-
-Choosing a Good Baseline
-------------------------
-
-We can put all this together to write a simple (but somewhat inefficient) program to create and
-evaluate lookup taggers having a range of sizes, as shown in Figure baseline-tagger_.
-We include a backoff tagger that tags everything as a noun.  A consequence
-of using this backoff tagger is that the lookup tagger only has to store word/tag
-pairs for words other than nouns.
-
-.. pylisting:: baseline-tagger
-   :caption: Lookup Tagger Performance with Varying Model Size
-
-   def performance(cfd, wordlist):
-       lt = dict((word, cfd[word].max()) for word in wordlist)
-       baseline_tagger = nltk.UnigramTagger(model=lt, backoff=nltk.DefaultTagger('NN'))
-       return nltk.tag.accuracy(baseline_tagger, nltk.corpus.brown.tagged_sents(categories='news'))
-
-   def display():
-       import pylab
-       words_by_freq = nltk.FreqDist(nltk.corpus.brown.words(categories='news')).keys()
-       cfd = nltk.ConditionalFreqDist(nltk.corpus.brown.tagged_words(categories='news'))
-       sizes = 2 ** pylab.arange(15)
-       perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
-       pylab.semilogx(sizes, perfs, '-bo')
-       pylab.title('Lookup Tagger Performance with Varying Model Size')
-       pylab.xlabel('Model Size')
-       pylab.ylabel('Performance')
-       pylab.show()
-
-   >>> display()                                  # doctest: +SKIP
-
-.. _tag-lookup:
-.. figure:: ../images/tag-lookup.png
-   :scale: 20
-
-   Lookup Tagger
-
-Observe that performance initially increases rapidly as the model size grows, eventually
-reaching a plateau, when large increases in model size yield little improvement
-in performance.  (This example used the ``pylab`` plotting package; we will
-return to this in Section sec-presenting-results_).
 
 .. _sec-n-gram-tagging:
 
@@ -1262,9 +1229,9 @@ called `training`:dt:\ .  In the following code sample,
 we initialize and train a unigram tagger (line tag-train_),
 use it to tag a sentence, then finally compute the tagger's overall accuracy:
 
-    >>> brown_news = nltk.corpus.brown.tagged_sents(categories='news')
+    >>> brown_news = brown.tagged_sents(categories='news')
     >>> unigram_tagger = nltk.UnigramTagger(brown_news)               # [_tag-train]
-    >>> sent = nltk.corpus.brown.sents(categories='news')[2007]
+    >>> sent = brown.sents(categories='news')[2007]
     >>> unigram_tagger.tag(sent)
     [('Various', None), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
     ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
