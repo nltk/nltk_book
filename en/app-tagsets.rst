@@ -1,15 +1,18 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
-.. _app-brown-tagset:
+.. _app-tagsets:
 
-======================
-Appendix: Brown Tagset
-======================
+=================
+Appendix: Tagsets
+=================
+
+Brown Tagset
+============
 
 Based on `<http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html>`_
 
-.. list-table:: Brown Tagset
+.. list-table:: 
    :widths: 8 20 30
    :header-rows: 1
 
@@ -839,3 +842,219 @@ Based on `<http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html>`_
    * - WRB+MD
      - WH-adverb + modal auxillary
      - where'd
+
+
+
+CLAWS5 Tagset
+=============
+
+Based on `<http://ucrel.lancs.ac.uk/claws5tags.html>`_
+
+.. list-table:: 
+   :widths: 8 20 30
+   :header-rows: 1
+
+   * - Tag
+     - Description
+     - Examples
+   * - AJ0
+     - adjective (unmarked)
+     - GOOD, OLD
+   * - AJC
+     - comparative adjective
+     - BETTER, OLDER
+   * - AJS
+     - superlative adjective
+     - BEST, OLDEST
+   * - AT0
+     - article
+     - THE, A, AN
+   * - AV0
+     - adverb (unmarked)
+     - OFTEN, WELL, LONGER, FURTHEST
+   * - AVP
+     - adverb particle
+     - UP, OFF, OUT
+   * - AVQ
+     - wh-adverb
+     - WHEN, HOW, WHY
+   * - CJC
+     - coordinating conjunction
+     - AND, OR
+   * - CJS
+     - subordinating conjunction
+     - ALTHOUGH, WHEN
+   * - CJT
+     - the conjunction THAT
+     - THAT
+   * - CRD
+     - cardinal numeral
+     - 3, FIFTY-FIVE, 6609 (excl ONE)
+   * - DPS
+     - possessive determiner form
+     - YOUR, THEIR
+   * - DT0
+     - general determiner
+     - THESE, SOME
+   * - DTQ
+     - wh-determiner
+     - WHOSE, WHICH
+   * - EX0
+     - existential THERE
+     - THERE
+   * - ITJ
+     - interjection or other isolate
+     - OH, YES, MHM
+   * - NN0
+     - noun (neutral for number)
+     - AIRCRAFT, DATA
+   * - NN1
+     - singular noun
+     - PENCIL, GOOSE
+   * - NN2
+     - plural noun
+     - PENCILS, GEESE
+   * - NP0
+     - proper noun
+     - LONDON, MICHAEL, MARS
+   * - NULL
+     - the null tag (for items not to be tagged)
+     - 
+   * - ORD
+     - ordinal
+     - SIXTH, 77TH, LAST
+   * - PNI
+     - indefinite pronoun
+     - NONE, EVERYTHING
+   * - PNP
+     - personal pronoun
+     - YOU, THEM, OURS
+   * - PNQ
+     - wh-pronoun
+     - WHO, WHOEVER
+   * - PNX
+     - reflexive pronoun
+     - ITSELF, OURSELVES
+   * - POS
+     - the possessive (or genitive morpheme) 'S or '
+     - 
+   * - PRF
+     - the preposition OF
+     - OF
+   * - PRP
+     - preposition (except for OF)
+     - FOR, ABOVE, TO
+   * - PUL
+     - punctuation - left bracket 
+     - ( or [ )
+   * - PUN
+     - punctuation - general mark 
+     - . ! , : ; - ? ... 
+   * - PUQ
+     - punctuation - quotation mark 
+     - ` ' " 
+   * - PUR
+     - punctuation - right bracket 
+     - ) or ] 
+   * - TO0
+     - infinitive marker TO
+     - TO
+   * - UNC
+     - "unclassified" items which are not words of the English lexicon
+     - 
+   * - VBB
+     - the "base forms" of the verb "BE" (except the infinitive)
+     - AM, ARE
+   * - VBD
+     - past form of the verb "BE"
+     - WAS, WERE
+   * - VBG
+     - -ing form of the verb "BE"
+     - BEING
+   * - VBI
+     - infinitive of the verb "BE"
+     - BE
+   * - VBN
+     - past participle of the verb "BE"
+     - BEEN
+   * - VBZ
+     - -s form of the verb "BE"
+     - IS, 'S
+   * - VDB
+     - base form of the verb "DO" (except the infinitive)
+     - DO
+   * - VDD
+     - past form of the verb "DO"
+     - DID
+   * - VDG
+     - -ing form of the verb "DO"
+     - DOING
+   * - VDI
+     - infinitive of the verb "DO"
+     - DO
+   * - VDN
+     - past participle of the verb "DO"
+     - DONE
+   * - VDZ
+     - -s form of the verb "DO"
+     - DOES
+   * - VHB
+     - base form of the verb "HAVE" (except the infinitive)
+     - HAVE
+   * - VHD
+     - past tense form of the verb "HAVE"
+     - HAD, 'D
+   * - VHG
+     - -ing form of the verb "HAVE"
+     - HAVING
+   * - VHI
+     - infinitive of the verb "HAVE"
+     - HAVE
+   * - VHN
+     - past participle of the verb "HAVE"
+     - HAD
+   * - VHZ
+     - -s form of the verb "HAVE"
+     - HAS, 'S
+   * - VM0
+     - modal auxiliary verb
+     - CAN, COULD, WILL, 'LL
+   * - VVB
+     - base form of lexical verb (except the infinitive)
+     - TAKE, LIVE
+   * - VVD
+     - past tense form of lexical verb
+     - TOOK, LIVED
+   * - VVG
+     - -ing form of lexical verb
+     - TAKING, LIVING
+   * - VVI
+     - infinitive of lexical verb
+     - TAKE, LIVE
+   * - VVN
+     - past participle form of lex. verb
+     - TAKEN, LIVED
+   * - VVZ
+     - -s form of lexical verb
+     - TAKES, LIVES
+   * - XX0
+     - the negative NOT or N'T
+     - NOT
+   * - ZZ0
+     - alphabetical symbol
+     - A, B, c, d
+
+
+UPenn Tagset
+============
+
+Based on `<http://www.comp.leeds.ac.uk/amalgam/tagsets/upenn.html>`_
+
+.. list-table:: 
+   :widths: 8 20 30
+   :header-rows: 1
+
+   * - Tag
+     - Description
+     - Examples
+
