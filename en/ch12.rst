@@ -684,6 +684,8 @@ will use two `basic types`:dt:\: `e`:math: is the type of entities,
 while  `t`:math: is the type of formulas, i.e., expressions which have
 truth values.
 
+TO-DO: expand stuff on types
+
     >>> parsed = lp.parse('see(a, b)')
     >>> parsed.argument
     <IndividualVariableExpression b>   
@@ -743,10 +745,10 @@ ex-predlog52_ with two occurrences of the variable `x`:math:\ :
    .. _ex-predlog52:
    .. ex:: `poodle(x)`:mathit:  |wedge| `ran_away(x)`:mathit: 
 
-By placing an `existential quantifier`:dt :|exists|\ `x`:math: in
-front of ex-predlog52_, we can `bind`:dt: these variables, as in
-ex-predlog61_, which means ex-predlog62_ or, more idiomatically,
-ex-predlog63_.
+By placing an `existential quantifier`:dt :|exists|\ `x`:math: ('for
+some `x`:math:') in front of ex-predlog52_, we can `bind`:dt: these
+variables, as in ex-predlog61_, which means ex-predlog62_ or, more
+idiomatically, ex-predlog63_.
 
 .. _ex-predlog6:
 .. ex::
@@ -759,71 +761,140 @@ ex-predlog63_.
    .. _ex-predlog63:
    .. ex:: A poodle ran away.
 
+The |NLTK| rendering of ex-predlog61_ is ex-exists_.
+
+.. _ex-exists:
+.. ex:: ``exists x. (poodle(x) & ran_away(x))``
+
 If all variable occurrences in a formula are bound, the formula is
 said to be `closed`:dt:. Any variables which are not bound in a formula
-are `free`:dt: in that formula.
+are `free`:dt: in that formula. 
+As mentioned before, the ``parse()`` method of ``nltk.sem.logic``\ 's
+``LogicParser`` returns objects of class ``Expression``. As such, each
+expression ``e`` comes with a method ``free()`` which returns the set
+of variables that are free in ``e``.
 
-|Fol| standardly offers us two quantifiers, `all`:lx: (or `every`:lx:)
-and `some`:lx:. These are formally written as |forall| and |exists|,
-respectively. At the syntactic level, quantifiers are used to bind
-individual variables like ``'x'`` and ``'y'``. The following two sets
-of examples show a simple English example, a logical representation,
-and the encoding which is accepted by the |NLTK| ``logic`` module.
+    >>> print lp.parse('poodle(fifi)').free()
+    set([])
+    >>> print lp.parse('poodle(x)').free()
+    set([Variable('x')])
+    >>> print lp.parse('own(j-p, fifi)').free()
+    set([])
+    >>> print lp.parse('exists x. poodle(x)').free()
+    set([])
+    >>> print lp.parse(r'exists x. own(y, x)').free()
+    set([Variable('y')])
 
-.. _forall1:
+
+In addition to the existential quantifier, |FOL| offers us the
+`universal quantifier`:dt: |forall|\ `x`:math: | ('for all
+`x`:math:'), illustrated in ex-predlog7_.
+
+.. _ex-predlog7:
 .. ex::
+   .. _ex-predlog71:
+   .. ex:: |forall|\ `x.poodle(x)`:mathit: |rarr| `ran_away(x)`:mathit: 
 
-   .. _forall1a:
-   .. ex:: Every dog barks.
+   .. _ex-predlog72:
+   .. ex:: Everything has the property that if it is a poodle, it ran away.
 
-   .. _forall1b:
-   .. ex:: |forall|\ `x.(dog(x)`:mathit: |rarr| `bark(x))`:mathit:
+   .. _ex-predlog73:
+   .. ex:: Every poodle ran away.
 
-   .. _forall1c:
-   .. ex:: ``all x.(dog(x) -> bark(x))``
+The |NLTK| rendering of ex-predlog71_ is ex-forall_.
 
-.. _exists1:
+.. _ex-forall:
+.. ex:: ``all x. (poodle(x) -> ran_away(x))``
+
+One important property of ex-predlog71_ often trips people up. The
+logical rendering in effect says that *if* something is a poodle, then
+it runs away, but makes no commitment to the existence of poodles. So
+in a situation where there are no poodles, ex-predlog71_ will still
+come out true. (Remember that ``'(p implies q)'`` is true when ``'p'``
+is false.) Now you might argue that ex-predlog71_ does presuppose the
+existence of dogs, and that the logic formalization is wrong.  But it
+is possible to find other examples which lack such a presupposition.
+For instance, we might explain that the value of the Python expression
+``re.sub('ate', '8', astring)`` is the result of replacing all
+occurrences of ``'ate'`` in ``astring`` by ``'8'``, even though there
+may in fact be no such occurrences.
+
+In Section sect-fine-grained-selection-of-words, we pointed out that
+mathematical set notation was a helpful method of specifying
+properties `P`:math: of words that we
+wanted to select from a document. We gave the example ex-set-comprehension-math2_, 
+which we glossed as "the set of all `w`:math: such that `w`:math: is an
+element of `V`:math: (the vocabulary) and `w`:math: has property `P`:math:".
+
+.. _ex-set-comprehension-math2:
+.. ex:: {`w`:math: | `w`:math: |element| `V`:math: & `P(w)`:math:\ }
+
+It turns out to be extremely useful to add something to |FOL| that
+will achieve the same effect. We do this with the `lambda
+operator`:dt: |lambda|\ `x`:math:. The |lambda| counterpart to
+ex-set-comprehension-math2_ is ex-lambda1_. (Since we are not trying
+to do set-theory here, we just treat `V`:math: as a unary predicate.)
+
+.. _ex-lambda1:
+.. ex:: |lambda|\ `w`:math:. (`V(w)`:math: |wedge| `P(w)`:math:)
+
+|lambda| is a binding operator, just as the |FOL| quantifiers are. If
+we have an open formula such as ex-walk-chewgum1_, then we can bind
+the variable `x`:math: with the |lambda| operator, as shown in
+ex-walk-chewgum2_.
+
+.. _ex-walk-chewgum1:
 .. ex::
+   .. _ex-walk-chewgum11:
+   .. ex:: (`walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) 
 
-   .. ex:: Some girl walks.
+   .. _ex-walk-chewgum12:
+   .. ex:: |lambda|\ `x. (walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) 
 
-   .. ex:: |exists|\ `x.(girl(x)`:mathit: |wedge| `walk(x))`:mathit:
+We have a special name for this: `lambda abstraction`:dt:. When one
+initially encounters |lambda|-abstracts, it
+can be hard to get an intuitive sense of their meaning. One English
+gloss for ex-walk-chewgum12_ is "be an `x`:math: such that  `x`:math:
+walks and `x`:math: chews gum". Within the tradition of formal
+semantics of natural language, it has often been suggested that
+|lambda|-abstracts are good representations for verb phrases (or
+subjectless clauses),
+particularly when these occur as arguments in their own right. This is
+illustrated in 
+ex-walk-chewgum2_.
 
-   .. _existsc:
-   .. ex:: ``some x.(girl(x) & walk(x))``
+.. _ex-walk-chewgum2:
+.. ex::
+   .. _ex-walk-chewgum21:
+   .. ex:: Walking and chewing-gum is hard
 
-In the existsc_, the quantifier ``some`` binds both occurences of the
-variable ``'x'``. As a result, existsc_ is said to be a `closed
-formula`:dt:. By contrast, if we look at the body of existsc_,
-the variables are unbound:
+   .. _ex-walk-chewgum22:
+   .. ex:: `hard`:mathit:(|lambda|\ `x. (walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) 
 
-.. _exists2:
-.. ex:: girl(x) & walk(x)
+We'll take this opportunity to restate our earlier syntactic rules for
+propositional logic and add the formation rules for quantifiers. In
+addition, we make explicit the types of the expressions involved.
 
-exists2_ is said to be an `open formula`:dt:. As we saw earlier, the
-interpretation of open formulas depends on the particular variable
-assignment that we are using. 
+   1. If `P`:math: is a predicate of type e^n -> t, and |tau|\ 1,
+      ... |tau|\ n are terms of type e, then P(|tau|\ 1,
+      ... |tau|\ n) is of type t.
 
-The inclusion of first-order quantifiers motivates the final clause of
-the definition of our version of |fol|.
+   2. If |phi| is of type t, then so is |neg| |phi|.
 
-7. If `x`:mathit: |element|  **Var**\ (**Ind**) and |phi| 
-  |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
-  |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\ (**Bool**).  
+   3. | If |phi| and |psi| are of type t, then so are
+      | (|phi| |wedge| |psi|),
+      | (|phi| |vee| |psi|),
+      | (|phi| |rarr| |psi|) 
+      | (|phi| |iff| |psi|).
 
-One important property of forall1b_ often trips people up. The logical
-rendering in effect says that *if* something is a dog, then it barks,
-but makes no commitment to the existence of dogs. So in a situation
-where nothing is a dog, forall1b_ will still come out true. (Remember
-that ``'(p implies q)'`` is true when ``'p'`` is false.) Now you might
-argue that forall1b_ does presuppose the existence of dogs,
-and that the logic formalization is wrong. 
-But it is possible  to find other
-examples which lack such a presupposition.  For instance, we might
-explain that the value of the Python expression ``re.sub('ate', '8',
-astring)`` is the result of replacing all occurrences of ``'ate'`` in
-``astring`` by ``'8'``, even though there may in fact be no such
-occurrences.
+   4. If |phi| is of type t, and `x`:math: is a variable of type e, then
+      |exists| `x`:math: |phi| and  |forall| `x`:math: |phi| are of
+      type t.
+
+
+
+
+
 
 
 Model-theory
@@ -955,13 +1026,22 @@ Quantification and Scope
 
 One of the crucial insights of modern
 logic is that the notion of variable satisfaction can be used to
-provide an interpretation to quantified formulas. Let's continue to
-use existsc_ as an example. When is it true? Let's think about all the
-individuals in our domain, i.e., in ``dom2``. We want to check whether
-any of these individuals have the property of being a girl and
-walking. In other words, we want to know if there is some ``u`` in
-``dom2`` such that ``g[u/x]`` satisfies the open formula
-exists2_. Consider the following:
+provide an interpretation to quantified formulas. Let's 
+use exists1_ as an example.
+
+.. _exists1:
+   .. ex:: ``some x.(girl(x) & walk(x))``
+
+When is it true? Let's think about all the individuals in our domain,
+i.e., in ``dom2``. We want to check whether any of these individuals
+have the property of being a girl and walking. In other words, we want
+to know if there is some ``u`` in ``dom2`` such that ``g[u/x]``
+satisfies the open formula exists2_.
+
+.. _exists2:
+.. ex:: girl(x) & walk(x)
+
+Consider the following:
 
     >>> m2.evaluate('exists x.(girl(x) & walk(x))', g)
     True
