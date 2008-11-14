@@ -11,4 +11,4 @@
    *Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License*
    [http://creativecommons.org/licenses/by-nc-nd/3.0/us/].
 
-   .. include:: revision.txt
+   .. include:: revision.rst
