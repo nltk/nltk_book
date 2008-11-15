@@ -383,9 +383,6 @@ not very useful to us.  Instead, we can iterate over it directly, using ``for no
 or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 
-Case Study: T9
---------------
-
 
 .. _T9:
 .. figure:: ../images/T9.png

@@ -56,9 +56,14 @@ api:	.api.done
 	touch .api.done
 
 publish: publish-en publish-howto publish-api
+	svn commit $(PUBLISH)
 
 publish-en:
 	$(MAKE) -C en publish
+	cp default.css $(PUBLISH)
+	cp images/*.png $(PUBLISH)/images/
+	svn add $(PUBLISH)/default.css $(PUBLISH)/images/*
+	python svnmime.py $(PUBLISH)/default.css $(PUBLISH)/images/*
 
 publish-howto:
 	$(MAKE) -C howto publish
@@ -66,5 +71,4 @@ publish-howto:
 publish-api:
 	cp api/* $(PUBLISH)/api
 	svn add $(PUBLISH)/api/*
-	svnmime $(PUBLISH)/api/*
-
+	python svnmime.py $(PUBLISH)/api/*
