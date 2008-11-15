@@ -4,6 +4,7 @@ import os
 import sys
 
 types_map = {
+    'ai': 'application/postscript',
     'css': 'text/css',
     'exe': 'application/octet-stream',
     'eps': 'application/postscript',
@@ -32,8 +33,9 @@ def usage():
     exit("Usage: svnmime files")
 
 for file in sys.argv[1:]:
-    extension = file.rsplit('.')[1]
-    if extension in types_map:
-        os.system("svn propset svn:mime-type %s %s" % (types_map[extension], file))
-    else:
-        print "Unrecognized extension", extension
+    if "." in file:
+        extension = file.rsplit('.')[1]
+        if extension in types_map:
+            os.system("svn propset svn:mime-type %s %s" % (types_map[extension], file))
+        else:
+            print "Unrecognized extension", extension
