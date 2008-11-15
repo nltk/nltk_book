@@ -1,4 +1,4 @@
-# NLTK: Book Makefile
+# NLTK: Documentation Makefile
 #
 # Copyright (C) 2001-2008 NLTK Project
 # Author: Steven Bird <sb@csse.unimelb.edu.au>
@@ -6,7 +6,7 @@
 # URL: <http://nltk.org>
 # For license information, see LICENSE.TXT
 
-WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
+PUBLISH = ../../doc
 
 NLTK_VERSION = $(shell python -c 'import nltk; print nltk.__version__')
 NLTK_URL = $(shell python -c 'import nltk; print nltk.__url__')
@@ -21,14 +21,14 @@ RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude --omit-dir-times
 
 .SUFFIXES: .txt .html
 
-.PHONY: en pt-br slides api rsync .api.done guides rsync-api
+.PHONY: en pt-br slides api rsync .api.done howto rsync-api
 
-all: en slides api guides
+all: en slides api howto
 
 clean:	clean_up
 	rm -rf api
 	$(MAKE) -C en clean
-	$(MAKE) -C guides clean
+	$(MAKE) -C howto clean
 	$(MAKE) -C slides clean
 
 clean_up:
@@ -36,7 +36,7 @@ clean_up:
 			 -and -not -name 'xelatexsymbols.tex'`; \
 	    rm -f *.log *.aux $$TEXFILES *.out *.errs *~
 	$(MAKE) -C en clean_up
-	$(MAKE) -C guides clean_up
+	$(MAKE) -C howto clean_up
 	$(MAKE) -C slides clean_up
 
 .txt.html:
@@ -48,15 +48,23 @@ en:
 slides:
 	$(MAKE) -C slides
 
-guides:
-	$(MAKE) -C guides
+howto:
+	$(MAKE) -C howto
 
 api:	.api.done
 	epydoc $(EPYDOC_OPTS) -o api ../nltk
 	touch .api.done
 
-rsync:
-	rsync $(RSYNC_OPTS) . $(WEB)/doc/
+publish: publish-en publish-howto publish-api
 
-rsync-api:
-	rsync $(RSYNC_OPTS) api $(WEB)/doc/
+publish-en:
+	$(MAKE) -C en publish
+
+publish-howto:
+	$(MAKE) -C howto publish
+
+publish-api:
+	cp api/* $(PUBLISH)/api
+	svn add $(PUBLISH)/api/*
+	svnmime $(PUBLISH)/api/*
+
