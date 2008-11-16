@@ -9,8 +9,8 @@
 .. TODO: explain why RHS can't have a sequence of terminals
 .. TODO: motivate or omit mathematical notation for formalizing CFGs
 .. TODO: include overview of ContextFreeGrammar and Production in 8.4
-.. TODO: put dependency grammar material in later chapter?
 .. TODO: make URLs clickable in the HTML version
+.. TODO: mention Chomsky Normal Form
 
 .. _chap-parse:
 
@@ -596,41 +596,6 @@ which contains a 10% sample of the Penn Treebank corpus.
           (NP-TMP (NNP Nov.) (CD 29))))
       (. .))
 
-The program in Figure indent-tree_ prints a tree object using whitespace formatting.
-
-.. pylisting:: indent-tree
-
-   def indent_tree(t, level=0, first=False, width=8):
-       if not first:
-           print ' '*(width+1)*level,
-       try:
-           print "%-*s" % (width, t.node),
-           indent_tree(t[0], level+1, first=True)
-           for child in t[1:]:
-               indent_tree(child, level+1, first=False)
-       except AttributeError:
-           print t
-
-   >>> t = nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
-   >>> indent_tree(t)
-    S        NP-SBJ   NP       NNP      Pierre
-                               NNP      Vinken
-                      ,        ,
-                      ADJP     NP       CD       61
-                                        NNS      years
-                               JJ       old
-                      ,        ,
-             VP       MD       will
-                      VP       VB       join
-                               NP       DT       the
-                                        NN       board
-                               PP-CLR   IN       as
-                                        NP       DT       a
-                                                 JJ       nonexecutive
-                                                 NN       director
-                               NP-TMP   NNP      Nov.
-                                        CD       29
-             .        .
 
 
 NLTK also includes a sample from the *Sinica Treebank Corpus*,
@@ -653,6 +618,8 @@ Note that we can read tagged text from a Treebank corpus, using the ``tagged()``
     ('old', 'JJ'), (',', ','), ('will', 'MD'), ('join', 'VB'), ('the', 'DT'),
     ('board', 'NN'), ('as', 'IN'), ('a', 'DT'), ('nonexecutive', 'JJ'),
     ('director', 'NN'), ('Nov.', 'NNP'), ('29', 'CD'), ('.', '.')]
+
+.. _sec-context-free-grammar:
 
 --------------------
 Context Free Grammar
@@ -976,146 +943,11 @@ Notice that according to subcat3_, a given lexical item can belong to more
 than one subcategory. For example, `sang`:lx: can occur both with and
 without a following `np`:gc: complement.
 
-Dependency Grammar
-------------------
+Context Free Grammar in NLTK
+----------------------------
 
-Although we concentrate on phrase structure grammars in this chapter,
-we should mention an alternative approach, namely `dependency
-grammar`:dt:. Rather than taking starting from the grouping of words
-into constituents, dependency grammar takes as basic the notion that
-one word can be dependent on another (namely, its head). The root of a
-sentence is usually taken to be the main verb, and every other word is
-either dependent on the root, or connects to it through a path of
-dependencies. Figure depgraph0_ illustrates a dependency graph, where
-the head of the arrow points to the head of a dependency. 
-
-.. _depgraph0:
-.. ex::
-    .. image:: ../images/depgraph0.png
-       :scale: 30
-
-As you will see, the arcs in Figure depgraph0_ are labeled with the
-particular dependency relation that holds between a dependent and its
-head. For example, `Esso`:lx: bears the subject relation to `said`:lx:
-(which is the head of the whole sentence), and `Tuesday`:lx: bears a
-verbal modifier (`vmod`:gc:) relation to `started`:lx:.
-
-An alternative way of representing the dependency relationships is illustrated
-in the tree depgraph1_,
-where dependents are shown as daughters of their heads.
-
-.. _depgraph1:
-.. ex::
-    .. tree:: (said Esso (started (field the Whiting) production Tuesday))
-
-One format for encoding dependency information places each word on a
-line, followed by its part-of-speech tag, the index of its head, and
-the label of the dependency relation (cf. [Nivre2006MP]_). The index
-of a word is implicitly given by the ordering of the lines (with 1 as the
-first index). This is illustrated in the following code snippet:
-
-    >>> from nltk_contrib.dependency import DepGraph
-    >>> dg = DepGraph().read("""Esso	NNP	2	SUB
-    ... said	VBD	0	ROOT
-    ... the 	DT	5	NMOD
-    ... Whiting	NNP	5	NMOD
-    ... field	NN	6	SUB
-    ... started	VBD	2	VMOD
-    ... production	NN	6	OBJ
-    ... Tuesday	NNP	6	VMOD""")
-
-As you will see, this format also adopts the convention that the head
-of the sentence is dependent on an empty node, indexed as 0. We can
-use the ``deptree()`` method of a ``DepGraph()`` object to build an |NLTK|
-tree like that illustrated earlier in depgraph1_.
-
-    >>> tree = dg.deptree()
-    >>> tree.draw()                                 # doctest: +SKIP
-
-Formalizing Context Free Grammars
----------------------------------
-
-We have seen that a CFG contains terminal and nonterminal symbols, and
-productions that dictate how constituents are expanded into other
-constituents and words. In this section, we provide some formal definitions.
-
-A CFG is a 4-tuple |langle|\ `N`:math:, |Sigma|, `P`:math:, `S`:math:\
-|rangle|\ , where:
-
-*  |Sigma| is a set of *terminal* symbols (e.g., lexical items);
-
-*  `N`:math: is a set of *non-terminal* symbols (the category labels); 
-
-*  `P`:math: is a set of *productions* of the form `A`:math: |rarr| |alpha|, where
-
-   * `A`:math: is a non-terminal, and 
-
-   * |alpha| is a string of symbols from (`N`:math: |cup| |Sigma|)*
-     (i.e., strings of either terminals or non-terminals);
-
-*  `S`:math: is the *start symbol*.
-
-A `derivation`:dt: of a string from a non-terminal `A`:math:
-in grammar `G`:math: is the result of successively applying
-productions from  `G`:math: to `A`:math:.  For example, deriv1_ is a
-derivation of `the dog with a telescope`:lx: for the grammar in grammar1_.
-
-.. _deriv1:
-.. ex::
-  ::
-
-     NP
-     Det N PP
-     the N PP
-     the dog PP
-     the dog P NP
-     the dog with NP
-     the dog with Det N
-     the dog with a N
-     the dog with a telescope
-
-Although we have chosen here to expand the leftmost non-terminal
-symbol at each stage, this is not obligatory; productions can be
-applied in any order. Thus,  derivation deriv1_
-could equally have started off in the following manner:
-
-.. _deriv2:
-.. ex::
-  ::
-
-     NP
-     Det N PP
-     Det N P NP
-     Det N with NP
-     ...
-
-We can also write derivation deriv1_ as:
-
-.. _deriv3:
-.. ex::
-   `np`:gc: |DoubleRightArrow| `det n pp`:gc:
-   |DoubleRightArrow| `the`:lx: `n pp`:gc:
-   |DoubleRightArrow| `the dog`:lx: `pp`:gc:
-   |DoubleRightArrow| `the dog`:lx: `p np`:gc:
-   |DoubleRightArrow| `the dog with`:lx: `np`:gc:
-   |DoubleRightArrow| `the dog with a`:lx: `n`:gc:
-   |DoubleRightArrow| `the dog with a telescope`:lx:
-
-where |DoubleRightArrow| means "derives in one step". 
-We use |DoubleRightArrow|\ * to mean "derives in zero or more steps":
-
-* |alpha| |DoubleRightArrow|\ * |alpha| for any string |alpha|, and
-
-* if |alpha| |DoubleRightArrow|\ * |beta| and |beta|
-  |DoubleRightArrow| |gamma|, then |alpha| |DoubleRightArrow|\ *
-  |gamma|.
-
-We write `A`:math: |DoubleRightArrow|\ * |alpha| to indicate that
-|alpha| can be derived from  `A`:math:.
-
-In NLTK, context free grammars are defined in the ``nltk.grammar`` module.  The easiest
-way to construct a grammar object is from the standard string representation
-of grammars.  In Figure cfg_ we define a grammar and use it to parse a simple
+In NLTK, context free grammars are defined in the ``nltk.grammar`` module.
+In Figure cfg_ we define a grammar and use it to parse a simple
 sentence.  You will learn more about parsing in the next section.
 
 .. pylisting:: cfg
@@ -1138,28 +970,24 @@ sentence.  You will learn more about parsing in the next section.
    (S (NP Mary) (VP (V saw) (NP Bob)))
 
 
-
-
 .. _sec-parsing:
 
--------
-Parsing
--------
+---------------------------------
+Parsing With Context Free Grammar
+---------------------------------
 
 A :dt:`parser` processes input sentences according to the
 productions of a grammar, and builds one or more
 constituent structures that conform to the grammar.
-A grammar is a declarative specification of well-formedness.
-In NLTK, it is just a multi-line string; it is not itself a
-program that can be used for anything.
+A grammar is a declarative specification of well-formedness |mdash|
+it is actually just a string, not a program.
 A parser is a procedural interpretation of the grammar.
 It searches through the space of trees licensed by a grammar
 to find one that has the required sentence along its fringe.
 
-Parsing is important in both linguistics and natural language processing.
 A parser permits a grammar to be evaluated against
-a potentially large collection of test sentences,
-helping linguists to find any problems in their grammatical analysis.
+a collection of test sentences, helping linguists
+to discover mistakes in their grammatical analysis.
 A parser can serve as a model of psycholinguistic processing,
 helping to explain the difficulties that humans have with processing
 certain syntactic constructions.
@@ -1322,23 +1150,14 @@ most one parse, even if more parses exist.  We can provide an
 optional ``trace`` parameter that controls how verbosely the
 parser reports the steps that it takes as it parses a text: 
 
-    >>> sr_parse = nltk.ShiftReduceParser(grammar, trace=2)
+    >>> sr_parse = nltk.ShiftReduceParser(grammar)
     >>> sent = 'Mary saw a dog'.split()
     >>> print sr_parse.parse(sent)
-    Parsing 'Mary saw a dog'
-        [ * Mary saw a dog]
-      S [ 'Mary' * saw a dog]
-      R [ <NP> * saw a dog]
-      S [ <NP> 'saw' * a dog]
-      R [ <NP> <V> * a dog]
-      S [ <NP> <V> 'a' * dog]
-      R [ <NP> <V> <Det> * dog]
-      S [ <NP> <V> <Det> 'dog' * ]
-      R [ <NP> <V> <Det> <N> * ]
-      R [ <NP> <V> <NP> * ]
-      R [ <NP> <VP> * ]
-      R [ <S> * ]
       (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
+
+.. note:: |TRY|
+   Run the above parser in tracing mode to see the sequence of shift and reduce
+   operations, using ``sr_parse = nltk.ShiftReduceParser(grammar, trace=2)``
 
 Shift-reduce parsers have a number of problems.
 A shift-reduce parser may fail to parse the sentence, even though the
@@ -1461,6 +1280,61 @@ categories in the left-corner table.
 
 [TODO: *explain how this effects the action of the parser, and why this solves the problem.*]
 
+------------------
+Dependency Grammar
+------------------
+
+Rather than starting from the grouping of words into constituents,
+dependency grammar takes as basic the notion that
+one word can be dependent on another (namely, its head). The root of a
+sentence is usually taken to be the main verb, and every other word is
+either dependent on the root, or connects to it through a path of
+dependencies. Figure depgraph0_ illustrates a dependency graph, where
+the head of the arrow points to the head of a dependency. 
+
+.. _depgraph0:
+.. ex::
+    .. image:: ../images/depgraph0.png
+       :scale: 30
+
+As you will see, the arcs in Figure depgraph0_ are labeled with the
+particular dependency relation that holds between a dependent and its
+head. For example, `Esso`:lx: bears the subject relation to `said`:lx:
+(which is the head of the whole sentence), and `Tuesday`:lx: bears a
+verbal modifier (`vmod`:gc:) relation to `started`:lx:.
+
+An alternative way of representing the dependency relationships is illustrated
+in the tree depgraph1_,
+where dependents are shown as daughters of their heads.
+
+.. _depgraph1:
+.. ex::
+    .. tree:: (said Esso (started (field the Whiting) production Tuesday))
+
+One format for encoding dependency information places each word on a
+line, followed by its part-of-speech tag, the index of its head, and
+the label of the dependency relation (cf. [Nivre2006MP]_). The index
+of a word is implicitly given by the ordering of the lines (with 1 as the
+first index). This is illustrated in the following code snippet:
+
+    >>> from nltk.parse import DependencyGraph
+    >>> dg = DependencyGraph().read("""Esso    NNP 2   SUB
+    ... said    VBD 0   ROOT
+    ... the     DT  5   NMOD
+    ... Whiting NNP 5   NMOD
+    ... field   NN  6   SUB
+    ... started VBD 2   VMOD
+    ... production  NN  6   OBJ
+    ... Tuesday NNP 6   VMOD""")
+
+As you will see, this format also adopts the convention that the head
+of the sentence is dependent on an empty node, indexed as 0. We can
+use the ``deptree()`` method of a ``DependencyGraph()`` object to build an |NLTK|
+tree like that illustrated earlier in depgraph1_.
+
+    >>> tree = dg.deptree()
+    >>> tree.draw()                                 # doctest: +SKIP
+
 ----------
 Conclusion
 ----------
@@ -1550,7 +1424,7 @@ for dealing with ambiguity;
 Chapter 16 covers the Chomsky hierarchy and the formal complexity
 of natural language.
 
-* LALR(1)
+* LALR(1), LR(k)
 
 * Marcus parser
 
