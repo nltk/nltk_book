@@ -6,7 +6,6 @@
     >>> import nltk, re, pprint
 
 .. TODO: exercise on cascaded tagging
-.. TODO: simplified tagset (N, V, J, A) -- WordNet
 .. TODO: other simplified tagset
 .. TODO: better approach to tagging unknown words using special UNK token
 .. TODO: motivate trigram tagging by showing some cases where bigram tagging doesn't work
@@ -16,13 +15,13 @@
    - nltk.tag contains all of math library
    - nltk.corpus.brown.tagged_sents() is too verbose?
    - tag method returns generator object? 
-.. TODO: mention schoolhouse rock videos (youtube)
 .. TODO: type conversions: ``str()``, ``int()``, ``list()``.
 .. TODO: explain how nltk.Index is a defaultdict
 .. TODO: tagging for language analysis: find all pairs of nouns which occur in the same sentence
 .. TODO: possibly add section on exploring tagged corpora
 .. TODO: fix up tag-context.png
 .. TODO: add back in short section on Brill and HMM tagging
+.. TODO: discuss problem of testing on training data
 
 .. _chap-tag:
 
@@ -341,41 +340,10 @@ prepositions, such as `articles`:dt: (also often called `determiners`:dt:)
 `may`:lx:), and `personal pronouns`:dt: (e.g., `she`:lx:, `they`:lx:).
 Each dictionary and grammar classifies these words differently.
 
-Part-of-speech tags are closely related to the notion of word class
-used in syntax.  The assumption in linguistics is that every distinct
-word type will be listed in a lexicon (or dictionary), with
-information about its pronunciation, syntactic properties and
-meaning. A key component of the word's properties will be its
-class. When we carry out a syntactic analysis of an example like
-`fruit flies like a banana`:lx:, we will look up each word in the
-lexicon, determine its word class, and then group it into a hierarchy
-of phrases, as illustrated in fruit-flies_.
-
-.. _fruit-flies:
-.. ex::
-   .. tree:: (S (NP (Adj Fruit) (N flies)) (VP (V like) (NP (Det a) (N banana))))
-
-Syntactic analysis will be dealt with in more detail in later chapters.
-For now, we simply want to make the connection between the labels used in
-syntactic parse trees and part-of-speech tags.  Table word-classes_
-shows the correspondence:
-
-.. table:: word-classes
-
-   ================  =========   ============================
-   Word Class Label  Brown Tag   Word Class 
-   ================  =========   ============================
-   Det               `AT`:gc:    article 
-   N                 `NN`:gc:    noun 
-   V                 `VB`:gc:    verb 
-   Adj               `JJ`:gc:    adjective 
-   P                 `IN`:gc:    preposition 
-   Card              `CD`:gc:    cardinal number 
-   --                `.`:gc:     sentence-ending punctuation 
-   ================  =========   ============================
-
-   Word Class Labels and Brown Corpus Tags
-
+.. note:: |TRY|
+   If you are uncertain about some of these parts of speech, study them using
+   ``nltk.draw.pos_concordance()``, or watch some of the *Schoolhouse Rock!*
+   grammar videos available at YouTube.
 
 Tuples
 ------
@@ -913,7 +881,8 @@ tags everything as `NN`:gc:.
 This method performs poorly when used on its own.
 On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
-    >>> nltk.tag.accuracy(default_tagger, brown.tagged_sents(categories='news'))
+    >>> brown_news_tagged = brown.tagged_words(categories='news')
+    >>> nltk.tag.accuracy(default_tagger, brown_news_tagged)
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
@@ -930,28 +899,21 @@ Let's find some of these words and their tags.  The
 following code takes a list of sentences and counts up the words,
 and prints the 100 most frequent words:
 
-    >>> fd = nltk.FreqDist(brown.words(categories='news'))
+    >>> brown_news_text = brown.words(categories='news')
+    >>> fd = nltk.FreqDist(brown_news_text)
     >>> most_freq_words = fd.keys()[:100]
     >>> most_freq_words
     ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that', '``',
-    'is', 'was', "''", 'on', 'at', 'with', 'be', 'by', 'as', 'he', 'said', 'his',
-    'will', 'it', 'from', 'are', ';', 'has', 'an', '--', 'had', 'who', 'have',
-    'not', 'Mrs.', 'were', 'this', 'would', 'which', 'their', 'been', 'they', 'He',
-    'one', 'I', 'its', 'but', 'or', 'more', ')', 'Mr.', 'up', '(', 'all', 'last',
-    'out', 'two', ':', 'other', 'new', 'first', 'year', 'than', 'A', 'about', 'there',
-    'when', 'home', 'after', 'In', 'also', 'over', 'It', 'into', 'no', 'But', 'made',
-    'her', 'only', 'years', 'time', 'three', 'them', 'some', 'can', 'New', 'him',
-    'state', '?', 'any', 'President', 'could', 'before', 'week', 'under', 'against',
-    'we', 'now']
+    'is', 'was', "''", 'on', 'at', 'with', 'be', 'by', 'as', 'he', 'said', ...]
 
-Next, let's inspect the tags that these words have.
+Next, let's set up a dictionary that maps from each of the 100 most frequent
+words to its most likely tag:
 
-    >>> cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
-    >>> cfd['The'].max()
+    >>> cfd = nltk.ConditionalFreqDist(brown_news_tagged)
+    >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
 
-|nopar|
 Finally, we can create and evaluate a simple tagger that assigns tags to words
-based on this table:
+based on the ``likely_tags`` dictionary:
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
     >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
@@ -992,11 +954,11 @@ a tag, we can "back off" to a more generalized tagger.
 How do we combine these taggers?  We want to use the lookup table
 first, and if it is unable to assign a tag, then use the default tagger.
 We do this by specifying the default tagger as an argument to the
-lookup tagger.  The lookup tagger will call the default tagger just
+lookup tagger.  The lookup tagger will invoke the default tagger just
 in case it can't assign a tag itself.
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
+    >>> nltk.tag.accuracy(baseline_tagger, brown_news_tagged)
     0.58177695566561249
 
 We will return to this technique in the context of a broader discussion

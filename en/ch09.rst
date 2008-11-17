@@ -103,7 +103,7 @@ of length 50 there would be over 10\ :superscript:`12` parses, and this
 is only half the length of the Piglet sentence
 (Section sec-more-observations-about-grammar_),
 which young children process effortlessly.
-No practical |NLP| system could construct all millions of trees for a
+No practical |NLP| system could construct millions of trees for a
 sentence and choose the appropriate one in the context.
 It's clear that humans don't do this either!
 
@@ -215,35 +215,42 @@ focus of this section.
 Well-Formed Substring Tables
 ----------------------------
 
-Let's start off by defining a simple grammar.
+A well-known example of ambiguity is shown in elephant_  
+(from Groucho Marx, Animal Crackers, 1930):
+
+.. _elephant:
+.. ex::
+
+   While hunting in Africa, I shot an elephant in my pajamas.
+   How an elephant got into my pajamas IÕll never know.
+
+Let's take a closer look at the ambiguity in this phrase:
+`I shot an elephant in my pajamas`:lx:.  First we
+need to define a simple grammar:
 
     >>> grammar = nltk.parse_cfg("""
     ... S -> NP VP
     ... PP -> P NP
-    ... NP -> Det Nom
-    ... Nom -> Nom PP | N
+    ... NP -> Det N | Det N PP | 'I'
     ... VP -> V NP | VP PP
-    ... Det -> 'the'
-    ... N -> 'kids' | 'box' | 'floor'
-    ... V -> 'opened' 
-    ... P -> 'on' 
+    ... Det -> 'an' | 'my'
+    ... N -> 'elephant' | 'pajamas'
+    ... V -> 'shot' 
+    ... P -> 'in' 
     ... """)
 
-As you can see, this grammar allows the `vp`:gc: 
-`opened the box on the floor`:lx: to be analyzed in two ways,
+As you can see, this grammar allows the sentence to be analyzed in two ways,
 depending on where the `pp`:gc: is attached.
 
 .. ex::
 
   .. ex::
-    .. tree:: (VP (VP (V opened)(NP (Det the) (Nom (N box)))) (PP (P on )(NP (Det the )(Nom (N floor)))))
+    .. tree:: (S (NP I) (VP (V shot)  (NP (Det an) (N elephant) (PP (P in) (NP (Det my) (N pajamas)))))) 
 
   .. ex::
-    .. tree:: (VP (V opened)(NP (Det the) (Nom (Nom (N box)) (PP (P on )(NP (Det the )(Nom (N floor)))))))
+    .. tree:: (S (NP I) (VP (VP (V shot) (NP (Det an) (N elephant))) (PP (P in) (NP (Det my) (N pajamas))))) 
 
- 
-
-Dynamic programming allows us to build the `pp`:gc: `on the floor`:lx:
+Dynamic programming allows us to build the `pp`:gc: `in my pyjamas`:lx:
 just once.  The first time we build it we save it in a table, then we look it
 up when we need to use it as a subconstituent of either the object `np`:gc: or
 the higher `vp`:gc:. This table is known as a
@@ -262,32 +269,32 @@ list. We have illustrated this in Figure stringpos_.
    Slice Points in the Input String
 
 |nopar|
-This allows us to say that, for instance, the word `opened`:lx: spans
-(2, 3) in the input.  This is reminiscent of the slice notation:
+This allows us to say that, for instance, the word `shot`:lx: spans
+(1, 2) in the input.  This is reminiscent of the slice notation:
 
-    >>> tokens = ["the", "kids", "opened", "the", "box", "on", "the", "floor"]
-    >>> tokens[2:3]
-    ['opened']
+    >>> text = ["I", "shot", "an", "elephant", "in", "my", "pajamas"]
+    >>> text[1:2]
+    ['shot']
 
 |nopar|
 In a |WFST|, we record the position of the words
 by filling in cells in a triangular matrix:
 the vertical axis will denote the start position of a substring,
 while the horizontal axis will denote the end position
-(thus `opened`:lx: will appear in the cell with coordinates (2, 3)).
+(thus `shot`:lx: will appear in the cell with coordinates (1, 2)).
 To simplify this presentation, we will assume each word has a unique
 lexical category, and we will store this (not the word) in the matrix.
-So cell (2, 3) will contain the entry `v`:gc:.
+So cell (1, 2) will contain the entry `v`:gc:.
 More generally, if our input string is
 `a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`, and our grammar
 contains a production of the form *A* |rarr| `a`:sub:`i`, then we add *A* to
 the cell (`i`-1, `i`).
 
-So, for every word in ``tokens``, we can look up in our grammar what
+So, for every word in ``text``, we can look up in our grammar what
 category it belongs to.
 
-    >>> grammar.productions(rhs=tokens[2])
-    [V -> 'opened']
+    >>> grammar.productions(rhs=tokens[1])
+    [V -> 'shot']
 
 |nopar| 
 For our |WFST|, we create an `(n-1)`:math: |times| `(n-1)`:math: matrix
@@ -295,73 +302,69 @@ as a list of lists in Python, and initialize it
 with the lexical categories of each token, in the ``init_wfst()``
 function in Figure wfst_.  We also define a utility function ``display()``
 to pretty-print the |WFST| for us.
-As expected, there is a `v`:gc: in cell (2, 3).
+As expected, there is a `v`:gc: in cell (1, 2).
 
 .. pylisting:: wfst
    :caption: Acceptor Using Well-Formed Substring Table (based on |CYK| algorithm)
 
-   def init_wfst(tokens, grammar):
-       numtokens = len(tokens)
-       wfst = [['.' for i in range(numtokens+1)] for j in range(numtokens+1)]
-       for i in range(numtokens):
-           productions = grammar.productions(rhs=tokens[i])
-           wfst[i][i+1] = productions[0].lhs()
-       return wfst
-   def complete_wfst(wfst, tokens, trace=False):
-       index = {}
-       for prod in grammar.productions():
-           index[prod.rhs()] = prod.lhs()
-       numtokens = len(tokens)
-       for span in range(2, numtokens+1):
-           for start in range(numtokens+1-span):
-               end = start + span
-               for mid in range(start+1, end):
-                   nt1, nt2 = wfst[start][mid], wfst[mid][end]
-                   if (nt1,nt2) in index:
-                       if trace:
-                           print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
-                           (start, nt1, mid, nt2, end, start, index[(nt1,nt2)], end)
-                       wfst[start][end] = index[(nt1,nt2)]
-       return wfst
-   def display(wfst, tokens):
-       print '\nWFST ' + ' '.join([("%-4d" % i) for i in range(1, len(wfst))])
-       for i in range(len(wfst)-1):
-           print "%d   " % i,
-           for j in range(1, len(wfst)):
-               print "%-4s" % wfst[i][j],
-           print
+    def init_wfst(tokens, grammar):
+        numtokens = len(tokens)
+        wfst = [[None for i in range(numtokens+1)] for j in range(numtokens+1)]
+        for i in range(numtokens):
+            productions = grammar.productions(rhs=tokens[i])
+            wfst[i][i+1] = productions[0].lhs()
+        return wfst
 
-   >>> wfst0 = init_wfst(tokens, grammar)
-   >>> display(wfst0, tokens)
-   WFST 1    2    3    4    5    6    7    8   
-   0    Det  .    .    .    .    .    .    .
-   1    .    N    .    .    .    .    .    .
-   2    .    .    V    .    .    .    .    .
-   3    .    .    .    Det  .    .    .    .
-   4    .    .    .    .    N    .    .    .
-   5    .    .    .    .    .    P    .    .
-   6    .    .    .    .    .    .    Det  .
-   7    .    .    .    .    .    .    .    N
-   >>> wfst1 = complete_wfst(wfst0, tokens)
-   >>> display(wfst1, tokens)
-   WFST 1    2    3    4    5    6    7    8   
-   0    Det  NP   .    .    S    .    .    S
-   1    .    N    .    .    .    .    .    .
-   2    .    .    V    .    VP   .    .    VP
-   3    .    .    .    Det  NP   .    .    NP
-   4    .    .    .    .    N    .    .    .
-   5    .    .    .    .    .    P    .    PP
-   6    .    .    .    .    .    .    Det  NP
-   7    .    .    .    .    .    .    .    N
+    def complete_wfst(wfst, tokens, trace=False):
+        index = dict((p.rhs(), p.lhs()) for p in grammar.productions())
+        numtokens = len(tokens)
+        for span in range(2, numtokens+1):
+            for start in range(numtokens+1-span):
+                end = start + span
+                for mid in range(start+1, end):
+                    nt1, nt2 = wfst[start][mid], wfst[mid][end]
+                    if nt1 and nt2 and (nt1,nt2) in index:
+                        wfst[start][end] = index[(nt1,nt2)]
+                        if trace:
+                            print "[%s] %3s [%s] %3s [%s] ==> [%s] %3s [%s]" % \
+                            (start, nt1, mid, nt2, end, start, index[(nt1,nt2)], end)
+        return wfst
+
+    def display(wfst, tokens):
+        print '\nWFST ' + ' '.join([("%-4d" % i) for i in range(1, len(wfst))])
+        for i in range(len(wfst)-1):
+            print "%d   " % i,
+            for j in range(1, len(wfst)):
+                print "%-4s" % (wfst[i][j] or '.'),
+            print
+
+    >>> tokens = "I shot an elephant in my pajamas".split()
+    >>> wfst0 = init_wfst(tokens, grammar)
+    >>> display(wfst0, tokens)
+    WFST 1    2    3    4    5    6    7   
+    0    NP   .    .    .    .    .    .   
+    1    .    V    .    .    .    .    .   
+    2    .    .    Det  .    .    .    .   
+    3    .    .    .    N    .    .    .   
+    4    .    .    .    .    P    .    .   
+    5    .    .    .    .    .    Det  .   
+    6    .    .    .    .    .    .    N 
+    >>> wfst1 = complete_wfst(wfst0, tokens, trace=True)
+    >>> display(wfst1, tokens)
+    WFST 1    2    3    4    5    6    7   
+    0    NP   .    .    S    .    .    S   
+    1    .    V    .    VP   .    .    VP  
+    2    .    .    Det  NP   .    .    .   
+    3    .    .    .    N    .    .    .   
+    4    .    .    .    .    P    .    PP  
+    5    .    .    .    .    .    Det  NP  
+    6    .    .    .    .    .    .    N
 
 Returning to our tabular representation, given that we have `det`:gc:
-in cell (0, 1), and `n`:gc: in cell (1, 2), what should we put into
-cell (0, 2)? In other words, what syntactic category derives
-`the kids`:lx:? We have already established that `Det`:gc:
-derives `the`:lx: and `n`:gc: derives `kids`:lx:, so we need to find a
-production of the form *A* |rarr| `det`:gc: `n`:gc:, that is, a production whose
-right hand side matches the categories in the cells we have already
-found.  From the grammar, we know that we can enter `np`:gc: in cell (0,2).
+in cell (2, 3) for the word `an`:lx:, and `n`:gc: in cell (3, 4) for the
+word `elephant`:lx:, what should we put into cell (2, 4) for `an elephant`:lx:?
+We need to find a production of the form *A* |rarr| `det`:gc: `n`:gc:.
+Consulting the grammar, we know that we can enter `np`:gc: in cell (0,2).
 
 More generally, we can enter *A* in `(i, j)`:math: if there
 is a production *A* |rarr| *B* *C*, and we find
@@ -376,9 +379,8 @@ The program in Figure wfst_ uses this inference step to complete the |WFST|.
    productions each time we want to look up via the right hand side.
 
 We conclude that there is a parse for the whole input string once
-we have constructed an `s`:gc: node that covers the whole input, from
-position `0` to position `8`; i.e., we can conclude that `s`:gc:
-|DoubleRightArrow|\ * `a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`.
+we have constructed an `s`:gc: node in cell (0, 7), showing that we
+have found a sentence that covers the whole input.
 
 Notice that we have not used any built-in parsing functions here.
 We've implemented a complete, primitive chart parser from the ground up!
@@ -390,120 +392,78 @@ By setting ``trace`` to ``True`` when calling the function ``complete_wfst()``, 
 additional output.
 
     >>> wfst1 = complete_wfst(wfst0, tokens, trace=True)
-    [0] Det [1]   N [2] ==> [0]  NP [2]
-    [3] Det [4]   N [5] ==> [3]  NP [5]
-    [6] Det [7]   N [8] ==> [6]  NP [8]
-    [2]   V [3]  NP [5] ==> [2]  VP [5]
-    [5]   P [6]  NP [8] ==> [5]  PP [8]
-    [0]  NP [2]  VP [5] ==> [0]   S [5]
-    [3]  NP [5]  PP [8] ==> [3]  NP [8]
-    [2]   V [3]  NP [8] ==> [2]  VP [8]
-    [2]  VP [5]  PP [8] ==> [2]  VP [8]
-    [0]  NP [2]  VP [8] ==> [0]   S [8]
+    [2] Det [3]   N [4] ==> [2]  NP [4]
+    [5] Det [6]   N [7] ==> [5]  NP [7]
+    [1]   V [2]  NP [4] ==> [1]  VP [4]
+    [4]   P [5]  NP [7] ==> [4]  PP [7]
+    [0]  NP [1]  VP [4] ==> [0]   S [4]
+    [1]  VP [4]  PP [7] ==> [1]  VP [7]
+    [0]  NP [1]  VP [7] ==> [0]   S [7]
+
 
 |nopar| For example, this says that since we found ``Det`` at
 ``wfst[0][1]`` and ``N`` at ``wfst[1][2]``, we can add ``NP`` to
 ``wfst[0][2]``.
 The same information can be represented in a directed acyclic graph,
-as shown in Figure chartinit_\ (a). This graph is usually called a `chart`:dt:.
-Figure chartinit_\ (b) is the corresponding graph representation, where
-we add a new edge labeled `np`:gc: to cover the input from `0` to `2`.
+as shown in Figure chartinit_\ (a) for the initialized WFST and
+chartinit_\ (b) for the completed WFST.
 
 .. table:: chartinit
 
    +-------------------------------------------------------------------+
    | a. Initialized WFST                                               |
    |                                                                   |
-   | |chart_init0|                                                     |
+   | |chart_wfst1|                                                     |
    +-------------------------------------------------------------------+
-   | b. Adding an `np`:gc: Edge                                        |
+   | b. Completed WFST                                                 |
    |                                                                   |
-   | |chart_init1|                                                     |
+   | |chart_wfst2|                                                     |
    +-------------------------------------------------------------------+
 
    A Graph Representation for the WFST
 
-.. |chart_init0| image:: ../images/chart_init0.png
+.. |chart_wfst1| image:: ../images/chart_wfst1.png
    :scale: 25
 
-.. |chart_init1| image:: ../images/chart_init1.png
+.. |chart_wfst2| image:: ../images/chart_wfst2.png
    :scale: 25
-
-(Charts are more general than the |WFST|\ s we have seen, since they
-can hold multiple hypotheses for a given span.)
 
 A |WFST| is a data structure that can be used by a variety of parsing
 algorithms. The particular method for constructing a |WFST| that we
 have just seen and has some shortcomings.
+
 First, as you can see, the |WFST| is not itself a parse tree, so the technique is
 strictly speaking `recognizing`:dt: that a sentence is admitted by a
 grammar, rather than parsing it.
+
 Second, it requires every non-lexical grammar production to be
 `binary`:em: (see the discussion of normal forms in Section sec-grammar-induction_).
 Although it is possible to convert an arbitrary |CFG| into this form,
 we would prefer to use an approach without such a requirement.
+
 Third, as a bottom-up approach it is potentially wasteful, being
 able to propose constituents in locations that would not be licensed by
 the grammar.
+
 Finally, the |WFST| did not represent the structural ambiguity in
 the sentence (i.e. the two verb phrase readings).  The `vp`:gc:
 in cell (`2,8`) was actually entered twice, once for a `v np`:gc:
 reading, and once for a `vp pp`:gc: reading.
 In the next section we will address these issues.
 
+they can hold multiple hypotheses for a given span
+
+
 -------------
 Active Charts
 -------------
 
-One important aspect of the tabular approach to parsing can be seen more
-clearly if we look at the graph representation: given our grammar, there are two
-different ways to derive a top-level `vp`:gc: for the input, as shown in
-Table chartnp_\ (a,b).
-In our graph representation, we simply combine the
-two sets of edges to yield Table chartnp_\ (c).
+.. _chart_fundamental:
+.. figure:: ../images/chart_fundamental.png
+   :scale: 30
 
-.. table:: chartnp
+   Example of Dotted Edges and the Fundamental Rule
 
-   +---------------------------------------------------------+
-   | a. `vp`:gc: |rarr| `v`:gc: `np`:gc:                     |
-   |                                                         |
-   | |chartnp0|                                              |
-   +---------------------------------------------------------+
-   | b. `vp`:gc: |rarr| `vp`:gc: `pp`:gc:                    |
-   |                                                         |
-   | |chartnp1|                                              |
-   +---------------------------------------------------------+
-   | c. Merged Chart                                         |
-   |                                                         |
-   | |chartnp2|                                              |
-   +---------------------------------------------------------+
-
-   Combining Multiple Parses in a Single Chart
-
-.. |chartnp0| image:: ../images/chart_np0.png
-   :scale: 25
-
-.. |chartnp1| image:: ../images/chart_np1.png
-   :scale: 25
-
-.. |chartnp2| image:: ../images/chart_np2.png
-   :scale: 25
-
-|nopar| However, given a |WFST| we cannot necessarily read off
-the justification for adding a particular edge.
-For example, in chartnp_\ (b), ``[Edge: VP, 2:8]``
-might owe its existence to a production `vp`:gc: |rarr| `v np pp`:gc:.
-Unlike phrase structure trees, a |WFST| does not encode a relation of
-immediate dominance. In order to make such information available, we
-can label edges not just with a non-terminal category, but with the
-whole production that justified the addition of the edge. This is
-illustrated in Figure chartprods_.
-
-.. _chartprods:
-.. figure:: ../images/chart_prods.png
-   :scale: 25
-
-   Chart Annotated with Productions
 
 In general, a chart parser hypothesizes constituents (i.e. adds edges)
 based on the grammar, the tokens, and the constituents already found.
@@ -822,37 +782,11 @@ bottom-up-strategy_.
       Apply the Fundamental Rule everywhere it applies. 
     Return all of the parse trees corresponding to the parse edges in the chart. 
 
-|NLTK| provides a useful interactive tool for visualizing the way in which charts
-are built, ``nltk.draw.chart.demo()``.
-The tool comes with a pre-defined input string and grammar, but both
-of these can be readily modified with options inside the *Edit* menu.
-Figure budemo1_ illustrates a window after the grammar has been updated:
-
-.. _budemo1:       
-.. figure:: ../images/chart_demo1.png
-
-   Modifying the `demo()` grammar
-
-.. Note:: To get the symbol |DoubleRightArrow| illustrated in Figure
-   budemo1_. you just have to type the keyboard characters `'->'`.
-
-
-Figure budemo2_ illustrates the tool interface. In order to invoke a
-rule, you simply click one of the green buttons at the bottom of the window.
-We show the state of the chart on the input `Lee
-likes coffee`:lx: after three applications of the Bottom-Up
-Initialization Rule, followed by successive applications of the Bottom-Up Predict
-Rule and the Fundamental Rule. 
-
-.. _budemo2:       
-.. figure:: ../images/chart_demo2.png
-   :scale: 100
-
-   Incomplete chart for `Lee likes coffee`:lx: 
-
-Notice that in the topmost pane of the window, there is a partial tree
-showing that we have constructed an `s`:gc: with an `np`:gc: subject
-in the expectation that we will be able to find a `vp`:gc:.
+.. note:: |TRY|
+   |NLTK| provides a useful interactive tool for visualizing the operation of a
+   chart parser: ``nltk.draw.chart.demo()``.
+   The tool comes with a pre-defined input string and grammar, but both
+   of these can be readily modified with options inside the *Edit* menu.
 
 Top-Down Parsing
 ----------------
@@ -1088,7 +1022,7 @@ be found in the input.
 By contrast with Bottom-Up Initialization, however, the
 Earley algorithm proceeds strictly left-to-right through the input,
 applying all applicable rules at that point in the chart, and never backtracking.
-The |NLTK| chart parser demo, described above, allows the option of
+The |NLTK| chart parser demo, ``nltk.draw.chart.demo()``, allows the option of
 parsing according to the Earley algorithm.
 
 Chart Parsing in NLTK
