@@ -806,6 +806,11 @@ class DocBookTranslator(nodes.NodeVisitor):
         # else. - boney.
 
         # self.body.append('<para>')
+
+        # ensure image is contained in a figure so that it is allocated page space
+        if element == 'mediaobject' and not self.figure_tag_stack and not self.table_tag_stack:
+            self.body.append('<informalfigure>')
+
         self.body.append('<%s>' % element)
         self.body.append('<imageobject>')
         self.body.append(self.emptytag(node, 'imagedata', **atts))
@@ -814,6 +819,9 @@ class DocBookTranslator(nodes.NodeVisitor):
             self.body.append('<textobject><phrase>%s</phrase></textobject>\n' % node.attributes['alt'])
         self.body.append('</%s>' % element)
         # self.body.append('</para>')
+
+        if element == 'mediaobject' and not self.figure_tag_stack and not self.table_tag_stack:
+            self.body.append('</informalfigure>')
 
     def depart_image(self, node):
         pass
