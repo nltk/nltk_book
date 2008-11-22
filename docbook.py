@@ -668,7 +668,6 @@ class DocBookTranslator(nodes.NodeVisitor):
         atts = {}
         if 'ids' in node.attributes and node.attributes['ids']:
             atts['id'] = node.attributes['ids'][0]
-        
         try:
             last_child = node.children[-1]
             if isinstance(last_child, nodes.caption) and \
