@@ -10,9 +10,9 @@
 
 .. _chap-advanced-parsing:
 
-==========================================
-9. Chart Parsing and Probabilistic Parsing
-==========================================
+=============================
+9. Advanced Topics in Parsing
+=============================
 
 .. _ch09-introduction:
 
@@ -20,39 +20,7 @@
 Introduction
 ------------
 
-Chapter chap-parse_ started with an introduction to constituent
-structure in English, showing how words in a sentence group together
-in predictable ways. We showed how to describe this structure using
-syntactic tree diagrams, and observed that it is sometimes desirable
-to assign more than one such tree to a given string. In this case, we
-said that the string was structurally ambiguous; and example was `old
-men and women`:lx:. 
-
-Treebanks are language resources in which the syntactic structure of a
-corpus of sentences has been annotated, usually by hand. However, we
-would also like to be able to produce trees algorithmically. A
-context-free phrase structure grammar (|CFG|) is a formal model for
-describing whether a given string can be assigned a particular
-constituent structure. Given a set of syntactic categories, the |CFG|
-uses a set of productions to say how a phrase of some category *A* can
-be analyzed into a sequence of smaller parts |alpha|\ :sub:`1`
-... |alpha|\ :sub:`n`.  But a grammar is a static description of a set
-of strings; it does not tell us what sequence of steps we need to take
-to build a constituent structure for a string. For this, we need to
-use a parsing algorithm.  We presented two such algorithms: Top-Down Recursive
-Descent Bottom-Up Shift-Reduce (sec-parsing_).
-As we pointed out, both parsing approaches suffer
-from important shortcomings. The Recursive Descent parser cannot
-handle left-recursive productions (e.g., productions such as `np`:gc:
-|rarr| `np pp`:gc:), and blindly expands categories top-down without
-checking whether they are compatible with the input string. The
-Shift-Reduce parser is not guaranteed to find a valid parse for the
-input even if one exists, and builds substructure without checking
-whether it is globally consistent with the grammar. As we will
-describe further below, the Recursive Descent parser is also
-inefficient in its search for parses.
-
-So, parsing builds trees over sentences, according to a phrase
+Parsing builds trees over sentences, according to a phrase
 structure grammar.  Now, all the examples we gave in Chapter
 chap-parse_ only involved toy grammars containing a handful of
 productions. What happens if we try to scale up this approach to deal
@@ -190,6 +158,47 @@ of dynamic programming to derive the parses of an ambiguous
 sentence more `efficiently`:em:.  The second is
 `probabilistic parsing`:em:, which allows us to `rank`:em:
 the parses of an ambiguous sentence on the basis of evidence from corpora.
+
+-----------------
+Treebanks (notes)
+-----------------
+
+The ``corpus`` module defines the ``treebank`` corpus reader,
+which contains a 10% sample of the Penn Treebank corpus.
+
+    >>> print nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
+    (S
+      (NP-SBJ
+        (NP (NNP Pierre) (NNP Vinken))
+        (, ,)
+        (ADJP (NP (CD 61) (NNS years)) (JJ old))
+        (, ,))
+      (VP
+        (MD will)
+        (VP
+          (VB join)
+          (NP (DT the) (NN board))
+          (PP-CLR
+            (IN as)
+            (NP (DT a) (JJ nonexecutive) (NN director)))
+          (NP-TMP (NNP Nov.) (CD 29))))
+      (. .))
+
+
+
+NLTK also includes a sample from the *Sinica Treebank Corpus*,
+consisting of 10,000 parsed sentences drawn from the
+*Academia Sinica Balanced Corpus of Modern Chinese*.
+Here is a code fragment to read and display one of the trees in this corpus.
+
+    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
+
+
+.. _sinica-tree:
+.. ex::
+    .. image:: ../images/sinica-tree.png
+       :scale: 70
+
 
 ---------------------
 Probabilistic Parsing
@@ -795,10 +804,12 @@ These trees are shown in treetransforms_.
 Dependency Grammar
 ------------------
 
-Rather than starting from the grouping of words into constituents,
-dependency grammar takes as basic the notion that
-one word can be dependent on another (namely, its head). The root of a
-sentence is usually taken to be the main verb, and every other word is
+Context Free Grammar is founded on the notion that sequences of adjacent words
+can be grouped into constituents, such as as prepositional phrases.
+A separate tradition in syntax, recently gaining popularity in |NLP|, is
+known as dependency grammar.  Here, the most basic notion is that of
+dependency: words are `dependent`:dt: on another words. 
+The root of a sentence is usually taken to be the main verb, and every other word is
 either dependent on the root, or connects to it through a path of
 dependencies. Figure depgraph0_ illustrates a dependency graph, where
 the head of the arrow points to the head of a dependency. 
@@ -828,8 +839,8 @@ the label of the dependency relation (cf. [Nivre2006MP]_). The index
 of a word is implicitly given by the ordering of the lines (with 1 as the
 first index). This is illustrated in the following code snippet:
 
-    >>> from nltk.parse import DependencyGraph
-    >>> dg = DependencyGraph().read("""Esso    NNP 2   SUB
+    >>> from nltk import DependencyGraph
+    >>> dg = DependencyGraph("""Esso    NNP 2   SUB
     ... said    VBD 0   ROOT
     ... the     DT  5   NMOD
     ... Whiting NNP 5   NMOD
@@ -846,12 +857,64 @@ tree like that illustrated earlier in depgraph1_.
     >>> tree = dg.deptree()
     >>> tree.draw()                                 # doctest: +SKIP
 
+Projective Dependency Parsing
+-----------------------------
 
-----------
-Conclusion
-----------
+    >>> grammar = parse_dependency_grammar("""
+    ... 'fell' -> 'price' | 'stock'
+    ... 'price' -> 'of' 'the'
+    ... 'of' -> 'stock'
+    ... 'stock' -> 'the'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 5 productions
+      'fell' -> 'price'
+      'fell' -> 'stock'
+      'price' -> 'of' 'the'
+      'of' -> 'stock'
+      'stock' -> 'the'
+    
+    >>> dp = ProjectiveDependencyParser(grammar)
+    >>> for t in dp.parse(['the', 'price', 'of', 'the', 'stock', 'fell']):
+    ...     print tree
+    (fell (price the of the) stock)
+    (fell (price the of) (stock the))
+    (fell (price the (of (stock the))))
 
-[to be written]
+Non-Projective Dependency Parsing
+---------------------------------
+
+    >>> grammar = parse_dependency_grammar("""
+    ... 'taught' -> 'play' | 'man'
+    ... 'man' -> 'the'
+    ... 'play' -> 'golf' | 'dog' | 'to'
+    ... 'dog' -> 'his'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 7 productions
+      'taught' -> 'play'
+      'taught' -> 'man'
+      'man' -> 'the'
+      'play' -> 'golf'
+      'play' -> 'dog'
+      'play' -> 'to'
+      'dog' -> 'his'
+    
+    >>> dp = NonprojectiveDependencyParser(grammar)
+    >>> for g in dp.parse(['the', 'man', 'taught', 'his', 'dog', 'to', 'play', 'golf']):
+    ...     print g
+    [{'address': 0, 'deps': 3, 'rel': 'TOP', 'tag': 'TOP', 'word': None},
+     {'address': 1, 'deps': [], 'word': 'the'},
+     {'address': 2, 'deps': [1], 'word': 'man'},
+     {'address': 3, 'deps': [2, 7], 'word': 'taught'},
+     {'address': 4, 'deps': [], 'word': 'his'},
+     {'address': 5, 'deps': [4], 'word': 'dog'},
+     {'address': 6, 'deps': [], 'word': 'to'},
+     {'address': 7, 'deps': [5, 6, 8], 'word': 'play'},
+     {'address': 8, 'deps': [], 'word': 'golf'}]
+
+.. note:: The dependency parser modules also support probabilistic dependency parsing.
+
 
 ---------------
 Further Reading
