@@ -678,7 +678,7 @@ class DocBookTranslator(nodes.NodeVisitor):
             else:
                 figure_tag = "informalfigure"
         except IndexError:
-            rigure_tag = "informalfigure"
+            figure_tag = "informalfigure"
                 
         self.body.append(self.starttag(node, figure_tag, **atts))
         self.stack_push(self.figure_tag_stack, figure_tag)
@@ -807,7 +807,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         # self.body.append('<para>')
 
         # ensure image is contained in a figure so that it is allocated page space
-        if element == 'mediaobject' and not self.figure_tag_stack and not self.table_tag_stack:
+        if element == 'mediaobject' and not self.figure_tag_stack: # and not self.table_tag_stack:
             self.body.append('<informalfigure>')
 
         self.body.append('<%s>' % element)
@@ -819,7 +819,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self.body.append('</%s>' % element)
         # self.body.append('</para>')
 
-        if element == 'mediaobject' and not self.figure_tag_stack and not self.table_tag_stack:
+        if element == 'mediaobject' and not self.figure_tag_stack: # and not self.table_tag_stack:
             self.body.append('</informalfigure>')
 
     def depart_image(self, node):
