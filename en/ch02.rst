@@ -1034,26 +1034,21 @@ As we have seen, the entries in a wordlist lack internal structure |mdash| they 
 A slightly richer kind of lexical resource is a table (or spreadsheet), containing a word
 plus some properties in each row.  |NLTK| includes the CMU Pronouncing
 Dictionary for US English, which was designed for
-use by speech synthesizers. 
+use by speech synthesizers.
 
     >>> entries = nltk.corpus.cmudict.entries()
     >>> len(entries)
-    127069
-    >>> for entry in entries[40000:40010]:
+    119854
+    >>> for entry in entries[37525:37530]:
     ...     print entry
     ... 
-    ('fir', 1, ('F', 'ER1'))
-    ('fire', 1, ('F', 'AY1', 'ER0'))
-    ("fire's", 1, ('F', 'AY1', 'ER0', 'Z'))
-    ('fire', 2, ('F', 'AY1', 'R'))
-    ('firearm', 1, ('F', 'AY1', 'ER0', 'AA2', 'R', 'M'))
-    ('firearm', 2, ('F', 'AY1', 'R', 'AA2', 'R', 'M'))
-    ('firearms', 1, ('F', 'AY1', 'ER0', 'AA2', 'R', 'M', 'Z'))
-    ('firearms', 2, ('F', 'AY1', 'R', 'AA2', 'R', 'M', 'Z'))
-    ('fireball', 1, ('F', 'AY1', 'ER0', 'B', 'AO2', 'L'))
-    ('fireball', 2, ('F', 'AY1', 'R', 'B', 'AO2', 'L'))
-
-For each word, this lexicon provides a pronunciation number and a list of phonetic
+    ('fir', [['F', 'ER1']])
+    ('fire', [['F', 'AY1', 'ER0'], ['F', 'AY1', 'R']])
+    ('firearm', [['F', 'AY1', 'ER0', 'AA2', 'R', 'M'], ['F', 'AY1', 'R', 'AA2', 'R', 'M']])
+    ('firearms', [['F', 'AY1', 'ER0', 'AA2', 'R', 'M', 'Z'], ['F', 'AY1', 'R', 'AA2', 'R', 'M', 'Z']])
+    ('fireball', [['F', 'AY1', 'ER0', 'B', 'AO2', 'L'], ['F', 'AY1', 'R', 'B', 'AO2', 'L']])
+ 
+For each word, this lexicon provides a list of phonetic
 codes |mdash| distinct labels for each contrastive sound |mdash|
 known as `phones`:lx:.  Observe that `fire`:lx: has two pronunciations
 (in US English):
@@ -1061,15 +1056,14 @@ the one-syllable ``F AY1 R``, and the two-syllable ``F AY1 ER0``.
 The symbols in the CMU Pronouncing Dictionary are from the *Arpabet*,
 described in more detail at ``http://en.wikipedia.org/wiki/Arpabet``
 
-Each entry consists of three pieces of information, and we can
+Each entry consists of two parts, and we can
 process these individually, using a more complex version of the ``for`` statement.
 Instead of writing ``for entry in entries:``, we replace
-``entry`` with *three* variable names.  The three pieces of a single
-entry are assigned to each of the three variables.  One of the
-variable names is "_" and we'll use this name when we don't
-plan to do anything with the variable later.
+``entry`` with *two* variable names.
+Now, each time through the loop, ``word`` is assigned the first part of the
+entry, and ``pron`` is assigned the second part of the entry:
 
-    >>> for w, _, pron in entries:
+    >>> for word, pron in entries:
     ...     if len(pron) == 3:
     ...         ph1, ph2, ph3 = pron
     ...         if ph1 == 'P' and ph3 == 'T':
@@ -1079,7 +1073,7 @@ plan to do anything with the variable later.
     pet EH1 pete IY1 pett EH1 piet IY1 piette IY1 pit IH1 pitt IH1 pot AA1 pote OW1
     pott AA1 pout AW1 puett UW1 purt ER1 put UH1 putt AH1
 
-The above program scans the lexicon for entries with a pronunciation consisting of
+The above program scans the lexicon looking for entries whose pronunciation consists of
 three phones (``len(pron) == 3``).  If the condition is true, we assign the contents
 of ``pron`` to three new variables ``ph1``, ``ph2`` and ``ph3``.  Notice the unusual
 form of the statement which does that work: ``ph1, ph2, ph3 = pron``.
@@ -1089,7 +1083,7 @@ comprehension.  This program finds all words whose pronunciation ends with a syl
 sounding like `nicks`:lx:.  You could use this method to find rhyming words.
 
     >>> syllable = ('N', 'IH0', 'K', 'S')
-    >>> [w for w, _, pron in entries if pron[-4:] == syllable]
+    >>> [word for word, pron in entries if pron[-4:] == syllable]
     ["atlantic's", 'audiotronics', 'avionics', 'beatniks', 'calisthenics', 'centronics',
     'chetniks', "clinic's", 'clinics', 'conics', 'cynics', 'diasonics', "dominic's",
     'ebonics', 'electronics', "electronics'", 'endotronics', "endotronics'", 'enix', ...]
@@ -1099,9 +1093,9 @@ even `ntic's`:lx: with a silent `t`:lx:, for the word `atlantic's`:lx:.  Let's l
 mismatches between pronunciation and writing.  Can you summarize the purpose of
 the following examples and explain how they work?
 
-    >>> [w for w, _, pron in entries if pron[-1] == 'M' and w[-1] == 'n']
+    >>> [w for w, pron in entries if pron[-1] == 'M' and w[-1] == 'n']
     ['autumn', 'column', 'condemn', 'damn', 'goddamn', 'hymn', 'solemn']
-    >>> sorted(set(w[:2] for w, _, pron in entries if pron[0] == 'N' and w[0] != 'n'))
+    >>> sorted(set(w[:2] for w, pron in entries if pron[0] == 'N' and w[0] != 'n'))
     ['gn', 'kn', 'mn', 'pn']
 
 The phones contain digits, to represent 
@@ -1111,11 +1105,11 @@ and then scan our lexicon to find words having a particular stress pattern.
 
     >>> def stress(pron):
     ...     return [int(char) for phone in pron for char in phone if char.isdigit()] 
-    >>> [w for w, _, pron in entries if stress(pron) == [0, 1, 0, 2, 0]]
+    >>> [w for w, pron in entries if stress(pron) == [0, 1, 0, 2, 0]]
     ['abbreviated', 'abbreviating', 'accelerated', 'accelerating', 'accelerator',
     'accentuated', 'accentuating', 'accommodated', 'accommodating', 'accommodative',
     'accumulated', 'accumulating', 'accumulative', 'accumulator', 'accumulators', ...]
-    >>> [w for w, _, pron in entries if stress(pron) == [0, 2, 0, 1, 0]]
+    >>> [w for w, pron in entries if stress(pron) == [0, 2, 0, 1, 0]]
     ['abbreviation', 'abbreviations', 'abomination', 'abortifacient', 'abortifacients',
     'academicians', 'accommodation', 'accommodations', 'accreditation', 'accreditations',
     'accumulation', 'accumulations', 'acetylcholine', 'acetylcholine', 'adjudication', ...]
@@ -1123,22 +1117,11 @@ and then scan our lexicon to find words having a particular stress pattern.
 Note that this example has a user-defined function inside the condition of
 a list comprehension.
 
-We can use any lexical resource to process a text, e.g. to filter out words having
-some lexical property (like nouns), or mapping every word of the text.
-For example, the following text-to-speech function looks up each word
-of the text in the pronunciation dictionary.
-
-    >>> prondict = nltk.corpus.cmudict.transcriptions()
-    >>> text = ['natural', 'language', 'processing']
-    >>> [ph for w in text for ph in prondict[w][0]]
-    ['N', 'AE1', 'CH', 'ER0', 'AH0', 'L', 'L', 'AE1', 'NG', 'G', 'W', 'AH0', 'JH',
-    'P', 'R', 'AA1', 'S', 'EH0', 'S', 'IH0', 'NG']
-
 Rather than iterating over the whole dictionary, we can also access it
 by looking up particular words.  (This uses Python's dictionary data
 structure, which we will study in Section sec-dictionaries_.)
 
-    >>> prondict = nltk.corpus.cmudict.transcriptions()
+    >>> prondict = nltk.corpus.cmudict.dict()
     >>> prondict['fire']
     [('F', 'AY1', 'ER0'), ('F', 'AY1', 'R')]
     >>> prondict['blog']
@@ -1158,13 +1141,22 @@ so we tweak our version by assigning a value for this key
 (this has no effect on the |NLTK| corpus; next time we access it,
 `blog`:lx: will still be absent).
 
-[Summary of tabular lexicons; forward reference to discussion about processing CSV files]
+We can use any lexical resource to process a text, e.g. to filter out words having
+some lexical property (like nouns), or mapping every word of the text.
+For example, the following text-to-speech function looks up each word
+of the text in the pronunciation dictionary.
+
+    >>> text = ['natural', 'language', 'processing']
+    >>> [ph for w in text for ph in prondict[w][0]]
+    ['N', 'AE1', 'CH', 'ER0', 'AH0', 'L', 'L', 'AE1', 'NG', 'G', 'W', 'AH0', 'JH',
+    'P', 'R', 'AA1', 'S', 'EH0', 'S', 'IH0', 'NG']
+
+.. [Summary of tabular lexicons; forward reference to discussion about processing CSV files]
 
 Comparative Wordlists
 ---------------------
 
-Another example of a tabular lexicon is the `comparative wordlist`:dt:, a spreadsheet
-with one row for each word, and a column for each of several different languages.
+Another example of a tabular lexicon is the `comparative wordlist`:dt:.
 |NLTK| includes so-called `Swadesh wordlists`:dt:, lists of about 200 common words
 in several languages.  The languages are identified using an ISO 639 two-letter code.
 
@@ -1177,7 +1169,7 @@ in several languages.  The languages are identified using an ISO 639 two-letter 
     'here', 'there', 'who', 'what', 'where', 'when', 'how', 'not', 'all', 'many', 'some',
     'few', 'other', 'one', 'two', 'three', 'four', 'five', 'big', 'long', 'wide', ...] 
 
-We can also access cognate words from multiple languages using the ``entries()`` method,
+We can access cognate words from multiple languages using the ``entries()`` method,
 specifying a list of languages.  With one further step we can convert this into a simple dictionary.
 
     >>> fr2en = swadesh.entries(['fr', 'en'])
@@ -1226,8 +1218,8 @@ where each entry is made up of one or more fields.
 Most fields are optional or repeatable, which means that this kind of
 lexical resource cannot be treated as a table or spreadsheet.
 
-Here is an example of an entry in the dictionary of the Rotokas language, for
-the word `kaa`:lx: meaning "to gag":
+Here is a dictionary for the Rotokas language.  We see just the first entry,
+for the word `kaa`:lx: meaning "to gag":
 
     >>> from nltk.corpus import toolbox
     >>> toolbox.entries('rotokas.dic')
@@ -1237,8 +1229,10 @@ the word `kaa`:lx: meaning "to gag":
     ('xp', 'Kaikai i pas long nek bilong Apoka bikos em i kaikai na toktok.'),
     ('xe', 'Apoka is gagging from food while talking.')]), ...]
 
-Each field has a label such as ``ps`` (part of speech) and contents, such as ``V`` (verb).
-The ``ge`` field contains the English gloss, and the last three fields contain
+Entries consist of a series of attribute-value pairs, like ``('ps', 'V')``
+to indicate that the part-of-speech is ``'V'`` (verb), and ``('ge', 'gag')``
+to indicate that the gloss-into-English is ``'gag'``.
+The last three pairs contain
 an example sentence in Rotokas and its translations into Tok Pisin and English.
 
 The loose structure of Toolbox files makes it hard for us to do much more with them
@@ -1249,8 +1243,8 @@ we will return to this topic in Chapter chap-data_.
 .. note::
    The Rotokas language is spoken on the island of Bougainville, Papua New Guinea.
    This lexicon was contributed to |NLTK| by Stuart Robinson.   
-   Rotokas is notable for having the smallest alphabet of any written language
-   (12 letters), ``http://en.wikipedia.org/wiki/Rotokas_language``
+   Rotokas is notable for having an inventory of just 12 phonemes (contrastive sounds),
+   ``http://en.wikipedia.org/wiki/Rotokas_language``
     
 .. _sec-wordnet:   
 
@@ -1261,41 +1255,8 @@ WordNet
 `WordNet`:idx: is a semantically-oriented dictionary of English,
 similar to a traditional thesaurus but with a richer structure.
 |NLTK| includes the English WordNet, with 155,287 words
-and 117,659 "synonym sets" or synsets.  It is
-accessible to you in the variable ``wordnet`` (so long as you have already imported
-the book module, using ``from nltk.book import *``).
-
-    >>> for synset in wordnet.synsets('dish'):
-    ...     print synset.name, synset.definition
-    ...
-    dish.n.01 a piece of dishware normally used as a container for holding or serving food
-    dish.n.02 a particular item of prepared food
-    dish.n.03 the quantity that a dish will hold
-    smasher.n.02 a very attractive or seductive looking woman
-    dish.n.05 directional antenna consisting of a parabolic reflector for microwave or radio frequency radiation
-    cup_of_tea.n.01 an activity that you like or at which you are superior
-    serve.v.06 provide (usually but not necessarily food)
-    dish.v.02 make concave; shape like a dish
-    >>>
-
-Each synset is characterized by a set of synonymous words:
-    
-    >>> wn.synset('dish.n.04').lemma_names
-    ['smasher', 'stunner', 'knockout', 'beauty', 'ravisher', 'sweetheart',
-    'peach', 'lulu', 'looker', 'mantrap', 'dish']
-    >>>
-
-We can access semantically related forms.  The `hypernyms`:dt: of a word sense are more general terms... 
-
-    >>> wordnet.synset('dish.n.01').hypernyms()
-    [Synset('container.n.01'), Synset('crockery.n.01')]
-    >>> wordnet.synset('crockery.n.01').hypernyms()
-    [Synset('tableware.n.01')]
-    >>>
-
-.. note::
-   |NLTK| includes a convenient web-browser interface to WordNet
-   ``nltk.wordnet.browser()``
+and 117,659 "synonym sets".  We'll begin by
+looking at synonyms and how they are accessed in WordNet.
 
 Senses and Synonyms
 -------------------
@@ -1334,8 +1295,8 @@ or "synonym set", a collection of synonymous words (or "lemmas"):
 
 Each word of a synset can have several meanings, e.g. `car`:lx: can also signify
 a train carriage, a gondola, or an elevator car.  However, we are only interested
-in the single meaning that is common to all words of the synset.  Each synset
-also comes with a prose definition and some example sentences:
+in the single meaning that is common to all words of the above synset.  Synsets
+also come with a prose definition and some example sentences:
 
     >>> wn.synset('car.n.01').definition
     'a motor vehicle with four wheels; usually propelled by an internal combustion engine'
@@ -1343,7 +1304,7 @@ also comes with a prose definition and some example sentences:
     ['he needs a car to get to work']
 
 Although these help humans understand the intended meaning of a synset,
-the words of the synset are often more useful for our programs.
+the `words`:em: of the synset are often more useful for our programs.
 To eliminate ambiguity, we will identify these words as
 ``car.n.01.automobile``, ``car.n.01.motorcar``, and so on.
 This pairing of a synset with a word is called a lemma,
@@ -1359,15 +1320,12 @@ and here's how to access them:
     >>> wn.lemma('car.n.01.automobile').name
     'automobile'
 
-Unlike the words `automobile`:lx: and `motorcar`:lx:, the word `car`:lx: is
-ambiguous:
+Unlike the words `automobile`:lx: and `motorcar`:lx:, the word `car`:lx: itself
+is ambiguous, having five synsets:
 
     >>> wn.synsets('car')
     [Synset('car.n.01'), Synset('car.n.02'), Synset('car.n.03'), Synset('car.n.04'),
     Synset('cable_car.n.01')]
-
-Each of these five synsets has its own lemmas: 
-
     >>> for synset in wn.synsets('car'):
     ...     print synset.lemma_names
     ... 
@@ -1377,13 +1335,19 @@ Each of these five synsets has its own lemmas:
     ['car', 'elevator_car']
     ['cable_car', 'car']
 
-For good measure, we can access all the lemmas involving the word `car`:lx:
+For convenience, we can access all the lemmas involving the word `car`:lx:
 as follows:
 
     >>> wn.lemmas('car')
     [Lemma('car.n.01.car'), Lemma('car.n.02.car'), Lemma('car.n.03.car'),
     Lemma('car.n.04.car'), Lemma('cable_car.n.01.car')]
 
+Observe that there is a one-to-one correspondence between the synsets of
+car and the lemmas of car.
+
+.. note:: |TRY|
+   Write down all the senses of the word `dish`:lx: that you can think of.  Now, explore this
+   word with the help of WordNet, using the same operations we used above.
 
 The WordNet Hierarchy
 ---------------------
@@ -1391,7 +1355,7 @@ The WordNet Hierarchy
 WordNet synsets correspond to abstract concepts, and they don't always
 have corresponding words in English.  These concepts are linked together in a hierarchy.
 Some concepts are very general, such as *Entity*, *State*, *Event* |mdash| these are called
-`unique beginners`:dt:.  Others, such as *gas guzzler* and
+`unique beginners`:dt: or root synsets.  Others, such as *gas guzzler* and
 *hatchback*, are much more specific. A small portion of a concept
 hierarchy is illustrated in Figure fig-wn-hierarchy_. The edges between nodes
 indicate the hypernym/hyponym relation...
@@ -1437,6 +1401,16 @@ There are two paths between ``car.n.01`` and ``entity.n.01`` because
     'wheeled_vehicle.n.01', 'self-propelled_vehicle.n.01', 'motor_vehicle.n.01',
     'car.n.01']]
 
+We can get the most general hypernyms (or root hypernyms) of
+a synset as follows:
+
+    >>> motorcar.root_hypernyms()
+    [Synset('entity.n.01')]
+
+.. note::
+   |NLTK| includes a convenient web-browser interface to WordNet
+   ``nltk.wordnet.browser()``
+
 More Lexical Relations
 ----------------------
 
@@ -1476,7 +1450,8 @@ has several closely-related senses.  We can see that ``mint.n.04`` is part of
     >>> wn.synset('mint.n.04').substance_holonyms()
     [Synset('mint.n.05')]
 
-Many verbs have entailments:
+There are also relationships between verbs.  For example, the act of `walking`:lx: involves the act of `stepping`:lx:,
+so `walking`:lx: `entails`:dt: `stepping`:lx:.  Some verbs have multiple entailments:
 
     >>> wn.synset('walk.v.01').entailments()
     [Synset('step.v.01')]
@@ -1485,38 +1460,48 @@ Many verbs have entailments:
     >>> wn.synset('tease.v.03').entailments()
     [Synset('arouse.v.07'), Synset('disappoint.v.01')]
 
-[Some adjectives have antonyms...]
+.. [Some adjectives have antonyms...]
 
 Semantic Similarity
 -------------------
 
 .. TODO: discuss WSD, mention Semcor, give pine cone example
 
-The 117,659 synsets of WordNet are linked by a complex network of
-lexical relations.  We can use this network to discover how
-closely related any pair of concepts are.  A simple method is
-to find the most specific hypernym(s) that are shared by
-two synsets.  In the following examples, we see that 
+We have seen that synsets are linked by a complex network of
+lexical relations.  Given a particular synset, we can traverse
+the WordNet network to find synsets with related meanings.
+Knowing which words are semantically related
+is useful for indexing a collection of texts, so
+that a search for a general term like `vehicle`:lx: will match documents
+containing specific terms like `limousine`:lx:.
 
-    >>> grail = wn.synset('grail.n.01')
-    >>> swallow = wn.synset('swallow.n.03')
-    >>> python = wn.synset('python.n.01')
-    >>> comedy = wn.synset('comedy.n.01')
-    >>> comedy.lowest_common_hypernyms(grail)
-    [Synset('abstraction.n.06')]
-    >>> wn.synset('abstraction.n.06').min_depth()
-    1
-    >>> grail.lowest_common_hypernyms(swallow)
-    [Synset('entity.n.01')]
-    >>> wn.synset('entity.n.01').min_depth()
-    0
-    >>> swallow.lowest_common_hypernyms(python)
+Recall that each synset has one or more hypernym paths that link it
+to a root hypernym such as ``entity.n.01``.
+Two synsets linked to the same root may have several hypernyms in common.
+If two synsets share a very specific hypernym |mdash| one that is low
+down in the hypernym hierarchy |mdash| they must be closely related.
+
+    >>> orca = wn.synset('orca.n.01')
+    >>> minke = wn.synset('minke_whale.n.01')
+    >>> tortoise = wn.synset('tortoise.n.01')
+    >>> novel = wn.synset('novel.n.01')
+    >>> orca.lowest_common_hypernyms(minke)
+    [Synset('whale.n.02')]
+    >>> orca.lowest_common_hypernyms(tortoise)
     [Synset('vertebrate.n.01')]
+    >>> orca.lowest_common_hypernyms(novel)
+    [Synset('entity.n.01')]
+
+Of course we know that `whale`:lx: is very specific, `vertebrate`:lx: is more general,
+and `entity`:lx: is completely general.  We can quantify this concept of generality
+by looking up the depth of each synset:
+
+    >>> wn.synset('whale.n.02').min_depth()
+    13
     >>> wn.synset('vertebrate.n.01').min_depth()
     8
-
-From this we might conclude that `swallow`:lx: is
-more closely related to `python`:lx: than to `grail`:lx:.
+    >>> wn.synset('entity.n.01').min_depth()
+    0
 
 The WordNet package includes a variety of sophisticated measures
 that incorporate this basic insight.  For example,
@@ -1525,14 +1510,15 @@ that incorporate this basic insight.  For example,
 hierarchy (``-1`` is returned in those cases where a path cannot be
 found).  Comparing a synset with itself will return ``1``.
 
-    >>> comedy.path_similarity(grail)
-    0.083333333333333329
-    >>> grail.path_similarity(swallow)
-    0.050000000000000003
-    >>> swallow.path_similarity(python)
-    0.090909090909090912
+    >>> orca.path_similarity(minke)
+    0.14285714285714285
+    >>> orca.path_similarity(tortoise)
+    0.071428571428571425
+    >>> orca.path_similarity(novel)
+    0.041666666666666664
 
 This is a convenient interface, and gives us the same relative ordering as before.
+Several other similarity measures are available (see ``help(wn)``).
 
 NLTK also includes VerbNet, a hierarhical verb lexicon linked to WordNet.
 It can be accessed with ``nltk.corpus.verbnet``.
@@ -1541,7 +1527,7 @@ It can be accessed with ``nltk.corpus.verbnet``.
 Summary
 -------
 
-* A text corpus is a balanced collection of texts.  NLTK comes with many corpora,
+* A text corpus is a large, structured collection of texts.  NLTK comes with many corpora,
   e.g. the Brown Corpus, ``nltk.corpus.brown``.
 * Some text corpora are categorized, e.g. by genre or topic; sometimes the
   categories of a corpus overlap each other.
