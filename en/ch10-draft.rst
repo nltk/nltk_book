@@ -168,16 +168,6 @@ built-in functions like ``map`` and ``filter``.
 .. TODO: duck typing
 .. TODO: shared values between multiple dictionaries
 
-Modularity
-----------
-
-Variable scope
-
-* local and global variables
-* scope rules
-* global variables introduce dependency on context and limits the reusability of a function
-* importance of avoiding side-effects
-* functions hide implementation details
 
 naming variables
 
@@ -186,25 +176,6 @@ http://www.python.org/dev/peps/pep-0008/
 Modules
 
 
-Documenting Code
-----------------
-
-NLTK's docstrings are (mostly) written using the "epytext" markup
-language.  Using an explicit markup language allows us to generate
-prettier online documentation, e.g. see:
-
-   http://nltk.org/doc/api/nltk.tree.Tree-class.html
-
-In short, anything of the form ``Z{...}`` where ``Z`` is a capital letter is
-basically just telling epytext how to render the docstring.  In
-particular, ``M{...}`` is for "math expression", ``C{...}`` is for "code
-expression", and ``X{...}`` is for "indexed term."  The first two just
-affect formatting (math=italics, code=monospace), and the last one
-will add an entry to the automatically generated term index:
-
-   http://nltk.org/doc/api/term-index.html
-
-Examples of function-level docstrings with epytext markup...
 
 Debugging
 ---------
@@ -260,127 +231,6 @@ Figure strings-to-ints_
   use sets rather than lists, because sets index their elements.
 
 
-Named Arguments
----------------
-
-One of the difficulties in re-using functions is remembering the order of arguments.
-Consider the following function, that finds the ``n`` most frequent words that are
-at least ``min_len`` characters long:
-
-    >>> def freq_words(file, min, num):
-    ...     text = open(file).read()
-    ...     tokens = nltk.wordpunct_tokenize(text)
-    ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
-    ...     return freqdist.keys()[:num]
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
-    'very', 'using']
-
-This function has three arguments.  It follows the convention of listing the most
-basic and substantial argument first (the file).  However, it might be hard to remember
-the order of the second and third arguments on subsequent use.  We can make this function
-more readable by using `keyword arguments`:dt:.  These appear in the function's argument
-list with an equals sign and a default value:
-
-    >>> def freq_words(file, min=1, num=10):
-    ...     text = open(file).read()
-    ...     tokens = nltk.wordpunct_tokenize(text)
-    ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
-    ...     return freqdist.keys()[:num]
-
-|nopar|
-Now there are several equivalent ways to call this function:
-
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', min=4, num=10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', num=10, min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-|nopar|
-When we use an integrated development environment such as IDLE,
-simply typing the name of a function at the command prompt will
-list the arguments.  Using named arguments helps someone to re-use the code...
-
-A side-effect of having named arguments is that they permit optionality.  Thus we
-can leave out any arguments where we are happy with the default value.
-
-    >>> freq_words('programming.txt', min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', 4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-
-Another common use of optional arguments is to permit a flag, e.g.:
-
-    >>> def freq_words(file, min=1, num=10, trace=False):
-    ...     freqdist = FreqDist()
-    ...     if trace: print "Opening", file
-    ...     text = open(file).read()
-    ...     if trace: print "Read in %d characters" % len(file)
-    ...     for word in nltk.wordpunct_tokenize(text):
-    ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...             if trace and freqdist.N() % 100 == 0: print "."
-    ...     if trace: print
-    ...     return freqdist.keys()[:num]
-
-Accumulative Functions
-----------------------
-
-These functions start by initializing some storage, and iterate over
-input to build it up, before returning some final object (a large structure
-or aggregated result).  The standard way to do this is to initialize an
-empty list, accumulate the material, then return the list, as shown
-in function ``find_nouns1()`` in Listing find-nouns1_.
-
-.. pylisting:: find-nouns1
-   :caption: Accumulating Output into a List
-
-   def find_nouns1(tagged_text):
-       nouns = []
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               nouns.append(word)
-       return nouns
-
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns1(tagged_text)
-   ['cat', 'mat']
-
-A superior way to perform this operation is define the function to
-be a `generator`:dt:, as shown in Listing find-nouns2_.
-The first time this function is called, it gets as far as the ``yield``
-statement and stops.  The calling program gets the first word and does
-any necessary processing.  Once the calling program is ready for another
-word, execution of the function is continued from where it stopped, until
-the next time it encounters a ``yield`` statement.  This approach is
-typically more efficient, as the function only generates the data as it is
-required by the calling program, and does not need to allocate additional
-memory to store the output.
-
-.. pylisting:: find-nouns2
-   :caption: Defining a Generator Function
-   
-   def find_nouns2(tagged_text):
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               yield word
-
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns2(tagged_text)
-   <generator object at 0x14b2f30>
-   >>> for noun in find_nouns2(tagged_text):
-   ...     print noun,
-   cat mat
-   >>> list(find_nouns2(tagged_text))
-   ['cat', 'mat']
-
-If we call the function directly we see that it returns a "generator object", which is
-not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
-or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 
 

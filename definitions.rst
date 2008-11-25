@@ -90,6 +90,7 @@
   .. |oslash| unicode:: U+00F8 .. o slash
   .. |uumlaut| unicode:: U+00FC .. u umlaut
   .. |ecircumflex| unicode:: U+00EA .. e circumflex
+  .. |space| unicode:: U+23E1 .. bottom tortoise shell bracket
 
   .. used in Unicode section
   .. |nacute| unicode:: U+0144 

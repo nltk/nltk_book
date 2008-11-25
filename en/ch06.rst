@@ -22,18 +22,20 @@
 6. Structured Programming in Python
 ===================================
 
-.. _ch06-introduction:
+By now you will have a sense of the capabilities of the Python programming language
+for processing natural language.  However, if you're new to Python or to programming, you may
+still be wrestling with Python and not feel like you are in full control yet.  In this chapter we'll
+address the following questions:
 
-------------
-Introduction
-------------
+1. how can we write well-structured, readable programs that you and others will be able to re-use easily?
 
-In this chapter we will review key programming concepts and explain
-many of the minor points that could easily trip you up.  More fundamentally,
-we will introduce important concepts in structured programming that
-help you write readable, well-organized programs that you and others will
-be able to re-use.  Each section is independent, so you can easily select
-what you most need to learn and concentrate on that.
+2. how do the fundamental building blocks work, such as loops, functions and assignment?
+
+3. what are some of the pitfalls with Python programming and how can we avoid them?
+
+Along the way, you will consolidate your knowledge of fundamental programming
+constructs, learn more about using features of the Python language in a natural
+and concise way, and learn some useful techniques in visualizing natural language data.
 As before, this chapter contains many examples and
 exercises (and as before, some exercises introduce new material).
 Readers new to programming should work through them carefully
@@ -49,12 +51,10 @@ experienced programmers can quickly skim this chapter.
 Back to the Basics
 ------------------
 
-Let's begin by revisiting some of the fundamental operations and data structures
-required for natural language processing in Python.  It is important to appreciate
-several finer points in order to write Python programs that are not
-only correct but also `idiomatic`:em: |mdash| by this, we mean using the
-features of the Python language in a natural and concise way. To
-illustrate, here is a technique for iterating over the members
+Iteration
+---------
+
+Here is a familiar technique for iterating over the members
 of a list by initializing an index ``i`` and then incrementing the
 index each time we pass through the loop:
 
@@ -75,15 +75,95 @@ effect much more succinctly:
     ...
     i am the walrus
 
-In the context of a longer program, we would also need a second ``print``
-statement after the loop, to finish the line with a newline character.
-A third solution is more compact again, but possibly less readable:
+This program actually prints "``i am the walrus ``" with a trailing space character.
+In the context of a longer program, we might not want the extra space character, and we
+might want a newline character at the end (requiring an extra ``print`` statement). 
+A third solution is more compact again, but possibly less readable thanks to the use
+of ``' '.join()``.  The list comprehension should be very familiar by now.
 
-    >>> print ' '.join(sent)
+    >>> print ' '.join(w.lower() for w in sent)
     i am the walrus
 
-We'll start with the most innocuous operation of all: `assignment`:em:.
-Then we will look at sequence types in detail.
+This doesn't produce an extra space character, and does produce the required newline.
+
+Another case where loop variables seem to be necessary is for printing the value of
+a counter with each line of output.  Instead, we can use ``enumerate()``:
+
+    >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
+    >>> cumulative = 0.0
+    >>> for rank, word in enumerate(fd):
+    ...     cumulative += fd[word] * 100.0 / fd.N()
+    ...     print "%3d %6.2f%% %s" % (rank+1, cumulative, word)
+    ...     if cumulative > 25:
+    ...         break
+    ...
+      1   5.40% the
+      2  10.42% ,
+      3  14.67% .
+      4  17.78% of
+      5  20.19% and
+      6  22.40% to
+      7  24.29% a
+      8  25.97% in
+
+You can also use list comprehensions for a kind of multiplication (or `cartesian product`:dt:).
+Here we generate all combinations of two determiners, two adjectives, and two nouns.
+The list comprehension is split across three lines for readability.
+
+We have seen many examples of list comprehensions in previous chapters.  Here we show
+an example with a triply-nested loop, to perform a task called `cartesian product`:dt:.
+
+    >>> [(det,adj,noun) for det in ('two', 'three')
+    ...                 for adj in ('old', 'blind')
+    ...                 for noun in ('men', 'mice')]
+    [('two', 'old', 'men'), ('two', 'old', 'mice'), ('two', 'blind', 'men'),
+     ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
+     ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
+
+Our use of list comprehensions has helped us avoid loop variables.  Here's
+some cases where we still want to use loop variables in a list comprehension.
+
+In the first example, we extract successive overlapping slices of size n
+(a sliding window) from a list (pay particular attention to the range of the variable i).
+    
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> n = 3
+    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
+    [['The', 'dog', 'gave'],
+     ['dog', 'gave', 'John'],
+     ['gave', 'John', 'the'],
+     ['John', 'the', 'newspaper']]
+
+Since this is slightly cumbersome, and a common operation in |NLP|\ , |NLTK|
+supports it with functions ``ngrams(text, n)``, ``bigrams(text)`` and ``trigrams(text)``.
+
+Here's an example of how we can use loop variables in
+building multidimensional structures.
+For example, to build an array with *m* rows and *n* columns,
+where each cell is a set, we would use a nested list comprehension,
+as shown in line two-d-array_ below.  Observe that the loop variables
+``i`` and ``j`` are not used anywhere in the expressions preceding the
+``for`` clauses.
+
+    >>> m, n = 3, 7
+    >>> array = [[set() for i in range(n)] for j in range(m)]
+    >>> array[2][5].add('Alice')
+    >>> pprint.pprint(array)
+    [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set(['Alice']), set([])]]
+
+Note that it would be incorrect to do this work using multiplication:
+
+    >>> array = [[set()] * n] * m
+    >>> array[2][5].add(7)
+    >>> pprint.pprint(array)
+    [[set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
+     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
+     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])]]
+
+Here, the same object appears at every position in the array, so an operation
+on one cell affects all cells.  We explore this issue further in the next section.
 
 Assignment
 ----------
@@ -134,8 +214,8 @@ itself a series of pointers to other locations holding strings).
 When we assign ``sent2 = sent1``, it is just the object reference
 3133 that gets copied.
 
-Sequences: Strings, Lists and Tuples
-------------------------------------
+Sequences
+---------
 
 We have seen three kinds of sequence object: strings, lists, and tuples.
 As sequences, they have some common properties: they can be indexed and they have
@@ -392,304 +472,6 @@ However, we will take a brief look at how queues are implemented using lists.
     >>> queue
     ['sat', 'on', 'the', 'mat']
 
-More List Comprehensions
-------------------------
-
-You may recall that in Chapter chap-words_, we introduced list
-comprehensions, with examples like the following:
-
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> [word.lower() for word in sent]
-    ['the', 'dog', 'gave', 'john', 'the', 'newspaper']
-
-List comprehensions are a convenient and readable way to express
-list operations in Python, and they have a wide range of uses in natural language
-processing.  In this section we will see some more examples.
-The first of these takes successive overlapping slices of size
-``n`` (a `sliding window`:dt:) from a list
-(pay particular attention to the range of the variable ``i``).
-
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> n = 3
-    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
-    [['The', 'dog', 'gave'],
-     ['dog', 'gave', 'John'],
-     ['gave', 'John', 'the'],
-     ['John', 'the', 'newspaper']]
-
-You can also use list comprehensions for a kind of multiplication (or `cartesian product`:dt:).
-Here we generate all combinations of two determiners, two adjectives, and two nouns.
-The list comprehension is split across three lines for readability.
-
-    >>> [(dt,jj,nn) for dt in ('two', 'three')
-    ...             for jj in ('old', 'blind')
-    ...             for nn in ('men', 'mice')]
-    [('two', 'old', 'men'), ('two', 'old', 'mice'), ('two', 'blind', 'men'),
-     ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
-     ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
-
-|nopar|
-The above example contains three independent ``for`` loops.
-These loops have no variables in common, and we could have put them in any order.
-We can also have `nested loops`:dt: with shared variables.
-The next example iterates over all sentences in a
-section of the Brown Corpus, and for each sentence, iterates over each word.
-
-    >>> [word for word in nltk.corpus.brown.words(categories='news')
-    ...     if len(word) == 17]
-    ['September-October', 'Sheraton-Biltmore', 'anti-organization',
-     'anti-organization', 'Washington-Oregon', 'York-Pennsylvania',
-     'misunderstandings', 'Sheraton-Biltmore', 'neo-stagnationist',
-     'cross-examination', 'bronzy-green-gold', 'Oh-the-pain-of-it',
-     'Secretary-General', 'Secretary-General', 'textile-importing',
-     'textile-exporting', 'textile-producing', 'textile-producing']
-
-|nopar| As you will see, the list comprehension in this example
-contains a final ``if`` clause that allows us to filter out any words
-that fail to meet the specified condition.
-
-Another way to use loop variables is to ignore them!  This is
-the standard method for building multidimensional structures.
-For example, to build an array with *m* rows and *n* columns,
-where each cell is a set, we would use a nested list comprehension,
-as shown in line two-d-array_ below.  Observe that the loop variables
-``i`` and ``j`` are not used anywhere in the expressions preceding the
-``for`` clauses.
-
-    >>> m, n = 3, 7
-    >>> array = [[set() for i in range(n)] for j in range(m)]     # [_two-d-array]
-    >>> array[2][5].add('foo')
-    >>> pprint.pprint(array)
-    [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
-     [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
-     [set([]), set([]), set([]), set([]), set([]), set(['foo']), set([])]]
-
-Sometimes we use a list comprehension as part of a larger aggregation task.
-In the following example we calculate the average length of words in part of the Brown Corpus.
-Notice that we don't bother storing the list comprehension in a temporary
-variable, but use it directly as an argument to the ``average()`` function.
-
-    >>> from numpy import average
-    >>> average([len(word) for word in nltk.corpus.brown.words(categories='news')])
-    4.40154543827
-
-Now that we have reviewed the sequence types, we have one more fundamental data type
-to revisit.
-
-Dictionaries
-------------
-
-As you have already seen, the dictionary data type can be used in a variety
-of language processing tasks (e.g. Section sec-dictionaries_).
-However, we have only scratched the surface.
-Dictionaries have many more applications than you might have imagined.
-
-.. note:: The dictionary data type is often known by the name
-   `associative array`:dt:.  A normal array maps from integers (the keys)
-   to arbitrary data types (the values), while an associative array places
-   no such constraint on keys.  Keys can be strings, tuples, or other
-   more deeply nested structure.  Python places the constraint that
-   keys must be `immutable`:idx:.
-
-Let's begin by comparing dictionaries with tuples.  Tuples allow
-`access by position`:em:; to access the part-of-speech of the following
-lexical entry we just have to know it is found at index position ``1``.
-However, dictionaries allow `access by name`:em:\ :
-
-    >>> entry_tuple = ('turned', 'VBD', ['t3:nd', 't3`nd'])
-    >>> entry_tuple[1]
-    'VBD'
-    >>> entry_dict = {'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']}
-    >>> entry_dict['pos']
-    'VBD'
-
-In this case, dictionaries are little more than a convenience.  We can
-even simulate access by name using well-chosen constants, e.g.:
-
-    >>> LEXEME = 0; POS = 1; PRON = 2
-    >>> entry_tuple[POS]
-    'VBD'
-
-This method works when there is a closed set of keys and the keys are known
-in advance.  Dictionaries come into their own when we are mapping from
-an open set of keys, which happens when the keys are drawn from an unrestricted
-vocabulary or where they are generated by some procedure.  Figure mystery_
-illustrates the first of these.  The function ``mystery()``
-begins by initializing a dictionary called ``groups``, then populates it
-with words.  We leave it as an exercise for the reader to work out what
-this function computes.  For now, it's enough to note that the keys of
-this dictionary are an open set, and it would not be feasible to use
-a integer keys, as would be required if we used lists or tuples for the
-representation.
-
-.. TODO: discussion ''.join() vs join()
-
-.. pylisting:: mystery
-   :caption: Mystery program
-
-   def mystery(input):
-       groups = {}
-       for word in input:
-           key = ' '.join(sorted(list(word)), '')
-           if key not in groups:               # [_mystery-key]
-               groups[key] = set()             # [_mystery-add]
-           groups[key].add(word)               # [_mystery-update]
-       return sorted(' '.join(sorted(v)) for v in groups.values() if len(v) > 1)
-
-   >>> words = nltk.corpus.words.words()
-   >>> print mystery(words)                         # doctest: +SKIP
-
-Figure mystery_ illustrates two important idioms, which we already
-touched on in Chapter chap-introduction_.  First, dictionary keys
-are unique; in order to store multiple items in a single entry we
-define the value to be a list or a set, and simply update the value each
-time we want to store another item (line mystery-update_).  Second, if a key does
-not yet exist in a dictionary (line mystery-key_) we must explicitly add it
-and give it an initial value (line mystery-add_).
-
-The second important use of dictionaries is for mappings that involve `compound keys`:dt:.
-Suppose we want to categorize a series of linguistic observations according
-to two or more properties.  We can combine the properties using a tuple
-and build up a dictionary in the usual way, as exemplified in Figure compound-keys_.
-
-.. pylisting:: compound-keys
-   :caption: Illustration of compound keys
-
-   attachment = nltk.defaultdict(lambda:[0,0])
-   V, N = 0, 1
-   for entry in nltk.corpus.ppattach.attachments('training'):
-       key = entry.verb, entry.prep
-       if entry.attachment == 'V':
-           attachment[key][V] += 1
-       else:
-           attachment[key][N] += 1
-
-Back in Chapter chap-introduction_ we saw NLTK's ``FreqDist`` class, which is
-useful for counting word and letter frequencies.  ``FreqDist`` is actually
-a special kind of dictionary, whose keys are the items of interest, and
-whose values are counts.
-
-    >>> phrase = 'colorless green ideas sleep furiously'
-    >>> count = nltk.FreqDist(phrase)
-    >>> print count
-    <FreqDist: 'e': 6, 's': 5, ' ': 4, 'l': 4, 'o': 3, 'r': 3, 'i': 2,
-    'u': 2, 'a': 1, 'c': 1, 'd': 1, 'g': 1, 'f': 1, 'n': 1, 'p': 1, 'y': 1>
-
-It is instructive to see how the same computation is done using
-dictionaries directly.  We begin by initializing a dictionary,
-then iterate over the items, adding them to dictionary and increment
-their counts as we go:    
-
-    >>> count = {}
-    >>> for letter in phrase:
-    ...     if letter not in count:
-    ...         count[letter] = 0
-    ...     count[letter] += 1
-    >>> count
-    {'a': 1, ' ': 4, 'c': 1, 'e': 6, 'd': 1, 'g': 1, 'f': 1, 'i': 2,
-     'l': 4, 'o': 3, 'n': 1, 'p': 1, 's': 5, 'r': 3, 'u': 2, 'y': 1}
-    >>>
-
-Observe that ``in`` is used here in two different ways:
-``for letter in phrase`` iterates over every letter, running
-the body of the ``for`` loop.  Inside this loop, the
-conditional expression ``if letter not in count`` checks whether the letter is missing
-from the dictionary.  If it is missing, we create a new entry and
-set its value to zero: ``count[letter] = 0``.  Now we are sure
-that the entry exists, and it may have a zero or non-zero value.
-We finish the body of the ``for`` loop by incrementing this particular
-counter using the ``+=`` assignment operator.
-Finally, we print the dictionary, to see the letters and their counts.
-This method of maintaining many counters will find many uses, and you
-will become very familiar with it.  To make counting much easier, we
-can use ``defaultdict``, a special kind of container introduced in Python 2.5.
-This is also included in NLTK for the benefit of readers who are using
-Python 2.4, and can be imported as shown below.
-
-    >>> from nltk import defaultdict
-    >>> count = defaultdict(int)
-    >>> for letter in phrase:
-    ...     count[letter] += 1
-    >>> count
-    {'a': 1, ' ': 4, 'c': 1, 'e': 6, 'd': 1, 'g': 1, 'f': 1, 'i': 2,
-     'l': 4, 'o': 3, 'n': 1, 'p': 1, 's': 5, 'r': 3, 'u': 2, 'y': 1}
-    >>>
-
-.. note:: Calling ``defaultdict(int)`` creates a special kind of dictionary.
-   When that dictionary is accessed with a non-existent key
-   |mdash| i.e. the first time a particular letter is encountered |mdash|
-   then ``int()`` is called to produce the initial value for this key (i.e. ``0``).
-   You can test this by running the above code, then typing ``count['X']``
-   and seeing that it returns a zero value (and not a ``KeyError`` as in the
-   case of normal Python dictionaries).
-   The function defaultdict is very handy and will be used in many places later on.
-
-Sorted Output from Dictionaries
--------------------------------
-
-There are other useful ways to display the result, such as sorting
-alphabetically by the letter:
-
-    >>> sorted(count.items())
-    [(' ', 4), ('a', 1), ('c', 1), ('d', 1), ('e', 6), ('f', 1), ...,
-    ...('y', 1)]
-    >>>
-
-.. Note:: The function ``sorted()`` is similar to the ``sort()``
-   method on sequences, but rather than sorting in-place, it produces
-   a new sorted copy of its argument. Moreover, as we will see very
-   soon, ``sorted()`` will work on a wider variety of data types,
-   including dictionaries.
-
-
-Now a ``FreqDist`` object is just a kind of dictionary, so we can easily get
-its key-value pairs and sort them by decreasing values, as follows:
-
-    >>> from operator import itemgetter
-    >>> sorted_word_counts = sorted(fd.items(), key=itemgetter(1), reverse=True)  # [_sorted-args]
-    >>> [token for (token, freq) in sorted_word_counts[:20]]
-    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that',
-    '``', 'is', 'was', "''", 'on', 'at', 'with', 'be', 'by']
-
-Note the arguments of the ``sorted()`` function (line sorted-args_): ``itemgetter(1)``
-returns a function that can be called on any sequence object to return the item at position ``1``;
-``reverse=True`` performs the sort in reverse order.  Together, these ensure that the
-word with the highest frequency is listed first.  This reversed sort by frequency is
-such a common requirement that it is built into the ``FreqDist`` object.
-Figure print-freq_ demonstrates this, and also prints rank and cumulative frequency.
-
-.. pylisting:: print-freq
-   :caption: Words and Cumulative Frequencies, in Order of Decreasing Frequency
-
-   def print_freq(tokens, num=50):
-       fd = nltk.FreqDist(tokens)
-       cumulative = 0.0
-       for rank, word in enumarate(fd.keys()[:num]):
-           cumulative += fd[word] * 100.0 / fd.N()
-           print "%3d %3.2d%% %s" % (rank+1, cumulative, word)
-
-   >>> print_freq(nltk.corpus.brown.words(categories='news'), 20)
-     1  05% the
-     2  10% ,
-     3  14% .
-     4  17% of
-     5  19% and
-     6  21% to
-     7  23% a
-     8  25% in
-     9  26% for
-    10  27% The
-    11  28% that
-    12  28% ``
-    13  29% is
-    14  30% was
-    15  31% ''
-    16  31% on
-    17  32% at
-    18  32% with
-    19  33% be
-    20  33% by
-
 
 Conditionals
 ------------
@@ -731,220 +513,14 @@ it evaluates to true, it tells us not only that the condition is
 satisfied, but also that the condition of the main ``if`` clause was
 *not* satisfied.
 
-.. _sec-presenting-results:
 
-------------------
-Presenting Results
-------------------
+---------------------------------
+Visualizing Language Data (DRAFT)
+---------------------------------
 
-Often we write a program to report a single datum, such as a particular element
-in a corpus that meets some complicated criterion, or a single summary statistic
-such as a word-count or the performance of a tagger.  More often, we write a program
-to produce a structured result, such as a tabulation of numbers or linguistic forms,
-or a reformatting of the original data.  When the results to be presented are linguistic,
-textual output is usually the most natural choice.  However, when the results are numerical,
-it may be preferable to produce graphical output.  In this section you will learn about
-a variety of ways to present program output.
+[Section on pylab, scatter plots, bar charts, line graphs]
 
-Strings and Formats
--------------------
-
-We have seen that there are two ways to display the contents of an object:
-
-    >>> word = 'cat'
-    >>> sentence = """hello
-    ... world"""
-    >>> print word
-    cat
-    >>> print sentence
-    hello
-    world
-    >>> word
-    'cat'
-    >>> sentence
-    'hello\nworld'
-
-The ``print`` command yields Python's attempt to produce the most human-readable form of an object.
-The second method |mdash| naming the variable at a prompt |mdash| shows us a string
-that can be used to recreate this object.  It is important to keep in mind that both of
-these are just strings, displayed for the benefit of you, the user.  They do not give
-us any clue as to the actual internal representation of the object.
-
-There are many other useful ways to display an object as a string of
-characters.  This may be for the benefit of a human reader, or because
-we want to `export`:dt: our data to a particular file format for use
-in an external program.
-
-Formatted output typically contains a combination of variables and
-pre-specified strings, e.g. given a dictionary ``wordcount``
-consisting of words and their frequencies we could do:
-
-    >>> wordcount = {'cat':3, 'dog':4, 'snake':1}
-    >>> for word in sorted(wordcount):
-    ...     print word, '->', wordcount[word], ';',
-    cat -> 3 ; dog -> 4 ; snake -> 1 ;
-
-Apart from the problem of unwanted whitespace, print statements
-that contain alternating variables and constants can be difficult to read and
-maintain.  A better solution is to use formatting strings:
-
-    >>> for word in sorted(wordcount):
-    ...    print '%s->%d;' % (word, wordcount[word]),
-    cat->3; dog->4; snake->1;
-
-.. TODO: describe textwrap package
-
-Lining Things Up
-----------------
-
-So far our formatting strings have contained specifications of fixed width, such
-as ``%6s``, a string that is padded to width 6 and right-justified.
-We can include a minus sign to make it left-justified.
-In case we don't know in advance how wide a displayed value should be,
-the width value can be replaced with a star in the formatting string,
-then specified using a variable:
-
-    >>> '%6s' % 'dog'
-    '   dog'
-    >>> '%-6s' % 'dog'
-    'dog   '
-    >>> width = 6
-    >>> '%-*s' % (width, 'dog')
-    'dog   '
-
-Other control characters are used for decimal integers and floating point numbers.
-Since the percent character ``%`` has a special interpretation in formatting strings,
-we have to precede it with another ``%`` to get it in the output:
-
-    >>> "accuracy for %d words: %2.4f%%" % (9375, 100.0 * 3205/9375)
-    'accuracy for 9375 words: 34.1867%'
-
-An important use of formatting strings is for tabulating data.
-The program in Figure modal-tabulate_ iterates over five genres of the Brown Corpus.
-For each token having the ``md`` tag we increment a count.  To do this we
-have used ``ConditionalFreqDist()``, where the condition is the current genre
-and the event is the modal, i.e. this constructs a frequency distribution of
-the modal verbs in each genre.
-Line modals-of-interest_
-identifies a small set of modals of interest, and calls
-the function ``tabulate()`` that
-processes the data structure to output the required counts.
-Note that we have been careful to separate the language processing
-from the tabulation of results.
-
-.. pylisting:: modal-tabulate
-   :caption: Frequency of Modals in Different Sections of the Brown Corpus
-
-   def count_words_by_tag(t, genres):
-       cfdist = nltk.ConditionalFreqDist()
-       for genre in genres:
-           for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
-               if tag == t:
-                    cfdist[genre].inc(word.lower())
-       return cfdist
-
-   def tabulate(cfdist, words):
-       print 'Genre ', ' '.join([('%16s' % w) for w in words])
-       for genre in sorted(cfdist.conditions()):           # for each genre
-           print '%-16s' % genre,                          # print row heading
-           for w in words:                                 # for each word
-               print '%6d' % cfdist[genre][w],             # print table cell
-           print                                           # end the row
-
-   >>> genres = ['news', 'religion', 'hobbies', 'government', 'adventure']
-   >>> cfdist = count_words_by_tag('MD', genres)
-   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']   # [_modals-of-interest]
-   >>> tabulate(cfdist, modals)
-   Genre              can  could    may  might   must   will
-   news                94     86     66     36     50    387
-   religion            84     59     79     12     54     64
-   hobbies            273     59    130     22     83    259
-   government         115     37    152     13     99    237
-   adventure           48    154      6     58     27     48
-
-There are some interesting patterns in the table produced by
-the program in Figure modal-tabulate_.  For instance,
-compare row d (government literature) with row n (adventure literature);
-the former is dominated by the use of ``can, may, must, will`` while
-the latter is characterized by the use of ``could`` and ``might``.
-With some further work it might be possible to guess the genre of a
-new text automatically, simply using information about the distribution of modal
-verbs.
-
-Our next example, in Figure concordance_, generates a concordance display.
-We use the left/right justification of strings and the variable width
-to get vertical alignment of a variable-width window.
-
-[TODO: explain ValueError exception]
-
-.. TODO: the following would be better if the corpus was an argument, and if
-   brown.raw() behaved like other raw() methods and generated words not lists
-
-
-.. pylisting:: concordance
-   :caption: Simple Concordance Display
-
-   def concordance(word, context):
-       "Generate a concordance for the word with the specified context window"
-       for sent in nltk.corpus.brown.sents(categories='news'):
-           try:
-               pos = sent.index(word)
-               left = ' '.join(sent[:pos])
-               right = ' '.join(sent[pos+1:])
-               print '%*s %s %-*s' %\
-                   (context, left[-context:], word, context, right[:context])
-           except ValueError:
-               pass
-
-    >>> concordance('line', 32)
-    ce , is today closer to the NATO line .                               
-    n more activity across the state line in Massachusetts than in Rhode I
-     , gained five yards through the line and then uncorked a 56-yard touc
-                     `` Our interior line and out linebackers played excep
-    k then moved Cooke across with a line drive to left .                 
-    chal doubled down the rightfield line and Cooke singled off Phil Shart
-                  -- Billy Gardner's line double , which just eluded the d
-               -- Nick Skorich , the line coach for the football champion 
-                         Maris is in line for a big raise .               
-    uld be impossible to work on the line until then because of the large 
-             Murray makes a complete line of ginning equipment except for 
-        The company sells a complete line of gin machinery all over the co
-    tter Co. of Sherman makes a full line of gin machinery and equipment .
-    fred E. Perlman said Tuesday his line would face the threat of bankrup
-     sale of property disposed of in line with a plan of liquidation .    
-     little effort spice up any chow line .                               
-    es , filed through the cafeteria line .                               
-    l be particularly sensitive to a line between first and second class c
-    A skilled worker on the assembly line , for example , earns $37 a week
-
-Writing Results to a File
--------------------------
-
-We have seen how to read text from files (Section sec-accessing-text_).
-It is often useful to write output to files as well.  The following
-code opens a file ``output.txt`` for writing, and saves the program
-output to the file.
-
-    >>> file = open('output.txt', 'w')
-    >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
-    >>> for word in sorted(words):
-    ...     file.write(word + "\n")
-
-When we write non-text data to a file we must convert it to a string first.
-We can do this conversion using formatting strings, as we saw above.
-We can also do it using Python's backquote notation, which converts any
-object into a string.  Let's write the total number of words to our
-file, before closing it.
-
-    >>> len(words)
-    2789
-    >>> `len(words)`
-    '2789'
-    >>> file.write(`len(words)` + "\n")
-    >>> file.close()
-
-Graphical Presentation
-----------------------
+[Section on networkx and displaying network diagrams]
 
 So far we have focused on textual presentation and the use of formatted print
 statements to get output lined up in columns.  It is often very useful to display
@@ -1318,11 +894,31 @@ to the point that we can do its work with three lines of code:
     ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
     'declaration', 'impact', 'freedom', '-', 'making', 'independence']
 
+Modularity
+----------
+
+Variable scope
+
+* local and global variables
+* scope rules
+* global variables introduce dependency on context and limits the reusability of a function
+* importance of avoiding side-effects
+* functions hide implementation details
+
 Documentation (notes)
 ---------------------
 
 * some guidelines for literate programming (e.g. variable and function naming)
 * documenting functions (user-level and developer-level documentation)
+
+NLTK's docstrings are (mostly) written using the "epytext" markup
+language.  Using an explicit markup language allows us to generate
+prettier online documentation, e.g. see:
+
+   http://nltk.org/doc/api/nltk.tree.Tree-class.html
+
+[Examples of function-level docstrings with epytext markup.]
+
 
 Functions as Arguments
 ----------------------
@@ -1420,6 +1016,134 @@ define a lambda expression as follows:
 
     >>> map(lambda w: len(filter(lambda c: c in "AEIOUaeiou", w)), sent)
     [1, 1, 2, 1, 1, 3]
+
+Named Arguments
+---------------
+
+One of the difficulties in re-using functions is remembering the order of arguments.
+Consider the following function, that finds the ``n`` most frequent words that are
+at least ``min_len`` characters long:
+
+    >>> def freq_words(file, min, num):
+    ...     text = open(file).read()
+    ...     tokens = nltk.wordpunct_tokenize(text)
+    ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
+    ...     return freqdist.keys()[:num]
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
+    'very', 'using']
+
+This function has three arguments.  It follows the convention of listing the most
+basic and substantial argument first (the file).  However, it might be hard to remember
+the order of the second and third arguments on subsequent use.  We can make this function
+more readable by using `keyword arguments`:dt:.  These appear in the function's argument
+list with an equals sign and a default value:
+
+    >>> def freq_words(file, min=1, num=10):
+    ...     text = open(file).read()
+    ...     tokens = nltk.wordpunct_tokenize(text)
+    ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
+    ...     return freqdist.keys()[:num]
+
+|nopar|
+Now there are several equivalent ways to call this function:
+
+    >>> freq_words('programming.txt', 4, 10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', min=4, num=10)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', num=10, min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+|nopar|
+When we use an integrated development environment such as IDLE,
+simply typing the name of a function at the command prompt will
+list the arguments.  Using named arguments helps someone to re-use the code...
+
+A side-effect of having named arguments is that they permit optionality.  Thus we
+can leave out any arguments where we are happy with the default value.
+
+    >>> freq_words('programming.txt', min=4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+    >>> freq_words('programming.txt', 4)
+    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+
+Another common use of optional arguments is to permit a flag, e.g.:
+
+    >>> def freq_words(file, min=1, num=10, trace=False):
+    ...     freqdist = FreqDist()
+    ...     if trace: print "Opening", file
+    ...     text = open(file).read()
+    ...     if trace: print "Read in %d characters" % len(file)
+    ...     for word in nltk.wordpunct_tokenize(text):
+    ...         if len(word) >= min:
+    ...             freqdist.inc(word)
+    ...             if trace and freqdist.N() % 100 == 0: print "."
+    ...     if trace: print
+    ...     return freqdist.keys()[:num]
+
+---------
+Iterators
+---------
+
+[itertools, bigrams vs ibigrams, efficiency, ...]
+
+Accumulative Functions
+----------------------
+
+These functions start by initializing some storage, and iterate over
+input to build it up, before returning some final object (a large structure
+or aggregated result).  The standard way to do this is to initialize an
+empty list, accumulate the material, then return the list, as shown
+in function ``find_nouns1()`` in Listing find-nouns1_.
+
+.. pylisting:: find-nouns1
+   :caption: Accumulating Output into a List
+
+   def find_nouns1(tagged_text):
+       nouns = []
+       for word, tag in tagged_text:
+           if tag[:2] == 'NN':
+               nouns.append(word)
+       return nouns
+
+   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+   >>> find_nouns1(tagged_text)
+   ['cat', 'mat']
+
+A superior way to perform this operation is define the function to
+be a `generator`:dt:, as shown in Listing find-nouns2_.
+The first time this function is called, it gets as far as the ``yield``
+statement and stops.  The calling program gets the first word and does
+any necessary processing.  Once the calling program is ready for another
+word, execution of the function is continued from where it stopped, until
+the next time it encounters a ``yield`` statement.  This approach is
+typically more efficient, as the function only generates the data as it is
+required by the calling program, and does not need to allocate additional
+memory to store the output.
+
+.. pylisting:: find-nouns2
+   :caption: Defining a Generator Function
+   
+   def find_nouns2(tagged_text):
+       for word, tag in tagged_text:
+           if tag[:2] == 'NN':
+               yield word
+
+   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+   >>> find_nouns2(tagged_text)
+   <generator object at 0x14b2f30>
+   >>> for noun in find_nouns2(tagged_text):
+   ...     print noun,
+   cat mat
+   >>> list(find_nouns2(tagged_text))
+   ['cat', 'mat']
+
+If we call the function directly we see that it returns a "generator object", which is
+not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
+or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 .. _sec-algorithm-design-strategies:
 
@@ -1695,15 +1419,6 @@ or any other putative performance enhancement, using the ``timeit`` module:
 
 [MORE]
 
-
-----------
-Conclusion
-----------
-
-[TO DO]
-
-.. Revisit your solutions to exercises in earlier chapters, and try to improve
-   them, applying your new understanding of structured programming.
 
 ---------------
 Further Reading

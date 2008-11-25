@@ -1120,14 +1120,17 @@ techniques to be covered in section sec-formatting_).
             self._index = nltk.Index((self._stem(word), i)
                                      for (i, word) in enumerate(text))
 
-        def concordance(self, word):
+        def concordance(self, word, width):
             key = self._stem(word)
+            wc = width/4                # words of context
             for i in self._index[key]:
-                left = '%40s' % ' '.join(self._text[i-10:i])[-40:]
-                right = '%-40s' % ' '.join(self._text[i:i+10])[:40]
-                print left, right
+                lcontext = ' '.join(self._text[i-wc:i])
+                rcontext = ' '.join(self._text[i:i+wc])
+                ldisplay = '%*s'  % (width, lcontext[-width:])
+                rdisplay = '%-*s' % (width, rcontext[:width])
+                print ldisplay, rdisplay
 
-        def _stem(self, word):
+        def _stem(self, word, 40):
             return self._stemmer.stem(word).lower()
 
     >>> porter = nltk.PorterStemmer()
@@ -1365,6 +1368,15 @@ strings.  This is reasonable behavior for most applications.
 Formatting: From Lists to Strings
 ---------------------------------
 
+Often we write a program to report a single data item, such as a particular element
+in a corpus that meets some complicated criterion, or a single summary statistic
+such as a word-count or the performance of a tagger.  More often, we write a program
+to produce a structured result, such as a tabulation of numbers or linguistic forms,
+or a reformatting of the original data.  When the results to be presented are linguistic,
+textual output is usually the most natural choice.  However, when the results are numerical,
+it may be preferable to produce graphical output.  In this section you will learn about
+a variety of ways to present program output.
+
 Converting Between Strings and Lists (notes)
 --------------------------------------------
 
@@ -1486,6 +1498,155 @@ this by inserting the "special" character ``\n`` into the ``print`` string:
     Index = 5
 
 
+Strings and Formats
+-------------------
+
+We have seen that there are two ways to display the contents of an object:
+
+    >>> word = 'cat'
+    >>> sentence = """hello
+    ... world"""
+    >>> print word
+    cat
+    >>> print sentence
+    hello
+    world
+    >>> word
+    'cat'
+    >>> sentence
+    'hello\nworld'
+
+The ``print`` command yields Python's attempt to produce the most human-readable form of an object.
+The second method |mdash| naming the variable at a prompt |mdash| shows us a string
+that can be used to recreate this object.  It is important to keep in mind that both of
+these are just strings, displayed for the benefit of you, the user.  They do not give
+us any clue as to the actual internal representation of the object.
+
+There are many other useful ways to display an object as a string of
+characters.  This may be for the benefit of a human reader, or because
+we want to `export`:dt: our data to a particular file format for use
+in an external program.
+
+Formatted output typically contains a combination of variables and
+pre-specified strings, e.g. given a dictionary ``wordcount``
+consisting of words and their frequencies we could do:
+
+    >>> wordcount = {'cat':3, 'dog':4, 'snake':1}
+    >>> for word in sorted(wordcount):
+    ...     print word, '->', wordcount[word], ';',
+    cat -> 3 ; dog -> 4 ; snake -> 1 ;
+
+Apart from the problem of unwanted whitespace, print statements
+that contain alternating variables and constants can be difficult to read and
+maintain.  A better solution is to use formatting strings:
+
+    >>> for word in sorted(wordcount):
+    ...    print '%s->%d;' % (word, wordcount[word]),
+    cat->3; dog->4; snake->1;
+
+.. TODO: describe textwrap package
+
+Lining Things Up
+----------------
+
+So far our formatting strings have contained specifications of fixed width, such
+as ``%6s``, a string that is padded to width 6 and right-justified.
+We can include a minus sign to make it left-justified.
+In case we don't know in advance how wide a displayed value should be,
+the width value can be replaced with a star in the formatting string,
+then specified using a variable:
+
+    >>> '%6s' % 'dog'
+    '   dog'
+    >>> '%-6s' % 'dog'
+    'dog   '
+    >>> width = 6
+    >>> '%-*s' % (width, 'dog')
+    'dog   '
+
+Other control characters are used for decimal integers and floating point numbers.
+Since the percent character ``%`` has a special interpretation in formatting strings,
+we have to precede it with another ``%`` to get it in the output:
+
+    >>> "accuracy for %d words: %2.4f%%" % (9375, 100.0 * 3205/9375)
+    'accuracy for 9375 words: 34.1867%'
+
+An important use of formatting strings is for tabulating data.
+Recall that in section sec-extracting-text-from-corpora_ we saw
+data being tabulated from a conditional frequency distribution.
+Let's perform the tabulation ourselves, exercising full control
+of headings and column widths.
+Note the clear separation between the language processing work,
+and the tabulation of results.
+
+.. pylisting:: modal-tabulate
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+    def tabulate(cfdist, words, categories):
+        print '%-16s' % 'Category',
+        for word in words:                                  # column headings
+            print '%6s' % word,
+        print
+        for category in categories:
+            print '%-16s' % category,                       # row heading
+            for word in words:                              # for each word
+                print '%6d' % cfdist[category][word],       # print table cell
+            print                                           # end the row
+
+    >>> cfd = nltk.ConditionalFreqDist((g,w)
+    ...                                for g in brown.categories()
+    ...                                for w in brown.words(categories=g))
+    >>> genres = ['news', 'religion', 'hobbies', 'science_fiction', 'romance', 'humor']
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> tabulate(cfd, modals, genres)
+    Category            can  could    may  might   must   will
+    news                 93     86     66     38     50    389
+    religion             82     59     78     12     54     71
+    hobbies             268     58    131     22     83    264
+    science_fiction      16     49      4     12      8     16
+    romance              74    193     11     51     45     43
+    humor                16     30      8      8      9     13
+
+Recall from the listing in Figure stemmer-indexing_ that we used a formatting string
+``"%*s"``.  This allows us to specify the width of a field using a variable.
+
+    >>> '%*s' % (15, "Monty Python")
+    '   Monty Python'
+
+We could use this to automatically customise the width of a column to be the
+smallest value required to fit all the words, using
+``width = min(len(w) for w in words)``.  Remember that the comma at the end
+of print statements adds an extra space, and this is sufficient to prevent
+the column headings from running into each other.
+
+Writing Results to a File
+-------------------------
+
+We have seen how to read text from files (Section sec-accessing-text_).
+It is often useful to write output to files as well.  The following
+code opens a file ``output.txt`` for writing, and saves the program
+output to the file.
+
+    >>> file = open('output.txt', 'w')
+    >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
+    >>> for word in sorted(words):
+    ...     file.write(word + "\n")
+
+When we write non-text data to a file we must convert it to a string first.
+We can do this conversion using formatting strings, as we saw above.
+We can also do it using Python's backquote notation, which converts any
+object into a string.  Let's write the total number of words to our
+file, before closing it.
+
+    >>> len(words)
+    2789
+    >>> `len(words)`
+    '2789'
+    >>> file.write(`len(words)` + "\n")
+    >>> file.close()
+
+
+
 ----------
 Conclusion
 ----------
@@ -1585,6 +1746,9 @@ Python's facilities for text processing with regular expressions.
 http://www.regular-expressions.info/ is a useful online resource,
 providing a tutorial and references to tools and other sources of
 information.
+
+Unicode Regular Expressions:
+http://www.unicode.org/reports/tr18/
 
 ..
    John Hopkins Center for Language and Speech Processing, 1999
