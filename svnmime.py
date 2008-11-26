@@ -34,7 +34,7 @@ def usage():
 
 for file in sys.argv[1:]:
     if "." in file:
-        extension = file.rsplit('.')[1]
+        extension = file.rsplit('.', 1)[1]
         if extension in types_map:
             os.system("svn propset svn:mime-type %s %s" % (types_map[extension], file))
         else:
