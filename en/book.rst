@@ -34,7 +34,7 @@ Natural Language Processing
 .. include:: ch10.rst
 .. include:: ch11.rst
 .. include:: ch12.rst
-.. include:: ch13.rst
+.. .. include:: ch13.rst
 
 :raw-latex:`\part{APPENDICES}`
 

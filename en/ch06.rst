@@ -54,6 +54,12 @@ Back to the Basics
 Iteration
 ---------
 
+If you've come to Python from another programming language, you may be
+inclined to make heavy use of loop variables, and no use of list comprehensions.
+In this section we'll see how avoiding loop variables can lead to more readable
+code.  We'll also look at the relationship between loops with nested blocks
+vs list comprehensions, and discuss when to use either construct.
+
 Here is a familiar technique for iterating over the members
 of a list by initializing an index ``i`` and then incrementing the
 index each time we pass through the loop:
@@ -66,16 +72,17 @@ index each time we pass through the loop:
     ...
     i am the walrus
 
-Although this does the job, it is not idiomatic Python. By
-contrast, Python's ``for`` statement allows us to achieve the same
-effect much more succinctly:
+Although this does the job, it is not idiomatic Python.  It is almost never a
+good idea to use loop variables in this way.  Observe that
+Python's ``for`` statement allows us to achieve the same
+effect, and that the code is not just more succinct, but more readable:
 
     >>> for s in sent:
     ...     print s.lower(),
     ...
     i am the walrus
 
-This program actually prints "``i am the walrus ``" with a trailing space character.
+This program actually prints ``'i am the walrus '`` with a trailing space character.
 In the context of a longer program, we might not want the extra space character, and we
 might want a newline character at the end (requiring an extra ``print`` statement). 
 A third solution is more compact again, but possibly less readable thanks to the use
@@ -105,6 +112,36 @@ a counter with each line of output.  Instead, we can use ``enumerate()``:
       6  22.40% to
       7  24.29% a
       8  25.97% in
+
+Its sometimes tempting to use loop variables to store a maximum or minimum value
+seen so far.  Let's find the longest word in a text.  We'll need a variable to hold
+the longest word found so far.
+
+    >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt'):
+    >>> longest = ''
+    >>> for word in text:
+    ...     if len(word) > len(longest):
+    ...         longest = word
+    >>> longest
+    'unextinguishable'
+
+A better solution uses two list comprehensions as shown below.
+We sacrifice some efficiency by have two passes through the data,
+but the result is more transparent.
+
+    >>> maxlen = max(len(word) for word in text)
+    >>> [word for word in text if len(word) == maxlen]
+    ['unextinguishable', 'transubstantiate', 'inextinguishable', 'incomprehensible']
+
+Note that our first solution found the first word having the longest length, while the
+second solution found all of the longest words.  In most cases we actually prefer
+to get all solutions, though its easy to find them all and only report one back to the user.
+In contrast, it is difficult to modify the first program to find all solutions.
+Although there's a theoretical efficiency difference between the two solutions,
+the main overhead is reading the data into main memory; once its there a second pass
+through the data is very fast.  We also need to balance our concerns with
+Python's efficiency versus the programmer's efficiency in developing and
+maintaining Python programs.
 
 You can also use list comprehensions for a kind of multiplication (or `cartesian product`:dt:).
 Here we generate all combinations of two determiners, two adjectives, and two nouns.
@@ -171,30 +208,30 @@ Assignment
 Python's assignment statement operates on `values`:em:.  But what is a value?
 Consider the following code fragment:
 
-    >>> word1 = 'Monty'
-    >>> word2 = word1              # [_assignment1]
-    >>> word1 = 'Python'           # [_assignment2]
-    >>> word2
+    >>> foo = 'Monty'
+    >>> bar = foo
+    >>> foo = 'Python'
+    >>> bar
     'Monty'
 
-This code shows that when we write ``word2 = word1`` in line assignment1_,
-the value of ``word1`` (the string ``'Monty'``) is assigned to ``word2``.
-That is, ``word2`` is a `copy`:dt: of ``word1``, so when we overwrite
-``word1`` with a new string ``'Python'`` in line assignment2_, the value
-of ``word2`` is not affected.
+This code shows that when we write ``bar = foo``,
+the value of ``foo`` (the string ``'Monty'``) is assigned to ``bar``.
+That is, ``bar`` is a `copy`:dt: of ``foo``, so when we overwrite
+``foo`` with a new string ``'Python'``, the value
+of ``bar`` is not affected.
 
 However, assignment statements do not always involve making copies in this way.
 An important subtlety of Python is that the "value" of a structured object
 (such as a list) is actually a `reference`:em: to the object.  In the
-following example, line assignment3_
-assigns the reference of ``list1`` to the new variable ``list2``.
-When we modify something inside ``list1`` on line assignment4_, we can see
-that the contents of ``list2`` have also been changed.
+following example, we
+assign the reference of ``foo`` to the new variable ``bar``.
+When we modify something inside ``foo``, we can see
+that the contents of ``bar`` have also been changed.
 
-    >>> list1 = ['Monty', 'Python']
-    >>> list2 = list1             # [_assignment3]
-    >>> list1[1] = 'Bodkin'       # [_assignment4]
-    >>> list2
+    >>> foo = ['Monty', 'Python']
+    >>> bar = foo
+    >>> foo[1] = 'Bodkin'
+    >>> bar
     ['Monty', 'Bodkin']
 
 .. _array-memory:
@@ -204,7 +241,7 @@ that the contents of ``list2`` have also been changed.
    List Assignment and Computer Memory
 
 |nopar|    
-Thus line assignment3_ does not copy the contents of the
+Thus, the line ``bar = foo`` does not copy the contents of the
 variable, only its "object reference".
 To understand what is going on here, we need to
 know how lists are stored in the computer's memory.
@@ -515,62 +552,6 @@ satisfied, but also that the condition of the main ``if`` clause was
 
 .. _sec-visualization:
 
----------------------------------
-Visualizing Language Data (DRAFT)
----------------------------------
-
-[Section on pylab, scatter plots, bar charts, line graphs]
-
-[Section on networkx and displaying network diagrams]
-
-So far we have focused on textual presentation and the use of formatted print
-statements to get output lined up in columns.  It is often very useful to display
-numerical data in graphical form, since this often makes it easier to detect
-patterns.  For example, in Figure modal-tabulate_ we saw a table of numbers
-showing the frequency of particular modal verbs in the Brown Corpus, classified
-by genre.  The program in Figure modal-plot_ presents the same information in graphical
-format.  The output is shown in Figure modal-genre_ (a color figure in the online version).
-
-.. Note:: The program in Figure modal-plot_ uses the PyLab package which supports sophisticated
-   plotting functions with a MATLAB-style interface.  For more information about
-   this package please see ``http://matplotlib.sourceforge.net/``.
-
-.. pylisting:: modal-plot
-   :caption: Frequency of Modals in Different Sections of the Brown Corpus
-
-   colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
-   def bar_chart(categories, words, counts):
-       "Plot a bar chart showing counts for each word by category"
-       import pylab
-       ind = pylab.arange(len(words))
-       width = 1.0 / (len(categories) + 1)
-       bar_groups = []
-       for c in range(len(categories)):
-           bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
-           bar_groups.append(bars)
-       pylab.xticks(ind+width, words)
-       pylab.legend([b[0] for b in bar_groups], categories, loc='upper left')
-       pylab.ylabel('Frequency')
-       pylab.title('Frequency of Six Modal Verbs by Genre')
-       pylab.show()
-
-   >>> genres = ['a', 'd', 'e', 'h', 'n']
-   >>> cfdist = count_words_by_tag('MD', genres)
-   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
-   >>> counts = {}
-   >>> for genre in genres:
-   ...     counts[genre] = [cfdist[genre][word] for word in modals]
-   >>> bar_chart(genres, modals, counts)
-
-.. _modal-genre:
-.. figure:: ../images/modal_genre.png
-   :scale: 25
-
-   Bar Chart Showing Frequency of Modals in Different Sections of Brown Corpus
-
-From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
-almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
-
 .. _sec-functions:
 
 ---------
@@ -712,7 +693,7 @@ A better solution is shown in Figure tag3_.
 
 This produces an error that cannot be ignored, since it halts program execution.
 Additionally, the error message is easy to interpret.  (We will see an even
-better approach, known as "duck typing" in Chapter chap-applied-programming_.)
+better approach, known as "duck typing" in section [XREF].)
 
 Another aspect of defensive programming concerns the return statement of a function.
 In order to be confident that all execution paths through a function lead to a
@@ -814,8 +795,8 @@ change ``p``, just as if we had done the following sequence of assignments:
 
 Thus, to understand Python's call-by-value parameter passing,
 it is enough to understand Python's assignment operation.
-We will address some closely related issues in our later discussion
-of variable scope (Section sec-variable-scope_).
+We will address some closely related issues in our discussion
+of variable scope later in this section.
 
 Functional Decomposition
 ------------------------
@@ -1419,6 +1400,187 @@ or any other putative performance enhancement, using the ``timeit`` module:
     >>> Timer("PYTHON CODE", "INITIALIZATION CODE").timeit()
 
 [MORE]
+
+---------------------------------
+Visualizing Language Data (DRAFT)
+---------------------------------
+
+[Section on pylab, scatter plots, bar charts, line graphs]
+
+[Section on networkx and displaying network diagrams]
+
+So far we have focused on textual presentation and the use of formatted print
+statements to get output lined up in columns.  It is often very useful to display
+numerical data in graphical form, since this often makes it easier to detect
+patterns.  For example, in Figure modal-tabulate_ we saw a table of numbers
+showing the frequency of particular modal verbs in the Brown Corpus, classified
+by genre.  The program in Figure modal-plot_ presents the same information in graphical
+format.  The output is shown in Figure modal-genre_ (a color figure in the online version).
+
+.. Note:: The program in Figure modal-plot_ uses the PyLab package which supports sophisticated
+   plotting functions with a MATLAB-style interface.  For more information about
+   this package please see ``http://matplotlib.sourceforge.net/``.
+
+.. pylisting:: modal-plot
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+   colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
+   def bar_chart(categories, words, counts):
+       "Plot a bar chart showing counts for each word by category"
+       import pylab
+       ind = pylab.arange(len(words))
+       width = 1.0 / (len(categories) + 1)
+       bar_groups = []
+       for c in range(len(categories)):
+           bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
+           bar_groups.append(bars)
+       pylab.xticks(ind+width, words)
+       pylab.legend([b[0] for b in bar_groups], categories, loc='upper left')
+       pylab.ylabel('Frequency')
+       pylab.title('Frequency of Six Modal Verbs by Genre')
+       pylab.show()
+
+   >>> genres = ['a', 'd', 'e', 'h', 'n']
+   >>> cfdist = count_words_by_tag('MD', genres)
+   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+   >>> counts = {}
+   >>> for genre in genres:
+   ...     counts[genre] = [cfdist[genre][word] for word in modals]
+   >>> bar_chart(genres, modals, counts)
+
+.. _modal-genre:
+.. figure:: ../images/modal_genre.png
+   :scale: 25
+
+   Bar Chart Showing Frequency of Modals in Different Sections of Brown Corpus
+
+From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
+almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
+
+
+.. _OO:
+
+-------------------------------------
+Object-Oriented Programming in Python
+-------------------------------------
+
+Object-Oriented Programming is a programming paradigm in which
+complex structures and processes are decomposed into `classes`:dt:,
+each encapsulating a single data type and the legal operations on
+that type.  In this section we show you how to create simple data
+classes and processing classes by example.  For a systematic
+introduction to Object-Oriented design, please see the Further
+Reading section at the end of this chapter.
+
+Data Classes: Trees in NLTK
+---------------------------
+
+An important data type in language processing is the syntactic tree.
+Here we will review the parts of the NLTK code that defines the ``Tree``
+class.  
+
+The first line of a class definition is the ``class`` keyword followed
+by the class name, in this case ``Tree``.  This class is derived from
+Python's built-in ``list`` class, permitting us to use standard list
+operations to access the children of a tree node.
+
+    >>> class Tree(list):
+
+Next we define the `initializer`:dt: ``__init__()``;
+Python knows to call this function when you ask for a new tree object
+by writing ``t = Tree(node, children)``.  The constructor's first argument
+is special, and is standardly called ``self``, giving us a way to
+refer to the current object from within its definition.  This
+particular constructor calls the list initializer (similar to calling ``self =
+list(children)``), then defines the ``node`` property of a tree.
+
+.. doctest-ignore::
+    ...     def __init__(self, node, children):
+    ...         list.__init__(self, children)
+    ...         self.node = node
+
+Next we define another special function that Python knows to call when
+we index a Tree.  The first case is the simplest, when the index is an
+integer, e.g. ``t[2]``, we just ask for the list item in the obvious
+way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
+
+.. doctest-ignore::
+    ...     def __getitem__(self, index):
+    ...         if isinstance(index, int):
+    ...             return list.__getitem__(self, index)
+    ...         else:
+    ...             if len(index) == 0:
+    ...                 return self
+    ...             elif len(index) == 1:
+    ...                 return self[int(index[0])]
+    ...             else:
+    ...                 return self[int(index[0])][index[1:]]
+    ...     
+
+.. SB: what is the len(index) == 0 case for???
+
+This method was for accessing a child node.  Similar methods are
+provided for setting and deleting a child (using ``__setitem__``)
+and ``__delitem__``).
+
+Two other special member functions are ``__repr__()`` and ``__str__()``.
+The ``__repr__()`` function produces a string representation of the
+object, one that can be executed to re-create the object, and is
+accessed from the interpreter simply by typing the name of the object
+and pressing 'enter'.  The ``__str__()`` function produces a human-readable
+version of the object; here we call a pretty-printing function we have
+defined called ``pp()``.
+
+.. doctest-ignore::
+    ...     def __repr__(self):
+    ...         childstr = ' '.join([repr(c) for c in self])
+    ...         return '(%s: %s)' % (self.node, childstr)
+    ...     def __str__(self):
+    ...         return self.pp()
+
+
+Next we define some member functions that do other standard operations
+on trees.  First, for accessing the leaves:
+
+.. doctest-ignore::
+    ...     def leaves(self):
+    ...         leaves = []
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 leaves.extend(child.leaves())
+    ...             else:
+    ...                 leaves.append(child)
+    ...         return leaves
+
+
+Next, for computing the height:
+
+.. doctest-ignore::
+    ...     def height(self):
+    ...         max_child_height = 0
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 max_child_height = max(max_child_height, child.height())
+    ...             else:
+    ...                 max_child_height = max(max_child_height, 1)
+    ...         return 1 + max_child_height
+
+And finally, for enumerating all the subtrees (optionally filtered):
+
+.. doctest-ignore::
+    ...     def subtrees(self, filter=None):
+    ...         if not filter or filter(self):
+    ...             yield self
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 for subtree in child.subtrees(filter):
+    ...                     yield subtree
+
+
+Processing Classes: N-gram Taggers in NLTK
+------------------------------------------
+
+This section will discuss the ``tag.ngram`` module.
 
 
 ---------------
