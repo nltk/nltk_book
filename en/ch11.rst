@@ -1,1984 +1,2188 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
-
-.. TODO:
-   discuss applications of unify() to dicts, lists, and mixtures of dicts and lists
-   FeatureValueTuple: '[x=(1,2,3)]'
-   FeatureValueSet: '[x={1,2,3}]'
-   NB: Unification does *not* descend into tuples or sets; but variable
-   substitution from bindings does.  Generally speaking, tuples and set
-   feature values should never contain feature structures.
-   FeatureValueUnion: '{?a+?b}', which will automatically collapse to a
-   FeatureValueSet as soon as all top-level variables are replaced with set values.
-   As with FeatureValueSet, unification does not descend into FeatureValueUnion,
-   but variable binding does.
-   More examples are in Edward's email of 25 August
-
 .. standard global imports
 
     >>> import nltk, re, pprint
 
-.. _chap-featgram:
+.. TO-DO: relational algebra?
 
-=========================
-11. Feature Based Grammar
-=========================
+.. _chap-semantics:
 
-.. _ch11-introduction:
+=====================
+11. Logical Semantics
+=====================
 
---------------
- Introduction
---------------
+.. _sec-log-semantics-introduction:
 
+.. contents:: **Table of Contents**
+  :depth: 2
+  :backlinks: none
 
-Imagine you are building a spoken dialogue
-system to answer queries about train schedules in Europe. train0_
-illustrates one of the input
-sentences that the system should handle.
+------------
+Introduction
+------------
 
-.. _train0:
+So far, this book has concentrated on relatively concrete aspects of
+language, particularly on words, and the patterns in which they
+occur. In the area of `syntax`:em:, we have studied the organization of
+words into parts of speech, and from there we moved on to how
+sequences of words are built up to make phrases and sentences. 
+
+By contrast, we have said relatively little about `semantics`:dt:,
+that is, about how language is used to convey meanings. However,
+meaning is a very slippery notion, and there is much debate and
+disagreement about what is involved in a computational model of
+linguistic meaning. In this chapter, we will concentrate on one
+particular approach to semantics, but at various points we shall
+try to indicate alternative perspectives.
+
+In order to pin down 'the meaning of meaning' more closely, let's
+suppose that you are a native speaker of English, and have started to
+learn German. I ask if you understand what ex-sem1_ means:
+
+.. _ex-sem1:
 .. ex::
-      Which stations does the 9.00 express from Amsterdam to Paris stop at?
+   Die Kamera gef\ |aumlaut|\ llt Stefan. 
 
-The information that the customer is seeking is not exotic |mdash| the
-system back-end just needs to look up the list of stations on the
-route, and reel them off. But you have to be careful in giving the
-correct semantic interpretation to
-train0_. You don't want to end up with the
-system trying to answer train1_ instead: 
+If you know the meanings of the individual words in ex-sem1_, and know
+how these meanings are combined to make up the meaning of the whole
+sentence, you might say that ex-sem1_ means the same as ex-sem21_, or
+more idiomatically, ex-sem22_:
 
-.. _train1:
+.. _ex-sem2:
 .. ex::
-      Which station does the 9.00 express from Amsterdam terminate at?
+   .. _ex-sem21:
+   .. ex::
+      The camera pleases Stefan.
 
-Part of your solution might use domain knowledge to figure out that if
-a speaker knows that the train is a train to Paris, then she probably
-isn't asking about the terminating station in train0_. But the
-solution will also involve recognizing the syntactic structure of the
-speaker's query.  In particular, your analyzer must recognize that
-there is a syntactic connection between the question phrase `which
-stations`:lx:, and the phrase `stop at`:lx: at the end train0_. The
-required interpretation is made clearer in the "quiz question version
-shown in train2_, where the question phrase fills the "gap" that is
-implicit in train0_:
+   .. _ex-sem22:
+   .. ex::
+      Stefan likes the camera.
+   
 
-.. _train2:
-.. ex::
-      The 9.00 express from Amsterdam to Paris stops at which stations?
+Now, I most will likely take this as evidence that you do grasp the meaning
+of ex-sem1_. But isn't this because you have 
+translated from one language, German, into another, namely English? If I
+didn't already understand English, we would be no further forward! Nevertheless,
+there are some important insights here, ones that we will return to shortly.
 
-The `long-distance dependency`:dt: between an initial question phrase
-and the gap that it semantically connects to cannot be recognized by
-techniques we have presented in earlier chapters. For example, we
-can't use *n*-gram based language models; in practical terms, it is
-infeasible to observe the *n*-grams for a big enough value of
-*n*. Similarly, chunking grammars only attempt to capture local
-patterns, and therefore just don't "see" long-distance dependencies.
-In this chapter, we will show how syntactic features can be used to
-provide a simple yet effective technique for keeping track of
-long-distance dependencies in sentences.
-
-Features are helpful too for dealing with purely local dependencies.
-Consider the German questions germanagr_.
-
-.. _germanagr:
-.. ex::
-   .. _germanagra:
-      .. gloss::
-         Welche  |  Studenten       | kennen  | Franz?
-         which   |  student.PL      | know.PL  | Franz
-	     'which students know Franz?'               
-
-   .. _germanagrb:
-     .. gloss::
-         Welche  |  Studenten       | kennt   | Franz?
-         which   |  student.PL      | know.SG  | Franz
-         'which students does Franz know?' 
-
-The only way of telling which noun phrase is the subject of
-`kennen`:lx: ('know') and which is the object is by looking at the
-agreement inflection on the verb |mdash| word order is no help to us
-here. Since verbs in German agree in number with their subjects, the
-plural form `kennen`:lx: requires `Welche Studenten`:lx: as subject,
-while the singular form `kennt`:lx: requires `Franz`:lx: as
-subject. The fact that subjects and verbs must agree in number can be
-expressed within the |CFG|\ s that we presented in Chapter
-chap-parse_. But capturing the fact that the interpretations of
-germanagra_ and germanagrb_ differ is more challenging. In this
-chapter, we will only examine the syntactic aspect of local
-dependencies such as number agreement. In Chapter chap-semantics_, we
-will demonstrate how feature-based grammars can be extended so that
-they build a representation of meaning in parallel with a
-representation of syntactic structure.
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
-
--------------
-Why Features?
--------------
-
-We have already used the term "feature" a few times, without saying
-what it means. What's special about feature-based grammars? The core
-ideas are probably already familiar to you. To make things concrete,
-let's look at the simple phrase `these dogs`. It's composed of two
-words. We'll be a bit abstract for the moment, and call these words
-`a` and `b`. We'll be modest, and assume that we do not know
-`everything`:em: about them, but we can at least give a partial
-description. For example, we know that the orthography of `a` is
-`these`:lx:, its phonological form is `DH IY Z`,  its part-of-speech is
-`Det`:gc:, and its number is plural. We can use dot notation to record
-these observations: 
-
-.. _feat0:
-.. ex::
-   .. parsed-literal::
-
-      `a.spelling` = `these`:lx:
-      `a.phonology` = `DH IY Z`
-      `a.pos` = `Det`:gc:
-      `a.number` = plural
-
-Thus feat0_ is a `partial description` of a word; it lists some
-attributes, or features, of the word, and declares their values. There
-are other attributes that we might be interested in, which have
-not been specified; for example, what head the word is dependent on
-(using the notion of dependency discussed in Chapter chap-parse_), and
-what the lemma of the word is. But this omission of some attributes is
-exactly what you would expect from a partial description! 
-
-.. 
- The framework of context-free grammars that we presented in Chapter
- chap-parse_ describes syntactic constituents with the help of a
- limited set of category labels. These atomic labels are adequate for
- talking about the gross structure of sentences. But when we start to
- make finer grammatical distinctions it becomes awkward to enrich the
- set of categories in a systematic manner. In this chapter we will
- address this challenge by decomposing categories using features
- (somewhat similar to the key-value pairs of Python dictionaries). 
-
-We will start off this chapter by looking more closely at the
-phenomenon of syntactic agreement; we will show how agreement
-constraints can be expressed elegantly using features, and illustrate
-their use in a simple grammar. Feature structures are a general data
-structure for representing information of any kind; we will briefly
-look at them from a more formal point of view, and explain how to
-create feature structures in Python. In the final part of the chapter,
-we demonstrate that the additional expressiveness of features opens
-out a wide spectrum of possibilities for describing sophisticated
-aspects of linguistic structure.
+Here's another way of looking at things. Imagine there is a situation
+*s* where there are two entities, Stefan and a specific camera, say
+Agfa Isola Serial No. KX7750. In addition, there is a relation holding between the two
+entities, which we will call the *please* relation. If you understand the
+meaning of ex-sem1_, then you know that it is true in situation
+*s*. In part, you know this because you know that `Die Kamera`:lx:
+refers to Agfa Isola Serial No. KX7750, `Stefan`:lx: refers
+to Stefan, and `gef\ |aumlaut|\ llt`:lx: refers to the *please*
+relation. You also know that the grammatical subject of `gef\ |aumlaut|\ llt`:lx:
+plays the role of the entity that causes pleasure, while the object plays the
+role of the entity who is pleased.
 
 
-Syntactic Agreement
+We have just presented two contrasting views of semantics. In the
+first case, we tried to get at the meaning of ex-sem1_ by translating
+it into another language which we already understood. Moreover, we
+assumed that we could tell whether the translation was successful, in
+the sense of being able to say that ex-sem1_ and ex-sem2_ 'have the
+same meaning'. In the second case, rather than relating ex-sem1_ to
+a string of formal symbols, we related it to a situation in the
+world, with entities and relations between those entities. In both
+cases, we talked informally about how the meaning of the parts of the
+ex-sem1_ could be combined to make up the meaning of the whole. This
+idea about how meanings should be constructed is so fundamental that
+we will give it a special name, that is, the `Principle of Compositionality`:dt:.
+(See [Partee1995LSC]_ for this formulation.)
+
+Principle of Compositionality:
+   The meaning of a whole is a function of the meanings of the parts
+   and of the way they are syntactically combined.
+
+So far, so good. But what about computational semantics? Can a
+computer understand the meaning of a sentence? And how could we tell
+if it did?  This is similar to asking 'Can a computer think?' Alan
+Turing [Turing1950CMI]_ famously proposed to answer this by examining
+the ability of a computer to hold sensible conversations with a
+human. Suppose you are having a chat session with a person and a
+computer, but you are not told at the outset which is which. If you
+cannot identify which of your partners is the computer after chatting
+to each of them, then the computer has successfully imitated a
+human. If a computer succeeds in passing itself off as human in this
+'imitation game', then according to Turing, we should be prepared to
+say that the computer `can`:em: think and can be said to be
+intelligent. So Turing sidestepped the question of somehow examining
+the internal states of a computer by instead using its `behaviour`:em:
+as evidence of intelligence. By the same reasoning, we could argue
+that in order to say that a computer understands English, it just
+needs to behave as though it did.  What is important here is not so
+much the specifics of Turing's imitation game, but rather the proposal
+to judge a capacity for natural language understanding in terms of
+observable behaviour on the part of the computer.
+
+.. _sec-querying-a-database:
+
+Querying a Database
 -------------------
 
-Consider the following contrasts:
+There a variety of tasks that a computer could perform which might be
+considered as involving some amount of natural language
+understanding. Right now, we will look at one in particular: we type in
+a query in English, and the computer responds with an appropriate (and
+if we are lucky, correct) answer. For example:
 
-.. _thisdog:
+.. _ex-dbq0:
 .. ex::
-   .. ex::
-      this dog
-   .. ex::
-      \*these dog
+   .. _ex-dbq01:
+   .. ex:: Which country is Athens in?
+   .. _ex-dbq02:
+   .. ex:: Greece.
 
-.. _thesedogs:
+Building software that allows this task to be carried out in a general
+way is extremely hard, but solving it for a particular case is close
+to trivial. We start off by assuming that we have data about cities
+and countries in a structured form. To be concrete, we will use a
+database table whose first few rows are shown in Table cities_.
+
+.. Note:: The data illustrated in Table cities_ is drawn from the Chat-80 system
+   described by [Warren1982EEA]_, which will be  discussed in more detail
+   later in the chapter.  Population figures are given in thousands,
+   but note that the data used in these examples dates back at least
+   to the 1980s, and was already somewhat out of date at the point
+   when [Warren1982EEA]_ was published.
+
+.. table:: cities
+
+    ============    ===============	===========
+    City            Country		Population
+    ============    ===============	===========
+    athens	    greece		1368
+    bangkok	    thailand		1178
+    barcelona	    spain		1280
+    berlin	    east_germany	3481
+    birmingham	    united_kingdom	1112
+    ============    ===============	===========
+
+    ``city_table``: A table of cities, countries and populations
+
+The obvious way to retrieve answers from this tabular data involves
+writing queries in a database query language such as SQL. 
+
+.. Note::
+     SQL (Structured Query Language) is a language designed for
+     retrieving and managing data in relational databases.
+     If you want to find out more about SQL,
+     `<http://www.w3schools.com/sql/>`_ is a convenient online
+     reference.
+
+For example, executing the query ex-dbq1_ will pull out the value ``'greece'``:
+  
+.. _ex-dbq1:
 .. ex::
-   .. ex::
-      these dogs
-   .. ex::
-      \*this dogs
+   SELECT Country FROM city_table WHERE City = 'athens'
 
-|nopar| In English, nouns are usually morphologically marked as being singular
-or plural. The form of the demonstrative also varies:
-`this`:lx: (singular) and `these`:lx: (plural).
-Examples thisdog_ and thesedogs_ show that there are constraints on
-the use of demonstratives and nouns within a noun phrase:
-either both are singular or both are plural. A similar
-constraint holds between subjects and predicates:
+This specifies a result set consisting of all values for the column
+``Country`` in data rows where the value of the ``City`` column is
+``'athens'``.
 
-.. _subjpredsg:
-.. ex::
-   .. ex::
-      the dog runs
-   .. ex::
-      \*the dog run
+How can we get the same effect using English as our input to the query
+system? The framework offered by the feature-based grammar formalism
+developed in Chapter chap-featgram_ makes it easy to translate from
+English to SQL. The grammar ``sql0.fcfg`` illustrates how to assemble
+a meaning representation for a sentence in tandem with parsing the
+sentence. Each phrase structure rule is supplemented with a recipe for
+constructing a value for the feature ``sem``. As you will see, these
+recipes are extremely simple; in each case, we use the string
+concatenation operation ``+`` (see Chapter chap-featgram_ [NB give section]) to splice
+the values for the daughter constituents to make a value for the
+mother constituent.
+  
+    >>> nltk.data.show_cfg('grammars/sql0.fcfg')
+    % start S
+    S[sem=(?np + WHERE + ?vp)] -> NP[sem=?np] VP[sem=?vp]
+    VP[sem=(?v + ?pp)] -> IV[sem=?v] PP[sem=?pp]
+    VP[sem=(?v + ?ap)] -> IV[sem=?v] AP[sem=?ap]
+    NP[sem=(?det + ?n)] -> Det[sem=?det] N[sem=?n]
+    PP[sem=(?p + ?np)] -> P[sem=?p] NP[sem=?np]
+    AP[sem=?pp] -> A[sem=?a] PP[sem=?pp]
+    NP[sem='Country="greece"'] -> 'Greece'
+    NP[sem='Country="china"'] -> 'China'
+    Det[sem='SELECT'] -> 'Which' | 'What'
+    N[sem='City FROM city_table'] -> 'cities'
+    IV[sem=''] -> 'are'
+    A -> 'located'
+    P[sem=''] -> 'in'
 
-.. _subjpredpl:
-.. ex::
-   .. ex::
-      the dogs run
-   .. ex::
-      \*the dogs runs
-
-
-.. Proposed for deletion: The element which determines the
-   agreement, here the subject noun phrase, is called the agreement
-   `controller`:dt:, while the element whose form is determined by
-   agreement, here the verb, is called the `target`:dt:.
-
-|nopar| Here we can see that morphological properties of the verb co-vary
-with syntactic properties of the subject noun phrase.  This co-variance is
-called `agreement`:dt:.
-If we look further at verb agreement in English, we will see that
-present tense verbs typically have two inflected forms: one for third person
-singular, and another for every other combination of person and number:
-
-.. table:: agreement-paradigm
-
-    +------------+-------------+----------+
-    |            |**singular** |**plural**|
-    +------------+-------------+----------+
-    |**1st per** |*I run*      |*we run*  |
-    |            |             |          |
-    +------------+-------------+----------+
-    |**2nd per** |*you run*    |*you run* |
-    |            |             |          |
-    +------------+-------------+----------+
-    |**3rd per** |*he/she/it   |*they run*|
-    |            |runs*        |          |
-    +------------+-------------+----------+
-
-    Agreement Paradigm for English Regular Verbs
-
-We can make the role of morphological properties a bit more explicit
-as illustrated in runs_ and run_. These representations indicate that
-the verb agrees with its subject in person and number. (We use "3" as
-an abbreviation for 3rd person, "SG" for singular and "PL" for plural.)
-
-.. _runs:
-   .. gloss::
-      the | dog       |run-s
-          | dog.3.SG  |run-3.SG
-
-.. _run:
-   .. gloss::
-      the | dog-s     |run          
-          | dog.3.PL  |run-3.PL 
-
-Let's see what happens when we encode these agreement constraints in a
-context-free grammar.  We will begin with the simple CFG in agcfg0_.
-
-.. _agcfg0:
-.. ex::
-   .. parsed-literal::
-
-     `s`:gc: |rarr| `np vp`:gc:
-     `np`:gc: |rarr| `Det n`:gc: 
-     `vp`:gc: |rarr| `v`:gc: 
-
-     `Det`:gc: |rarr| 'this'
-     `n`:gc: |rarr| 'dog'
-     `v`:gc: |rarr| 'runs'
-
-|nopar| Example agcfg0_ allows us to generate the sentence `this dog runs`:lx:;
-however, what we really want to do is also generate `these dogs
-run`:lx: while blocking unwanted strings such as `*this dogs run`:lx:
-and `*these dog runs`:lx:. The most straightforward approach is to
-add new non-terminals and productions to the grammar:
-
-.. _agcfg1:
-.. ex::
-   .. parsed-literal::
-
-     `S_SG`:gc: |rarr| `NP_SG VP_SG`:gc:
-     `S_PL`:gc: |rarr| `NP_PL VP_PL`:gc:
-     `NP_SG`:gc: |rarr| `Det_SG N_SG`:gc: 
-     `NP_PL`:gc: |rarr| `Det_PL N_PL`:gc: 
-     `VP_SG`:gc: |rarr| `V_SG`:gc: 
-     `VP_PL`:gc: |rarr| `V_PL`:gc: 
-
-     `Det_SG`:gc: |rarr| 'this'
-     `Det_PL`:gc: |rarr| 'these'
-     `N_SG`:gc: |rarr| 'dog'
-     `N_PL`:gc: |rarr| 'dogs'
-     `V_SG`:gc: |rarr| 'runs'
-     `V_PL`:gc: |rarr| 'run'
-
-|nopar| It should be clear that this grammar will do the required
-task, but only at the cost of duplicating our previous set of
-productions.
-
-.. Rule multiplication is of course more severe if we add in
-   person agreement constraints.
-   "rule multiplication" will be meaningless to some readers.
-   We need to be consistent in referring to these as productions.
-
-
-Using Attributes and Constraints
---------------------------------
-
-We spoke informally of linguistic categories having *properties*; for
-example, that a noun has the property of being plural. Let's
-make this explicit:
-
-.. _num0:
-.. ex::
-   .. parsed-literal::
-
-     `N`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ]
-
-|nopar| In num0_, we have introduced some new notation which says that the
-category `N`:gc: has a `feature`:dt: called `num`:feat: (short for
-'number') and that the value of this feature is `pl`:fval: (short for
-'plural'). We can add similar annotations to other categories, and use
-them in lexical entries:
-
-.. _agcfg2:
-.. ex::
-   .. parsed-literal::
-
-     `Det`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'this'
-     `Det`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ]  |rarr| 'these'
-     `N`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'dog'
-     `N`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'dogs'
-     `V`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'runs'
-     `V`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'run'
-
-|nopar| Does this help at all? So far, it looks just like a slightly more
-verbose alternative to what was specified in agcfg1_. Things become
-more interesting when we allow *variables* over feature values, and use
-these to state constraints:
-
-.. _agcfg3:
-.. ex::
-   .. _srule:
-   .. ex::
-      .. parsed-literal::
-
-        `S`:gc: |rarr| `NP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] `VP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
-
-   .. _nprule:
-   .. ex::
-      .. parsed-literal::
-
-       `NP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| `Det`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] `N`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
-
-   .. _vprule:
-   .. ex::
-      .. parsed-literal::
-
-       `VP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| `V`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
-
-|nopar| We are using "`?n`:math:" as a variable over values of `num`:feat:; it can
-be instantiated either to `sg`:fval: or `pl`:fval:. Its scope is
-limited to individual productions. That is, within srule_, for example,
-`?n`:math: must be instantiated to the same constant value; we can
-read the production as saying that whatever value `NP`:gc: takes for the feature
-`num`:feat:, `VP`:gc: must take the same value. 
-
-In order to understand how these feature constraints work, it's
-helpful to think about how one would go about building a tree. Lexical
-productions will admit the following local trees (trees of
-depth one):
-
-.. ex::
-   .. _this:
-   .. ex:: 
-      .. tree:: (Det[NUM=sg] this) 
-   .. _these:
-   .. ex:: 
-      .. tree:: (Det[NUM=pl] these) 
-
-.. ex::
-   .. _dog:
-   .. ex:: 
-      .. tree:: (N[NUM=sg] dog) 
-   .. _dogs:
-   .. ex:: 
-      .. tree:: (N[NUM=pl] dogs) 
-
-|nopar| Now nprule_ says that whatever the `num`:feat: values of `N`:gc: and
-`Det`:gc: are, they have to be the same. Consequently,  nprule_ will
-permit this_ and dog_ to be combined into an `NP`:gc: as shown in
-good1_ and it will also allow these_ and dogs_ to be combined, as in
-good2_. By contrast,  bad1_ and bad2_ are prohibited because the roots
-of their
-constituent local trees differ in their values for the `num`:feat: feature.
-
-.. ex::
-   .. _good1:
-   .. ex::
-      .. tree:: (NP[NUM=pl] (Det[NUM=sg] this)(N[NUM=sg] dog))
-
-   .. _good2:
-   .. ex::
-      .. tree:: (NP[NUM=pl] (Det[NUM=pl] these)(N[NUM=pl] dogs))
-
-.. ex::
-   .. _bad1:
-   .. ex::
-      .. tree:: (NP[NUM=...] (Det[NUM=sg] this)(N[NUM=pl] dogs))
-
-   .. _bad2:
-   .. ex::
-      .. tree:: (NP[NUM=...] (Det[NUM=PL] these)(N[NUM=SG] dog))
-
-Production vprule_ can be thought of as saying that the `num`:feat: value of the
-head verb has to be the same as the `num`:feat: value of the `VP`:gc:
-mother. Combined with srule_, we derive the consequence that if the
-`num`:feat: value of the subject head noun is `pl`:fval:, then so is
-the `num`:feat: value of the `VP`:gc:\ 's head verb.
-
-.. ex::
-   .. tree:: (S (NP[NUM=pl] (Det[NUM=pl] these)(N[NUM=pl] dogs))(VP[NUM=pl] (V[NUM=pl] run)))
-
-The grammar in listing feat0cfg_ illustrates most of the ideas we have introduced so
-far in this chapter, plus a couple of new ones.
-
-.. pylisting:: feat0cfg
-   :caption: Example Feature-Based Grammar
-
-   >>> nltk.data.show_cfg('grammars/feat0.fcfg')
-   % start S
-   # ############################
-   # Grammar Rules
-   # ############################
-   # S expansion rules
-   S -> NP[NUM=?n] VP[NUM=?n]
-   # NP expansion rules
-   NP[NUM=?n] -> N[NUM=?n] 
-   NP[NUM=?n] -> PropN[NUM=?n] 
-   NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]
-   NP[NUM=pl] -> N[NUM=pl] 
-   # VP expansion rules
-   VP[TENSE=?t, NUM=?n] -> IV[TENSE=?t, NUM=?n]
-   VP[TENSE=?t, NUM=?n] -> TV[TENSE=?t, NUM=?n] NP
-   # ############################
-   # Lexical Rules
-   # ############################
-   Det[NUM=sg] -> 'this' | 'every'
-   Det[NUM=pl] -> 'these' | 'all'
-   Det -> 'the' | 'some'
-   PropN[NUM=sg]-> 'Kim' | 'Jody'
-   N[NUM=sg] -> 'dog' | 'girl' | 'car' | 'child'
-   N[NUM=pl] -> 'dogs' | 'girls' | 'cars' | 'children' 
-   IV[TENSE=pres,  NUM=sg] -> 'disappears' | 'walks'
-   TV[TENSE=pres, NUM=sg] -> 'sees' | 'likes'
-   IV[TENSE=pres,  NUM=pl] -> 'disappear' | 'walk'
-   TV[TENSE=pres, NUM=pl] -> 'see' | 'like'
-   IV[TENSE=past, NUM=?n] -> 'disappeared' | 'walked'
-   TV[TENSE=past, NUM=?n] -> 'saw' | 'liked'
-
-|nopar| Notice that a syntactic category can have more than one feature; for example,
-`v`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `num`:feat:\ =\ `pl`:fval:\ ].
-In general, we can add as many features as we like.
-
-Notice also that we have used feature variables in lexical entries as well
-as grammatical productions. For example, `the`:lx: has been assigned the
-category `Det`:gc:\ [`num`:feat:\ =\ `?n`:math:]. Why is this?  Well,
-you know that the definite article `the`:lx: can combine with both
-singular and plural nouns. One way of describing this would be to add
-two lexical entries to the grammar, one each for the singular and
-plural versions of `the`:lx:. However, a more elegant solution is to
-leave the `num`:feat: value `underspecified`:dt: and letting it agree
-in number with whatever noun it combines with.
-
-A final detail about feat0cfg_ is the statement ``%start S``.
-This a "directive" that tells the parser to take `s`:gc: as the
-start symbol for the grammar.
-
-In general, when we are trying to develop even a very small grammar,
-it is convenient to put the productions in a file where they can be edited,
-tested and revised.  We have saved feat0cfg_ as a file named
-``'feat0.fcfg'`` in the NLTK data distribution, and it
-can be accessed using ``nltk.data.load()``.
-
-.. TODO: why two print statements here, print vs pprint?
-.. TODO: first mention of earley in this chapter
-
-|nopar| We can inspect the productions and the lexicon using the commands ``print
-g.earley_grammar()`` and  ``pprint(g.earley_lexicon())``.
-
-Next, we can tokenize a sentence and use the ``nbest_parse()`` function to
-invoke the Earley chart parser.
-
-.. pylisting:: featurecharttrace
-   :caption: Trace of Feature-Based Chart Parser
-
-    >>> tokens = 'Kim likes children'.split()
+This allows us to parse a query into SQL.
+  
     >>> from nltk.parse import load_earley
-    >>> cp = load_earley('grammars/feat0.fcfg', trace=2)
-    >>> trees = cp.nbest_parse(tokens)
-              |.K.l.c.|
-    Processing queue 0
-    Predictor |> . . .| [0:0] S[] -> * NP[NUM=?n] VP[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * N[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * PropN[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM='pl'] -> * N[NUM='pl'] {}
-    Scanner   |[-] . .| [0:1] 'Kim'
-    Scanner   |[-] . .| [0:1] PropN[NUM='sg'] -> 'Kim' *
-    Processing queue 1
-    Completer |[-] . .| [0:1] NP[NUM='sg'] -> PropN[NUM='sg'] *
-    Completer |[-> . .| [0:1] S[] -> NP[NUM=?n] * VP[NUM=?n] {?n: 'sg'}
-    Predictor |. > . .| [1:1] VP[NUM=?n, TENSE=?t] -> * IV[NUM=?n, TENSE=?t] {}
-    Predictor |. > . .| [1:1] VP[NUM=?n, TENSE=?t] -> * TV[NUM=?n, TENSE=?t] NP[] {}
-    Scanner   |. [-] .| [1:2] 'likes'
-    Scanner   |. [-] .| [1:2] TV[NUM='sg', TENSE='pres'] -> 'likes' *
-    Processing queue 2
-    Completer |. [-> .| [1:2] VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] * NP[] {?n: 'sg', ?t: 'pres'}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * N[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * PropN[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM='pl'] -> * N[NUM='pl'] {}
-    Scanner   |. . [-]| [2:3] 'children'
-    Scanner   |. . [-]| [2:3] N[NUM='pl'] -> 'children' *
-    Processing queue 3
-    Completer |. . [-]| [2:3] NP[NUM='pl'] -> N[NUM='pl'] *
-    Completer |. [---]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] *
-    Completer |[=====]| [0:3] S[] -> NP[NUM='sg'] VP[NUM='sg'] *
-    Completer |[=====]| [0:3] [INIT][] -> S[] *
+    >>> from string import join
+    >>> cp = load_earley('grammars/sql0.fcfg')
+    >>> query = 'What cities are located in China'
+    >>> trees = cp.nbest_parse(query.split())
+    >>> answer = trees[0].node['sem']
+    >>> q = join(answer)
+    >>> print q
+    SELECT City FROM city_table WHERE Country="china"
 
-.. TODO: discussion of underspecified productions, compilation etc presumes specialized CL knowledge.
-   Do we need to make this point?  Its just an implementation detail.
+.. note:: |TRY|
+   Run the parser with maximum tracing on, i.e.,
+   ``cp = load_earley('grammars/sql0.fcfg', trace=3)``, and examine
+   how the values of ``sem`` are built up as complete edges are added
+   to the chart.
 
-|nopar| Observe that the parser works directly with
-the underspecified productions given by the grammar. That is, the
-Predictor rule does not attempt to compile out all admissible feature
-combinations before trying to expand the non-terminals on the left hand
-side of a production. However, when the Scanner matches an input word
-against a lexical production that has been predicted, the new edge will
-typically contain fully specified features; e.g., the edge
-[PropN[`num`:feat: = `sg`:fval:] |rarr| 'Kim', (0, 1)]. Recall from
-Chapter chap-parse_ that the Fundamental (or Completer) Rule in
-standard CFGs is used to combine an incomplete edge that's expecting a
-nonterminal *B* with a following, complete edge whose left hand side
-matches *B*. In our current setting, rather than checking for a
-complete match, we test whether the expected category *B* will
-`unify`:dt: with the left hand side *B'* of a following complete
-edge. We will explain in more detail in Section sec-feat-comp_ how
-unification works; for the moment, it is enough to know that as a
-result of unification, any variable values of features in *B* will be
-instantiated by constant values in the corresponding feature structure
-in *B'*, and these instantiated values will be used in the new edge
-added by the Completer. This instantiation can be seen, for example,
-in the edge 
-[`np`:gc:\ [`num`:feat:\ =\ `sg`:fval:] |rarr| PropN[`num`:feat:\ =\ `sg`:fval:] |dot|, (0, 1)]
-in featurecharttrace_,
-where the feature `num`:feat: has been assigned the value `sg`:fval:.
+Finally, we execute the query over the database ``city.db`` and
+retrieve some results.
 
-Finally, we can inspect the resulting parse trees (in this case, a
-single one).
+    >>> from nltk.sem import chat80
+    >>> rows = chat80.sql_query('samples/city.db', q)
+    >>> for r in rows: print "%s" % r,
+    canton chungking dairen harbin kowloon mukden peking shanghai sian tientsin
 
-.. doctest-ignore::
-    >>> for tree in trees: print tree
-    (S[]
-      (NP[NUM='sg'] (PropN[NUM='sg'] Kim))
-      (VP[NUM='sg', TENSE='pres']
-        (TV[NUM='sg', TENSE='pres'] likes)
-        (NP[NUM='pl'] (N[NUM='pl'] children))))
+Let's review what we've just learned. We claimed earlier that one way
+of getting a computer to understand English was making it perform
+tasks that seem to require some processing of meaning. The specific
+task that we've just examined involves the computer giving useful data
+back in response to a natural language query, and we implemented this
+by translating a small subset of English into SQL. So to the extent
+that our software already understands SQL, in the sense of being
+able to execute SQL queries against a database, it also undertands
+queries such as `What cities are located in China`:lx:. 
 
-.. TODO: delete the [INIT] and Start non terminals from the tree display!
+The grammar ``sql0.fcfg``, together with the NLTK Earley parser, is
+instrumental in carrying out the translation. How adequate is this
+grammar? On the positive side, it follows the Principle of Compositionality
+ins assigning some kind of meaning to the parts
+of sentences. For example, `what cities`:lx: receives the meaning
+``SELECT City from city_table``. The parts can then be combined to
+make a translation for the whole sentence, so one can imagine that the
+approach could be adopted for other queries of a similar
+sort. However, there are also several less satisfactory aspects to
+``sql0.fcfg``. First off, we
+have hard-wired an embarrassing amount of detail about the database:
+we need to know the name of the relevant table (e.g., ``city_table``)
+and the names of the fields. But our database could have contained
+exactly the same rows of data yet used a different table name and
+different field names, in which case the SQL queries would not be executable. Equally,
+we could have stored our data in a different format, such as XML, in
+which case retrieving the same results would require us to translate
+our English queries into an XML query language rather than SQL. These
+considerations suggest that we should be translating English into
+something that is more abstract and generic than something like SQL.
 
-Terminology
------------
+In order to sharpen the point, let's consider another English query
+and its translation:
 
-So far, we have only seen feature values like `sg`:fval: and
-`pl`:fval:. These simple values are usually called `atomic`:dt:
-|mdash| that is, they can't be decomposed into subparts. A special
-case of atomic values are `boolean`:dt: values, that is, values that
-just specify whether a property is true or false of a category. For
-example, we might want to distinguish `auxiliary`:dt: verbs such as
-`can`:lx:, `may`:lx:, `will`:lx: and `do`:lx: with the boolean feature
-`aux`:feat:. Then our lexicon for verbs could include entries such as
-lex_. (Note that we follow the convention that boolean
-features are not written `f`:feat: +, `f`:feat: `-`:math: but simply
-`+f`:feat:, `-f`:feat:, respectively.)
-
-.. _lex:
+.. _ex-dbq2:
 .. ex::
-      .. parsed-literal::
+   .. _ex-dbq21:
+   .. ex:: What	cities are in China and have populations above 1,000,000?
+   .. _ex-dbq22:
+   .. ex:: SELECT City FROM city_table WHERE Country = 'china' AND
+           Population > 1000
 
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'can'
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'may'
+.. note:: |TRY|
+   Extend the grammar ``sql0.fcfg`` so that it will translate
+   ex-dbq21_ into ex-dbq22_, and check the values returned by
+   the query. 
 
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'walks'
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'likes'
+   You will probably find it easiest to first extend the grammar to
+   handle queries like `What cities have populations above
+   1,000,000`:lx: before tackling conjunction. After you have had a go
+   at this task, you can compare your solution to ``grammars/sql1.fcfg`` in
+   the NLTK data distribution.
 
-We have spoken informally of attaching "feature annotations" to
-syntactic categories. A more general
-approach is to treat the whole category |mdash| that is, the
-non-terminal symbol plus the annotation |mdash| as a bundle of
-features. Consider, for example, the object we have written as ncat0_.
+As you can see, the `and`:lx: conjunction in ex-dbq21_ gets translated
+into an ``AND`` in the SQL counterpart, ex-dbq22_. The latter tells us
+to select results from rows where two conditions are true
+together: the value of the ``Country`` column is ``'china'`` and the
+value of the ``Population`` column is greater than 1000. This
+interpretation for `and`:lx: invokes an idea we mentioned earlier,
+namely it talks about what is true in some particular
+situation. Moreover, although we haven't exhausted the meaning of
+`and`:lx: in English, we have given it a meaning which is independent
+of any query language. In fact, we have given it the standard
+interpretation from standard logic. In the following sections, we will
+explore an approach in which sentences of natural language are
+translated into logic instead of an executable query language. One
+advantage is that logical formalisms are more abstract and therefore
+more generic. If we wanted to, once we had our translation into logic,
+we could then translate it further into a task-specific query
+language. In fact, most serious attempts to query databases via
+natural language have adopted this methodology; cf. [Androutsopoulos1995NLI]_.
 
-.. _ncat0:
+Natural Language and Logic
+--------------------------
+
+In Section sec-log-semantics-introduction_, we already touched on two
+fundamental notions from the logician's approach to semantics. The
+first is that declarative sentences are `true or false in certain situations`:em:. 
+The second is that definite noun phrases and proper nouns `refer to things
+in the world`:em:. To return to our earlier example, we suggested that ex-sem1_
+was true in a situation, where Stefan likes the camera in question,
+here illustrated in in Figure fig-stefan-and-camera_.
+
+.. _fig-stefan-and-camera:
+.. figure:: ../images/stefan_and_camera_with_arrows.png
+   :scale: 20
+
+Once we have adopted the notion of truth in situation, we have a
+powerful tool for reasoning.  In particular, we can start to consider
+sets of sentences, and ask whether they could be true together in some
+situation. For example, the sentences in ex-cons1_ can be both true,
+while those in ex-cons2_ and  ex-cons3_ cannot be. In other words, the sentences in
+ex-cons1_ are `consistent`:dt:, while those in ex-cons2_ and ex-cons3_ are
+`inconsistent`:dt:.
+
+.. _ex-cons1:
 .. ex::
-      .. parsed-literal::
+   .. _ex-cons11:
+   .. ex:: Sylvania is to the north of Freedonia.
+   .. _ex-cons12:
+   .. ex:: Freedonia is a republic.
 
-        `n`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] 
-
-|nopar| The syntactic category `n`:gc:, as we have seen before, provides part
-of speech information. This information can itself be captured as a
-feature value pair, using  `pos`:feat: to represent "part of speech":
-
-.. _ncat1:
+.. _ex-cons2:
 .. ex::
-      .. parsed-literal::
+   .. _ex-cons21:
+   .. ex:: The capital of Freedonia has a population of 9,000.
+   .. _ex-cons22:
+   .. ex:: No city in Freedonia has a population of 9,000.
 
-        [`pos`:feat:\ =\ `N`:fval:, `num`:feat:\ =\ `sg`:fval:\ ] 
-
-|nopar| In fact, we  regard ncat1_ as our "official" representation of a
-feature-based linguistic category, and ncat0_ as a convenient abbreviation.
-A bundle of feature-value pairs is called a `feature structure`:dt:
-or an `attribute value matrix`:dt: (AVM). A feature structure that
-contains a specification for the feature `pos`:feat: is a `linguistic
-category`:dt:. 
-
-In addition to atomic-valued features, we allow features whose values
-are themselves feature structures. For example, we might want to group
-together agreement features (e.g., person, number and gender) as a
-distinguished part of a category, as shown in agr0_.
-
-.. _agr0:
+.. _ex-cons3:
 .. ex::
-      .. avm:: 
-        [pos = N           ]
-        [                  ]
-        [agr = [per = 3   ]]
-        [      [num = pl  ]]
-        [      [gnd = fem ]]
+   .. _ex-cons31:
+   .. ex:: Sylvania is to the north of Freedonia.
+   .. _ex-cons32:
+   .. ex:: Freedonia is to the north of Sylvania.
+
+We have chosen sentences about fictional countries (featured in the
+Marx Brothers' 1933 movie *Duck Soup*) to emphasize that your ability
+to reason about these examples does `not`:em: depend on what is true
+or false in the actual world. If you know the meaning of `no`:lx:, and
+that the capital of a country is a city in that country, then you
+should be able to conclude that the two sentences in ex-cons2_ are
+inconsistent, regardless of where Freedonia is or what the population
+of its capital is. That is, there's no possible situation in which
+both sentences could be true. Similarly, if you know that the relation
+expressed by `to the north of`:lx: is asymmetric, then you should be
+able to conclude that the two sentences in ex-cons3_ are inconsistent.
+
+Broadly speaking, logic-based approaches to natural language semantics
+focus on those aspects of natural language which contribute to our
+judgments of consistency and inconsistency. The syntax of a logical
+language is designed to make these features formally explicit. As a
+result, determining properties like consistency can often be reduced
+to symbolic manipulation, that is, to a task that can be carried out
+by a computer.
+
+As we will see shortly, a widely adopted approach to representing
+natural language meaning involves translating expressions of
+natural language into |fol| (|FOL|). From a computational point of
+view, a strong argument in favor of |FOL| is that it strikes a
+reasonable balance between expressiveness and logical tractability. On
+the one hand, it is flexible enough to represent many aspects of the
+logical structure of natural language. On the other hand, automated
+theorem proving for |FOL| has been well studied, and although
+inference in |FOL| is not decidable, in practice many reasoning
+problems are efficiently solvable using modern theorem provers
+(cf. [Blackburn2005RIN]_ for discussion).
 
 
-*AVM as included figure:*
+A `model`:dt: for a set |Gamma| of sentences is a formal
+representation of a situation in which all the sentences in |Gamma|
+are true. Standardly, models are represented in set theory. The domain
+*D* of discourse (all the entities we currently care about) is a set of
+individuals, while properties and relations are usually treated as
+sets built up from *D*. Let's look at a concrete example. Our domain
+*D* will consist of three
+children, Stefan, Klaus and Evi, represented respectively as ``s``,
+``k`` and ``e``. We write this as *D* = ``{s, k, e}``. The property `boy`:math: is the
+set consisting of Stefan and Klaus, the property `girl`:math: is the
+set consisting of Evi, and the property `is running`:math: is the
+set consisting of Stefan and Evi. fig-model-kids_ is a graphical
+rendering of the model.
 
-.. _fig-avm1:
-.. image:: ../images/avm1.png
-   :scale: 60
+.. _fig-model-kids:
+.. figure:: ../images/model_kids.png
+   :scale: 10
 
 
-|nopar| In this case, we say that the feature `agr`:feat: has a `complex`:dt: value.
 
-There is no particular significance to the *order* of features in a
-feature structure. So agr0_ is equivalent to agr0_.
+--------------------
+Propositional  Logic
+--------------------
 
-.. _agr1:
+As mentioned earlier, a logical language is designed to capture
+certain aspects of natural language which contribute to determining
+whether a set of sentences is consistent. This in turn requires that a logical
+representation of a sentence `S`:math: helps make the
+`truth-conditions`:dt: of a `S`:math: explicit.
+
+.. _ex-proplog1:
 .. ex::
-      .. avm::
-        [agr = [num = pl  ]]
-        [      [per = 3   ]]
-        [      [gnd = fem ]]
-        [                  ]
-        [pos = N           ]
-
-Once we have the possibility of using features like `agr`:feat:, we
-can refactor a grammar like feat0cfg_ so that agreement features are
-bundled together. A tiny grammar illustrating this point is shown in agr2_.
-
-.. _agr2:
-.. ex::
-    .. parsed-literal::
-
-      `s`:gc: |rarr| `np`:gc:\ [`agr`:feat:\ =\ `?n`:fval:\ ] `vp`:gc:\ [`agr`:feat:\ =\ `?n`:fval:]
-      `np`:gc:\ [`agr`:feat:\ =\ `?n`:fval:] |rarr| `PropN`:gc:\ [`agr`:feat:\ =\ `?n`:fval:] 
-      `vp`:gc:\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] |rarr| `Cop`:gc:\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] Adj
-      `Cop`:gc:\ [`tense`:feat:\ =\ `pres`:fval:,  `agr`:feat:\ =\ [`num`:feat:\ =\ `sg`:fval:, `per`:feat:\ =\ `3`:fval:]] |rarr| 'is' 
-      `PropN`:gc:\ [`agr`:feat:\ =\ [`num`:feat:\ =\ `sg`:fval:, `per`:feat:\ =\ `3`:fval:]] |rarr| 'Kim'
-      `Adj`:gc: |rarr| 'happy'
-
-
-.. _sec-feat-comp:
-
----------------------------------
-Computing with Feature Structures
----------------------------------
-
-In this section, we will show how feature structures can be
-constructed and manipulated in Python. We will also discuss the
-fundamental operation of unification, which allows us to combine the
-information contained in two different feature structures.
-
-Feature Structures in Python
-----------------------------
-
-Feature structures are declared with the
-``FeatStruct()`` constructor. Atomic feature values can be strings or
-integers.
-
-    >>> fs1 = nltk.FeatStruct(TENSE='past', NUM='sg') 
-    >>> print fs1
-    [ NUM   = 'sg'   ]
-    [ TENSE = 'past' ]
-
-|nopar| A feature structure is actually just a kind of dictionary,
-and so we access its values by indexing in the usual way.
-We can use our familiar syntax to *assign* values to features:
-
-    >>> fs1 = nltk.FeatStruct(PER=3, NUM='pl', GND='fem')
-    >>> print fs1['GND']
-    fem
-    >>> fs1['CASE'] = 'acc'
-
-|nopar| We can also define feature structures that have complex values, as
-discussed earlier.
-
-    >>> fs2 = nltk.FeatStruct(POS='N', AGR=fs1)
-    >>> print fs2
-    [       [ CASE = 'acc' ] ]
-    [ AGR = [ GND  = 'fem' ] ]
-    [       [ NUM  = 'pl'  ] ]
-    [       [ PER  = 3     ] ]
-    [                        ]
-    [ POS = 'N'              ]
-    >>> print fs2['AGR']
-    [ CASE = 'acc' ]
-    [ GND  = 'fem' ]
-    [ NUM  = 'pl'  ]
-    [ PER  = 3     ]
-    >>> print fs2['AGR']['PER']
-    3
-
-An alternative method of specifying feature structures is to
-use a bracketed string consisting of feature-value pairs in the format
-``feature=value``, where values may themselves be feature structures:
-
-    >>> nltk.FeatStruct("[POS='N', AGR=[PER=3, NUM='pl', GND='fem']]")
-    [AGR=[GND='fem', NUM='pl', PER=3], POS='N']
-
-
-Feature Structures as Graphs
-----------------------------
-
-Feature structures are not inherently tied to linguistic objects; they are
-general purpose structures for representing knowledge. For example, we
-could encode information about a person in a feature structure:
-
-    >>> person01 = nltk.FeatStruct(name='Lee', telno='01 27 86 42 96', age=33)
-
-.. _person01:
-.. ex::
-      .. avm:: 
-
-        [name = `Lee'            ]
-        [telno = 01 27 86 42 96  ]
-        [age = 33                ]
-
-
-It is sometimes helpful to view feature structures as graphs; more
-specifically, `directed acyclic graphs`:dt: (DAGs). dag01_ is equivalent to
-the AVM person01_.
-
-.. _dag01:
-.. ex::
-   .. image:: ../images/dag01.png
-      :scale: 40
-
-|nopar| The feature names appear as labels on the directed arcs, and feature
-values appear as labels on the nodes that are pointed to by the arcs.
-
-Just as before, feature values can be complex:
-
-.. _dag02:
-.. ex::
-   .. image:: ../images/dag02.png
-      :scale: 40
-
-|nopar| When we look at such graphs, it is natural to think in terms of
-paths through the graph. A `feature path`:dt: is a sequence of arcs
-that can be followed from the root node. We will represent paths as
-tuples. Thus, ``('address', 'street')`` is a feature path whose value
-in dag02_ is the string "rue Pascal".
-
-Now let's consider a situation where Lee has a spouse named "Kim", and
-Kim's address is the same as Lee's.
-We might represent this as dag04_.
-
-.. _dag04:
-.. ex::
-   .. image:: ../images/dag04.png
-      :scale: 40
-
-|nopar| However, rather than repeating the address
-information in the feature structure, we can "share" the same
-sub-graph between different arcs:
-
-.. _dag03:
-.. ex::
-   .. image:: ../images/dag03.png
-      :scale: 40
-
-
-|nopar| In other words, the value of the path ``('ADDRESS')`` in dag03_ is
-identical to the value of the path ``('SPOUSE', 'ADDRESS')``.  DAGs
-such as dag03_ are said to involve `structure sharing`:dt: or
-`reentrancy`:dt:. When two paths have the same value, they are said to
-be `equivalent`:dt:.
-
-There are a number of notations for representing reentrancy in
-matrix-style representations of feature structures. We adopt
-the following convention: the first occurrence of a shared feature structure 
-is prefixed with an integer in parentheses, such as ``(1)``, and any
-subsequent reference to that structure uses the notation
-``->(1)``, as shown below.
-
-    >>> fs = nltk.FeatStruct("""[NAME='Lee', ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'], 
-    ...                         SPOUSE=[NAME='Kim', ADDRESS->(1)]]""")
-    >>> print fs
-    [ ADDRESS = (1) [ NUMBER = 74           ] ]
-    [               [ STREET = 'rue Pascal' ] ]
-    [                                         ]
-    [ NAME    = 'Lee'                         ]
-    [                                         ]
-    [ SPOUSE  = [ ADDRESS -> (1)  ]           ]
-    [           [ NAME    = 'Kim' ]           ]
-
-
-|nopar| This is similar to more conventional displays of AVMs, as shown in
-reentrant01_.
-
-.. _reentrant01:
-.. ex::
-      .. avm:: 
-
-	 [ address = (1) [ number = 74           ] ]
-	 [               [ street = 'rue Pascal' ] ]
-	 [                                         ]
-	 [ name    = 'Lee'                         ]
-	 [                                         ]
-	 [ spouse  = [ address -> (1)  ]           ]
-	 [           [ name    = 'Kim' ]           ]
-
-|nopar| The bracketed integer is sometimes called a `tag`:dt: or a
-`coindex`:dt:. The choice of integer is not significant.
-There can be any number of tags within a single feature structure.
-
-    >>> fs1 = nltk.FeatStruct("[A='a', B=(1)[C='c'], D->(1), E->(1)]")
-
-.. _reentrant02:
-.. ex::
-      .. avm::
-
-	 [ A = 'a'             ]
-	 [                     ]
-	 [ B = (1) [ C = 'c' ] ]
-	 [                     ]
-	 [ D -> (1)            ]
-	 [ E -> (1)            ]
-
-
-.. TODO following AVM doesn't currently parse
-..
-    |nopar| We can also share empty structures:
-
-	>>> fs2 = nltk.FeatStruct("[A=(1)[], B=(2)[], C->(1), D->(2)]")
-
-    .. _reentrant03:
-    .. ex::
-	  .. avm:: 
-
-	     [ A = (1) [ ] ]
-	     [ B = (2) [ ] ]
-	     [ C -> (1)    ]
-	     [ D -> (2)    ]
-
-
-
-Subsumption and Unification
----------------------------
-
-It is standard to think of feature structures as providing `partial
-information`:dt: about some object, in the sense that we can order
-feature structures according to how general they are. For example,
-fs01_ is more general (less specific) than fs02_, which in turn is more general than fs03_.
-
-.. ex::
-   .. _fs01:
+   .. _ex-proplog11:
    .. ex::
-      .. avm::
-
-         [number = 74]
-
-   .. _fs02:
+      [Shanghai is to the north of Guangzhou] and 
+      [the urban population of Shanghai is 15.5 million].
+      
+   .. _ex-proplog12:
    .. ex::
-      .. avm::
+      [Klaus chased Evi] and [Evi ran away].
 
-         [number = 74          ]
-         [street = 'rue Pascal']
+If we temporarily ignore the internal details of the sentences
+enclosed by square brackets, then both of them have the same
+structure:
 
-   .. _fs03:
+.. _ex-proplog2:
+.. ex:: `P`:math: `and`:lx: `Q`:math:
+
+We will sometimes say that ex-proplog2_ is the `logical form`:dt: (or
+|LF| for short) of sentences like ex-proplog1_. We can state the
+truth-conditions for ex-proplog2_ along the following lines:
+
+.. _ex-proplog3:
+.. ex:: A sentence of the form '`P`:math: `and`:lx: `Q`:math:' is true
+        in a situation `s`:math: if `P`:math: is true in `s`:math: and
+	`Q`:math: is true in `s`:math:.
+
+As we observed above, the inconsistency of ex-cons3_ arises from the
+asymmetry of the relation `x is to the north of y`:lx: (where
+`x`:math: and `y`:math: are place-holders for noun
+phrases). Informally, we can say the following:
+
+.. _ex-proplog4:
+.. ex:: if `x`:math: is to the north of `y`:math: then `y`:math: is not to the north of
+        `x`:math:.
+
+In propositional logic, negation expressions such as `not`:lx: are
+treated as sentence operators. That is, the logical form of
+ex-proplog51_ is something like ex-proplog52_.
+
+.. _ex-proplog5:
+.. ex::
+   .. _ex-proplog51:
    .. ex::
-      .. avm::
+      Sylvania is not to the north of Freedonia.
+      
+   .. _ex-proplog52:
+   .. ex::
+      It is not the case that [Sylvania is to the north of Freedonia].
 
-         [number = 74          ]
-         [street = 'rue Pascal']
-         [city = 'Paris'       ]
+A more succinct version of ex-proplog52_ is ex-proplog6_, where |neg|
+symbolizes `it is not the case that`:lx:.
 
-|nopar| This ordering is called `subsumption`:dt:; a more general feature
-structure `subsumes`:dt: a less general one. If `FS`:math:\
-:subscript:`0` subsumes `FS`:math:\ :subscript:`1` (formally, we write
-`FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
-:subscript:`1`), then `FS`:math:\ :subscript:`1` must have all the
-paths and path equivalences of `FS`:math:\ :subscript:`0`, and may
-have additional paths and equivalences as well. Thus, dag04_ subsumes
-dag03_, since the latter has additional path equivalences.. It should
-be obvious that subsumption only provides a partial ordering on
-feature structures, since some feature structures are
-incommensurable. For example, fs04_ neither subsumes nor is subsumed
-by fs01_.
+.. _ex-proplog6:
+.. ex:: |neg|\ `P`:math:
 
+.. _ex-proplog7:
+.. ex:: A sentence of the form '|neg|\ `P`:math:' is true
+        in a situation `s`:math: if `P`:math: is not true in `s`:math:.
+ 
+Informally, given the schematic rule in
+ex-proplog4_, then from ex-proplog81_ we can conclude ex-proplog82_:
 
-.. _fs04:
+.. _ex-proplog8:
 .. ex::
-   .. avm::
+   .. _ex-proplog81:
+   .. ex::
+      [Freedonia is to the north of Sylvania].
+      
+   .. _ex-proplog82:
+   .. ex::
+      |neg| [Sylvania is to the north of Freedonia].
 
-         [telno = 01 27 86 42 96]
+So the two sentences in ex-cons3_ can be augmented to the following
+set:
 
-So we have seen that some feature structures are more specific than
-others. How do we go about specializing a given feature structure?
-For example, we might decide that addresses should
-consist of not just a street number and a street name, but also a
-city. That is, we might want to *merge*  graph dag042_ with dag041_ to
-yield dag043_.
-
+.. _ex-proplog9:
 .. ex::
-     .. _dag041:
-     .. ex::
-	.. image:: ../images/dag04-1.png
-	   :scale: 40
+   [Sylvania is to the north of Freedonia]
 
-     .. _dag042:
-     .. ex::
-	.. image:: ../images/dag04-2.png
-	   :scale: 40
+   [Freedonia is to the north of Sylvania]
 
-     .. _dag043:
-     .. ex::
-	.. image:: ../images/dag04-3.png
-	   :scale: 40
+   |neg| [Sylvania is to the north of Freedonia]
 
-|nopar| Merging information from two feature structures is called
-`unification`:dt: and is supported by the ``unify()`` method.
+Thus, the set in ex-proplog9_ contains a pair of sentences whose |LF|\
+s are `P`:math: and |neg|\ `P`:math:. But a fundamental assumption of
+classical logic is that a sentence cannot be both true and false in a
+situation. Any set of sentences which contains both `P`:math: and
+|neg|\ `P`:math: is inconsistent. In this way, we can see how reducing
+sentences to their logical forms allows us to determine inconsistency.
 
-    >>> fs1 = nltk.FeatStruct(NUMBER=74, STREET='rue Pascal')
-    >>> fs2 = nltk.FeatStruct(CITY='Paris')
-    >>> print fs1.unify(fs2)
-    [ CITY   = 'Paris'      ]
-    [ NUMBER = 74           ]
-    [ STREET = 'rue Pascal' ]
+As we have already indicated, `Propositional logic`:dt: is a formal
+system for systematically representing just those parts of linguistic
+structure which correspond to certain sentential conjunctions such as
+`and`:lx:, `or`:lx: and `if..., then...`:lx:. In the formalization of
+propositional logic, the counterparts of such conjunctions are
+sometimes called `boolean operators`:dt:.  The basic expressions of
+propositional logic are `propositional symbols`:dt:, which we shall
+continue to write as `P`:math:, `Q`:math:, `R`:math:, etc.  There are
+varying conventions for representing boolean operators. Here's one
+choice: a unary operator |neg| (`not`:lx:), and four binary operators
+|wedge| (`and`:lx:), |vee| (`or`:lx:), |rarr| (`if..., then...`:lx:)
+and |iff| (`if and only if`:lx:).  Then the set of `formulas`:dt: of
+propositional logic can be defined as follows:
 
-Unification is formally defined as a binary operation: `FS`:math:\
-:subscript:`0` |SquareIntersection| `FS`:math:\
-:subscript:`1`. Unification is symmetric, so 
+   1. Every propositional symbol is a formula.
 
-.. ex::
-    `FS`:math:\ :subscript:`0` |SquareIntersection| `FS`:math:\
-    :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareIntersection|
-    `FS`:math:\ :subscript:`0`.
+   2. If |phi| is a formula, then so is |neg| |phi|.
 
-|nopar| The same is true in Python:
+   3. If |phi| and |psi| are formulas, then so are
+      (|phi| |wedge| |psi|),
+      (|phi| |vee| |psi|),
+      (|phi| |rarr| |psi|) 
+      (|phi| |iff| |psi|).
 
-    >>> print fs2.unify(fs1)
-    [ CITY   = 'Paris'      ]
-    [ NUMBER = 74           ]
-    [ STREET = 'rue Pascal' ]
+The module ``nltk.sem.logic`` allows us to parse formulas of
+propositional logic. However, it only recognizes ascii versions of the boolean operators: 
 
-.. TODO: also mention commutativity
+    >>> from nltk.sem import logic
+    >>> logic.boolean_ops()
+    negation       	-
+    conjunction    	&
+    disjunction    	|
+    implication    	->
+    equivalence    	<-> 
 
-.. but >>> fs1.unify(fs2) is fs2.unify(fs1)
-       False
-   only works with repr()
+Within ``logic``, ``LogicParser()`` parses logical expressions into
+various subclasses of ``Expression``:
 
-If we unify two feature structures which stand in the subsumption
-relationship, then the result of unification is the most specific of
-the two:
-
-.. ex::
-    If `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
-    :subscript:`1`,  then `FS`:math:\ :subscript:`0`
-    |SquareIntersection| `FS`:math:\ :subscript:`1` = `FS`:math:\
-    :subscript:`1` 
-
-|nopar| For example, the result of unifying fs02_ with fs03_ is fs03_.
-
-Unification between `FS`:math:\ :subscript:`0` and `FS`:math:\
-:subscript:`1` will fail if the two feature structures share a path |pi|,
-but the value of |pi| in `FS`:math:\ :subscript:`0` is a distinct
-atom from the value of |pi| in `FS`:math:\ :subscript:`1`.
-This is implemented by setting the result of unification to be ``None``.
-
-    >>> fs0 = nltk.FeatStruct(A='a')
-    >>> fs1 = nltk.FeatStruct(A='b')
-    >>> fs2 = fs0.unify(fs1)
-    >>> print fs2
-    None
-
-Now, if we look at how unification interacts with structure-sharing,
-things become really interesting. First, let's define dag04_ in Python:
-
-    >>> fs0 = nltk.FeatStruct("""[NAME=Lee, 
-    ...                           ADDRESS=[NUMBER=74, 
-    ...                                    STREET='rue Pascal'], 
-    ...                           SPOUSE= [NAME=Kim,
-    ...                                    ADDRESS=[NUMBER=74, 
-    ...                                             STREET='rue Pascal']]]""")
-
-.. _unification01:
-.. ex::
-      .. avm:: 
-
-	 [ address = [ number = 74           ]               ]
-	 [           [ street = `rue Pascal' ]               ]
-	 [                                                   ]
-	 [ name    = `Lee'                                   ]
-	 [                                                   ]
-	 [           [ address = [ number = 74           ] ] ]
-	 [ spouse  = [           [ street = `rue Pascal' ] ] ]
-	 [           [                                     ] ]
-	 [           [ name    = `Kim'                     ] ]
-
-|nopar| What happens when we augment Kim's address with a specification
-for `city`:feat:? (Notice that ``fs1`` includes the whole path from the root of
-the feature structure down to `city`:feat:.)
-
-    >>> fs1 = nltk.FeatStruct("[SPOUSE = [ADDRESS = [CITY = Paris]]]")
-
-unification02_ shows the result of unifying ``fs0`` with ``fs1``:
-
-.. _unification02:
-.. ex::
-      .. avm:: 
-
-	 [ address = [ number = 74           ]               ]
-	 [           [ street = `rue Pascal' ]               ]
-	 [                                                   ]
-	 [ name    = `Lee'                                   ]
-	 [                                                   ]
-	 [           [           [ city   = `Paris'      ] ] ]
-	 [           [ address = [ number = 74           ] ] ]
-	 [ spouse  = [           [ street = `rue Pascal' ] ] ]
-	 [           [                                     ] ]
-	 [           [ name    = `Kim'                     ] ]
-
-|nopar| By contrast, the result is very different if ``fs1`` is unified with
-the structure-sharing version ``fs2`` (also shown as dag03_):
-
-    >>> fs2 = nltk.FeatStruct("""[NAME=Lee, ADDRESS=(1)[NUMBER=74, STREET='rue Pascal'],
-    ...                           SPOUSE=[NAME=Kim, ADDRESS->(1)]]""")
-
-.. _unification03:
-.. ex::
-      .. avm:: 
-
-	 [               [ city   = `Paris'      ] ]
-	 [ address = (1) [ number = 74           ] ]
-	 [               [ street = `rue Pascal' ] ]
-	 [                                         ]
-	 [ name    = `Lee'                         ]
-	 [                                         ]
-	 [ spouse  = [ address -> (1)  ]           ]
-	 [           [ name    = `Kim' ]           ]
-
-|nopar| Rather than just updating what was in effect Kim's "copy" of Lee's address,
-we have now updated `both`:em: their addresses at the same time. More
-generally, if a unification involves specializing the value of some
-path |pi|, then that unification simultaneously specializes the value
-of `any path that is equivalent to`:em: |pi|.
-
-As we have already seen, structure sharing can also be stated
-using variables such as ``?x``. 
-
-    >>> fs1 = nltk.FeatStruct("[ADDRESS1=[NUMBER=74, STREET='rue Pascal']]")
-    >>> fs2 = nltk.FeatStruct("[ADDRESS1=?x, ADDRESS2=?x]")
-    >>> print fs2
-    [ ADDRESS1 = ?x ]
-    [ ADDRESS2 = ?x ]
-    >>> print fs2.unify(fs1)
-    [ ADDRESS1 = (1) [ NUMBER = 74           ] ]
-    [                [ STREET = 'rue Pascal' ] ]
-    [                                          ]
-    [ ADDRESS2 -> (1)                          ]
+    >>> lp = logic.LogicParser()
+    >>> lp.parse('-(P & Q)')
+    <NegatedExpression -(P & Q)>
+    >>> lp.parse('P & Q')
+    <AndExpression (P & Q)>
+    >>> lp.parse('P | (R -> Q)')
+    <OrExpression (P | (R -> Q))>
+    >>> lp.parse('P <-> -- P')
+    <IffExpression (P <-> --P)>
 
 
+As mentioned above, we interpret sentences of a logical language
+relative to a model, which is a very simplified version of the
+world. A model for propositional logic needs to assign the values
+``True`` or ``False`` to every possible formula. We do this
+inductively: first, every propositional symbol is assigned a value,
+and then we compute the value of complex formulas by consulting the
+meanings of the Boolean connectives and applying them to the values of
+the formula's components. A ``Valuation`` is a mapping from basic
+expressions of the logic to their values. Here's an example:
 
+    >>> val = nltk.sem.Valuation([('P', True), ('Q', True), ('R', False)])
 
-.. _sec-extending-a-feature-based-grammar:
+We initialize a ``Valuation`` with a list of pairs, each of which
+consists of a semantic symbol and a semantic value. The resulting
+object is essentially just a dictionary that maps logical expressions
+(treated as strings) to appropriate values.
 
----------------------------------
-Extending a Feature-Based Grammar
----------------------------------
+    >>> val['P']
+    True
 
-.. TODO: I think this section needs an opening
+As we will see later, our models need to be somewhat more complicated
+in order to handle the more complex logical forms discussed in the
+next section; for the time being, just ignore the ``dom`` and
+``g`` parameters in the following declarations.
 
-Subcategorization
+    >>> dom = set([])
+    >>> g = nltk.sem.Assignment(dom)
+
+Now let's initialize a model ``m`` that uses ``val``:
+
+    >>> m = nltk.sem.Model(dom, val)
+    
+Every instance of ``Model`` defines appropriate truth functions for the
+boolean connectives; these can be invoked to show how input values are
+mapped to output values. Here are the truth conditions for ``&`` and ``->``
+(encoded via the functions ``AND()`` and ``IMPLIES()`` respectively):
+
+    >>> ops = [m.AND, m.IMPLIES]
+    >>> for o in ops:
+    ...     print "==========="
+    ...     print o.func_name
+    ...     for first in [True, False]:
+    ...         for second in [True, False]:
+    ...             print "%-5s %-5s => %s" % (first, second, o(first, second))
+    ===========
+    AND
+    True  True  => True
+    True  False => False
+    False True  => False
+    False False => False
+    ===========
+    IMPLIES
+    True  True  => True
+    True  False => False
+    False True  => True
+    False False => True
+
+If you reflect on the truth conditions of ``->``, you will see that it
+departs in many cases from our usual intuitions about the conditional
+in English. A formula of the form ``P -> Q`` is only false when ``P``
+is true and ``Q`` is false. If ``P`` is false (say ``P`` corresponds
+to `The moon is made of green cheese`:lx:) and ``Q`` is true (say
+``Q`corresponds to `Two plus two equals four`:lx:) then ``P -> Q``
+will come out true.
+
+Every model comes with an ``evaluate()`` method, which will determine
+the semantic value of logical expression, such as formulas of
+propositional logic; of course, these values depend on the initial
+truth values we assigned to propositional symbols such as ``'P'``,
+``'Q'`` and ``'R'``.
+
+    >>> print m.evaluate('(P & Q)', g)
+    True
+    >>> print m.evaluate('-(P & Q)', g)
+    False
+    >>> print m.evaluate('(P & R)', g)
+    False
+    >>> print m.evaluate('(P | R)', g)
+    True
+
+.. note:: |TRY| 
+   Experiment with evaluating different formulas of
+   propositional logic. Does the model give the values that you
+   expected?
+
+Up until now, we have treated the internal structure of sentences as
+being opaque to logical analysis. However, if we are to formalize
+arguments like ex-proplog4_ in a way that allows us to compute with
+them, we have to be able look inside clauses. This is what we turn to
+in the next section.
+
+-----------------
+First-Order Logic
 -----------------
 
-In Chapter chap-parse_, we proposed to augment our
-category labels to represent different kinds of verb.
-We introduced labels such as `iv`:gc: and `tv`:gc: for intransitive
-and transitive verbs respectively.  This allowed us to write productions
-like the following:
+Syntax
+------
 
-.. _subcatcfg0:
+In |fol| (|FOL|), propositions are analyzed into predicates and
+arguments, which takes us a step closer to the structure of natural
+languages. The standard construction rules for |FOL| recognize
+`terms`:dt: such as individual variables and individual constants, and
+`predicates`:dt: which take differing numbers of arguments. For
+example, `Adam walks`:lx: might be formalized as `walk(adam)`:mathit:
+and `Adam sees Betty`:lx: as `see(adam, betty)`:mathit:. We will call
+`walk`:mathit: a `unary predicate`:dt:, and `see`:mathit: a `binary
+predicate`:dt:. The symbols used as predicates do not have intrinsic
+meaning, although it is hard to remember this. Returning to one of our
+earlier examples, there is no `logical`:em: difference between ex-predlog11_
+and  ex-predlog12_.
+
+.. _ex-predlog1:
 .. ex::
-   .. parsed-literal::
+   .. _ex-predlog11:
+   .. ex::
+      please(agfa_kx7750, stefan)
+      
+   .. _ex-predlog12:
+   .. ex::
+       gef\ |aumlaut|\ llen(agfa_kx7750, stefan)
 
-      `vp`:gc: |rarr| `iv`:gc: 
-      `vp`:gc: |rarr| `tv np`:gc: 
+By itself, |FOL| has nothing substantive to say about lexical
+semantics |mdash| the meaning of individual words |mdash| although
+some theories of lexical semantics can be encoded in |FOL|. Whether an
+atomic predication like `see(adam, betty)`:mathit: is true or false in
+a situation is not a matter of logic, but depends on the particular
+valuation that we have chosen for the constants `see`:mathit:,
+`adam`:mathit: and `betty`:mathit:. For this reason, such expressions
+are called `non-logical constants`:dt:. By contrast, `logical
+constants`:dt: (such as the boolean operators) always receive the same
+interpretation in every model for |FOL|.
 
-|nopar| Although we know that `iv`:gc: and `tv`:gc: are two
-kinds of `v`:gc:, from a formal point of view
-`iv`:gc: has no closer relationship with `tv`:gc: than it does
-with `np`:gc:. As it stands, `iv`:gc: and `tv`:gc: are just atomic
-nonterminal symbols from a CFG.  This approach doesn't allow us
-to say anything about the class of verbs in general.
-For example, we cannot say something like "All lexical
-items of category `v`:gc: can be marked for tense", since `bark`:lx:,
-say, is an item of category `iv`:gc:, not `v`:gc:.
-A simple solution, originally developed for a grammar framework
-called Generalized Phrase Structure Grammar (GPSG), stipulates that lexical
-categories may bear a `subcat`:feat: feature whose values are integers.
-This is illustrated in a modified portion of feat0cfg_, shown in subcatgpsg_.
+We should mention here that one binary predicate which has special
+status, and that is equality, as in formulas such as `adam =
+aj`:mathit:. Equality is regarded as a logical constant, since for
+individual terms `t1`:math: and `t2`:math:, the formula `t1 = t2`:math: is
+true if and only if `t1`:math: and `t2`:math: refer to one and the
+same entity.
 
-.. _subcatgpsg:
+It is often helpful to inspect the syntactic structure of expressions
+of |FOL|, and the usual way of doing this is to assign `types`:dt: to
+expressions. Following the tradition of Montague grammar [refs], we
+will use two `basic types`:dt:\: `e`:math: is the type of entities,
+while  `t`:math: is the type of formulas, i.e., expressions which have
+truth values.
+
+.. TO-DO: expand stuff on types
+
+    >>> parsed = lp.parse('see(a, b)')
+    >>> parsed.argument
+    <IndividualVariableExpression b>   
+    >>> parsed.function
+    <ApplicationExpression see(a)>
+    >>> parsed.function.function
+    <VariableExpression see>
+
+In |FOL|, arguments of predicates can also be individual variables
+such as `x`:math:, `y`:math: and `z`:math:. Individual variables are similar to
+personal pronouns like `he`:lx:, `she`:lx: and `it`:lx:, in that we
+need to know about the context of use in order to figure out their
+denotation. 
+
+One way of interpreting the pronoun in ex-predlog2_ is by
+pointing to a relevant individual in the local context.
+
+.. _ex-predlog2:
+.. ex:: He disappeared.
+
+Another way is to supply a textual antecedent for the pronoun
+`he`:lx:, for example by uttering ex-predlog31_ prior to
+ex-predlog2_. Here, we say that `she`:lx: is `coreferential`:dt: with
+the noun phrase `Cyril`:lx:. As a result, ex-predlog2_ is semantically
+equivalent to ex-predlog32_.
+
+.. _ex-predlog3:
 .. ex::
-   ::
+   .. _ex-predlog31:
+   .. ex:: Cyril is Angus's dog.
 
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=0, TENSE=?t, NUM=?n]
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=1, TENSE=?t, NUM=?n] NP
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=2, TENSE=?t, NUM=?n] Sbar
+   .. _ex-predlog32:
+   .. ex:: Cyril disappeared.
 
-     V[SUBCAT=0, TENSE=pres, NUM=sg] -> 'disappears' | 'walks'
-     V[SUBCAT=1, TENSE=pres, NUM=sg] -> 'sees' | 'likes'
-     V[SUBCAT=2, TENSE=pres, NUM=sg] -> 'says' | 'claims'
+Consider by contrast the occurrence of `she`:lx: in ex-predlog41_. In
+this case, it is `bound`:dt: by the indefinite `NP`:gc: 
+`a poodle`:lx:, 
+and this is a different relationship than
+coreference. If we replace the pronoun `she`:lx: by `a poodle`:lx:,
+the result ex-predlog42_ is `not`:em: semantically equivalent to ex-predlog41_.
 
-     V[SUBCAT=0, TENSE=pres, NUM=pl] -> 'disappear' | 'walk'
-     V[SUBCAT=1, TENSE=pres, NUM=pl] -> 'see' | 'like'
-     V[SUBCAT=2, TENSE=pres, NUM=pl] -> 'say' | 'claim'
-
-     V[SUBCAT=0, TENSE=past, NUM=?n] -> 'disappeared' | 'walked'
-     V[SUBCAT=1, TENSE=past, NUM=?n] -> 'saw' | 'liked'
-     V[SUBCAT=2, TENSE=past, NUM=?n] -> 'said' | 'claimed'
-
-|nopar| When we see a lexical category like `v`:gc:\ [`subcat`:feat: 
-`1`:fval:\ ], we can interpret the `subcat`:feat: specification as a
-pointer to the production in which `v`:gc:\ [`subcat`:feat: `1`:fval:\ ]
-is introduced as the head daughter in a `vp`:gc: production.
-By convention, there is a one-to-one correspondence between
-`subcat`:feat: values and the productions that introduce lexical heads.
-It's worth noting that the choice of integer which acts as a value for
-`subcat`:feat: is completely arbitrary |mdash| we could equally well
-have chosen 3999, 113 and 57 as our two values in subcatgpsg_.  On this
-approach, `subcat`:feat: can *only* appear on lexical categories; it
-makes no sense, for example, to specify a `subcat`:feat: value on
-`vp`:gc:.
-
-In our third class of verbs above, we have specified a category
-`s-bar`:gc:. This is a label for subordinate clauses such as the
-complement of `claim`:lx: in the example `You claim that you like
-children`:lx:. We require two further productions to analyze such sentences:
-
-.. _sbar:
+.. _ex-predlog4:
 .. ex::
-   ::
+   .. _ex-predlog41:
+   .. ex:: Angus had a dog but he disappeared.
 
-     S-BAR -> Comp S
-     Comp -> 'that'
+   .. _ex-predlog42:
+   .. ex:: Angus had a dog but a dog disappeared.
 
-|nopar| The resulting structure is the following.
+Corresponding to ex-predlog51_, we can construct an `open formula`:dt:
+ex-predlog52_ with two occurrences of the variable `x`:math:. (We
+ignore tense to simplify exposition.)
 
-.. _sbartree:
+.. _ex-predlog5:
 .. ex::
-      .. tree::  (S (NP you)(VP (V[-AUX,\ SUBCAT\ 2] claim)(S-BAR (Comp that) (S (NP you)(VP (V[-AUX,\ SUBCAT\ 1] like)(NP children))))))
+   .. _ex-predlog51:
+   .. ex:: He is a dog and he disappeared.
 
-An alternative treatment of subcategorization, due originally to a framework
-known as categorial grammar, is represented in feature-based frameworks such as PATR
-and Head-driven Phrase Structure Grammar. Rather than using
-`subcat`:feat: values as a way of indexing productions, the `subcat`:feat:
-value directly encodes the valency of a head (the list of
-arguments that it can combine with). For example, a verb like
-`put`:lx: that takes  `np`:gc: and `pp`:gc: complements (`put the
-book on the table`:lx:) might be represented as subcathpsg0_:
+   .. _ex-predlog52:
+   .. ex:: `dog(x)`:mathit:  |wedge| `disappear(x)`:mathit: 
 
-.. TODO: angle brackets don't appear
+By placing an `existential quantifier`:dt :|exists|\ `x`:math: ('for
+some `x`:math:') in front of ex-predlog52_, we can `bind`:dt: these
+variables, as in ex-predlog61_, which means ex-predlog62_ or, more
+idiomatically, ex-predlog63_.
 
-.. _subcathpsg0:
-.. ex::  `v`:gc:\ [`subcat`:feat: |langle|\ `np`:gc:, `np`:gc:, `pp`:gc:\ |rangle| ] 
-
-|nopar| This says that the verb can combine with three  arguments. The
-leftmost element in the list is the subject `np`:gc:, while everything
-else |mdash| an `np`:gc: followed by a `pp`:gc: in this case |mdash| comprises the
-subcategorized-for complements. When a verb like `put`:lx: is combined
-with appropriate complements, the requirements which are specified in
-the  `subcat`:feat: are discharged, and only a subject `np`:gc: is
-needed. This category, which corresponds to what is traditionally
-thought of as `vp`:gc:, might be represented as follows.
-
-.. _subcathpsg1:
-.. ex::  `v`:gc:\ [`subcat`:feat: |langle|\ `np`:gc:\ |rangle| ] 
-
-Finally, a sentence is a kind of verbal category that has *no*
-requirements for further arguments, and hence has a `subcat`:feat:
-whose value is the empty list. The tree subcathpsg2_ shows how these
-category assignments combine in a parse of `Kim put the book on the table`:lx:.
-
-.. _subcathpsg2:
+.. _ex-predlog6:
 .. ex::
-      .. tree:: (V[SUBCAT\ \<\>] (NP Kim)(V[SUBCAT\ \<NP\>](V[SUBCAT\ \<NP,\ NP,\ VP\>] put)<NP the\ book><PP on\ the\ table>))
+   .. _ex-predlog61:
+   .. ex:: |exists|\ `x.dog(x)`:mathit:  |wedge| `disappear(x)`:mathit: 
 
-Heads Revisited
----------------
+   .. _ex-predlog62:
+   .. ex:: At least one entity is a dog and disappeared.
 
-We noted in the previous section that by factoring subcategorization
-information out of the main category label, we could express more
-generalizations about properties of verbs. Another property of this
-kind is the following: expressions of category `v`:gc: are heads of
-phrases of category `vp`:gc:. Similarly (and more informally) `n`:gc:\
-s are heads of `np`:gc:\ s,  `a`:gc:\
-s (i.e., adjectives) are heads of `ap`:gc:\ s,  and `p`:gc:\
-s (i.e., adjectives) are heads of `pp`:gc:\ s. Not all phrases have
-heads |mdash| for example, it is standard to say that coordinate
-phrases (e.g., `the book and the bell`:lx:) lack heads |mdash|
-nevertheless, we would like our grammar formalism to express the
-mother / head-daughter
-relation where it holds. Now, although it looks as though there is
-something in common  between, say, `v`:gc: and `vp`:gc:, this is more
-of a handy convention than a real claim, since  `v`:gc: and `vp`:gc:
-formally have no more in common than `v`:gc: and `Det`:gc:. 
+   .. _ex-predlog63:
+   .. ex:: A dog disappeared.
 
-X-bar syntax (cf. [Chomsky1970RN]_, [Jackendoff1977XS]_) addresses
-this issue by abstracting out the notion of `phrasal level`:dt:. It is
-usual to recognize three such levels. If `n`:gc: represents the
-lexical level, then `n`:gc:\ ' represents the next level up,
-corresponding to the more traditional category `Nom`:gc:, while
-`n`:gc:\ '' represents the phrasal level, corresponding to the
-category `np`:gc:. (The primes here replace the typographically more
-demanding horizontal bars of [Chomsky1970RN]_). xbar0_ illustrates a
-representative structure.
+The |NLTK| rendering of ex-predlog61_ is ex-exists_.
 
-.. _xbar0:
+.. _ex-exists:
+.. ex:: ``exists x. (dog(x) & disappear(x))``
+
+If all variable occurrences in a formula are bound, the formula is
+said to be `closed`:dt:. Any variables which are not bound in a formula
+are `free`:dt: in that formula. 
+As mentioned before, the ``parse()`` method of ``nltk.sem.logic``\ 's
+``LogicParser`` returns objects of class ``Expression``. As such, each
+expression ``e`` comes with a method ``free()`` which returns the set
+of variables that are free in ``e``.
+
+    >>> print lp.parse('dog(cyril)').free()
+    set([])
+    >>> print lp.parse('dog(x)').free()
+    set([Variable('x')])
+    >>> print lp.parse('own(angus, cyril)').free()
+    set([])
+    >>> print lp.parse('exists x. dog(x)').free()
+    set([])
+    >>> print lp.parse(r'exists x. own(y, x)').free()
+    set([Variable('y')])
+
+
+In addition to the existential quantifier, |FOL| offers us the
+`universal quantifier`:dt: |forall|\ `x`:math: ('for all
+`x`:math:'), illustrated in ex-predlog7_.
+
+.. _ex-predlog7:
 .. ex::
-   .. tree:: (N''(Det a)(N'(N student)(P'' of\ French)))
+   .. _ex-predlog71:
+   .. ex:: |forall|\ `x.dog(x)`:mathit: |rarr| `disappear(x)`:mathit: 
 
-|nopar| The head of the structure xbar0_ is `n`:gc: while `n`:gc:\ '
-and `n`:gc:\ '' are called `(phrasal) projections`:dt: of `n`:gc:. `n`:gc:\ ''
-is the `maximal projection`:dt:, and `n`:gc: is sometimes called the
-`zero projection`:dt:. One of the central claims of X-bar syntax is
-that all constituents share a structural similarity. Using `x`:gc: as
-a variable over `n`:gc:, `v`:gc:, `a`:gc: and `p`:gc:, we say that
-directly subcategorized `complements`:em: of the head are always
-placed as sisters of the lexical head, whereas `adjuncts`:em: are
-placed as sisters of the intermediate category, `x`:gc:\ '. Thus, the
-configuration of the `p`:gc:\ '' adjunct in xbar1_ contrasts with that
-of the complement `p`:gc:\ '' in xbar0_.
+   .. _ex-predlog72:
+   .. ex:: Everything has the property that if it is a dog, it disappear.
 
-.. _xbar1:
+   .. _ex-predlog73:
+   .. ex:: Every dog disappeared.
+
+The |NLTK| rendering of ex-predlog71_ is ex-forall_.
+
+.. _ex-forall:
+.. ex:: ``all x. (dog(x) -> disappear(x))``
+
+One important property of ex-predlog71_ often trips people up. The
+logical rendering in effect says that `if`:em: something is a dog, then
+it runs away, but makes no commitment to the existence of dogs. So
+in a situation where there are no dog, ex-predlog71_ will still
+come out true. (Remember that ``'(p implies q)'`` is true when ``'p'``
+is false.) Now you might argue that ex-predlog71_ does presuppose the
+existence of dogs, and that the logic formalization is wrong.  But it
+is possible to find other examples which lack such a presupposition.
+For instance, we might explain that the value of the Python expression
+``re.sub('ate', '8', astring)`` is the result of replacing all
+occurrences of ``'ate'`` in ``astring`` by ``'8'``, even though there
+may in fact be no such occurrences.
+
+In Section sec-computing-with-language-simple-statistics_, we pointed out that
+mathematical set notation was a helpful method of specifying
+properties `P`:math: of words that we wanted to select from a
+document. We illustrated this with ex-set-comprehension-math2_, which we
+glossed as "the set of all `w`:math: such that `w`:math: is an element
+of `V`:math: (the vocabulary) and `w`:math: has property `P`:math:".
+
+.. _ex-set-comprehension-math2:
+.. ex:: {`w`:math: | `w`:math: |element| `V`:math: & `P(w)`:math:\ }
+
+It turns out to be extremely useful to add something to |FOL| that
+will achieve the same effect. We do this with the `lambda
+operator`:dt: |lambda|\ `x`:math:. The |lambda| counterpart to
+ex-set-comprehension-math2_ is ex-lambda1_. (Since we are not trying
+to do set-theory here, we just treat `V`:math: as a unary predicate.)
+
+.. _ex-lambda1:
+.. ex:: |lambda|\ `w`:math:. (`V(w)`:math: |wedge| `P(w)`:math:)
+
+.. Note:: |lambda| expression were originally designed to represent
+    computable functions and to provide a foundation for mathematics
+    and logic. The theory in which |lambda| expressions are studied is
+    known as the |lambda|-calculus.
+
+
+|lambda| is a binding operator, just as the |FOL| quantifiers are. If
+we have an open formula such as ex-walk-chewgum1_, then we can bind
+the variable `x`:math: with the |lambda| operator, as shown in
+ex-walk-chewgum2_.
+
+.. _ex-walk-chewgum1:
 .. ex::
-   .. tree:: (N''(Det a)(N'(N'(N student))(P'' from\ france)))
+   .. _ex-walk-chewgum11:
+   .. ex:: (`walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) 
 
-The productions in xbar2_ illustrate how bar levels can be encoded
-using feature structures.
+   .. _ex-walk-chewgum12:
+   .. ex:: |lambda|\ `x. (walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:)
 
-.. _xbar2:
+ex-walk-chewgum12_ is represented in |NLTK| as 
+
+.. _ex-lambda:
+.. ex:: ``\x. (walk(x) & chew_gum(x))``
+
+Actually, this is a slight oversimplification, since ``\`` also
+happens to be a special character in Python. We could escape it
+(with another ``\``), but in practice we will use raw strings, as
+illustrated here:
+
+    >>> e = lp.parse(r'\x. (walk(x) & chew_gum(x))')
+    >>> e
+    <LambdaExpression \x.(walk(x) & chew_gum(x))>
+    >>> e.free()
+    set([])
+    >>> print lp.parse(r'\x. (walk(x) & chew_gum(y))')
+    \x.(walk(x) & chew_gum(y))
+
+We have a special name for the result of binding the variables in an
+expression: `lambda abstraction`:dt:. When one initially encounters
+|lambda|-abstracts, it can be hard to get an intuitive sense of their
+meaning. A couple of English glosses for ex-walk-chewgum12_ are: "be
+an `x`:math: such that `x`:math: walks and `x`:math: chews gum" or
+"have the property of walking and chewing gum". Within the tradition
+of formal semantics of natural language, it has often been suggested
+that |lambda|-abstracts are good representations for verb phrases (or
+subjectless clauses), particularly when these occur as arguments in
+their own right. This is illustrated in ex-walk-chewgum21_ and its
+translation ex-walk-chewgum22_.
+
+.. _ex-walk-chewgum2:
 .. ex::
-   .. parsed-literal::
+   .. _ex-walk-chewgum21:
+   .. ex:: To walk and chew-gum is hard
 
-     `s`:gc: |rarr| `n`:gc:\ [`bar`:feat:\ =\ `2`:fval:] `v`:gc:\ [`bar`:feat:\ =\ `2`:fval:]
-     `n`:gc:\ [`bar`:feat:\ =\ `2`:fval:] |rarr| `Det n`:gc:\ [`bar`:feat:\ =\ `1`:fval:]
-     `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] |rarr| `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] `p`:gc:\ [`bar`:feat:\ =\ `2`:fval:] 
-     `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] |rarr| `n`:gc:\ [`bar`:feat:\ =\ `0`:fval:] `p`:gc:\ [`bar`:feat:\ =\ `2`:fval:] 
+   .. _ex-walk-chewgum22:
+   .. ex:: `hard`:mathit:\ (|lambda|\ `x. (walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) 
+
+So the general picture is this: given an an open formula |phi| with
+free variable `x`:math:, abstracting over `x`:math: yields a property
+expression |lambda|\ `x.`:math:\ |phi| |mdash| the property of being
+an `x`:math: such that |phi|. ex-walk-chewgum22_ illustrates a case
+where we say something about a property, namely that it is hard. But
+what we usually do with properties is attribute them to
+individuals. And in fact if |phi| is an open formula, then the
+abstract |lambda|\ `x.`:math:\ |phi| can be used as a unary
+predicate. In ex-walk-chewgum3_, ex-walk-chewgum12_ is predicated of
+the term `gerald`:mathit:.
+
+.. _ex-walk-chewgum3:
+.. ex:: |lambda|\ `x. (walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) (`gerald`:mathit:)
+
+Given the intended interpretation of ex-walk-chewgum3_, we would like
+it to be semantically equivalent to ex-walk-chewgum4_.
+
+.. _ex-walk-chewgum4:
+.. ex:: `(walk(gerald)`:mathit: |wedge| `chew_gum(gerald)`:mathit:) 
+
+In fact, the equivalence of ex-walk-chewgum3_ and  ex-walk-chewgum4_
+follows from one of the axioms of the |lambda| calculus, namely
+`beta-conversion`:dt:. 
+
+The rule of |beta|-conversion
+    |lambda|\ `x.`:math: |alpha|\ (`t`:math:) = |alpha|\ [`t/x`:math:]
+
+This rule can be read as follows: if we apply a |lambda|\ -abstract
+|lambda|\ `x.`:math:\ |alpha| to a term `t`:math: , the result is the same
+as removing the |lambda|\ `x.`:math: operator and replacing all free
+occurrences of `x`:math: in |alpha| by `t`:math:. (This second operation
+is what is meant by the notation |alpha|\ [`t/x`:math:].) So, for
+example, if we apply the rule of |beta|-conversion to
+ex-walk-chewgum3_, we remove the initial '|lambda|\ `x.`:math:' from 
+|lambda|\ `x.(walk(x)`:mathit: |wedge| `chew_gum(x)`:mathit:) and
+then replace all free occurrences of `x`:math: in `((walk(x)`:mathit:
+|wedge| `chew_gum(x)`:mathit:) by the term
+`gerald`:mathit:. |beta|-conversion is effected in the ``logic``
+module with the ``simplify()`` method.
+
+    >>> print lp.parse(r'\x. (walk(x) & chew_gum(x))(gerald)')
+    \x.(walk(x) & chew_gum(x))(gerald)
+    >>> print lp.parse(r'\x. (walk(x) & chew_gum(x))(gerald)').simplify()
+    (walk(gerald) & chew_gum(gerald))    
+
+Although we have so far only considered cases where the body of the
+|lambda| abstract is an open formula, i.e., of type t, this is not a
+necessary restriction; the body can be any well-formed
+expression. Here's an example with two |lambda|\ s.
+
+.. _ex-double-lambda:
+.. ex::  |lambda|\ `x.`:math: |lambda|\ `y. (poodle(x)`:mathit: |wedge| `own(y, x)`:mathit:)
+
+Just as ex-walk-chewgum12_ plays the role of a unary predicate,
+ex-double-lambda_ works like a binary predicate: it can be applied to
+two arguments. The ``LogicParser`` allows nested |lambda|\ s to be
+written in abbreviated form, as illustrated in the second case below.
+
+    >>> print lp.parse(r'\x. \y. (dog(x) & own(y, x))(cyril)').simplify()
+    \y.(dog(cyril) & own(y,cyril))
+    >>> print lp.parse(r'\x y. (dog(x) & own(y, x))(cyril, angus)').simplify()
+    (dog(cyril) & own(angus,cyril))
 
 
-Auxiliary Verbs and Inversion
------------------------------
+We'll take this opportunity to restate our earlier syntactic rules for
+propositional logic and add the formation rules for quantifiers. In
+addition, we make explicit the types of the expressions involved.
 
-Inverted clauses |mdash| where the order of subject and verb is
-switched |mdash| occur in English interrogatives and also after
-'negative' adverbs:
+   1. If `P`:math: is a predicate of type <e\ :sup:`n`, t>, and |tau|\ :sub:`1`,
+      ... |tau|\ :sub:`n` are terms of type e, then `P`:math:\ (|tau|\ :sub:`1`,
+      ... |tau|\ :sub:`n`) is of type t.
 
-.. _inv1:
+   2. If |phi| is of type t, then so is |neg|\ |phi|.
+
+   3.  If |phi| and |psi| are of type t, then so are
+       (|phi| |wedge| |psi|),
+       (|phi| |vee| |psi|),
+       (|phi| |rarr| |psi|) and
+       (|phi| |iff| |psi|).
+
+   4. If |phi| is of type t, and `x`:math: is a variable of type e, then
+      |exists|\ `x.`:math:\ |phi| and  |forall|\ `x.`:math:\ |phi| are of
+      type t.
+
+   5. If |alpha| is of type |tau|, and `x`:math: is a variable of type e, then
+      |lambda|\ `x.`:math:\ |alpha| is of type <e, |tau|>.
+
+Table nltk_logic_ summarizes the logical constants of the ``logic``
+module, and two of the methods of ``Expression``\ s.
+
+.. table:: nltk_logic
+
+    +---------------+-------------------------------------+
+    | Example       |Description                          |
+    +===============+=====================================+
+    |     ``-``     |negation                             |
+    +---------------+-------------------------------------+
+    |    ``&``      |conjunction                          |
+    +---------------+-------------------------------------+
+    |    ``|``      |disjunction                          |
+    +---------------+-------------------------------------+
+    |    ``->``     |implication                          |
+    +---------------+-------------------------------------+
+    |    ``<->``    |equivalence                          |
+    +---------------+-------------------------------------+
+    |    ``=``      |equality                             |
+    +---------------+-------------------------------------+
+    |    ``!=``     |inequality                           |
+    +---------------+-------------------------------------+
+    |    ``exists`` |existential quantifier               |
+    +---------------+-------------------------------------+
+    |    ``all``    |universal quantifier                 |
+    +---------------+-------------------------------------+
+    |     ``\``     |lambda operator                      |
+    +---------------+-------------------------------------+
+    | ``e.free()``  |show free variables of ``e``         |
+    +---------------+-------------------------------------+
+    | ``e.simplify``|carry out |beta|-conversion on ``e`` |
+    +---------------+-------------------------------------+
+			
+
+
+
+
+Model-theory
+------------
+
+We have looked at the syntax of |FOL|, and in Section
+sec-evaluating-english-sentences_ we will examine the task of
+translating English into |FOL|. Yet as we argued in Section
+sec-log-semantics-introduction_, this only gets us further forward if
+we can give a meaning to sentences of |FOL|. In other words, we need
+to give a `truth-conditional semantics`:em: to |FOL|.
+From the point of view of computational semantics, there are obvious
+limits in how far one can push this approach. Although we want to talk
+about sentences being true or false in situations, we only have the
+means of representing situations in the computer in a symbolic
+manner. Despite this limitation, it is still possible to gain a
+clearer picture of truth-conditional semantics by encoding models in
+|NLTK|. 
+
+Given a |fol| language `L`:math:, a model `M`:math: for `L`:math: is a
+pair |langle|\ `D`:math:, `Val`:math:\ |rangle|, where `D`:math: is an
+nonempty set called the `domain`:dt: of the model, and `Val`:math: is
+a function called the `valuation function`:dt: which assigns values
+from `D`:math: to expressions of `L`:math: as follows:
+
+    1. For every individual constant `c`:math: in `L`:math:,
+       `Val(c)`:math: is an element of  `D`:math:.
+
+    2. For every predicate symbol `P`:math: of arity `n`:math: |geq| 0,
+       `Val(P)`:math: is a function from  `D`:math:\ :sup:`n` to
+       {`True`:mathit:, `False`:mathit:}. (If the rank of  `P`:math:
+       is 0, then `Val(P)`:math: is simply a truth value, the
+       `P`:math: is regarded as a propositional symbol.)
+
+According to (2), if `P`:math: is of arity `n`:math:, then `Val(P)`:math:
+will be a function `f`:math: from pairs of elements of  `D`:math: to
+{`True`:mathit:, `False`:mathit:}. In the models we shall build in
+|NLTK|, we'll adopt a more convenient alternative, in which
+`Val(P)`:math: is a set `S`:math: of pairs, defined as follows:
+
+.. ex::  `S`:math: = {`s`:math: | `f(s)`:math: = `True`:mathit:\ }
+
+Such an `f`:math: is called the `characteristic function`:dt: of `S`:math:.
+
+Relations are represented semantically in |NLTK| in the standard
+set-theoretic way: as sets of tuples. For example, let's suppose we
+have a domain of discourse consisting of the individuals Bertie, Olive and Cyril,
+where Bertie is a boy, Olive is a girl and Cyril is a dog. For mnemonic
+reasons, we use ``b``, ``o`` and ``c`` as the corresponding labels
+in the model. We can declare the domain as follows:
+
+    >>> dom = set(['b', 'o', 'c'])
+
+We will use the utility function ``parse_valuation()`` to convert a
+list of strings of the form `symbol`:mathit: ``=>`` `value`:mathit:
+into a ``Valuation`` object.
+
+    >>> from nltk.sem import parse_valuation
+    >>> v = """
+    ... bertie => b
+    ... olive => o
+    ... cyril => c
+    ... boy => {b}
+    ... girl => {o}
+    ... dog => {c}
+    ... walk => {o, c}
+    ... see => {(b, o), (c, b), (o, c)}
+    ... """
+    >>> val = parse_valuation(v)
+    >>> print val
+    {'bertie': 'b',
+     'boy': set([('b',)]),
+     'cyril': 'c',
+     'dog': set([('c',)]),
+     'girl': set([('o',)]),
+     'olive': 'o',
+     'see': set([('o', 'c'), ('c', 'b'), ('b', 'o')]),
+     'walk': set([('c',), ('o',)])}
+
+
+So according to this valuation, the value of ``see`` is a set of
+tuples such that Bertie sees Olive, Cyril sees Bertie, and
+Olive sees Cyril.
+
+.. note:: |TRY|
+   Draw a picture of the domain of ``m`` and the sets corresponding to
+   each of the unary predicates, by analogy with the diagram shown in
+   fig-model-kids_. 
+
+You may have noticed that our unary predicates (i.e, ``boy``, ``girl``,
+``dog``) also come out as sets of singleton tuples, rather
+than just sets of individuals. This is a convenience which allows us
+to have a uniform treatment of relations of any arity. A predication
+of the form `P`:math:\ (|tau|\ :sub:`1`,  ... |tau|\ :sub:`n`), where
+`P`:math: is of arity `n`:math:, comes out true just in case the
+tuple of values corresponding to (|tau|\ :sub:`1`,  ... |tau|\
+:sub:`n`) belongs to the set of tuples in the value of  `P`:math:.
+
+    >>> ('c', 'b') in val['see']
+    True
+    >>> ('b',) in val['boy']
+    True
+
+Individual Variables and Assignments
+------------------------------------
+
+In our models, the counterpart of a context of use is a variable
+`Assignment`:dt:. This is a mapping from individual variables to
+entities in the domain.  Assignments are created using the
+``Assignment`` constructor, which also takes the model's domain of
+discourse as a parameter. We are not required to actually enter any
+bindings, but if we do, they are in a (`variable`:mathit:,
+`value`:mathit:) format similar to what we saw earlier for valuations.
+
+    >>> g = nltk.sem.Assignment(dom, [('x', 'o'), ('y', 'c')])
+    >>> g
+    {'y': 'c', 'x': 'o'}
+
+In addition, there is a ``print()`` format for assignments which
+uses a notation closer to that often found in logic textbooks:
+
+    >>> print g
+    g[c/y][o/x]
+
+Let's now look at how we can evaluate an atomic formula of
+|FOL|. First, we create a model, then we use the ``evaluate()`` method
+to compute the truth value.
+
+    >>> m = nltk.sem.Model(dom, val)
+    >>> m.evaluate('see(olive, y)', g)
+    True
+
+What's happening here? Essentially, we are evaluating the formula
+``see('o', 'c')`` just as in our earlier example.
+However, when the interpretation function encounters the variable ``'y'``,
+rather than checking for a value in ``val``, it asks the variable
+assignment ``g`` to come up with a value:
+    
+    >>> g['y']
+    'c'
+
+Since we already know that ``'o'`` and ``'c'`` stand in the `see`:mathit:
+relation, the value ``True`` is what we expected. In this case, we can
+say that assignment ``g`` `satisfies`:dt: the formula ``'see(olive, y)'``.
+By contrast, the following formula evaluates to ``False`` relative to
+``g`` |mdash| check that you see why this is.
+    
+    >>> m.evaluate('see(y, x)', g)
+    False
+
+In our approach (though not in standard |fol|), variable assignments
+are `partial`:em:. For example, ``g`` says nothing about any variables
+apart from ``'x'`` and ``'y'``. The method ``purge()`` clears all
+bindings from an assignment.
+
+    >>> g.purge()
+    >>> g
+    {}
+
+If we now try to evaluate a formula such as ``'see(olive, y)'`` relative to
+``g``, it is like trying to interpret a sentence containing a `him`:lx: when
+we don't know what `him`:lx: refers to. In this case, the evaluation function
+fails to deliver a truth value.
+
+    >>> m.evaluate('see(olive, y)', g)
+    'Undefined'
+
+
+Quantification and Scope
+------------------------
+
+One of the crucial insights of modern
+logic is that the notion of variable satisfaction can be used to
+provide an interpretation to quantified formulas. Let's 
+use exists1_ as an example.
+
+.. _exists1:
+   .. ex:: ``some x.(girl(x) & walk(x))``
+
+When is it true? Let's think about all the individuals in our domain,
+i.e., in ``dom``. We want to check whether any of these individuals
+have the property of being a girl and walking. In other words, we want
+to know if there is some ``u`` in ``dom`` such that ``g[u/x]``
+satisfies the open formula exists2_.
+
+.. _exists2:
+.. ex:: ``girl(x) & walk(x)``
+
+Consider the following:
+
+    >>> m.evaluate('exists x.(girl(x) & walk(x))', g)
+    True
+
+``evaluate()`` returns ``True`` here because there is some ``u`` in
+``dom`` such that exists2_ is satisfied by an assigment which binds
+``'x'`` to ``u``. In fact, ``'o'`` is such a ``u``:
+
+    >>> m.evaluate('girl(x) & walk(x)', g.add('x', 'o'))
+    True
+
+One useful tool offered by NLTK is the ``satisfiers()`` method. This
+returns a set of all the individuals that satisfy an open formula. The
+method parameters are a parsed formula, a variable, and an
+assignment. Here are a few examples:
+
+    >>> fmla1 = lp.parse('girl(x) | boy(x)')
+    >>> m.satisfiers(fmla1, 'x', g)
+    set(['b', 'o'])
+    >>> fmla2 = lp.parse('girl(x) -> walk(x)')
+    >>> m.satisfiers(fmla2, 'x', g)
+    set(['c', 'b', 'o'])
+    >>> fmla3 = lp.parse('walk(x) -> girl(x)')
+    >>> m.satisfiers(fmla3, 'x', g)
+    set(['b', 'o'])
+
+It's useful to think about why ``fmla2`` and ``fmla3`` receive the
+values they do. The truth conditions for ``->`` mean that 
+``fmla2`` is equivalent to fmla2or_:
+
+.. _fmla2or:
+.. ex:: ``-girl(x) | walk(x)``
+
+That is, fmla2or_ is satisfied by something which either isn't a girl
+or walks. Since neither ``b`` (Bertie) nor ``c`` (Cyril)
+are girls, according to model ``m``, they both satisfy 
+the whole formula. And of course ``'o'`` satisfies the formula because ``'o'``
+satisfies both disjuncts. Now, since every member of the domain of
+discourse satisfies ``fmla2``, the corresponding universally
+quantified formula is also true.
+
+    >>> m.evaluate('all x.(girl(x) -> walk(x))', g)
+    True
+
+In other words, a universally quantified formula |forall|\
+`x.`:mathit:\ |phi| is true with respect to ``g`` just in case for
+every ``u``, |phi| is true with respect to ``g[u/x]``. 
+
+.. note:: |TRY|
+   Try to figure out, first with pencil and paper, and then using
+   ``m.evaluate()``, what the truth values are for ``'all x.(girl(x) &
+   walk(x))'`` and ``'exists x.(boy(x) -> walk(x))'``. Make sure you
+   understand why they receive these values.
+ 
+   
+
+
+Quantifier Scope Ambiguity
+--------------------------
+
+What happens when we want to give a formal representation of a
+sentence with *two* quantifiers, such as the following?
+
+.. _scope1:
+.. ex:: Everybody admires someone.
+
+There are (at least) two ways of expressing scope1_ in |FOL|:
+
+.. _scope2:
 .. ex::
-   .. _inv1a:
-   .. ex::
 
-      Do you like children?
+   .. _scope2a:
+   .. ex:: |forall|\ `x.(person(x)`:mathit: |rarr| |exists|\
+           `y.(person(y)`:mathit: |wedge| `admire(x,y)))`:mathit:
 
-   .. _inv1b:
-   .. ex::
+   .. _scope2b:
+   .. ex:: |exists|\ `y.(person(y)`:mathit: |wedge| |forall|\
+           `x.(person(x)`:mathit: |rarr|  `admire(x,y)))`:mathit:
 
-      Can Jody walk?
+Can we use both of these? Then answer is Yes, but they have different
+meanings. scope2b_ is logically stronger than scope2a_: it claims that
+there is a unique person, say Bruce, who is admired by everyone.
+scope2a_, on the other hand, just requires that for every person
+`u`:mathit:, we can find some person `u'`:mathit: whom `u`:mathit:
+admires; but this could be a different person  `u'`:mathit: in each case. We
+distinguish between scope2a_ and scope2b_ in terms of the `scope`:dt:
+of the quantifiers. In the first, |forall| has wider scope than
+|exists|, while in scope2b_, the scope ordering is reversed. So now we
+have two ways of representing the meaning of scope1_, and they are
+both quite legitimate. In other words, we are claiming that scope1_ is
+*ambiguous* with respect to quantifier scope, and the formulas in
+scope2_ give us a formal means of making the two readings
+explicit. However, we are not just interested in associating two
+distinct representations with scope1_. We also want to show in detail
+how the two representations lead to different conditions for truth in
+a formal model.
 
-.. _inv2:
+In order to examine the ambiguity more closely, let's fix our
+valuation as follows:
+
+
+    >>> from nltk.sem import parse_valuation
+    >>> v2 = """
+    ... bruce => b
+    ... cyril => c
+    ... elspeth => e
+    ... julia => j
+    ... matthew => m
+    ... person => {b, e, j, m}
+    ... admire => {(j, b), (b, b), (m, e), (e, m), (c, a)}
+    ... """
+    >>> val2 = parse_valuation(v2)
+
+We can use the graph in admiregraph_ to visualize the
+`admire`:mathit: relation.
+
+.. _admiregraph:
 .. ex::
-   .. _inv2a:
-   .. ex::
+   .. image:: ../images/models_admire.png
+      :scale: 15
 
-      Rarely do you see Kim.
+In admiregraph_, an arrow between two individuals `x`:math: and
+`y`:math: indicates that `x`:math: admires
+`y`:math:. So ``j`` and ``b`` both admire ``b`` (Bruce is very vain), while ``e`` admires
+``m`` and ``m`` admires ``e``. In this model, formula scope2a_ above
+is true but scope2b_ is false. One way of exploring these results is by
+using the ``satisfiers()`` method of ``Model`` objects.
 
-   .. _inv2b:
-   .. ex::
+    >>> dom2 = val2.domain
+    >>> m2 = nltk.sem.Model(dom2, val2)
+    >>> g = nltk.sem.Assignment(dom2)
+    >>> fmla4 = lp.parse('(person(x) -> exists y.(person(y) & admire(x, y)))')
+    >>> m2.satisfiers(fmla4, 'x', g)
+    set(['m', 'c', 'b', 'e', 'j'])
 
-      Never have I seen this dog.
+This shows that ``fmla4`` holds of every individual in the domain.
+By contrast, consider the formula ``fmla5`` below; this has no
+satisfiers for the variable ``y``.
 
-|nopar| However, we cannot place just any verb in pre-subject position:
+    >>> fmla5 = lp.parse('(person(y) & all x.(person(x) -> admire(x, y)))')
+    >>> m2.satisfiers(fmla5, 'y', g)
+    set([])
+    >>> 
 
-.. _inv3:
-.. ex::
-   .. _inv3a:
-   .. ex::
+That is, there is no person that is admired by everybody. Taking a
+different open formula, ``fmla6``, we can verify that there is a
+person, namely Bruce, who is admired by both Julia and Bruce.
 
-      \*Like you children?
+    >>> fmla6 = lp.parse('(person(y) & all x.((x = bruce | x = julia) -> admire(x, y)))')
+    >>> m2.satisfiers(fmla6, 'y', g)
+    set(['b'])
 
-   .. _inv3b:
-   .. ex::
+.. note:: |TRY|
+   Devise a new model based on ``m2`` such that scope2a_
+   comes out false in your model; similarly, devise a new model such that scope2b_
+   comes out true.
 
-      \*Walks Jody?
 
-.. _inv4:
-.. ex::
-   .. _inv4a:
-   .. ex::
+.. TO-DO: say something about interpreting first order lamba
+.. abstracts
 
-      \*Rarely see you Kim.
 
-   .. _inv4b:
-   .. ex::
+.. _sec-evaluating-english-sentences:
 
-      \*Never saw I this dog.
+----------------------------
+Evaluating English Sentences
+----------------------------
 
-Verbs that can be positioned initially in inverted clauses belong to
-the class known as `auxiliaries`:dt:, and as well as  `do`:lx:,
-`can`:lx: and `have`:lx:  include `be`:lx:, `will`:lx:  and
-`shall`:lx:. One way of capturing such structures is with the
-following production:
-
-.. _sinv:
-.. ex::
-   ::
-
-     S[+inv] -> V[+AUX] NP VP
-
-|nopar| That is, a clause marked as [`+inv`:feat:] consists of an auxiliary
-verb followed by a `vp`:gc:. (In a more detailed grammar, we would
-need to place some constraints on the form of the `vp`:gc:, depending
-on the choice of auxiliary.) invtree_ illustrates the structure of an
-inverted clause.
-
-.. _invtree:
-.. ex::
-      .. tree:: (S[+INV](V[+AUX,\ SUBCAT=3] do)(NP you)(VP(V[-AUX,\ SUBCAT=1] like)(NP children)))
-
-
-
-Unbounded Dependency Constructions
-----------------------------------
-
-Consider the following contrasts: 
-
-.. _gap1:
-.. ex::
-   .. _gap1a:
-   .. ex::
-
-      You like Jody.
-
-   .. _gap1b:
-   .. ex::
-
-      \*You like.
-
-.. _gap2:
-.. ex::
-   .. _gap2a:
-   .. ex::
-
-      You put the card into the slot.
-
-   .. _gap2b:
-   .. ex::
-
-      \*You put into the slot.
-
-   .. _gap2c:
-   .. ex::
-
-      \*You put the card.
-
-   .. _gap2d:
-   .. ex::
-
-      \*You put.
-
-The verb `like`:lx: requires an `np`:gc: complement, while
-`put`:lx: requires both a following `np`:gc: and `pp`:gc:. Examples
-gap1_ and gap2_ show that these complements are *obligatory*:
-omitting them leads to ungrammaticality. Yet there are contexts in
-which obligatory complements can be omitted, as gap3_ and gap4_
-illustrate.
-
-.. _gap3:
-.. ex::
-   .. _gap3a:
-   .. ex::
-
-      Kim knows who you like.
-
-   .. _gap3b:
-   .. ex::
-
-      This music, you really like.
-
-.. _gap4:
-.. ex::
-   .. _gap4a:
-   .. ex::
-
-      Which card do you put into the slot?
-
-   .. _gap4b:
-   .. ex::
-
-      Which slot do you put the card into?
-
-|nopar| That is, an obligatory complement can be omitted if there is an
-appropriate `filler`:dt: in the sentence, such as the question word
-`who`:lx: in gap3a_, the preposed topic `this music`:lx: in gap3b_, or
-the `wh`:lx: phrases `which card/slot`:lx: in gap4_. It is common to
-say that sentences like gap3_ |ndash| gap4_ contain `gaps`:dt: where
-the obligatory complements have been omitted, and these gaps are
-sometimes made explicit using an underscore:
-
-.. _gap5:
-.. ex::
-   .. _gap5a:
-   .. ex::
-
-      Which card do you put __ into the slot?
-
-   .. _gap5b:
-   .. ex::
-
-      Which slot do you put the card into __?
-
-|nopar| So, a gap can occur if it is `licensed`:dt: by a filler. Conversely,
-fillers can only occur if there is an appropriate gap elsewhere  in
-the sentence, as shown by the following examples.
-
-.. _gap6:
-.. ex::
-   .. _gap6a:
-   .. ex::
-
-      \*Kim knows who you like Jody.
-
-   .. _gap6b:
-   .. ex::
-
-      \*This music, you really like hip-hop.
-
-.. _gap7:
-.. ex::
-   .. _gap7a:
-   .. ex::
-
-      \*Which card do you put this into the slot?
-
-   .. _gap7b:
-   .. ex::
-
-      \*Which slot do you put the card into this one?
-
-The mutual co-occurence between filler and gap leads to gap3_ |ndash|
-gap4_ is sometimes termed a "dependency". One issue of considerable
-importance in theoretical linguistics has been the nature of the
-material that can intervene between a filler and the gap that it
-licenses; in particular, can we simply list a finite set of strings
-that separate the two? The answer is No: there is no upper bound on
-the distance between filler and gap. This fact can be easily
-illustrated with constructions involving sentential complements, as
-shown in gap8_. 
-
-.. _gap8:
-.. ex::
-   .. _gap8a:
-   .. ex::
-
-      Who do you like __?
-
-   .. _gap8b:
-   .. ex::
-
-      Who do you claim that you like __?
-
-   .. _gap8c:
-   .. ex::
-
-      Who do you claim that Jody says that you like __?
-
-|nopar| Since we can have indefinitely deep recursion of sentential
-complements, the gap can be embedded indefinitely far inside the whole
-sentence. This constellation of properties leads to the notion of an
-`unbounded dependency construction`:dt:; that is, a filler-gap
-dependency where there is no upper bound on the distance between
-filler and gap.
-
-A variety of mechanisms have been suggested for handling unbounded
-dependencies in formal grammars; we shall adopt an approach due to
-Generalized Phrase Structure Grammar that involves something called
-`slash categories`:dt:. A slash category is something of the form
-`y/xp`:gc:; we interpret this as a phrase of category `y`:gc: that
-is missing a sub-constituent of category `xp`:gc:. For example,
-`s/np`:gc: is an `s`:gc: that is missing an `np`:gc:. The use of
-slash categories is illustrated in gaptree1_. 
-
-.. _gaptree1:
-.. ex::
-      .. tree:: (S(NP[+WH] who)(S[+INV]\/NP (V[+AUX,\ SUBCAT=3] do)(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=1] like)(NP/NP e))))
-
-|nopar| The top part of the tree introduces the filler `who`:lx: (treated as
-an expression of category `np`:gc:\ [`+wh`:feat:]) together with a
-corresponding gap-containing constituent `s/np`:gc:. The gap information is
-then "percolated" down the tree via the `vp/np`:gc: category, until it
-reaches the category `np/np`:gc:. At this point, the dependency 
-is discharged by realizing the gap information as the empty string `e`
-immediately dominated by `np/np`:gc:.
-
-Do we need to think of slash categories as a completely new kind of
-object in our grammars?  Fortunately, no, we don't |mdash| in fact, we
-can accommodate them within our existing feature-based framework. We
-do this by treating slash as a feature, and the category to its right
-as a value. In other words, our "official" notation for `s/np`:gc:
-will be `s`:gc:\ [`slash`:feat:\ =\ `NP`:fval:\ ]. Once we have taken this
-step, it is straightforward to write a small grammar for
-analyzing unbounded dependency constructions. slashcfg_ illustrates
-the main principles of slash categories, and also includes productions for
-inverted clauses. To simplify presentation, we have omitted any
-specification of tense on the verbs.
-
-
-.. pylisting:: slashcfg
-   :caption: Grammar for Simple Long-distance Dependencies
-
-   >>> nltk.data.show_cfg('grammars/feat1.fcfg')
-   % start S
-   # ############################
-   # Grammar Rules
-   # ############################
-   S[-INV] -> NP  S/NP
-   S[-INV]/?x -> NP VP/?x
-   S[+INV]/?x -> V[+AUX] NP VP/?x
-   S-BAR/?x -> Comp S[-INV]/?x
-   NP/NP ->
-   VP/?x -> V[SUBCAT=1, -AUX] NP/?x
-   VP/?x -> V[SUBCAT=2, -AUX] S-BAR/?x
-   VP/?x -> V[SUBCAT=3, +AUX] VP/?x
-   # ############################
-   # Lexical Rules
-   # ############################
-   V[SUBCAT=1, -AUX] -> 'see' | 'like'
-   V[SUBCAT=2, -AUX] -> 'say' | 'claim'
-   V[SUBCAT=3, +AUX] -> 'do' | 'can'
-   NP[-WH] -> 'you' | 'children' | 'girls'
-   NP[+WH] -> 'who'
-   Comp -> 'that'
-
-The grammar in Figure slashcfg_ contains one gap-introduction production, namely
-
-.. ex::
-   .. parsed-literal::
-
-      `s[-inv]`:gc: |rarr| `np`:gc: `s/np`:gc: 
-
-In order to percolate the slash feature correctly, we need to add
-slashes with variable values to both sides of the arrow in productions
-that expand `s`:gc:, `vp`:gc: and `np`:gc:. For example,
-
-.. ex::
-   .. parsed-literal::
-
-      `vp/?x`:gc: |rarr| `v`:gc: `s-bar/?x`:gc: 
-
-|nopar| says that a slash value can be specified on the `vp`:gc: mother of a
-constituent if the same value is also specified on the `s-bar`:gc:
-daughter. Finally, empty_ allows the slash information on `np`:gc: to
-be discharged as the empty string.
-
-..  _empty:
-.. ex::
-   .. parsed-literal::
-
-      `np/np`:gc: |rarr|
-
-Using slashcfg_, we can parse the string `who do you claim that you
-like`:lx:  into the tree shown in gapparse_.
-
-.. _gapparse:
-.. ex::
-    .. tree:: (S[-INV](NP[+WH] who)(S[SLASH=NP,+INV](V[+AUX,SUBCAT=3] do)(NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=2] claim)(S-BAR[SLASH=NP](Comp that)(S[SLASH=NP,-INV](NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=1] like)(NP[SLASH=NP] )))))))
-
-
-Case and Gender in German
+Using the ``sem`` Feature
 -------------------------
 
-Compared with English, German has a relatively rich morphology for
-agreement. For example, the definite article in German varies with
-case, gender and number, as shown in Table german-def-art_.
+In Section sec-querying-a-database_ we briefly illustrated a method of
+building semantic representations on the basis of a syntactic parse,
+using the grammar framework developed in Chapter chap-featgram_. This
+time, rather than constructing an SQL query, we will build a logical
+form.  sem1_ illustrates a first approximation to the kind of analyses
+we would like to build.
 
-.. table:: german-def-art
+.. _sem1:
+.. ex::
+   .. tree:: (S[sem=\<\bark\(cyril\)\>](NP[sem=\<\(cyril\)\>] Cyril)(VP[sem=\<\bark\>] (V[sem=\<\bark\>] barks)))
 
-    +-----------+-----------+-----------+-----------+------------+
-    | **Case**  | **Masc**  | **Fem**   |  **Neut** | **Plural** |
-    +-----------+-----------+-----------+-----------+------------+
-    |  *Nom*    |  der      |  die      |   das     |   die      |
-    +-----------+-----------+-----------+-----------+------------+
-    |  *Gen*    |  des      |  der      |   des     |   der      |
-    +-----------+-----------+-----------+-----------+------------+
-    |  *Dat*    |  dem      |  der      |   dem     |   den      |
-    +-----------+-----------+-----------+-----------+------------+
-    |  *Acc*    |  den      |  die      |   das     |   die      |
-    +-----------+-----------+-----------+-----------+------------+
+In sem1_, the ``sem`` value at the root node shows a semantic
+representation for the whole sentence, while the ``sem`` values at
+lower nodes show semantic representations for constituents of the
+sentence. Since the values of ``sem`` have to be treated in special
+manner, they are distinguished from other feature values by being
+enclosed in angle brackets. 
 
-    Morphological Paradigm for the German definite Article
+So far, so good, but how do we write grammar rules which will give us
+this kind of result? Our approach will be similar to that adopted for
+the grammar ``sql0.fcfg`` at the start of this chapter, in that we
+will assign semantic representations to lexical nodes, and then
+compose the semantic representations for phrases from those of the
+daughters. However, in the present case we will use function
+application rather than string concatenation as the mode of
+composition. To be more specific, suppose we have a `np`:gc: and
+`vp`:gc: constituents with appropriate values for their ``sem``
+nodes. Then the ``sem`` value of an `s`:gc: is handled by a rule like
+sem2_. (Observe that in the case where the value of ``sem`` is a
+variable, we omit the angle brackets.)
 
-|nopar| Subjects in German take the nominative case, and most verbs
-govern their objects in the accusative case. However, there are
-exceptions like `helfen`:lx: that govern the dative case:
+.. _sem2:
+.. ex::
+   ::
 
+     S[sem = <?vp(?np)>] -> NP[sem=?subj] VP[sem=?vp]
+
+sem2_ tells us that given some ``sem`` value ``?subj`` for the subject
+`np`:gc: and some ``sem`` value ``?vp`` for the `vp`:gc:, the ``sem``
+value of the `s`:gc: mother is constructed by applying ``?vp`` as a
+functor to ``?np``.  From this, we can conclude that ``?vp`` has to
+denote a function which has the denotation of ``?np`` in its
+domain. sem2_ is a nice example of
+building semantics using the principle of compositionality.
+
+To complete the grammar is very straightforward; all we require are the
+rules shown in sem3_.
+
+.. _sem3:
+.. ex::
+   ::
+
+     VP[sem=?v] -> IV[sem=?v]
+     NP[sem=<cyril>] -> 'Cyril'
+     IV[sem=<bark>] -> 'barks'
+
+The `vp`:gc: rule says that the mother's semantics is the same as the
+head daughter's. The two lexical rules just introduce non-logical
+constants to serve as the semantic values of `Cyril`:lx: and
+`barks`:lx: respectively. 
+
+Quantified NPs
+--------------
+
+You might be thinking this is all too easy |mdash| surely there is a
+bit more to building compositional semantics. What about quantifiers,
+for instance? Right, this is a crucial issue. For example, we want
+sem5a_ to be given the logical form in sem5b_. How can this
+be accomplished? 
+
+.. _sem5: 
+.. ex::
+   .. _sem5a:
+   .. ex:: 
+      A dog barks.
+   .. _sem5b:
+   .. ex:: 
+      ``'exists x.(dog(x) & (bark(x))'``
+
+Let's make the assumption that our `only`:em: operation for building
+complex semantic representations is function
+application. Then our problem is this: how do we give a semantic
+representation to the quantified `np`:gc:\ s `a dog`:lx: so that
+it can be combined with ``'bark'`` to give the result
+in sem5b_? As a first step, let's make the subject's ``sem`` value
+act as the functor rather than the argument. (This is sometimes called
+`type-raising`:dt:.) Now we are
+looking for way of instantiating ``?np`` so that sem6a_ is equivalent
+to sem6b_.
+
+.. _sem6: 
 .. ex::
 
-   .. gloss::
-         Die                          | Katze                  | sieht            | den                          | Hund            
-         the.NOM.FEM.SG               | cat.3.FEM.SG           | see.3.SG         | the.ACC.MASC.SG              | dog.3.MASC.SG   
-         'the cat sees the dog'
+   .. _sem6a:
+   .. ex:: ``[sem=<?np(bark)>]``
 
-   .. gloss::
-         \*Die                        | Katze                  | sieht            |  dem                         | Hund
-         the.NOM.FEM.SG               | cat.3.FEM.SG           | see.3.SG         |  the.DAT.MASC.SG             | dog.3.MASC.SG
-
-   .. gloss::
-         Die                         | Katze                  | hilft             | dem                          | Hund            
-         the.NOM.FEM.SG              | cat.3.FEM.SG           | help.3.SG         | the.DAT.MASC.SG              | dog.3.MASC.SG   
-         'the cat helps the dog'
-
-   .. gloss::
-         \*Die                       | Katze                  | hilft             | den                          | Hund
-         the.NOM.FEM.SG              | cat.3.FEM.SG           | help.3.SG         | the.ACC.MASC.SG              | dog.3.MASC.SG
+   .. _sem6b:
+   .. ex:: ``[sem=<exists x.(dog(x) & bark(x))>]``
 
 
-The grammar germancfg_ illustrates the interaction of agreement
-(comprising person, number and gender) with case. 
+This is where |lambda| abstraction comes to the rescue;
+doesn't sem6_ look a bit reminiscent of carrying out |beta|-reduction
+in the |lambda|-calculus? In other words, we want a |lambda| term
+`M`:mathit: to replace ``'?np'`` so that applying `M`:mathit: to
+``'bark'`` yields sem5b_.  To do this, we replace the occurence of
+``'bark'`` in sem5b_ by a predicate variable ``'P'``, and bind the variable with
+|lambda|, as shown in sem7_.
 
-.. pylisting:: germancfg
-   :caption: Example Feature-Based Grammar
+.. _sem7: 
+.. ex:: ``'\P.exists x.(dog(x) & P(x))'``
 
-   >>> nltk.data.show_cfg('grammars/german.fcfg')
-   % start S
-   # Grammar Rules
-   S -> NP[CASE=nom, AGR=?a] VP[AGR=?a]
-   NP[CASE=?c, AGR=?a] -> PRO[CASE=?c, AGR=?a]
-   NP[CASE=?c, AGR=?a] -> Det[CASE=?c, AGR=?a] N[CASE=?c, AGR=?a]
-   VP[AGR=?a] -> IV[AGR=?a]
-   VP[AGR=?a] -> TV[OBJCASE=?c, AGR=?a] NP[CASE=?c]
-   # Lexical Rules
-   # Singular determiners
-   # masc
-   Det[CASE=nom, AGR=[GND=masc,PER=3,NUM=sg]] -> 'der' 
-   Det[CASE=dat, AGR=[GND=masc,PER=3,NUM=sg]] -> 'dem'
-   Det[CASE=acc, AGR=[GND=masc,PER=3,NUM=sg]] -> 'den'
-   # fem
-   Det[CASE=nom, AGR=[GND=fem,PER=3,NUM=sg]] -> 'die' 
-   Det[CASE=dat, AGR=[GND=fem,PER=3,NUM=sg]] -> 'der'
-   Det[CASE=acc, AGR=[GND=fem,PER=3,NUM=sg]] -> 'die' 
-   # Plural determiners
-   Det[CASE=nom, AGR=[PER=3,NUM=pl]] -> 'die' 
-   Det[CASE=dat, AGR=[PER=3,NUM=pl]] -> 'den' 
-   Det[CASE=acc, AGR=[PER=3,NUM=pl]] -> 'die' 
-   # Nouns
-   N[AGR=[GND=masc,PER=3,NUM=sg]] -> 'hund'
-   N[CASE=nom, AGR=[GND=masc,PER=3,NUM=pl]] -> 'hunde'
-   N[CASE=dat, AGR=[GND=masc,PER=3,NUM=pl]] -> 'hunden'
-   N[CASE=acc, AGR=[GND=masc,PER=3,NUM=pl]] -> 'hunde'
-   N[AGR=[GND=fem,PER=3,NUM=sg]] -> 'katze'
-   N[AGR=[GND=fem,PER=3,NUM=pl]] -> 'katzen'
-   # Pronouns
-   PRO[CASE=nom, AGR=[PER=1,NUM=sg]] -> 'ich'
-   PRO[CASE=acc, AGR=[PER=1,NUM=sg]] -> 'mich'
-   PRO[CASE=dat, AGR=[PER=1,NUM=sg]] -> 'mir'
-   PRO[CASE=nom, AGR=[PER=2,NUM=sg]] -> 'du'
-   PRO[CASE=nom, AGR=[PER=3,NUM=sg]] -> 'er' | 'sie' | 'es'
-   PRO[CASE=nom, AGR=[PER=1,NUM=pl]] -> 'wir'
-   PRO[CASE=acc, AGR=[PER=1,NUM=pl]] -> 'uns'
-   PRO[CASE=dat, AGR=[PER=1,NUM=pl]] -> 'uns'
-   PRO[CASE=nom, AGR=[PER=2,NUM=pl]] -> 'ihr'
-   PRO[CASE=nom, AGR=[PER=3,NUM=pl]] -> 'sie'
-   # Verbs
-   IV[AGR=[NUM=sg,PER=1]] -> 'komme'
-   IV[AGR=[NUM=sg,PER=2]] -> 'kommst'
-   IV[AGR=[NUM=sg,PER=3]] -> 'kommt'
-   IV[AGR=[NUM=pl, PER=1]] -> 'kommen'
-   IV[AGR=[NUM=pl, PER=2]] -> 'kommt'
-   IV[AGR=[NUM=pl, PER=3]] -> 'kommen'
-   TV[OBJCASE=acc, AGR=[NUM=sg,PER=1]] -> 'sehe' | 'mag'
-   TV[OBJCASE=acc, AGR=[NUM=sg,PER=2]] -> 'siehst' | 'magst'
-   TV[OBJCASE=acc, AGR=[NUM=sg,PER=3]] -> 'sieht' | 'mag'
-   TV[OBJCASE=dat, AGR=[NUM=sg,PER=1]] -> 'folge' | 'helfe'
-   TV[OBJCASE=dat, AGR=[NUM=sg,PER=2]] -> 'folgst' | 'hilfst'
-   TV[OBJCASE=dat, AGR=[NUM=sg,PER=3]] -> 'folgt' | 'hilft'
+We have used a different style of variable in
+sem7_ |mdash| that is ``'P'`` rather than ``'x'`` or ``'y'`` |mdash| to signal
+that we are abstracting over a different kind of thing |mdash| not an
+individual, but a function of type <e, t>. So the type of
+sem7_ as a whole is <<e, t>, t>. We
+will take this to be the type of `np`:gc:\ s in general. To illustrate
+further, a universally quantified `np`:gc: will look like sem7univ_.
 
-|nopar| As you will see, the feature `objcase`:feat: is used to
- specify the case that the verb governs on its object.
+.. _sem7univ: 
+.. ex:: ``'\P.all x.(dog(x) -> P(x))'``
+
+
+We are pretty much done now, except that we also want to carry out a
+further abstraction plus application for the process of combining the
+semantics of the determiner `a`:lx: namely sem8_ with the semantics of
+`dog`:lx:.
+
+.. _sem7det: 
+.. ex:: ``'\Q P.exists x.(Q(x) & P(x))'``
+
+Applying sem8_ as a functor to ``'dog'`` yields sem7_, and applying
+that to ``'bark'`` gives us 
+``'(\P.exists x.(dog(x) & P(x)))(bark)'``. Finally, carrying out |beta|\-reduction 
+yields just what we wanted, namely sem5b_.
+
+
+|NLTK| provides some utilities to make it easier to derive and inspect
+semantic interpretations. ``text_interpret()`` is intended for batch
+interpretation of a list of input sentences. It builds a dictionary
+``d`` where for each sentence ``sent`` in the input,
+``d[sent]`` is a list of paired trees and semantic representations for
+``sent``. The value itself is a list, since ``sent`` may be syntactically
+ambiguous; in the following example, however, there is only one parse
+tree in the list.
+
+    >>> result  = nltk.sem.text_interpret(['a dog barks'], 'grammars/sem1.fcfg')
+    >>> for (syntree, semrep) in result['a dog barks']:
+    ...     print syntree
+    (S[sem=<exists x.(dog(x) & bark(x))>]
+      (NP[sem=<\P.exists x.(dog(x) & P(x))>]
+        (Det[sem=<\Q P.exists x.(Q(x) & P(x))>] a)
+        (N[sem=<dog>] dog))
+      (VP[sem=<\x.bark(x)>] (IV[sem=<\x.bark(x)>] barks)))
+
+
+
+
+Transitive Verbs
+----------------
+
+Our next challenge is to deal with sentences containing transitive
+verbs, such as sem8_.
+
+.. _sem8: 
+.. ex:: Angus owns a dog.
+
+The output semantics that we want to build is shown in sem9_.
+
+.. _sem9: 
+.. ex:: ``'exists x.(dog(x) & own(angus, x))'``
+
+Let's look at how we can use |lambda|-abstraction to get this
+result. A significant constraint on possible solutions is to require
+that the semantic representation of `a dog`:lx: be independent of
+whether the `np`:gc: acts as subject or object of the sentence. In
+other words, we want to get sem9_ as our output while sticking to
+sem7_ as the `np`:gc: semantics. A second constraint is that
+`vp`:gc:\s should have a uniform type of interpretation regardless
+of whether they consist of just an intransitive verb or a transitive
+verb plus object. More specifically, we stipulate that `vp`:gc:\s
+always denote characteristic functions on individuals. Given these
+constraints, here's a semantic representation for `owns a dog`:lx:
+which does the trick.
+
+.. _sem99: 
+.. ex:: ``'\y.exists x.(dog(x) & chase(y, x))'``
+
+Think of sem99_ as the property of being a `y`:math: such that
+for some dog `x`:math:, `y`:math: chases `x`:math:; or more
+colloquially, being a `y`:math: who chases a dog. Our task now
+resolves to designing a semantic representation for
+`chases`:lx: which can combine via ``app`` with sem7_ so as to allow
+sem99_ to be derived. 
+
+Let's carry out a kind of inverse |beta|-reduction on sem99_,
+giving rise to sem10_.
+
+Then we are part
+way to the solution if we can derive sem10_, where ``'X'`` is applied to
+``'\z.chase(y, z)'``.
+
+.. _sem10: 
+.. ex:: ``'\P.exists x.(dog(x) & P(x))(\z.chase(y, z))'``
+
+sem10_ may be slightly hard to read at first; you need to see that
+it involves applying the quantified `np`:gc: representation from 
+sem7_ to ``'\z.chase(y,z))'``. sem10_ is of course 
+equivalent to sem99_.
+
+Now let's replace the functor in sem10_ by a variable ``'X'`` of the
+same type as an `np`:gc:; that is, of type ((**Ind** |rarr| **Bool**)
+|rarr| **Bool**). 
+
+.. _sem11: 
+.. ex:: ``'X(\z.chase(y, z))'``
+
+The representation of a transitive verb will have to apply to
+an argument of the type of ``'X'`` to yield a functor of the type of
+`vp`:gc:\ s, that is, of type (**Ind** |rarr| **Bool**). We can ensure
+this by abstracting over both the ``'X'`` variable in sem11_ and also
+the subject variable ``'y'``. So the full solution is reached by
+giving `chases`:lx: the semantic representation shown in sem12_.
+
+.. _sem12: 
+.. ex:: ``'\X y.X(\x.chase(y, x))'``
+
+If sem12_ is applied to sem7_, the result after |beta|-reduction is
+equivalent to sem99_, which is what we wanted all along:
+
+.. ex:: | ``'(\X y.(X \x.(chase(y, x)) \P.exists x.(dog(x) & P(x))'``
+        | |reduce|
+        | ``'(\y.(\P.exists x.(dog(x) & P(x)) \x.chase(y, x))'``
+	| |reduce|
+        | ``'\y.(exists x.(dog(x) & chase(y, x)))'``
+
+In order to build a semantic representation for a sentence, we also
+need to combine in the semantics of the subject `np`:gc:. If the
+latter is a quantified expression like `every girl`:lx:, everything
+proceeds in the same way as we showed for `a dog barks`:lx: earlier
+on; the subject is translated as a functor which is applied to the
+semantic representation of the `vp`:gc:.  However, we now seem to have
+created another problem for ourselves with proper names. So far, these
+have been treated semantically as individual constants, and these
+cannot be applied as functors to expressions like
+sem99_. Consequently, we need to come up with a different semantic
+representation for them. What we do
+in this case is re-interpret proper names so that they too are
+functors, like quantified `np`:gc:\ s. sem13_ shows the required
+|lambda| expression for `Suzie`:lx:.
+
+.. _sem13: 
+.. ex:: ``'\P.P(suzie)'``
+
+sem13_ denotes the characteristic function corresponding to the set of
+all properties which are true of Suzie. Converting from an individual
+constant to an expression like sem12_ is known as `type raising`:dt:,
+and allows us to flip functors with arguments. That is, type raising
+means that we can replace a Boolean-valued application such as 
+`f(a`:mathit:) with an equivalent application 
+`(`:math:\ |lambda|\ `P.P(a))(f`:mathit:).
+
+
+
+
+
+Extracting Valuations from Chat-80
+----------------------------------
+
+Building ``Valuation`` objects by hand becomes rather tedious once we
+consider larger examples. This raises the question of whether the
+relation data in a ``Valuation`` could be extracted from some
+pre-existing source. The ``corpora.chat80`` module
+provides an example of extracting data from the Chat-80 Prolog
+knowledge base (which included as part of the |NLTK| ``corpora``
+distribution).
+
+Chat-80 data is organized into collections of clauses, where each
+collection functions as a table in a relational database. The
+predicate of the clause provides the name of the table; the first
+element of the tuple acts as the
+'key'; and subsequent elements are further columns in the
+table. 
+
+In general, the name of the table provides a label for a unary
+relation whose extension is all the keys. For example,
+the table in ``cities.pl`` contains triples such as city_.
+
+.. _city:
+.. ex:: ``'city(athens,greece,1368).'``
+
+Here, ``'athens'`` is the key, and will be mapped to a member of the
+unary relation `city`:mathit:.
+
+The other two columns in the table are mapped to binary relations, where the first
+argument of the relation is filled by the table key, and the
+second argument is filled by the data in the relevant column. Thus, in
+the ``city`` table illustrated by the tuple in 
+city_, the data from the third column is extracted  into a binary predicate
+`population_of`:mathit:, whose extension is a set of pairs such as
+``'(athens, 1368)'``.
+
+In order to encapsulate the results of the extraction, a class of
+``Concept``\ s is introduced.  A ``Concept`` object has a number of
+attributes, in particular a ``prefLabel`` and ``extension``, which
+make it easier to inspect the output of the extraction. The
+``extension`` of a ``Concept`` object is incorporated into a
+``Valuation`` object.
+
+As well as deriving unary and binary relations from the Chat-80 data,
+we also create a set of individual constants, one for each entity in
+the domain. The individual constants are string-identical to the
+entities. For example, given a data item such as ``'zloty'``, we add
+to the valuation a pair ``('zloty', 'zloty')``. In order to parse
+English sentences that refer to these entities, we also create a
+lexical item such as the following for each individual constant:
+
+.. ex::
+   ::
+
+     PropN[num=sg, sem=<\P.P(zloty)>] -> 'Zloty'
+
+The ``chat80`` module can be found in the ``examples`` package. The
+attribute ``chat80.items`` gives us a list of Chat-80 relations:
+
+   >>> from nltk.examples.semantics import chat80
+   >>> chat80.items # doctest: +ELLIPSIS
+    ('borders', 'circle_of_lat', 'circle_of_long', 'city', ...)
+
+The ``concepts()`` method shows the list of ``Concept``\ s that can be
+extracted from a ``chat80`` relation, and we can then inspect their extensions.
+
+   >>> concepts = chat80.concepts('city')
+   >>> concepts
+   [Concept('city'), Concept('country_of'), Concept('population_of')]
+   >>> rel = concepts[1].extension
+   >>> list(rel)[:5]
+   [('chungking', 'china'), ('karachi', 'pakistan'), 
+   ('singapore_city', 'singapore'), ('athens', 'greece'), 
+   ('birmingham', 'united_kingdom')]
+
+In order to convert such an extension into a valuation, we use the
+``make_valuation()`` method; setting ``read=True`` creates and returns
+a new ``Valuation`` object which contains the results.
+
+   >>> val = nltk.corpus.chat80.make_valuation(concepts, read=True)
+   >>> val['city']['calcutta']
+   True
+   >>> val['country_of']['india']
+   {'hyderabad': True, 'delhi': True, 'bombay': True, 
+   'madras': True, 'calcutta': True}
+   >>> dom = val.domain
+   >>> g = nltk.sem.Assignment(dom)
+   >>> m = nltk.sem.Model(dom, val)
+   >>> m.evaluate(r'\x .population_of(jakarta, x)', g)
+   {'533': True}
+
+
+
+------------------
+Underspecification
+------------------
+
+One important limitation of the approach we have presented here is
+that it does not attempt to deal with scope ambiguity. Instead,
+quantifier scope ordering directly reflects scope in the parse
+tree. As a result, a sentence like scope1_, repeated here, will always
+be translated as scope12a_, not scope12b_.
+
+.. _scope11:
+.. ex:: Every girl chases a dog.
+
+.. _scope12:
+.. ex::
+
+   .. _scope12a:
+   .. ex:: ``'all x.(girl(x) -> exists y. (dog(y) & chase(x,y)))'``
+
+   .. _scope12b:
+   .. ex:: ``'exists y. dog(y) & all x. (girl(x) -> chase(x,y)))'``
+
+
+
+Cooper Storage
+--------------
+
+
+Hole Semantics
+--------------
+
+This limitation can be overcome, for example using the hole semantics
+described in [Blackburn2005RIN]_, but discussing the details would take
+us outside the scope of the current chapter.
+
+Hole Semantics in |NLTK| is handled by the
+``nltk.sem.hole`` module, which uses a context free grammar to
+generate an underspecified logical form.  Since the latter is itself a
+formula of first order logic, we can continue to use the ``sem`` feature
+in the context free grammar:
+
+.. ex::
+    N[sem=<\x h l.(PRED(l,dog,x) & LEQ(l,h) & HOLE(h) & LABEL(l))>] -> 'dog'
+
+The Hole Semantics module uses a standard plugging algorithm to derive the
+sentence's readings from the underspecified LF.
+
+    >>> from nltk.sem import hole
+    >>> readings = hole.main('every girl chases a dog')
+    >>> for r in reading: print r
+    exists z1.(dog(z1) & all z2.(girl(z2) -> chase(z1,z2)))
+    all z2.(girl(z2) -> exists z1.(dog(z1) & chase(z1,z2)))
+
+
+.. TO-DO: rejig to accommodate scope ambiguity
+
+Now that we have looked at some slightly more complex constructions, we can
+evaluate them in a model. In the following example, we derive two
+parses for the sentence `every boy chases a girl in Noosa`:lx:, and
+evaluate each of the corresponding semantic representations in the
+model ``model0.py`` which we have imported.
+
+    >>> grammar = nltk.data.load('grammars/sem2.fcfg')
+    >>> val4 = nltk.data.load('grammars/valuation1.val')
+    >>> dom4 = val4.domain
+    >>> m4 = nltk.sem.Model(dom4, val4)
+    >>> g = nltk.sem.Assignment(dom4)
+    >>> sent = 'every boy chases a girl in Noosa'
+    >>> result = nltk.sem.text_evaluate([sent], grammar, m4, g)
+    >>> for (syntree, semrep, value) in result[sent]:
+    ... 	print "'%s' is %s in Model m\n" % (semrep, value)
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+    <BLANKLINE>
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+    <BLANKLINE>
+
+
+
+---------------
+Inference tools
+---------------
+
+In order to perform inference over semantic representations, |NLTK|
+can call both theorem provers and model builders.
+The library includes a pure Python tableau-based first order theorem prover;
+this is intended to allow students to study 
+tableau methods for theorem proving, and provides an
+opportunity for experimentation.  In addition, |NLTK| provides
+interfaces to two state-of-the-art tools, namely the theorem prover Prover9, 
+and the model builder Mace4  [McCune]_.  
+
+The ``get_prover(G, A)`` method by default calls Prover9, and takes as
+parameters a proof goal ``G`` and a list ``A`` of assumptions.
+Here, we verify that if every dog barks, and Rover is a dog,
+then it is true that Rover barks:
+
+    >>> from nltk.inference import inference
+    >>> a = lp.parse('all x.(dog(x) -> bark(x))')
+    >>> b = lp.parse('dog(rover)')
+    >>> c = lp.parse('bark(rover)')
+    >>> prover = inference.get_prover(c, [a,b])
+    >>> prover.prove()
+    True
+
+
+A theorem prover can also be used to check the logical equivalence of
+expressions.  For two expressions *A* and *B*, we can pass (*A* |iff|
+*B*) into a theorem prover and know that the theorem will be proved if
+and only if the expressions are logically equivalent.  |NLTK|\ 's
+standard equality operator for ``Expression``\ s (``==``) is able to
+handle situations where two expressions are identical up to
+|alpha|-conversion.  However, it would be impractical for |NLTK| to
+invoke a wider range of logic rules every time we checked for equality
+of two expressions. Consequently, both the ``logic`` and ``drt``
+modules in |NLTK| have a separate method, ``tp_equals``, for checking
+'equality' up to logical equivalence.
+
+    >>> a = lp.parse('all x.walk(x)')
+    >>> b = lp.parse('all y.walk(y)')
+    >>> a == b
+    True
+    >>> c = lp.parse('-(P(x) & Q(x))')
+    >>> d = lp.parse('-P(x) | -Q(x)')
+    >>> c == d
+    False
+    >>> c.tp_equals(d)
+    True
+
+
+-------------------
+Discourse Semantics
+-------------------
+
+
+Discourse Representation Theory
+-------------------------------
+
+The ``nltk.sem.drt`` module introduces
+a ``DRS()`` constructor which takes lists of discourse referents
+and conditions as initialization parameters:
+
+.. ex::
+    DRS([j,d],[John(j), dog(d), sees(j,d)])
+
+On top of the functionality available for |FOL|
+expressions, |DRT| expressions have a |DRS|\ -concatenation operator,
+represented as the ``+`` symbol.  The concatenation of two |DRS|\ s
+is a single |DRS| containing the merged discourse referents and the
+conditions from both arguments.  |DRS|\ -concatenation automatically
+|alpha|\ -converts bound variables to avoid name-clashes.  The
+``+`` symbol is overloaded so that |DRT| expressions can be added
+together easily.  The ``nltk.sem.drt`` parser allows |DRS|\ s to be
+specified succinctly as strings.
+
+    >>> from nltk.sem import drt
+    >>> dp = drt.DrtParser()
+    >>> d1 = dp.parse('([x],[walk(x)]) + ([y],[run(y)])')
+    >>> print d1
+    (([x],[walk(x)]) + ([y],[run(y)]))
+    >>> print d1.simplify()
+    ([x,y],[walk(x), run(y)])
+    >>> d2 = dp.parse('([x,y],[Bill(x), Fred(y)])')
+    >>> d3 = dp.parse("""([],[([u],[Porsche(u), own(x,u)])
+    ...  ->  ([v],[Ferrari(v), own(y,u)])])""")
+    >>> d4 = d2 + d3
+    >>> print d4.simplify()
+    ([x,y],[Bill(x), Fred(y), (([u],[Porsche(u), own(x,u)]) -> ([v],[Ferrari(v), own(y,u)]))])
+
+
+.. _fig-drs:
+.. figure:: ../images/drs.png
+   :scale: 100
+
+   DRS Screenshot
+
+
+|DRT| expressions can be converted to their first order predicate
+logic equivalents using the ``toFol()`` method and can be
+graphically rendered on screen with the ``draw()`` method.
+
+    >>> print d1.toFol()
+    (exists x.walk(x) & exists y.run(y))
+    >>> d4.simplify().draw()
+
+Since the |lambda| operator can be combined with |DRT| expressions,
+the ``nltk.sem.drt`` module can be used as a plug-in replacement for 
+``nltk.sem.logic`` in building compositional semantics.
+
+
+
+
+Discourse Processing
+--------------------
+
+|NLTK| contains a discourse processing module,
+``nltk.inference.discourse``, similar to the CURT program
+presented in [Blackburn2005RIN]_.  This module processes sentences incrementally,
+keeping track of all possible threads when there is ambiguity. For
+simplicity, the following example ignores scope ambiguity.
+
+    >>> from nltk.inference.discourse import DiscourseTester as DT
+    >>> dt = DT(['A student dances', 'Every student is a person'])
+    >>> dt.readings()
+    <BLANKLINE>
+    s0 readings:
+    ------------------------------
+    s0-r0: exists x.(student(x) & dance(x))
+    <BLANKLINE>
+    s1 readings:
+    ------------------------------
+    s1-r0: all x.(student(x) -> person(x))
+
+When a new sentence is added to the current discourse, setting the
+parameter ``consistchk=True`` causes consistency to be checked
+by invoking the model checker for each 'thread', i.e., discourse sequence of
+admissible readings. In this case, the user has the option
+of retracting the sentence in question.
+
+    >>> dt.add_sentence('No person dances', consistchk=True)
+    Inconsistent discourse d0 ['s0-r0', 's1-r0', 's2-r0']:
+    s0-r0: exists x.(student(x) & dance(x))
+    s1-r0: all x.(student(x) -> person(x))
+    s2-r0: -exists x.(person(x) & dance(x))
+    >>> dt.retract_sentence('No person dances', quiet=False)
+    Current sentences are 
+    s0: A student dances
+    s1: Every student is a person
+
+In a similar manner, we use ``informchk=True`` to check whether
+the new sentence is informative relative to the current discourse (by
+asking the theorem prover to derive it from the discourse).
+
+    >>> dt.add_sentence('A person dances', informchk=True)
+    Sentence 'A person dances' under reading 'exists x.(person(x) & dance(x))':
+    Not informative relative to thread 'd0'
+
+It is also possible to pass in an additional set of assumptions as
+background knowledge and use these to filter out inconsistent readings.
+
+The ``discourse`` module can accommodate semantic 
+ambiguity and filter out readings that are not admissable.
+By invoking both Glue Semantics and |DRT|, the following example processes the 
+two-sentence discourse `Every dog chases a boy.  He runs`lx:.  As
+shown, the first sentence has two possible readings, while 
+the second sentence contains an anaphoric pronoun, indicated as ``PRO(x)``.
+
+
+    >>> from nltk.inference.discourse import DrtGlueReadingCommand as RC
+    >>> dt = DT(['Every dog chases a boy', 'He runs'], RC())
+    >>> dt.readings()
+    <BLANKLINE>
+    s0 readings:
+    ------------------------------
+    s0-r0: ([],[(([x],[dog(x)]) -> ([z15],[boy(z15), chase(x,z15)]))])
+    s0-r1: ([z16],[boy(z16), (([x],[dog(x)]) -> ([],[chase(x,z16)]))])
+    <BLANKLINE>
+    s1 readings:
+    ------------------------------
+    s1-r0: ([x],[PRO(x), run(x)])
+
+When we examine the two threads ``d0`` and ``d1``, we see
+that that reading ``s0-r0``, where `every dog`:lx: out-scopes
+``a boy``, is deemed inadmissable because the pronoun in the
+second sentence cannot be resolved.  By contrast, in thread ``d1`` the
+pronoun (relettered to ``z24``) has been bound \textit{via} the
+equation ``(z24 = z20)``.  
+
+Inadmissable readings are filtered out by passing the parameter
+``filter=True``.
+
+    >>> dt.readings(show_thread_readings=True)
+    d0: ['s0-r0', 's1-r0'] : INVALID: AnaphoraResolutionException
+    d1: ['s0-r1', 's1-r0'] : ([z20,z24],[boy(z20), (([x],[dog(x)]) -> 
+    ([],[chase(x,z20)])), (z24 = z20), run(z24)])
+    >>> dt.readings(filter=True, show_thread_readings=True)
+    d1: ['s0-r1', 's1-r0'] : ([z26,z29],[boy(z26), (([x],[dog(x)]) -> 
+    ([],[chase(x,z26)])), (z29 = z26), run(z29)])
+
+    >>> dt.readings(show_thread_readings=True)
+    d0: ['s0-r0', 's1-r0'] : INVALID: AnaphoraResolutionException
+    d1: ['s0-r1', 's1-r0'] : ([z20,z24],[boy(z20), (([x],[dog(x)]) -> 
+    ([],[chase(x,z20)])), (z24 = z20), run(z24)])
+
+
+
+
+Anaphora Resolution
+-------------------
+
+|NLTK| also includes a extension to the DRT module that allows the
+user to resolve anaphoric pronouns, located in
+``nltk.sem.drt\_resolve\_anaphora``.  For instance, the three sentence
+discourse `John walks.  Bill runs.  He talks.`:lx: is shown below, along
+with its resolution.  The anaphora resolution procedure used by |NLTK|
+replaces any instance of the function ``PRO(x)`` with an expression
+equating ``x`` to a list of possible antecedents of ``x``.  The list of
+possible antecedents contains any discourse referent in an accessible
+DRS.
+
+
+    >>> d = drtparse(r'DRS([j,b,x],[(John=j), walk(j), (Bill=b), 
+    run(b), PRO(x), talk(x)])')
+    >>> print d.resolve_anaphora()
+    DRS([j,b,x],[(John=j), walk(j), (Bill=b), run(b), (x=[j,b]), 
+    talk(x)])
+
+
+The anaphora resolution logic has been separated into a separate
+module so that users may write their own anaphora resolution
+procedures and swap them in.
 
 
 -------
 Summary
 -------
 
-* The traditional categories of context-free grammar are atomic
-  symbols. An important motivation feature structures is to capture
-  fine-grained distinctions that would otherwise require a massive
-  multiplication of atomic categories.
+* Semantic Representations (SRs) for English are constructed using a
+  language based on the |lambda|-calculus, together with Boolean
+  connectives, equality, and first-order quantifiers.
 
-* By using variables over feature values, we can express constraints
-  in grammar productions that allow the realization of different feature
-  specifications to be inter-dependent.
+* |beta|-reduction in the |lambda|-calculus corresponds semantically
+  to application of a function to an argument. Syntactically, it
+  involves replacing a variable bound by |lambda| in the functor with
+  the expression that provides the argument in the function
+  application.
 
-* Typically we specify fixed values of features at the lexical level
-  and constrain the values of features in phrases to unify with the
-  corresponding values in their daughters. 
+* If two |lambda|-abstracts differ only in the label of the variable
+  bound by |lambda|, they are said to be |alpha|
+  equivalents. Relabeling a variable bound by a |lambda| is called
+  |alpha|-conversion.
 
-* Feature values are either atomic or complex. A particular sub-case of
-  atomic value is the Boolean value, represented by convention as [+/-
-  `f`:feat:]. 
+* Currying of a binary function turns it into a unary function whose
+  value is again a unary function.
 
-* Two features can share a value (either atomic or
-  complex). Structures with shared values are said to be
-  re-entrant. Shared values are represented by numerical indices (or
-  tags) in AVMs.
+* |FSRL| has both a syntax and a semantics. The semantics is
+  determined by recursively evaluating expressions in a model.
 
-* A path in a feature structure is a tuple of features
-  corresponding to the labels on  a sequence of arcs from the root of the graph
-  representation.
+* A key part of constructing a model lies in building a valuation
+  which assigns interpretations to non-logical constants. These are
+  interpreted as either curried characteristic functions or as
+  individual constants. 
 
-* Two paths are equivalent if they share a value.
+* The interpretation of Boolean connectives is handled by the
+  model; these are interpreted as characteristic functions.
 
-* Feature structures are partially ordered by subsumption.
-  `FS`:math:\ :subscript:`0` subsumes `FS`:math:\ :subscript:`1` when
-  `FS`:math:\ :subscript:`0` is more general (less informative) than
-  `FS`:math:\ :subscript:`1`. 
+* An open expression is an expression containing one or more free
+  variables. Open expressions only receive an interpretation when
+  their free variables receive values from a
+  variable assignment.
 
-* The unification of two structures `FS`:math:\ :subscript:`0` and
-  `FS`:math:\ :subscript:`1`, if successful, is the feature
-  structure `FS`:math:\ :subscript:`2` that contains the combined
-  information of both `FS`:math:\ :subscript:`0` and `FS`:math:\
-  :subscript:`1`.
+* Quantifiers are interpreted by constructing, for a formula |phi|\
+  [`x`:mathit:\ ] open in variable `x`:mathit:, the set of individuals
+  which make |phi|\ [`x`:mathit:\ ] true when an assignment *g*
+  assigns them as the value of `x`:mathit:. The quantifier then places
+  constraints on that set.
 
-* If unification specializes a path |pi| in `FS`:math:, then it also
-  specializes every path |pi|\ ' equivalent to |pi|.
+* A closed expression is one that has no free variables; that is, the
+  variables are all bound. A closed sentence is true or
+  false with respect to all variable assignments.
 
-* We can use feature structures to build succinct analyses of a wide
-  variety of linguistic phenomena, including verb subcategorization,
-  inversion constructions, unbounded dependency constructions and case government.
+* Given a formula with two nested quantifiers *Q*\ :sub:`1` and *Q*\
+  :sub:`2`, the outermost quantifier *Q*\ :sub:`1` is said to have wide
+  scope (or scope over *Q*\ :sub:`2`). English sentences are frequently
+  ambiguous with respect to the scope of the quantifiers they
+  contain. 
 
------------------
- Further Reading
------------------
+* English sentences can be associated with an SR by treating ``sem``
+  as a feature. The ``sem`` value of a complex expressions typically
+  involves functional application of the ``sem`` values of the
+  component expressions.
 
-For more examples of feature-based parsing with |NLTK|, please see the
-guides at ``http://nltk.org/doc/guides/featgram.html``,
-``http://nltk.org/doc/guides/featstruct.html``, and
-``http://nltk.org/doc/guides/grammartestsuites.html``.
+* Model valuations need not be built by hand, but can also be
+  extracted from relational tables, as in the Chat-80 example.
 
-For an excellent introduction to the phenomenon of agreement, see
-[Corbett2006A]_. 
+---------------
+Further Reading
+---------------
 
-The earliest use of features in theoretical linguistics was designed
-to capture phonological properties of phonemes. For example, a sound
-like /**b**/ might be decomposed into the structure [`+labial`:feat:,
-`+voice`:feat:]. An important motivation was to capture
-generalizations across classes of segments; for example, that /**n**/ gets
-realized as /**m**/ preceding any `+labial`:feat: consonant.
-Within Chomskyan grammar, it was standard to use atomic features for
-phenomena like agreement, and also to capture generalizations across
-syntactic categories, by analogy with phonology.
-A radical expansion of the use of features in theoretical syntax was
-advocated by Generalized Phrase Structure Grammar (GPSG;
-[Gazdar1985GPS]_), particularly in the use of features with complex values.
+For more examples of semantic analysis with |NLTK|, please see the
+guides at
+``http://nltk.org/doc/guides/sem.html`` and
+``http://nltk.org/doc/guides/logic.html``.
 
-Coming more from the perspective of computational linguistics,
-[Kay1984UG]_ proposed that functional aspects of language could be
-captured by unification of attribute-value structures, and a similar
-approach was elaborated by [Shieber1983FIP]_ within the PATR-II
-formalism. Early work in Lexical-Functional grammar (LFG;
-[Kaplan1982LFG]_) introduced the notion of an `f-structure`:dt: that
-was primarily intended to represent the grammatical relations and
-predicate-argument structure associated with a constituent structure
-parse.  [Shieber1986IUB]_ provides an excellent introduction to this
-phase of research into feature-based grammars.
+The use of characteristic functions for interpreting expressions of
+natural language was primarily due to Richard
+Montague. [Dowty1981IMS]_ gives a comprehensive and reasonably
+approachable introduction to Montague's grammatical framework.
 
-One conceptual difficulty with algebraic approaches to feature
-structures arose when researchers attempted to model negation. An
-alternative perspective, pioneered by [Kasper1986LSF]_ and
-[Johnson1988AVL]_, argues that grammars involve `descriptions`:em: of
-feature structures rather than the structures themselves. These
-descriptions are combined using logical operations such as
-conjunction, and negation is just the usual logical operation over
-feature descriptions. This description-oriented perspective was
-integral to LFG from the outset (cf. [Kaplan1989FAL]_, and was also adopted by later
-versions of Head-Driven Phrase Structure Grammar (HPSG;
-[Sag1999ST]_). A comprehensive bibliography of HPSG literature can be
-found at `<http://www.cl.uni-bremen.de/HPSG-Bib/>`_.
+A more recent and wide-reaching study of the use of a |lambda| based
+approach to natural language can be found in [Carpenter1997TLS]_.
 
-Feature structures, as presented in this chapter, are unable to
-capture important constraints on linguistic information. For example,
-there is no way of saying that the only permissible values for
-`num`:feat: are `sg`:fval: and `pl`:fval:, while a specification such
-as [`num`:feat:\ =\ `masc`:fval:] is anomalous. Similarly, we cannot say
-that the complex value of `agr`:feat: `must`:em: contain
-specifications for the features `per`:feat:, `num`:feat: and
-`gnd`:feat:, but `cannot`:em: contain a specification such as
-[`subcat`:feat:\ =\ `3`:fval:].  `Typed feature structures`:dt: were developed to
-remedy this deficiency. To begin with, we stipulate that feature
-values are always typed. In the case of atomic values, the values just
-are types. For example, we would say that the value of `num`:feat: is
-the type *num*. Moreover, *num* is the most general type of value for
-`num`:feat:. Since types are organized hierarchically, we can be more
-informative by specifying the value of `num`:feat: is a `subtype`:dt:
-of *num*, namely either *sg* or *pl*.
+[Heim1998SGG]_ is a thorough application of formal semantics to
+transformational grammars in the Government-Binding model.
 
-In the case of complex values, we say that feature structures are
-themselves typed. So for example the value of `agr`:feat: will be a
-feature structure of type *agr*. We also stipulate that all and only
-`per`:feat:, `num`:feat: and `gnd`:feat: are `appropriate`:dt: features for
-a structure of type *agr*.  A good early review of work on typed
-feature structures is [Emele1990TUG]_. A more comprehensive examination of
-the formal foundations can be found in [Carpenter1992LTF]_, while
-[Copestake2002ITF]_ focuses on implementing an HPSG-oriented approach
-to typed feature structures.
+[Blackburn2005RIN]_ is the first textbook devoted to computational
+semantics, and provides an excellent introduction to the area.
 
-There is a copious literature on the analysis of German within
-feature-based grammar frameworks. [Nerbonne1994GHD]_ is a good
-starting point for the HPSG literature on this topic, while
-[Mueller2002CP]_ gives a very extensive and detailed analysis of
-German syntax in HPSG.
 
-Chapter 15 of [JurafskyMartin2008]_ discusses feature structures,
-the unification algorithm, and the integration of unification into
-parsing algorithms.
+http://www.fil.ion.ucl.ac.uk/~asaygin/tt/ttest.html
+
+
 
 ---------
 Exercises
 ---------
 
-#. |easy| What constraints are required to correctly parse strings like `I am
-   happy`:lx: and `she is happy`:lx: but not `*you is happy`:lx: or
-   `*they am happy`:lx:? Implement two solutions for the present tense
-   paradigm of the verb `be`:lx: in English, first taking Grammar
-   agcfg1_ as your starting point, and then taking Grammar agr2_
-   as the starting point. 
+1. |soso| Modify the ``sem.evaluate`` code so that it will
+   give a helpful error message if an expression is not in the domain
+   of a model's valuation function.
 
-#. |easy| Develop a variant of grammar feat0cfg_ that uses a
-   feature `count`:feat: to make the distinctions shown below:
+#. |hard| Specify and implement a typed functional language with quantifiers,
+   Boolean connectives and equality. Modify
+   ``sem.evaluate`` to interpret expressions of this language.
 
-   .. ex:: 
-       .. ex:: The boy sings.
-       .. ex:: \*Boy sings.
+#. |hard| Extend the ``chat80`` code so that it will extract data from a
+   relational database using SQL queries.
 
-   .. ex:: 
-       .. ex:: The boys sing.
-       .. ex:: Boys sing.
-
-   .. ex:: 
-       .. ex:: The boys sing.
-       .. ex:: Boys sing.
-
-   .. ex::
-       .. ex:: The water is precious.
-       .. ex:: Water is precious.
-
-#. |soso| Develop a feature-based grammar that will correctly describe the following
-   Spanish noun phrases:
-
-   .. gloss::
-	  un                              | cuadro      | hermos-o
-	  INDEF.SG.MASC                   | picture     | beautiful-SG.MASC
-	  'a beautiful picture'               
-
-   .. gloss::
-	  un-os                           | cuadro-s    | hermos-os           
-	  INDEF-PL.MASC                   | picture-PL  | beautiful-PL.MASC   
-	  'beautiful pictures'                  
-
-   .. gloss::
-	  un-a                            | cortina     | hermos-a
-	  INDEF-SG.FEM                    | curtain     | beautiful-SG.FEM
-	  'a beautiful curtain'     
-
-   .. gloss::
-	  un-as                           | cortina-s   | hermos-as
-	  INDEF-PL.FEM                    | curtain     | beautiful-PL.FEM
-	  'beautiful curtains'     
-
-
-#. |soso| Develop a wrapper for the ``earley_parser`` so that a trace
-   is only printed if the input string fails to parse.
-
-#. |easy| Write a function `subsumes()` which holds of two feature
-   structures ``fs1`` and ``fs2`` just in case ``fs1`` subsumes ``fs2``.
-
-#. |soso| Consider the feature structures shown in Figure featstructures_.
-
-   .. [XX] NOTE: This example is somewhat broken -- nltk doesn't support
-      reentrance for base feature values.  (See email ~7/23/08 to the
-      nltk-users mailing list for details.)
-
-   .. pylisting:: featstructures
-
-     fs1 = nltk.FeatStruct("[A = (1)b, B= [C ->(1)]]")
-     fs2 = nltk.FeatStruct("[B = [D = d]]")
-     fs3 = nltk.FeatStruct("[B = [C = d]]")
-     fs4 = nltk.FeatStruct("[A = (1)[B = b], C->(1)]")
-     fs5 = nltk.FeatStruct("[A = [D = (1)e], C = [E -> (1)] ]")
-     fs6 = nltk.FeatStruct("[A = [D = (1)e], C = [B -> (1)] ]")
-     fs7 = nltk.FeatStruct("[A = [D = (1)e, F = (2)[]], C = [B -> (1), E -> (2)] ]")
-     fs8 = nltk.FeatStruct("[A = [B = b], C = [E = [G = e]]]")
-     fs9 = nltk.FeatStruct("[A = (1)[B = b], C -> (1)]")
-
-   Work out on paper what the result is of the following
-   unifications. (Hint: you might find it useful to draw the graph structures.)
-
-   #) ``fs1`` and ``fs2``
-   #) ``fs1`` and ``fs3``
-   #) ``fs4`` and ``fs5``
-   #) ``fs5`` and ``fs6``
-   #) ``fs7`` and ``fs8``
-   #) ``fs7`` and ``fs9``
-
-   Check your answers using Python.
-
-
-#. |soso| List two feature structures that subsume [A=?x, B=?x].
-
-#. |soso| Ignoring structure sharing, give an informal algorithm for unifying
-   two feature structures. 
-
-#. |easy| Modify the grammar illustrated in  subcatgpsg_ to
-   incorporate a `bar`:feat: feature for dealing with phrasal projections.
-
-#. |easy| Modify the German grammar in germancfg_ to incorporate the
-   treatment of subcategorization presented in sec-extending-a-feature-based-grammar_. 
-
-#. |soso| Extend the German grammar in germancfg_ so that it can
-   handle so-called verb-second structures like the following:
-
-   .. ex:: Heute sieht der hund die katze.
-
-#. |hard| Morphological paradigms are rarely completely regular, in
-   the sense of every cell in the matrix having a different
-   realization. For example, the present tense conjugation of the
-   lexeme `walk`:lex: only has two distinct forms: `walks`:lx: for the
-   3rd person singular, and `walk`:lx: for all other combinations of
-   person and number. A successful analysis should not require
-   redundantly specifying that 5 out of the 6 possible morphological
-   combinations have the same realization.  Propose and implement a
-   method for dealing with this.
-
-#. |hard| So-called `head features`:dt: are shared between the mother
-   and head daughter. For example, `tense`:feat: is a head feature
-   that is shared between a `vp`:gc: and its head `v`:gc:
-   daughter. See [Gazdar1985GPS]_ for more details. Most of the
-   features we have looked at are head features |mdash| exceptions are
-   `subcat`:feat: and `slash`:feat:. Since the sharing of head
-   features is predictable, it should not need to be stated explicitly
-   in the grammar productions. Develop an approach that automatically
-   accounts for this regular behavior of head features.  
-
+#. |hard| Taking [WarrenPereira1982] as a starting point, develop a technique
+   for converting a natural language query into a form that can be
+   evaluated more efficiently in a model. For example, given a query
+   of the form ``'(P(x) & Q(x)'``, convert it to ``'(Q(x) & P(x)'`` if
+   the extension of ``'Q'`` is smaller than the extension of 
+   ``'P'``.
 
 .. include:: footer.rst
