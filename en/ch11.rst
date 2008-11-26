@@ -1469,7 +1469,7 @@ be accomplished?
       A dog barks.
    .. _sem5b:
    .. ex:: 
-      ``'exists x.(dog(x) & (bark(x))'``
+      ``exists x.(dog(x) & (bark(x))``
 
 Let's make the assumption that our `only`:em: operation for building
 complex semantic representations is function
@@ -1542,7 +1542,7 @@ verbs, such as sem8_.
 The output semantics that we want to build is shown in sem9_.
 
 .. _sem9: 
-.. ex:: ``'exists x.(dog(x) & chase(angus, x))'``
+.. ex:: ``exists x.(dog(x) & chase(angus, x))``
 
 Let's look at how we can use |lambda|-abstraction to get this
 result. A significant constraint on possible solutions is to require
@@ -1583,7 +1583,7 @@ same type as an `np`:gc:; that is, of type |langle|\ |langle|\ *e*, *t*\
 |rangle|, *t*\ |rangle|. 
 
 .. _sem11: 
-.. ex:: ``'X(\z.chase(y, z))'``
+.. ex:: ``X(\z.chase(y, z))``
 
 The representation of a transitive verb will have to apply to
 an argument of the type of ``'X'`` to yield a functor of the type of
@@ -1593,16 +1593,19 @@ the subject variable ``'y'``. So the full solution is reached by
 giving `chases`:lx: the semantic representation shown in sem12_.
 
 .. _sem12: 
-.. ex:: ``'\X y.X(\x.chase(y, x))'``
+.. ex:: ``\X y.X(\x.chase(y, x))``
 
 If sem12_ is applied to sem7_, the result after |beta|-reduction is
 equivalent to sem99_, which is what we wanted all along:
 
-.. ex:: ``(\X y.(X \x.(chase(y, x)) \P.exists x.(dog(x) & P(x))``
+    >>> tvp = lp.parse(r'\X x.X(\y.chase(x,y))')
+    >>> np = lp.parse(r'(\P.exists x.(dog(x) & P(x)))')
+    >>> vp = logic.ApplicationExpression(tvp, np)
+    >>> print vp
+    (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
+    >>> print vp.simplify()
+    \x.exists z1.(dog(z1) & chase(x,z1))
 
-        ``(\y.(\P.exists x.(dog(x) & P(x)) \x.chase(y, x))``
-
-        ``\y.(exists x.(dog(x) & chase(y, x)))``
 
 In order to build a semantic representation for a sentence, we also
 need to combine in the semantics of the subject `np`:gc:. If the
@@ -1616,19 +1619,19 @@ cannot be applied as functors to expressions like
 sem99_. Consequently, we need to come up with a different semantic
 representation for them. What we do
 in this case is re-interpret proper names so that they too are
-functors, like quantified `np`:gc:\ s. sem13_ shows the required
+functors, like quantified `np`:gc:\ s. Here is the required
 |lambda| expression for `Angus`:lx:.
 
 .. _sem13: 
-.. ex:: ``'\P.P(angus)'``
+.. ex:: ``\P.P(angus)``
 
 sem13_ denotes the characteristic function corresponding to the set of
-all properties which are true of Suzie. Converting from an individual
+all properties which are true of Angus. Converting from an individual
 constant to an expression like sem12_ is known as `type raising`:dt:,
 and allows us to flip functors with arguments. That is, type raising
 means that we can replace a Boolean-valued application such as 
 `f(a`:mathit:) with an equivalent application 
-`(`:math:\ |lambda|\ `P.P(a))(f`:mathit:).
+lambda|\ `P.P(a)(f)`:mathit:.
 
 The grammar ``sem3.fcfg`` contains a small set of rules for parsing
 and translating simple examples of the kind that we have been looking
@@ -1817,25 +1820,71 @@ Discourse Semantics
 Discourse Representation Theory
 -------------------------------
 
+The standard approach to quantification in |FOL| is limited to single
+sentences. Yet there seem to be examples where the scope of a
+quantifier can extend over two or more sentences. Consider:
+
+.. _drs0:
+.. ex:: Angus owns a dog. It bit Irene.
+
+
+drs0_ is interpreted as drs1_.
+
+.. _drs1:
+.. ex::  |exists|\ `x.(dog(x)`:mathit: |wedge| `own(angus, x)`:mathit: |wedge| `bite(x, irene))`:mathit:
+
+That is, the `np`:gc: `a dog`:lx: acts like a quantifier which binds
+the `it`:lx: in the second sentence.  Discourse Representation Theory
+(|DRT|, [KampReyle]_) was developed with the specific goal of providing a means
+for handling this and other semantic phenomena which seem to be
+characteristic of discourse |mdash| sentences in a sequence whose
+interpretation depends in part on what preceded them. A `discourse
+representation structure`:dt: (|DRS|) presents the meaning of
+discourse in terms of a list of  `discourse
+referents`:dt: (the things under discussion in the discourse) together
+with a list of `conditions`:dt: on those discourse referents.
+
 The ``nltk.sem.drt`` module introduces
 a ``DRS()`` constructor which takes lists of discourse referents
-and conditions as initialization parameters:
+and conditions as initialization parameters. These look respectively
+like the individual variables and atomic open formulas of |FOL|. 
 
 .. ex::
-    DRS([j,d],[John(j), dog(d), sees(j,d)])
+    DRS([x,y],[angus(x), dog(y), own(x,y)])
 
-On top of the functionality available for |FOL|
-expressions, |DRT| expressions have a |DRS|\ -concatenation operator,
+
+The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
+string representation of a |DRS|.
+
+    >>> from nltk.sem import drt
+    >>> dp = drt.DrtParser()
+    >>> drs1 = dp.parse('([x,y],[angus(x),dog(y),own(x, y)])')
+    >>> print drs1
+    ([x,y],[angus(x), dog(y), own(x,y)])
+
+The discourse referents are interpreted like existentially-bound
+variables, while the conditions are interpreted as though they are
+conjoined. The ``toFol()`` method is a handy way of translating from a
+|DRS| back to a formula of |FOL|.
+    >>> from nltk.sem import drt
+    >>> dp = drt.DrtParser()
+    >>> drs1 = dp.parse('([x,y],[angus(x),dog(y),own(x, y)])')
+    >>> print drs1
+    ([x,y],[angus(x), dog(y), own(x,y)])
+    >>> print drs1.toFol()
+    exists x y.(angus(x) & (dog(y) & own(x,y)))
+
+
+In addition to the functionality available for |FOL|
+expressions, |DRT| ``Expressions`` have a |DRS|\ -concatenation operator,
 represented as the ``+`` symbol.  The concatenation of two |DRS|\ s
 is a single |DRS| containing the merged discourse referents and the
 conditions from both arguments.  |DRS|\ -concatenation automatically
 |alpha|\ -converts bound variables to avoid name-clashes.  The
 ``+`` symbol is overloaded so that |DRT| expressions can be added
-together easily.  The ``nltk.sem.drt`` parser allows |DRS|\ s to be
-specified succinctly as strings.
+together easily. 
 
-    >>> from nltk.sem import drt
-    >>> dp = drt.DrtParser()
+
     >>> d1 = dp.parse('([x],[walk(x)]) + ([y],[run(y)])')
     >>> print d1
     (([x],[walk(x)]) + ([y],[run(y)]))
