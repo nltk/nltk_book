@@ -274,3 +274,97 @@ process of building a parse tree.
      Completer |. [-]| VP[sem='walk'] -> IV[sem='walk'] * 
      Completer |[===]| S[sem='walk(john)'] -> NP[sem='john'] VP[sem='walk'] * 
      Completer |[===]| [INIT] -> S * 
+
+
+Extracting Valuations from Chat-80
+----------------------------------
+
+Building ``Valuation`` objects by hand becomes rather tedious once we
+consider larger examples. This raises the question of whether the
+relation data in a ``Valuation`` could be extracted from some
+pre-existing source. The ``corpora.chat80`` module
+provides an example of extracting data from the Chat-80 Prolog
+knowledge base (which included as part of the |NLTK| ``corpora``
+distribution).
+
+Chat-80 data is organized into collections of clauses, where each
+collection functions as a table in a relational database. The
+predicate of the clause provides the name of the table; the first
+element of the tuple acts as the
+'key'; and subsequent elements are further columns in the
+table. 
+
+In general, the name of the table provides a label for a unary
+relation whose extension is all the keys. For example,
+the table in ``cities.pl`` contains triples such as city_.
+
+.. _city:
+.. ex:: ``'city(athens,greece,1368).'``
+
+Here, ``'athens'`` is the key, and will be mapped to a member of the
+unary relation `city`:mathit:.
+
+The other two columns in the table are mapped to binary relations, where the first
+argument of the relation is filled by the table key, and the
+second argument is filled by the data in the relevant column. Thus, in
+the ``city`` table illustrated by the tuple in 
+city_, the data from the third column is extracted  into a binary predicate
+`population_of`:mathit:, whose extension is a set of pairs such as
+``'(athens, 1368)'``.
+
+In order to encapsulate the results of the extraction, a class of
+``Concept``\ s is introduced.  A ``Concept`` object has a number of
+attributes, in particular a ``prefLabel`` and ``extension``, which
+make it easier to inspect the output of the extraction. The
+``extension`` of a ``Concept`` object is incorporated into a
+``Valuation`` object.
+
+As well as deriving unary and binary relations from the Chat-80 data,
+we also create a set of individual constants, one for each entity in
+the domain. The individual constants are string-identical to the
+entities. For example, given a data item such as ``'zloty'``, we add
+to the valuation a pair ``('zloty', 'zloty')``. In order to parse
+English sentences that refer to these entities, we also create a
+lexical item such as the following for each individual constant:
+
+.. ex::
+   ::
+
+     PropN[num=sg, sem=<\P.P(zloty)>] -> 'Zloty'
+
+The ``chat80`` module can be found in the ``examples`` package. The
+attribute ``chat80.items`` gives us a list of Chat-80 relations:
+
+   >>> from nltk.examples.semantics import chat80
+   >>> chat80.items # doctest: +ELLIPSIS
+    ('borders', 'circle_of_lat', 'circle_of_long', 'city', ...)
+
+The ``concepts()`` method shows the list of ``Concept``\ s that can be
+extracted from a ``chat80`` relation, and we can then inspect their extensions.
+
+   >>> concepts = chat80.concepts('city')
+   >>> concepts
+   [Concept('city'), Concept('country_of'), Concept('population_of')]
+   >>> rel = concepts[1].extension
+   >>> list(rel)[:5]
+   [('chungking', 'china'), ('karachi', 'pakistan'), 
+   ('singapore_city', 'singapore'), ('athens', 'greece'), 
+   ('birmingham', 'united_kingdom')]
+
+In order to convert such an extension into a valuation, we use the
+``make_valuation()`` method; setting ``read=True`` creates and returns
+a new ``Valuation`` object which contains the results.
+
+   >>> val = nltk.corpus.chat80.make_valuation(concepts, read=True)
+   >>> val['city']['calcutta']
+   True
+   >>> val['country_of']['india']
+   {'hyderabad': True, 'delhi': True, 'bombay': True, 
+   'madras': True, 'calcutta': True}
+   >>> dom = val.domain
+   >>> g = nltk.sem.Assignment(dom)
+   >>> m = nltk.sem.Model(dom, val)
+   >>> m.evaluate(r'\x .population_of(jakarta, x)', g)
+   {'533': True}
+
+
