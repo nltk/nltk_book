@@ -63,7 +63,7 @@ publish-en:
 	cp default.css $(PUBLISH)
 	cp images/*.png $(PUBLISH)/images/
 	svn add $(PUBLISH)/default.css $(PUBLISH)/images/*
-	python svnmime.py $(PUBLISH)/default.css $(PUBLISH)/images/*
+	python ../tools/svnmime.py $(PUBLISH)/default.css $(PUBLISH)/images/*
 
 publish-howto:
 	$(MAKE) -C howto publish
@@ -71,4 +71,4 @@ publish-howto:
 publish-api:
 	cp api/* $(PUBLISH)/api
 	svn add $(PUBLISH)/api/*
-	python svnmime.py $(PUBLISH)/api/*
+	python ../tools/svnmime.py $(PUBLISH)/api/*
