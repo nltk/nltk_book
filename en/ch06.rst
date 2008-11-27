@@ -15,6 +15,7 @@
 .. TODO: recipes for flattening a list of lists into a list, and for the reverse grouping a list into a list of lists
 .. TODO: generating all combinations, e.g. map list of words to list of lists of stress patterns; concatenate to make phrase-level stress patterns in all possible ways
 .. TODO: finding all pairs of nouns that occur in the same sentence more than n times in a text
+.. TODO: boolean values?
 
 .. _chap-structured-programming:
 
@@ -60,7 +61,7 @@ In this section we'll see how avoiding loop variables can lead to more readable
 code.  We'll also look at the relationship between loops with nested blocks
 vs list comprehensions, and discuss when to use either construct.
 
-Here is a familiar technique for iterating over the members
+Let's look at a familiar technique for iterating over the members
 of a list by initializing an index ``i`` and then incrementing the
 index each time we pass through the loop:
 
@@ -77,24 +78,33 @@ good idea to use loop variables in this way.  Observe that
 Python's ``for`` statement allows us to achieve the same
 effect, and that the code is not just more succinct, but more readable:
 
-    >>> for s in sent:
-    ...     print s.lower(),
+    >>> for w in sent:
+    ...     print w.lower(),
     ...
     i am the walrus
 
-This program actually prints ``'i am the walrus '`` with a trailing space character.
-In the context of a longer program, we might not want the extra space character, and we
-might want a newline character at the end (requiring an extra ``print`` statement). 
-A third solution is more compact again, but possibly less readable thanks to the use
-of ``' '.join()``.  The list comprehension should be very familiar by now.
+This is much more readable, and ``for`` loops with nested code blocks will be our preferred
+way of producing printed output.  However, the above two programs have the same subtle
+problem: both print a trailing space character.  If we
+meant to include this output with surrounding markup, we would see something like
+``<sent>i am the walrus </sent>``.  Similarly, both programs need an extra ``print``
+statement in order to produce a newline character at the end.
+A third solution using a list comprehension is more compact again
 
     >>> print ' '.join(w.lower() for w in sent)
     i am the walrus
 
 This doesn't produce an extra space character, and does produce the required newline.
+However, it is less readable thanks to the use of ``' '.join()``, and we will usually
+prefer to use the second solution above for code that prints output.
 
 Another case where loop variables seem to be necessary is for printing the value of
-a counter with each line of output.  Instead, we can use ``enumerate()``:
+a counter with each line of output.  Instead, we can use ``enumerate()``, which
+processes a sequence ``s`` and produces a tuple of the form ``(i, s[i])`` for each
+item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the keys of the
+frequency distribution, and capture the integer-string pair in the variables ``rank``
+and ``word``.  We print ``rank+1`` so that the counting appears to start from ``1``,
+as required when producing a list of ranked items.
 
     >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
     >>> cumulative = 0.0
@@ -114,8 +124,7 @@ a counter with each line of output.  Instead, we can use ``enumerate()``:
       8  25.97% in
 
 Its sometimes tempting to use loop variables to store a maximum or minimum value
-seen so far.  Let's find the longest word in a text.  We'll need a variable to hold
-the longest word found so far.
+seen so far.  Let's use this method to find the longest word in a text.
 
     >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt'):
     >>> longest = ''
@@ -125,8 +134,8 @@ the longest word found so far.
     >>> longest
     'unextinguishable'
 
-A better solution uses two list comprehensions as shown below.
-We sacrifice some efficiency by have two passes through the data,
+However, a better solution uses two list comprehensions as shown below.
+We sacrifice some efficiency by having two passes through the data,
 but the result is more transparent.
 
     >>> maxlen = max(len(word) for word in text)
@@ -138,17 +147,15 @@ second solution found all of the longest words.  In most cases we actually prefe
 to get all solutions, though its easy to find them all and only report one back to the user.
 In contrast, it is difficult to modify the first program to find all solutions.
 Although there's a theoretical efficiency difference between the two solutions,
-the main overhead is reading the data into main memory; once its there a second pass
-through the data is very fast.  We also need to balance our concerns with
-Python's efficiency versus the programmer's efficiency in developing and
-maintaining Python programs.
+the main overhead is reading the data into main memory; once its there, a second pass
+through the data is very fast.  We also need to balance our concerns about
+program efficiency with programmer efficiency.  A fast but cryptic solution
+will be harder to understand and maintain.
 
-You can also use list comprehensions for a kind of multiplication (or `cartesian product`:dt:).
+List comprehensions have a surprising range of uses.  Here's an example of
+how they can be used to generate all combinations of some collections of words.
 Here we generate all combinations of two determiners, two adjectives, and two nouns.
 The list comprehension is split across three lines for readability.
-
-We have seen many examples of list comprehensions in previous chapters.  Here we show
-an example with a triply-nested loop, to perform a task called `cartesian product`:dt:.
 
     >>> [(det,adj,noun) for det in ('two', 'three')
     ...                 for adj in ('old', 'blind')
@@ -157,11 +164,10 @@ an example with a triply-nested loop, to perform a task called `cartesian produc
      ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
      ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
 
-Our use of list comprehensions has helped us avoid loop variables.  Here's
-some cases where we still want to use loop variables in a list comprehension.
-
-In the first example, we extract successive overlapping slices of size n
-(a sliding window) from a list (pay particular attention to the range of the variable i).
+Our use of list comprehensions has helped us avoid loop variables.  However,
+there are cases where we still want to use loop variables in a list comprehension.
+For example, we need to use a loop variable to extract successive overlapping n-grams
+from a list:
     
     >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
     >>> n = 3
@@ -171,16 +177,15 @@ In the first example, we extract successive overlapping slices of size n
      ['gave', 'John', 'the'],
      ['John', 'the', 'newspaper']]
 
-Since this is slightly cumbersome, and a common operation in |NLP|\ , |NLTK|
-supports it with functions ``ngrams(text, n)``, ``bigrams(text)`` and ``trigrams(text)``.
+It is quite tricky to get the range of the loop variable right.
+Since this is a common operation in |NLP|\ , |NLTK|
+supports it with functions ``bigrams(text)`` and ``trigrams(text)``, and
+a general purpose ``ngrams(text, n)``.
 
 Here's an example of how we can use loop variables in
 building multidimensional structures.
 For example, to build an array with *m* rows and *n* columns,
-where each cell is a set, we would use a nested list comprehension,
-as shown below.  Observe that the loop variables
-``i`` and ``j`` are not used anywhere in the expressions preceding the
-``for`` clauses.
+where each cell is a set, we could use a nested list comprehension:
 
     >>> m, n = 3, 7
     >>> array = [[set() for i in range(n)] for j in range(m)]
@@ -190,7 +195,14 @@ as shown below.  Observe that the loop variables
      [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
      [set([]), set([]), set([]), set([]), set([]), set(['Alice']), set([])]]
 
-Note that it would be incorrect to do this work using multiplication:
+Observe that the loop variables ``i`` and ``j`` are not used
+anywhere in the resulting object, they are just needed for a syntactically
+correct ``for`` statement.  As another example of this usage, observe
+that the expression ``['very' for i in range(3)]`` produces a list
+containing three instances of ``'very'``, with no integers in sight.
+
+Note that it would be incorrect to do this work using multiplication,
+for reasons that will be discussed in the next section.
 
     >>> array = [[set()] * n] * m
     >>> array[2][5].add(7)
@@ -198,9 +210,6 @@ Note that it would be incorrect to do this work using multiplication:
     [[set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
      [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
      [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])]]
-
-Here, the same object appears at every position in the array, so an operation
-on one cell affects all cells.  We explore this issue further in the next section.
 
 Assignment
 ----------
@@ -240,7 +249,6 @@ that the contents of ``bar`` have also been changed.
 
    List Assignment and Computer Memory
 
-|nopar|    
 Thus, the line ``bar = foo`` does not copy the contents of the
 variable, only its "object reference".
 To understand what is going on here, we need to
@@ -250,6 +258,51 @@ a reference to an object stored at location 3133 (which is
 itself a series of pointers to other locations holding strings).
 When we assign ``sent2 = sent1``, it is just the object reference
 3133 that gets copied.
+
+This behavior extends to other aspects of the Python language.  In
+Section sec-functions_ we will see how it effects the way parameters
+are passed into functions.  Here's an example of how it applies to
+copying:
+
+    >>> empty = []
+    >>> nested = [empty, empty, empty]
+    >>> nested
+    [[], [], []]
+    >>> nested[1].append('Python')
+    >>> nested
+    [['Python'], ['Python'], ['Python']]
+
+Observe that changing one of the items inside our nested list of lists changed them all.
+This is because each of the three elements is actually just a reference to one and the
+same list in memory.
+
+.. note:: |TRY|
+   Use multiplication to create a list of lists: ``nested = [[]] * 3``.
+   Now modify one of the elements of the list, and observe that all the
+   elements are changed.
+
+Now, notice that when we assign a new value to one of the elements of the list,
+it does not propagate to the others:
+
+    >>> nested = [[]] * 3
+    >>> nested[1].append('Python')
+    >>> nested[1] = ['Monty']
+    >>> nested
+    [['Python'], ['Monty'], ['Python']]
+
+We began with a list containing three references to a single empty list object.  Then we
+modified that object by appending ``'Python'`` to it, resulting in a list containing
+three references to a single list object ``['Python']``.
+Next, we *overwrote* one of those references with a reference to a new object ``['Monty']``.
+This last step modified the object references, but not the objects themselves.
+The ``['Python']`` object wasn't changed, and is still referenced from two places in
+our nested list of lists.  It is crucial to appreciate this difference between
+modifying an object via an object reference, and overwriting an object reference.
+
+.. note::
+   To copy the items from a list ``foo`` to a new list ``bar``, you can write
+   ``bar = foo[:]``.  This copies the object references inside the list.
+   To copy a structure without copying any object references, use ``copy.deepcopy()``.
 
 Sequences
 ---------
@@ -266,7 +319,6 @@ a length:
     >>> len(text), len(words), len(pair)
     (29, 5, 2)
 
-|nopar|
 We can iterate over the items in a sequence ``s`` in a variety of useful ways,
 as shown in Table python-sequence_.
 
@@ -316,7 +368,6 @@ because the comma has higher precedence than assignment.)
     >>> words    
     ['I', 'turned', 'the', 'spectroroute', 'off']
 
-|nopar|
 This is an idiomatic and readable way to move items inside a list.
 It is equivalent to the following traditional way of doing such
 tasks that does not use tuples (notice that this method needs a
@@ -387,7 +438,7 @@ so here is another example:
     ...     ('off', 'IN', ['Qf', 'O:f'])
     ... ]
 
-|nopar| Here, a lexicon is represented as a list because it is a
+Here, a lexicon is represented as a list because it is a
 collection of objects of a single type |mdash| lexical entries |mdash|
 of no predetermined length.  An individual entry is represented as a
 tuple because it is a collection of objects with different
@@ -693,7 +744,7 @@ A better solution is shown in Figure tag3_.
 
 This produces an error that cannot be ignored, since it halts program execution.
 Additionally, the error message is easy to interpret.  (We will see an even
-better approach, known as "duck typing" in section [XREF].)
+better approach, known as "duck typing" in Section [XREF].)
 
 Another aspect of defensive programming concerns the return statement of a function.
 In order to be confident that all execution paths through a function lead to a
@@ -766,7 +817,6 @@ while ``p`` is changed:
    >>> p
    {'pos': 'noun'}
 
-|nopar|
 To understand why ``w`` was not changed, it is necessary to understand call-by-value.
 When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
 a new variable ``word``.  Inside the function, the value of ``word`` was modified.
@@ -779,7 +829,6 @@ identical to the following sequence of assignments:
     >>> w
     ''
 
-|nopar|
 In the case of the structured object, matters are quite different.
 When we called ``set_up(w, p)``, the value of ``p`` (an empty
 dictionary) was assigned to a new local variable ``properties``.  Since the
@@ -915,15 +964,17 @@ a `different operation`:em: on the `same data`:em:.  As the following examples s
 we can pass the built-in function ``len()`` or a user-defined function ``last_letter()``
 as parameters to another function:
 
+    >>> sent = ['Take', 'care', 'of', 'the', 'sense', ',', 'and', 'the',
+    ...         'sounds', 'will', 'take', 'care', 'of', 'themselves', '.']
     >>> def extract_property(prop):
-    ...     words = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
     ...     return [prop(word) for word in words]
+    ...
     >>> extract_property(len)
-    [3, 3, 4, 4, 3, 9]
+    [4, 4, 2, 3, 5, 1, 3, 3, 6, 4, 4, 4, 2, 10, 1]
     >>> def last_letter(word):
     ...     return word[-1]
     >>> extract_property(last_letter)
-    ['e', 'g', 'e', 'n', 'e', 'r']
+    ['e', 'e', 'f', 'e', 'e', ',', 'd', 'e', 's', 'l', 'e', 'e', 'f', 's', '.']    
 
 Surprisingly, ``len`` and ``last_letter`` are objects that can be
 passed around like lists and dictionaries.  Notice that parentheses
@@ -937,7 +988,7 @@ was no need to use the above ``last_letter()`` function in multiple places,
 and thus no need to give it a name.  We can equivalently write the following:
 
     >>> extract_property(lambda w: w[-1])
-    ['e', 'g', 'e', 'n', 'e', 'r']
+    ['e', 'e', 'f', 'e', 'e', ',', 'd', 'e', 's', 'l', 'e', 'e', 'f', 's', '.']
 
 Our next example illustrates passing a function to the ``sorted()`` function.
 When we call the latter with a single argument (the list to be sorted),
@@ -945,34 +996,38 @@ it uses the built-in lexicographic comparison function ``cmp()``.
 However, we can supply our own sort function, e.g. to sort by decreasing
 length.
 
-    >>> words = 'I turned off the spectroroute'.split()
-    >>> sorted(words)
-    ['I', 'off', 'spectroroute', 'the', 'turned']
-    >>> sorted(words, cmp)
-    ['I', 'off', 'spectroroute', 'the', 'turned']
-    >>> sorted(words, lambda x, y: cmp(len(y), len(x)))
-    ['spectroroute', 'turned', 'off', 'the', 'I']
+    >>> sorted(sent)
+    [',', '.', 'Take', 'and', 'care', 'care', 'of', 'of', 'sense', 'sounds',
+    'take', 'the', 'the', 'themselves', 'will']
+    >>> sorted(sent, cmp)
+    [',', '.', 'Take', 'and', 'care', 'care', 'of', 'of', 'sense', 'sounds',
+    'take', 'the', 'the', 'themselves', 'will']
+    >>> sorted(sent, lambda x, y: cmp(len(y), len(x)))
+    ['themselves', 'sounds', 'sense', 'Take', 'care', 'will', 'take', 'care',
+    'the', 'and', 'the', 'of', 'of', ',', '.']
+
+Higher-Order Functions
+----------------------
 
 In sec-back-to-the-basics_ we saw an example of filtering out
 some items in a list comprehension, using an ``if`` test.
-Similarly, we can restrict a list to just the lexical words, using
-``[word for word in sent if is_lexical(word)]``.  This is a little cumbersome
-as it mentions the ``word`` variable three times.  A more compact way to express
-the same thing is as follows.
+Sometimes list comprehensions get cumbersome, since they
+can mention the same variable many times, e.g.:
+``[word for word in sent if property(word)]``.
+We can perform the same task more succinctly as follows:
 
     >>> def is_lexical(word):
-    ...     return word.lower() not in ('a', 'an', 'the', 'that', 'to')
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    ...     return word.lower() not in ['a', 'of', 'the', 'and', 'will', ',', '.']
     >>> filter(is_lexical, sent)
-    ['dog', 'gave', 'John', 'newspaper']
-
-|nopar| The function ``is_lexical(word)`` returns ``True`` just in case
+    ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
+    
+The function ``is_lexical(word)`` returns ``True`` just in case
 ``word``, when normalized to lowercase, is not in the given list.
 This function is itself used as an argument to ``filter()``.
 The ``filter()`` function applies its first argument (a function) to each
 item of its second (a sequence), only passing it through if the
 function returns true for that item.  Thus ``filter(f, seq)`` is
-equivalent to ``[item for item in seq if apply(f,item) == True]``.
+equivalent to ``[item for item in seq if f(item)]``.
 
 Another helpful function, which like ``filter()`` applies a function
 to a sequence, is ``map()``.  Here is a simple
@@ -981,23 +1036,32 @@ way to find the average length of a sentence in a section of the Brown Corpus:
     >>> average(map(len, nltk.corpus.brown.sents(categories='news')))
     21.7508111616
 
-|nopar|
 Instead of ``len()``, we could have passed in any other function we liked:
 
     >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
     >>> def is_vowel(letter):
-    ...     return letter in "AEIOUaeiou"
+    ...     return letter.lower() in "aeiou"
     >>> def vowelcount(word):
     ...     return len(filter(is_vowel, word))
     >>> map(vowelcount, sent)
     [1, 1, 2, 1, 1, 3]
 
-|nopar|
 Instead of using ``filter()`` to call a named function ``is_vowel``, we can
 define a lambda expression as follows:
 
-    >>> map(lambda w: len(filter(lambda c: c in "AEIOUaeiou", w)), sent)
+    >>> map(lambda w: len(filter(lambda c: c.lower() in "aeiou", w)), sent)
     [1, 1, 2, 1, 1, 3]
+
+We can check that all or any items meet some condition:
+
+    >>> all(len(w) > 4 for w in sent)
+    False
+    >>> any(len(w) > 4 for w in sent)
+    True
+
+The higher order functions like ``map`` and ``filter`` are certainly useful, but
+in general it is better to stick to using list comprehensions since they are
+often more readable.
 
 Named Arguments
 ---------------
@@ -1027,7 +1091,6 @@ list with an equals sign and a default value:
     ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
     ...     return freqdist.keys()[:num]
 
-|nopar|
 Now there are several equivalent ways to call this function:
 
     >>> freq_words('programming.txt', 4, 10)
@@ -1037,7 +1100,6 @@ Now there are several equivalent ways to call this function:
     >>> freq_words('programming.txt', num=10, min=4)
     ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
 
-|nopar|
 When we use an integrated development environment such as IDLE,
 simply typing the name of a function at the command prompt will
 list the arguments.  Using named arguments helps someone to re-use the code...
@@ -1336,7 +1398,6 @@ subsets, those starting with *L* and those starting with
    >>> virahanka4(4)
    ['SSSS', 'SSL', 'SLS', 'LSS', 'LL']  
 
-|nopar| 
 With this observation, we can write a little recursive function called
 ``virahanka1()`` to compute these meters, shown in Figure virahanka_.
 Notice that, in order to compute *V*\ :subscript:`4` we first compute
@@ -1348,7 +1409,6 @@ structure`:dt: is depicted in call-structure_.
 .. ex:: 
    .. tree:: (V4 (V3 (V2 V1 V0) V1) (V2 V1 V0))
 
-|nopar| 
 As you can see, *V*\ :subscript:`2` is computed twice.
 This might not seem like a significant problem, but 
 it turns out to be rather wasteful as *n* gets large:
@@ -1592,6 +1652,8 @@ Further Reading
 [Levitin2004]_
 
 http://docs.python.org/lib/typesseq-strings.html
+
+http://www.jwz.org/doc/worse-is-better.html
 
 ---------
 Exercises
