@@ -1121,6 +1121,8 @@ class DocBookTranslator(nodes.NodeVisitor):
             node.children = item_to_front(node.children, title_child_idx)
         else:
             table_tag = "informaltable"
+            if 'gloss' in node['classes']:
+                 atts['tabstyle'] = "orm:glossed-text-padding"
 
         self.body.append(self.starttag(node, table_tag, **atts))
         self.stack_push(self.table_tag_stack, table_tag)
