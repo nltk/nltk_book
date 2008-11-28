@@ -378,4 +378,56 @@ a new ``Valuation`` object which contains the results.
     ([x,y],[Bill(x), Fred(y), (([u],[Porsche(u), own(x,u)]) -> ([v],[Ferrari(v), own(y,u)]))])
 
 
+Hole Semantics
+--------------
+
+This limitation can be overcome, for example using the hole semantics
+described in [Blackburn2005RIN]_, but discussing the details would take
+us outside the scope of the current chapter.
+
+Hole Semantics in |NLTK| is handled by the
+``nltk.sem.hole`` module, which uses a context free grammar to
+generate an underspecified logical form.  Since the latter is itself a
+formula of first order logic, we can continue to use the ``sem`` feature
+in the context free grammar:
+
+.. ex::
+    N[sem=<\x h l.(PRED(l,dog,x) & LEQ(l,h) & HOLE(h) & LABEL(l))>] -> 'dog'
+
+The Hole Semantics module uses a standard plugging algorithm to derive the
+sentence's readings from the underspecified LF.
+
+    >>> from nltk.sem import hole
+    >>> readings = hole.main('every girl chases a dog')
+    >>> for r in reading: print r
+    exists z1.(dog(z1) & all z2.(girl(z2) -> chase(z1,z2)))
+    all z2.(girl(z2) -> exists z1.(dog(z1) & chase(z1,z2)))
+
+
+.. TO-DO: rejig to accommodate scope ambiguity
+
+Now that we have looked at some slightly more complex constructions, we can
+evaluate them in a model. In the following example, we derive two
+parses for the sentence `every boy chases a girl in Noosa`:lx:, and
+evaluate each of the corresponding semantic representations in the
+model ``model0.py`` which we have imported.
+
+    >>> grammar = nltk.data.load('grammars/sem2.fcfg')
+    >>> val4 = nltk.data.load('grammars/valuation1.val')
+    >>> dom4 = val4.domain
+    >>> m4 = nltk.sem.Model(dom4, val4)
+    >>> g = nltk.sem.Assignment(dom4)
+    >>> sent = 'every boy chases a girl in Noosa'
+    >>> result = nltk.sem.text_evaluate([sent], grammar, m4, g)
+    >>> for (syntree, semrep, value) in result[sent]:
+    ... 	print "'%s' is %s in Model m\n" % (semrep, value)
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+     
+    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
+     
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+     
+    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
+     
+
 

@@ -386,7 +386,6 @@ inference in |FOL| is not decidable, in practice many reasoning
 problems are efficiently solvable using modern theorem provers
 (cf. [Blackburn2005RIN]_ for discussion).
 
-
 A `model`:dt: for a set |Gamma| of sentences is a formal
 representation of a situation in which all the sentences in |Gamma|
 are true. Standardly, models are represented in set theory. The domain
@@ -660,8 +659,8 @@ arguments, which takes us a step closer to the structure of natural
 languages. The standard construction rules for |FOL| recognize
 `terms`:dt: such as individual variables and individual constants, and
 `predicates`:dt: which take differing numbers of arguments. For
-example, `Adam walks`:lx: might be formalized as `walk(adam)`:mathit:
-and `Adam sees Betty`:lx: as `see(adam, betty)`:mathit:. We will call
+example, `Angus walks`:lx: might be formalized as `walk(angus)`:mathit:
+and `Angus sees Bertie`:lx: as `see(angus, bertie)`:mathit:. We will call
 `walk`:mathit: a `unary predicate`:dt:, and `see`:mathit: a `binary
 predicate`:dt:. The symbols used as predicates do not have intrinsic
 meaning, although it is hard to remember this. Returning to one of our
@@ -681,16 +680,16 @@ and  ex-predlog12_.
 By itself, |FOL| has nothing substantive to say about lexical
 semantics |mdash| the meaning of individual words |mdash| although
 some theories of lexical semantics can be encoded in |FOL|. Whether an
-atomic predication like `see(adam, betty)`:mathit: is true or false in
+atomic predication like `see(angus, bertie)`:mathit: is true or false in
 a situation is not a matter of logic, but depends on the particular
 valuation that we have chosen for the constants `see`:mathit:,
-`adam`:mathit: and `betty`:mathit:. For this reason, such expressions
+`angus`:mathit: and `bertie`:mathit:. For this reason, such expressions
 are called `non-logical constants`:dt:. By contrast, `logical
 constants`:dt: (such as the boolean operators) always receive the same
 interpretation in every model for |FOL|.
 
 We should mention here that one binary predicate which has special
-status, and that is equality, as in formulas such as `adam =
+status, and that is equality, as in formulas such as `angus =
 aj`:mathit:. Equality is regarded as a logical constant, since for
 individual terms `t1`:math: and `t2`:math:, the formula `t1 = t2`:math: is
 true if and only if `t1`:math: and `t2`:math: refer to one and the
@@ -701,17 +700,40 @@ of |FOL|, and the usual way of doing this is to assign `types`:dt: to
 expressions. Following the tradition of Montague grammar [refs], we
 will use two `basic types`:dt:\: `e`:math: is the type of entities,
 while  `t`:math: is the type of formulas, i.e., expressions which have
-truth values.
+truth values. Given these two basic types, we can form `complex
+types`:dt: for functors, i.e., expressions which denote
+functions. That is, given any types |sigma| and |tau|, |langle|\ |sigma|,
+|tau|\ |rangle| is a complex type corresponding to functions from
+'|sigma| things' to '|tau| things'. As an example, |langle|\ `e`:mathit:,
+`t`:mathit:\ |rangle| is the type of expressions from entities to
+truth values, namely unary predicates. The ``LogicParser`` can be
+invoked so that it carries out type checking. 
 
-.. TO-DO: expand stuff on types
-
-    >>> parsed = lp.parse('see(a, b)')
+    >>> tlp = logic.LogicParser(type_check=True)
+    >>> parsed = tlp.parse('walk(angus)')
     >>> parsed.argument
-    <IndividualVariableExpression b>   
+    <ConstantExpression angus>
+    >>> parsed.argument.type
+    e
+    >>> parsed.function
+    <ConstantExpression walk>
+    >>> parsed.function.type
+    <e,t>
+
+A binary predicate is given type |langle|\ `e`:mathit:, |langle|\
+`e`:mathit:, `t`:mathit:\ |rangle|\ |rangle|, that is, the type of
+something which combines with an argument of type `e`:mathit: to make
+a unary predicate.
+
+    >>> parsed = tlp.parse('see(a, b)')
     >>> parsed.function
     <ApplicationExpression see(a)>
+    >>> parsed.function.type
+    <e,t>
     >>> parsed.function.function
-    <VariableExpression see>
+    <ConstantExpression see>
+    >>> parsed.function.function.type
+    <e,<e,t>>
 
 In |FOL|, arguments of predicates can also be individual variables
 such as `x`:math:, `y`:math: and `z`:math:. Individual variables are similar to
@@ -792,8 +814,8 @@ said to be `closed`:dt:. Any variables which are not bound in a formula
 are `free`:dt: in that formula. 
 As mentioned before, the ``parse()`` method of ``nltk.sem.logic``\ 's
 ``LogicParser`` returns objects of class ``Expression``. As such, each
-expression ``e`` comes with a method ``free()`` which returns the set
-of variables that are free in ``e``.
+expression ``expr`` comes with a method ``free()`` which returns the set
+of variables that are free in ``expr``.
 
     >>> print lp.parse('dog(cyril)').free()
     set([])
@@ -980,28 +1002,144 @@ written in abbreviated form, as illustrated in the second case below.
     (dog(cyril) & own(angus,cyril))
 
 
+
+Alphabetic Variants
+-------------------
+
+When carrying out |beta|-reduction, some care has to be taken with
+variables. Consider, for example, the |lambda| terms alpha1a_ and
+alpha1b_, which differ only in the identity of a free variable.
+
+.. _alpha1:
+.. ex::
+
+   .. _alpha1a:
+   .. ex:: |lambda|\ `y.`:mathit:\ `see(y, x)`:mathit:
+
+   .. _alpha1b:
+   .. ex:: |lambda|\ `y.`:mathit:\ `see(y, z)`:mathit:
+
+Suppose now that we apply the |lambda|-term |lambda|\ `P.`:mathit:\
+|exists|\ `x.`:mathit:\ `P(x)`:mathit: to each of these terms:
+
+.. _alpha2:
+.. ex::
+
+   .. _alpha2a:
+   .. ex:: |lambda|\ `P.`:mathit:\ |exists|\ `x.`:mathit:\ `P(x)`:mathit:
+           (|lambda|\ `y.`:mathit:\ `see(y, x)`:mathit:\ )
+
+   .. _alpha2b:
+   .. ex:: |lambda|\ `P.`:mathit:\ |exists|\ `x.`:mathit:\ `P(x)`:mathit:
+           (|lambda|\ `y.`:mathit:\ `see(y, z)`:mathit:\ )
+
+
+In principle, the results of the application should be semantically
+equivalent.
+But if we let the free variable `x`:mathit: in alpha1a_ be 'captured' by the
+existential quantifier in alpha2a_, then after reduction, the results
+will be different:
+
+
+.. _alpha3:
+.. ex::
+
+   .. _alpha3a:
+   .. ex:: |exists|\ `x.`:mathit:\ `see(x, x)`:mathit:
+
+   .. _alpha3b:
+   .. ex:: |exists|\ `x.`:mathit:\ `see(x, z)`:mathit:
+
+alpha3a_ means there is some `x`:mathit: that sees him/herself, whereas
+alpha3b_ means that there is some `x`:mathit: that sees an unspecified
+individual `z`:mathit:. What has gone wrong here? Clearly, we want to
+forbid the kind of variable capture shown in alpha3a_, and it seems
+that we have been too literal about the label of the particular
+variable bound by the existential quantifier in the functor expression
+of alpha2a_.
+In fact, given any variable-binding expression (involving |forall|,
+|exists| or |lambda|), the particular name chosen for the bound
+variable is completely arbitrary. For example, alpha4a_ and alpha4b_
+are equivalent; they are called |alpha|
+`equivalents`:dt: (or `alphabetic variants`:dt:).
+
+.. _alpha4:
+.. ex::
+
+   .. _alpha4a:
+   .. ex::  |exists|\ `x.`:mathit:\ `P(x)`:mathit:
+
+   .. _alpha4b:
+   .. ex::  |exists|\ `y.`:mathit:\ `P(y)`:mathit:
+
+
+The process of relabeling bound variables (which takes us from
+alpha4a_ to alpha4b_) is known as |alpha|-`conversion`:dt:. When we
+test for equality of ``VariableBinderExpression``\s in the ``logic``
+module (i.e., using ``==``), we are in fact testing for
+|alpha|-equivalence:
+
+     >>> e1 = lp.parse('exists x.P(x)')
+     >>> print e1
+     exists x.P(x)
+     >>> e2 = e1.alpha_convert(nltk.sem.Variable('z'))
+     >>> print e2
+     exists z.P(z)
+     >>> e1 == e2
+     True
+
+|nopar| When |beta|-reduction is carried out on an application
+`f(a)`:mathit:, we check whether there are free variables in `a`:mathit:
+which also occur as bound variables in any subterms of
+`f`:mathit:. Suppose, as in the example discussed above, that
+`x`:mathit: is free in `a`:mathit:, and that `f`:mathit: contains the
+subterm |exists|\ `x.`:mathit:\ `P(x)`:mathit:. In this case, we
+produce an alphabetic variant of |exists|\ `x.`:mathit:\
+`P(x)`:mathit:, 
+say, |exists|\ `z.`:mathit:\ `P(z)`:mathit:, and then
+carry on with the reduction. This relabeling is carried out
+automatically by the |beta|\ -reduction code in ``logic``, and the
+results can be seen in the following example.
+
+     >>> e3 = lp.parse('\P.exists x.P(x)(\y.see(y, x))')
+     >>> print e3
+     (\P.exists x.P(x))(\y.see(y,x))
+     >>> print e3.simplify()
+     exists z1.see(z1,x)
+
+Summary
+-------
+
 We'll take this opportunity to restate our earlier syntactic rules for
 propositional logic and add the formation rules for quantifiers. In
-addition, we make explicit the types of the expressions involved.
+addition, we make explicit the types of the expressions
+involved. We'll adopt the convention that 
+|langle|\ `e`:mathit:\ :sup:`n`, `t`:mathit:\ |rangle| 
+is the type of a predicate which combines with `n`:mathit: arguments
+of type `e`:mathit: to yield an expression
+of type `t`:mathit:. In this case, we say that `n`:mathit: is the
+`arity`:dt: of the predicate.
 
-   1. If `P`:math: is a predicate of type <e\ :sup:`n`, t>, and |tau|\ :sub:`1`,
-      ... |tau|\ :sub:`n` are terms of type e, then `P`:math:\ (|tau|\ :sub:`1`,
-      ... |tau|\ :sub:`n`) is of type t.
+   1. If `P`:math: is a predicate of type |langle|\ `e`:mathit:\ :sup:`n`,
+      `t`:mathit:\ |rangle|, and `t`:mathit:\ :sub:`1`,
+      ... `t`:mathit:\ :sub:`n` are terms of type `e`:mathit:, then
+      `P`:math:\ (`t`:mathit:\ :sub:`1`, ... `t`:mathit:\ :sub:`n`) is
+      of type `t`:mathit:.
 
-   2. If |phi| is of type t, then so is |neg|\ |phi|.
+   2. If |phi| is of type `t`:mathit:, then so is |neg|\ |phi|.
 
-   3.  If |phi| and |psi| are of type t, then so are
+   3.  If |phi| and |psi| are of type `t`:mathit:, then so are
        (|phi| |wedge| |psi|),
        (|phi| |vee| |psi|),
        (|phi| |rarr| |psi|) and
        (|phi| |iff| |psi|).
 
-   4. If |phi| is of type t, and `x`:math: is a variable of type e, then
+   4. If |phi| is of type `t`:mathit:, and `x`:math: is a variable of type `e`:mathit:, then
       |exists|\ `x.`:math:\ |phi| and  |forall|\ `x.`:math:\ |phi| are of
-      type t.
+      type `t`:mathit:.
 
    5. If |alpha| is of type |tau|, and `x`:math: is a variable of type e, then
-      |lambda|\ `x.`:math:\ |alpha| is of type <e, |tau|>.
+      |lambda|\ `x.`:math:\ |alpha| is of type |langle|\ `e`:mathit:, |tau|\ |rangle|.
 
 Table nltk_logic_ summarizes the logical constants of the ``logic``
 module, and two of the methods of ``Expression``\ s.
@@ -1281,8 +1419,7 @@ every ``u``, |phi| is true with respect to ``g[u/x]``.
    walk(x))'`` and ``'exists x.(boy(x) -> walk(x))'``. Make sure you
    understand why they receive these values.
  
-   
-
+  
 
 Quantifier Scope Ambiguity
 --------------------------
@@ -1327,7 +1464,6 @@ a formal model.
 In order to examine the ambiguity more closely, let's fix our
 valuation as follows:
 
-
     >>> from nltk.sem import parse_valuation
     >>> v2 = """
     ... bruce => b
@@ -1357,9 +1493,9 @@ using the ``satisfiers()`` method of ``Model`` objects.
 
     >>> dom2 = val2.domain
     >>> m2 = nltk.sem.Model(dom2, val2)
-    >>> g = nltk.sem.Assignment(dom2)
+    >>> g2 = nltk.sem.Assignment(dom2)
     >>> fmla4 = lp.parse('(person(x) -> exists y.(person(y) & admire(x, y)))')
-    >>> m2.satisfiers(fmla4, 'x', g)
+    >>> m2.satisfiers(fmla4, 'x', g2)
     set(['m', 'c', 'b', 'e', 'j'])
 
 This shows that ``fmla4`` holds of every individual in the domain.
@@ -1367,7 +1503,7 @@ By contrast, consider the formula ``fmla5`` below; this has no
 satisfiers for the variable ``y``.
 
     >>> fmla5 = lp.parse('(person(y) & all x.(person(x) -> admire(x, y)))')
-    >>> m2.satisfiers(fmla5, 'y', g)
+    >>> m2.satisfiers(fmla5, 'y', g2)
     set([])
     >>> 
 
@@ -1376,7 +1512,7 @@ different open formula, ``fmla6``, we can verify that there is a
 person, namely Bruce, who is admired by both Julia and Bruce.
 
     >>> fmla6 = lp.parse('(person(y) & all x.((x = bruce | x = julia) -> admire(x, y)))')
-    >>> m2.satisfiers(fmla6, 'y', g)
+    >>> m2.satisfiers(fmla6, 'y', g2)
     set(['b'])
 
 .. note:: |TRY|
@@ -1650,10 +1786,11 @@ at. Here's a slightly more complicated example.
 semantic interpretations. The function ``text_interpret()`` is
 intended for batch interpretation of a list of input sentences. It
 builds a dictionary ``d`` where for each sentence ``sent`` in the
-input, ``d[sent]`` is a list (*synrep*, *semrep*) of paired trees and
-semantic representations for ``sent``. The value itself is a list,
-since ``sent`` may be syntactically ambiguous; in the following
-example, however, there is only one parse tree per sentence in the list.
+input, ``d[sent]`` is a list of pairs (*synrep*, *semrep*) consisting
+of trees and semantic representations for ``sent``. The value itself
+is a list, since ``sent`` may be syntactically ambiguous; in the
+following example, however, there is only one parse tree per sentence
+in the list.
 
     >>> sents = ['Irene walks', 'Cyril bites an ankle']
     >>> results  = nltk.sem.text_interpret(sents, 'grammars/sem3.fcfg')
@@ -1674,8 +1811,26 @@ example, however, there is only one parse tree per sentence in the list.
           (Det[num='sg', sem=<\P Q.exists x.(P(x) & Q(x))>] an)
           (Nom[num='sg', sem=<ankle>] (N[num='sg', sem=<ankle>] ankle)))))
 
+We have seen now how to convert English sentences into |LF|\ s, and
+earlier we saw how |LF|\ s could be checked as true or false in a
+model. Putting these two mappings together, we can check the truth
+value of English sentences in a given model. Let's take model ``m`` as
+defined above. The utility ``text_evaluate()`` resembles
+``text_interpret()`` except that we need to pass a model and a
+variable assignment as parameters. The output is a triple  (*synrep*,
+*semrep*, *value*) where *synrep*,
+*semrep* are as before, and *value* is a truth value.
 
+    >>> sent = 'Cyril sees every boy'
+    >>> results = nltk.sem.text_evaluate([sent], 'grammars/sem3.fcfg', m, g)
+    >>> for (syntree, semrel, value) in results[sent]:
+    ...     print semrep
+    ...     print value
+    exists z3.(ankle(z3) & bite(cyril,z3))
+    True
 
+A more extensive example of evaluating English sentences in a model
+can be found in [howto Chat80 REF].
 
 Quantifier Ambiguity Revisited
 ------------------------------
@@ -1763,8 +1918,8 @@ lexical rule for the verb `smiles`:lx: (taken from the grammar
 
 The rule for the proper name `Cyril`:lx: is more complex.
 
-:: 
-
+::
+ 
     NP[sem=[core=<@x>, store=(<bo(\P.P(cyril),@x)>)]] -> 'Cyril'
 
 The ``bo`` predicate has two subparts: the standard (type-raised)
@@ -1780,7 +1935,9 @@ interesting work is done by the `s`:gc: rule.
 ::
 
     VP[sem=?s] -> IV[sem=?s]
-    S[sem=[core=<?vp(?subj)>, store=(?b1+?b2)]] -> NP[sem=[core=?subj, store=?b1]] VP[sem=[core=?vp, store=?b2]]
+
+    S[sem=[core=<?vp(?subj)>, store=(?b1+?b2)]] -> 
+       NP[sem=[core=?subj, store=?b1]] VP[sem=[core=?vp, store=?b2]]
 
 The ``core`` value at the ``S`` node is the result of applying the
 ``VP``\ 's ``core`` value, namely ``\x.smile(x)``, to the subject
@@ -1807,8 +1964,8 @@ storage style ``sem`` value is, after parsing with grammar
 
 ::
 
-    [ core  = <chase(z3,z4)>                                                          ]
-    [ store = (bo(\P.all x.(girl(x) -> P(x)),z3), bo(\P.exists x.(dog(x) & P(x)),z4)) ]
+    core  = <chase(z3,z4)>                                                          
+    store = (bo(\P.all x.(girl(x) -> P(x)),z3), bo(\P.exists x.(dog(x) & P(x)),z4)) 
 
 It should be clearer now why the address variables are an important
 part of the binding operator. Recall that during S-retrieval, we will
@@ -1844,7 +2001,6 @@ Finally we call ``s_retrieve()`` and check the readings.
     Permutation 1
        (\P.all x.(girl(x) -> P(x)))(\z3.chase(z3,z4))
        (\P.exists x.(dog(x) & P(x)))(\z4.all x.(girl(x) -> chase(x,z4)))
-
     Permutation 2
        (\P.exists x.(dog(x) & P(x)))(\z4.chase(z3,z4))
        (\P.all x.(girl(x) -> P(x)))(\z3.exists x.(dog(x) & chase(z3,x)))
@@ -1854,11 +2010,11 @@ Finally we call ``s_retrieve()`` and check the readings.
     exists x.(dog(x) & all z5.(girl(z5) -> chase(z5,x)))
     all x.(girl(x) -> exists z6.(dog(z6) & chase(x,z6)))
 
-|NLTK| carries out implementations of two other approaches to scope
+|NLTK| contains implementations of two other approaches to scope
 ambiguity, namely `hole semantics`:dt: as described in
 [Blackburn2005RIN]_ and `Glue semantics`:dt: as described in
-[Dalrymple]_. We do not have space to discuss these here, but
-documentation can be found at [REFS].
+[Dalrymple:1999:RRB]_. We do not have space to discuss these here, but
+documentation can be found at [howto REFS].
 
 
 ---------------
@@ -1871,7 +2027,7 @@ The library includes a pure Python tableau-based first order theorem prover;
 this is intended to allow students to study 
 tableau methods for theorem proving, and provides an
 opportunity for experimentation.  In addition, |NLTK| provides
-interfaces to two state-of-the-art tools, namely the theorem prover Prover9, 
+interfaces to two third party tools, namely the theorem prover Prover9, 
 and the model builder Mace4  [McCune]_.  
 
 The ``get_prover(G, A)`` method by default calls Prover9, and takes as
@@ -1916,7 +2072,6 @@ modules in |NLTK| have a separate method, ``tp_equals``, for checking
 Discourse Semantics
 -------------------
 
-
 Discourse Representation Theory
 -------------------------------
 
@@ -1944,11 +2099,13 @@ of discourse in terms of a list of `discourse referents`:dt: (the
 things under discussion in the discourse) together with a list of
 `conditions`:dt: on those discourse referents. These look respectively
 like the individual variables and atomic open formulas of
-|FOL|. fig-drs1_ illustrates a |DRS| for the first sentence in drs0_.
+|FOL|. Figure fig-drs1_ illustrates a |DRS| for the first sentence in drs0_.
 
 .. _fig-drs1:
 .. figure:: ../images/drs1.png
-   :scale: 12
+   :scale: 15
+
+   DRS for `Angus owns a dog.`:lx:
 
 When the second sentence of drs0_ is processed, it is interpreted in
 the context of what is already present fig-drs1_. The pronoun `it`:lx:
@@ -1962,11 +2119,14 @@ anaphora resolution shortly.) This processing step gives rise
 to a new condition `u`:mathit: = `y`:mathit:.
 The remaining content contributed by
 the second sentence is also merged with the content of the first, leading
-to fig-drs2_.
+to Figure fig-drs2_.
 
 .. _fig-drs2:
 .. figure:: ../images/drs2.png
-   :scale: 12
+   :scale: 15
+
+   DRS for `Angus owns a dog. It bit Irene.`:lx:
+
 
 As the name 'Discourse Representation Structure' suggests, fig-drs2_
 is a representation of something more than just a single sentence. In
@@ -1984,7 +2144,8 @@ into a linear format. The ``nltk.sem.drt`` module uses
 a ``DRS()`` constructor which takes lists of discourse referents
 and conditions as initialization parameters. 
 
-.. ex::
+::
+
     DRS([x,y],[Angus(x),dog(y),own(x,y)])
 
 The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
@@ -2085,7 +2246,7 @@ general approach is illustrated in the following rule for indefinites
 we have added the parallel rule for indefinites from from
 ``sem3.fcfg``.
 
-:: 
+::
 
     Det[num=sg,sem=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a'
     Det[num=sg,sem=<\P Q. exists x.(P(x) & Q(x))>] -> 'a'
