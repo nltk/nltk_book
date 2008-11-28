@@ -1680,8 +1680,8 @@ example, however, there is only one parse tree per sentence in the list.
 Quantifier Ambiguity Revisited
 ------------------------------
 
-One important limitation of the approach we have presented here is
-that it does not attempt to deal with scope ambiguity. Instead,
+One important limitation of our approach so far is
+that it does not deal with scope ambiguity. Instead,
 quantifier scope ordering directly reflects scope in the parse
 tree. As a result, a sentence like scope1_, repeated here, will always
 be translated as scope12a_, not scope12b_.
@@ -1698,62 +1698,167 @@ be translated as scope12a_, not scope12b_.
    .. _scope12b:
    .. ex:: ``exists y.dog(y) & all x.(girl(x) -> chase(x,y))``
 
+There are numerous approaches to dealing with scope ambiguity, and we
+will look very briefly at one of the simplest. To start with, let's
+briefly consider the structure of scoped formulas. fig-quant-ambig_
+depicts the way in which the two readings of scope11_ differ. 
+
+.. _fig-quant-ambig:
+.. figure:: ../images/quant-ambig.png
+   :scale: 20
+
+Let's consider the lefthand structure first. At the top, we have the
+quantifier corresponding to `every girl`:lx:. The |phi| can be thought
+of as a placeholder for whatever is inside the scope of the
+quantifier. Moving downwards, we see that we can plug in the
+quantifier corresponding to `a dog`:lx: as an instantiation of
+|phi|. This gives a new placeholder |psi|, representing the scope of
+`a dog`:lx:, and into this we can plug the 'core' of the semantics,
+namely the open sentence corresponding to `x`:mathit: `chases`:lx:
+`y`:mathit:. The structure on righthand is identical, except we have
+swapped round the order of the two quantifiers. 
+
+In the approach known as `Cooper storage`:dt:, a semantic
+representation is no longer an expression of |FOL|, but instead a pair
+consisting of a 'core' semantic representation plus a list of `binding
+operators`:dt:. For the moment, think of a binding operator as being
+identical to the semantic representation of a quantified `np`:gc: such
+as sem7univ_ or sem7det_. Following along the lines indicated in
+Figure fig-quant-ambig_, let's assume that we have constructed a
+Cooper-storage style semantic representation of sentence scope11_, and
+let's take our core to be the open formula ``chase(x,y)``. Given a
+list of binding operators corresponding to the two `np`:gc:\ s in
+scope11_, we pick a binding operator off the list, and combine it with
+the core.
+
+::
+
+    \P.exists y.(dog(y) & P(y))(\z2.chase(z1,z2))
+
+Then we take the result, and apply the next binding operator from the
+list to it.
+
+::
+
+   \P.all x.(girl(x) -> P(x))(\z1.exists x.(dog(x) & chase(z1,x)))
+
+Once the list is empty, we have a conventional logical form for the
+sentence. Combining binding operators with the core in this way is
+called `S-Retrieval`:dt:. If we are careful to allow every possible
+order of binding operators (for example, by taking all permutation
+orders of the list), then we will be able to generate every possible
+scope ordering of quantifiers.
+
+The next question to address is how we build up a core+store
+representation compositionally. As before, each phrasal and lexical
+rule in the grammar will have a ``sem`` feature, but now there will be
+embedded features ``core`` and ``store``. To illustrate the machinery,
+we will examine a simpler example, namely `Cyril smiles`:lx:. Here's a
+lexical rule for the verb `smiles`:lx: (taken from the grammar
+``storage.fcfg``) which looks pretty innocuous.
+
+::
+
+    IV[sem=[core=<\x.smile(x)>, store=(/)]] -> 'smiles' 
+
+The rule for the proper name `Cyril`:lx: is more complex.
+
+:: 
+
+    NP[sem=[core=<@x>, store=(<bo(\P.P(cyril),@x)>)]] -> 'Cyril'
+
+The ``bo`` predicate has two subparts: the standard (type-raised)
+representation of a proper name, and the expression ``@x``, which is
+called the `address`:dt: of the binding operator. (We'll explain the
+need for the address variable shortly.) ``@x`` is a
+metavariable, that is, a variable that ranges over individual
+variables of the logic and, as you will see, it also constitutes the
+content of the value of ``core``. The rule for `vp`:gc: just
+percolates up the semantics of the  `iv`:gc:, and most of the
+interesting work is done by the `s`:gc: rule.
+
+::
+
+    VP[sem=?s] -> IV[sem=?s]
+    S[sem=[core=<?vp(?subj)>, store=(?b1+?b2)]] -> NP[sem=[core=?subj, store=?b1]] VP[sem=[core=?vp, store=?b2]]
+
+The ``core`` value at the ``S`` node is the result of applying the
+``VP``\ 's ``core`` value, namely ``\x.smile(x)``, to the subject
+``NP``\ 's value. The latter will not be ``@x``, but rather an
+instantiation of ``@x``, say ``z3``. After |beta|\ -reduction,
+``<?vp(?subj)>`` will be unified with ``<smile(z3)>``. Now, when
+``@x`` is instantiated as part of the parsing process, it will be
+instantiated uniformly. In particular, the occurrence of ``@x`` in the
+subject ``NP``\ 's ``store`` will also be mapped to ``z3``, yielding
+the element ``bo(\P.P(cyril),z3)``. These steps can be seen in
+the following parse tree.
+
+::
+
+    (S[sem=[core=<smile(z3)>, store=(bo(\P.P(cyril),z3))]]
+      (NP[sem=[core=<z3>, store=(bo(\P.P(cyril),z3))]] Cyril)
+      (VP[sem=[core=<\x.smile(x)>, store=()]]
+        (IV[sem=[core=<\x.smile(x)>, store=()]] smiles)))
 
 
+Let's move on to our more complex example, scope11_, and see what the
+storage style ``sem`` value is, after parsing with grammar
+``storage.fcfg``.
 
+::
 
-Hole Semantics
---------------
+    [ core  = <chase(z3,z4)>                                                          ]
+    [ store = (bo(\P.all x.(girl(x) -> P(x)),z3), bo(\P.exists x.(dog(x) & P(x)),z4)) ]
 
-This limitation can be overcome, for example using the hole semantics
-described in [Blackburn2005RIN]_, but discussing the details would take
-us outside the scope of the current chapter.
+It should be clearer now why the address variables are an important
+part of the binding operator. Recall that during S-retrieval, we will
+be taking binding operators off the ``store`` list and applying them
+successively to the core. Suppose we start with ``bo(\P.all x.(girl(x)
+-> P(x)),z3)``, which we want to combine with ``chase(z3,z4)``. The
+quantifier part of binding operator is ``\P.all x.(girl(x) -> P(x))``,
+and to combine this with  ``chase(z3,z4)``, the latter needs to first
+turned into a |lambda|\ -abstract. How do we know which variable to
+abstract over? This is what the address ``z3`` tells us; i.e. that
+`every girl`:lx: has the role of chaser rather than chasee.
 
-Hole Semantics in |NLTK| is handled by the
-``nltk.sem.hole`` module, which uses a context free grammar to
-generate an underspecified logical form.  Since the latter is itself a
-formula of first order logic, we can continue to use the ``sem`` feature
-in the context free grammar:
+The module ``nltk.sem.cooper_storage`` deals with the task of turning
+storage-style semantic representations into standard logical
+forms. First, we construct a ``CooperStore`` instance, and inspect its
+``store`` and ``core``.
 
-.. ex::
-    N[sem=<\x h l.(PRED(l,dog,x) & LEQ(l,h) & HOLE(h) & LABEL(l))>] -> 'dog'
+    >>> from nltk.sem import cooper_storage as cs
+    >>> sentence = 'every girl chases a dog'
+    >>> trees = cs.parse_with_bindops(sentence, grammar='grammars/storage.fcfg')
+    >>> semrep = trees[0].node['sem']
+    >>> cs_semrep = cs.CooperStore(semrep)
+    >>> print cs_semrep.core
+    chase(z3,z4)
+    >>> for bo in cs_semrep.store:
+    ...     print bo
+    bo(\P.all x.(girl(x) -> P(x)),z3)
+    bo(\P.exists x.(dog(x) & P(x)),z4)
 
-The Hole Semantics module uses a standard plugging algorithm to derive the
-sentence's readings from the underspecified LF.
+Finally we call ``s_retrieve()`` and check the readings.
 
-    >>> from nltk.sem import hole
-    >>> readings = hole.main('every girl chases a dog')
-    >>> for r in reading: print r
-    exists z1.(dog(z1) & all z2.(girl(z2) -> chase(z1,z2)))
-    all z2.(girl(z2) -> exists z1.(dog(z1) & chase(z1,z2)))
+    >>> cs_semrep.s_retrieve(trace=True)
+    Permutation 1
+       (\P.all x.(girl(x) -> P(x)))(\z3.chase(z3,z4))
+       (\P.exists x.(dog(x) & P(x)))(\z4.all x.(girl(x) -> chase(x,z4)))
 
+    Permutation 2
+       (\P.exists x.(dog(x) & P(x)))(\z4.chase(z3,z4))
+       (\P.all x.(girl(x) -> P(x)))(\z3.exists x.(dog(x) & chase(z3,x)))
 
-.. TO-DO: rejig to accommodate scope ambiguity
+    >>> for reading in cs_semrep.readings:
+    ...     print reading
+    exists x.(dog(x) & all z5.(girl(z5) -> chase(z5,x)))
+    all x.(girl(x) -> exists z6.(dog(z6) & chase(x,z6)))
 
-Now that we have looked at some slightly more complex constructions, we can
-evaluate them in a model. In the following example, we derive two
-parses for the sentence `every boy chases a girl in Noosa`:lx:, and
-evaluate each of the corresponding semantic representations in the
-model ``model0.py`` which we have imported.
-
-    >>> grammar = nltk.data.load('grammars/sem2.fcfg')
-    >>> val4 = nltk.data.load('grammars/valuation1.val')
-    >>> dom4 = val4.domain
-    >>> m4 = nltk.sem.Model(dom4, val4)
-    >>> g = nltk.sem.Assignment(dom4)
-    >>> sent = 'every boy chases a girl in Noosa'
-    >>> result = nltk.sem.text_evaluate([sent], grammar, m4, g)
-    >>> for (syntree, semrep, value) in result[sent]:
-    ... 	print "'%s' is %s in Model m\n" % (semrep, value)
-    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
-     
-    'all x.(boy(x) -> (exists z2.(girl(z2) & chase(x,z2)) & in(x,noosa)))' is True in Model m
-     
-    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
-     
-    'all x.(boy(x) -> exists z3.((girl(z3) & in(z3,noosa)) & chase(x,z3)))' is False in Model m
-     
-
+|NLTK| carries out implementations of two other approaches to scope
+ambiguity, namely `hole semantics`:dt: as described in
+[Blackburn2005RIN]_ and `Glue semantics`:dt: as described in
+[Dalrymple]_. We do not have space to discuss these here, but
+documentation can be found at [REFS].
 
 
 ---------------
