@@ -2,8 +2,7 @@
 
 .. admonition:: About this document...
 
-   This chapter is a draft from
-   *Natural Language Processing* [|NLTK-BOOK|],
+   This chapter is a draft from *Natural Language Processing*,
    by |StevenBird|, |EwanKlein| and |EdwardLoper|,
    Copyright |copy| 2008 the authors.
    It is distributed with the *Natural Language Toolkit* [|NLTK-URL|],

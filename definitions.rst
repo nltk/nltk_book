@@ -185,10 +185,7 @@
   .. |EwanKlein| replace:: `Ewan Klein <http://www.ltg.ed.ac.uk/~ewan/>`__
   .. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
   .. |PYTHON-URL| replace:: `http://python.org/ <http://python.org/>`__
-  .. |NLTK-URL| replace:: `http://nltk.org/ <http://nltk.org/>`__
-  .. |NLTK-BOOK| replace:: `http://nltk.org/book.html <http://nltk.org/book.html>`__
-  .. |NLTK-CODE| replace:: `http://nltk.org/nltk/ <http://nltk.org/nltk/>`__
-  .. |NLTK-API| replace:: `http://nltk.org/doc/api/ <http://nltk.org/doc/api/>`__
+  .. |NLTK-URL| replace:: `http://www.nltk.org/ <http://www.nltk.org/>`__
   
   .. Python example - a snippet of code in running text
   .. role:: py
