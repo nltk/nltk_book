@@ -18,77 +18,74 @@
 8. Grammars and Parsing
 =======================
 
-.. _ch08-introduction:
 
-------------
-Introduction
-------------
+--------------------
+Grammatical Dilemmas
+--------------------
 
-Early experiences with the kind of grammar taught in school are sometimes perplexing.
-Your written work might have been graded by a teacher who red-lined all
-the grammar errors they wouldn't put up with.
-Like the plural pronoun or the dangling preposition in the last sentence,
-or sentences like this one that lack a main verb.
-If you learnt English as a second language, you might have found it difficult
-to discover which of these errors need to be fixed (or *needs* to be fixed?).
-Correct punctuation is an obsession for many writers and editors.
-It is easy to find cases where changing punctuation changes meaning.
-In the following example, the interpretation of a relative clause as
-restrictive or non-restrictive depends on the presence of commas alone:
+A well-known example of ambiguity is shown in elephant_  
+(from Groucho Marx, Animal Crackers, 1930):
 
+.. _elephant:
 .. ex::
-  .. _rest:
-  .. ex:: The presidential candidate, who was extremely popular,
-          smiled broadly.
-  .. _nonrest:
-  .. ex:: The presidential candidate who was extremely popular smiled broadly.
 
-In rest_, we assume there is just one presidential candidate, and say
-two things about her: that she was popular and that she smiled. In
-nonrest_, on the other hand, we use the description `who was extremely
-popular`:lx: as a means of identifying which of several possible
-candidates we are referring to. 
+   While hunting in Africa, I shot an elephant in my pajamas.
+   How an elephant got into my pajamas I'll never know.
 
-It is clear that some of these rules are important.
-However, others seem to be vestiges of antiquated style.
-Consider the injunction that :lx:`however`
-|mdash| when used to mean *nevertheless* |mdash|
-must not appear at the start of a sentence.
-Pullum argues that Strunk and White [StrunkWhite1999]_ were
-merely insisting that English usage should conform to "an utterly
-unimportant minor statistical detail of style concerning adverb
-placement in the literature they knew" [Pullum2005However]_.
-This is a case where, a `descriptive`:em: observation about language use became
-a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
-and use grammar to formalize observations about language as it is used,
-particularly as it is used in corpora.
+Let's take a closer look at the ambiguity in the phrase:
+`I shot an elephant in my pajamas`:lx:.  First we
+need to define a simple grammar:
 
-In this chapter we present the fundamentals of syntax, focusing on constituency
-and tree representations, before describing the formal notation of context free
-grammar.  Next we present parsers as an automatic way to associate syntactic
-structures with sentences.  Finally, we give a detailed presentation of simple
-top-down and bottom-up parsing algorithms available in |NLTK|.
-Before launching into the theory we present some more naive observations about
-grammar, for the benefit of readers who do not have a background in linguistics.
+    >>> grammar = nltk.parse_cfg("""
+    ... S -> NP VP
+    ... PP -> P NP
+    ... NP -> Det N | Det N PP | 'I'
+    ... VP -> V NP | VP PP
+    ... Det -> 'an' | 'my'
+    ... N -> 'elephant' | 'pajamas'
+    ... V -> 'shot' 
+    ... P -> 'in' 
+    ... """)
 
-.. _sec-more-observations-about-grammar:
+This grammar permits the sentence to be analyzed in two ways,
+depending on whether the prepositional phrase `in my pajamas`:lx:
+describes the elephant or the shooting event.
 
--------------------------------
-More Observations about Grammar
--------------------------------
+    >>> sent = ['I', 'shot', 'an', 'elephant', 'in', 'my', 'pajamas']
+    >>> parser = nltk.ChartParser(grammar) 
+    >>> trees = parser.nbest_parse(sent) 
+    (S
+      (NP I)
+      (VP
+        (V shot)
+        (NP (Det an) (N elephant) (PP (P in) (NP (Det my) (N pajamas))))))
+    (S
+      (NP I)
+      (VP
+        (VP (V shot) (NP (Det an) (N elephant)))
+        (PP (P in) (NP (Det my) (N pajamas)))))
 
-Another function of a grammar is to explain our observations
-about ambiguous sentences.  Even when the individual words are
-unambiguous, we can put them together to create ambiguous sentences,
-as in ambiguous_.
+The program produces two bracketed structures, which we can depict as
+trees, as shown in elephant_:
 
-.. _ambiguous:
+.. _elephant:
 .. ex::
-  .. ex:: Fighting animals could be dangerous.
-  .. ex:: Visiting relatives can be tiresome.
 
-A grammar will be able to assign two structures to each sentence,
-accounting for the two possible interpretations.
+  .. ex::
+    .. tree:: (S (NP I) (VP (V shot)  (NP (Det an) (N elephant) (PP (P in) (NP (Det my) (N pajamas)))))) 
+
+  .. ex::
+    .. tree:: (S (NP I) (VP (VP (V shot) (NP (Det an) (N elephant))) (PP (P in) (NP (Det my) (N pajamas))))) 
+
+Notice that there's no ambiguity concerning the meaning of any of the words.
+E.g. the word `shot`:lx: doesn't refer to the act of using a gun in the first sentence,
+and using a camera in the second sentence.
+
+.. note:: |TRY|
+   Consider the following sentences and see if you can think of two quite different
+   interpretations: `Fighting animals could be dangerous.`:lx:
+   `Visiting relatives can be tiresome.`:lx:.  Is ambiguity of the individual
+   words to blame?  If not, what is the cause of the ambiguity?
 
 Perhaps another kind of syntactic variation, word order, is easier to
 understand.  We know that the two sentences `Kim likes Sandy`:lx: and
@@ -157,8 +154,55 @@ questions about "what happened" or "who did what to whom."  Also as
 before, we will develop simple programs to process annotated corpora
 and perform useful tasks.
 
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
+More Dilemmas
+-------------
+
+Early experiences with the kind of grammar taught in school are sometimes perplexing.
+Your written work might have been graded by a teacher who red-lined all
+the grammar errors they wouldn't put up with.
+Like the plural pronoun or the dangling preposition in the last sentence,
+or sentences like this one that lack a main verb.
+If you learnt English as a second language, you might have found it difficult
+to discover which of these errors need to be fixed (or *needs* to be fixed?).
+Correct punctuation is an obsession for many writers and editors.
+It is easy to find cases where changing punctuation changes meaning.
+In the following example, the interpretation of a relative clause as
+restrictive or non-restrictive depends on the presence of commas alone:
+
+.. ex::
+  .. _rest:
+  .. ex:: The presidential candidate, who was extremely popular,
+          smiled broadly.
+  .. _nonrest:
+  .. ex:: The presidential candidate who was extremely popular smiled broadly.
+
+In rest_, we assume there is just one presidential candidate, and say
+two things about her: that she was popular and that she smiled. In
+nonrest_, on the other hand, we use the description `who was extremely
+popular`:lx: as a means of identifying which of several possible
+candidates we are referring to. 
+
+It is clear that some of these rules are important.
+However, others seem to be vestiges of antiquated style.
+Consider the injunction that :lx:`however`
+|mdash| when used to mean *nevertheless* |mdash|
+must not appear at the start of a sentence.
+Pullum argues that Strunk and White [StrunkWhite1999]_ were
+merely insisting that English usage should conform to "an utterly
+unimportant minor statistical detail of style concerning adverb
+placement in the literature they knew" [Pullum2005However]_.
+This is a case where, a `descriptive`:em: observation about language use became
+a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
+and use grammar to formalize observations about language as it is used,
+particularly as it is used in corpora.
+
+In this chapter we present the fundamentals of syntax, focusing on constituency
+and tree representations, before describing the formal notation of context free
+grammar.  Next we present parsers as an automatic way to associate syntactic
+structures with sentences.  Finally, we give a detailed presentation of simple
+top-down and bottom-up parsing algorithms available in |NLTK|.
+Before launching into the theory we present some more naive observations about
+grammar, for the benefit of readers who do not have a background in linguistics.
 
 .. _sec-whats-the-use-of-syntax:
 
@@ -268,7 +312,6 @@ of tree structure:
                      <NP the burglar>
                      <PP with a telescope>))
 
-|nopar|
 In burglar_\ a, the `pp`:gc: attaches to the `np`:gc:,
 while in burglar_\ b, the `pp`:gc: attaches to the `vp`:gc:.
 
@@ -1276,41 +1319,6 @@ necessary in order to efficiently arrive at a complete solution.
 This approach to parsing is known as `chart parsing`:dt:, and is the
 focus of this section.
 
-A well-known example of ambiguity is shown in elephant_  
-(from Groucho Marx, Animal Crackers, 1930):
-
-.. _elephant:
-.. ex::
-
-   While hunting in Africa, I shot an elephant in my pajamas.
-   How an elephant got into my pajamas I'll never know.
-
-Let's take a closer look at the ambiguity in the phrase:
-`I shot an elephant in my pajamas`:lx:.  First we
-need to define a simple grammar:
-
-    >>> grammar = nltk.parse_cfg("""
-    ... S -> NP VP
-    ... PP -> P NP
-    ... NP -> Det N | Det N PP | 'I'
-    ... VP -> V NP | VP PP
-    ... Det -> 'an' | 'my'
-    ... N -> 'elephant' | 'pajamas'
-    ... V -> 'shot' 
-    ... P -> 'in' 
-    ... """)
-
-As you can see, this grammar allows the sentence to be analyzed in two ways,
-depending on where the `pp`:gc: is attached.
-
-.. ex::
-
-  .. ex::
-    .. tree:: (S (NP I) (VP (V shot)  (NP (Det an) (N elephant) (PP (P in) (NP (Det my) (N pajamas)))))) 
-
-  .. ex::
-    .. tree:: (S (NP I) (VP (VP (V shot) (NP (Det an) (N elephant))) (PP (P in) (NP (Det my) (N pajamas))))) 
-
 Well-Formed Substring Tables
 ----------------------------
 
@@ -1485,38 +1493,24 @@ matter since the left hand side was the same.)
 Chart parsers use a slighly richer data structure to solve these problems,
 known as the `active chart`:dt:.
 
-
--------------
 Active Charts
 -------------
 
 The same information can be represented in a directed acyclic graph,
-as shown in chartinit_\ (a) for the initialized WFST and
-chartinit_\ (b) for the completed WFST.
+as shown in chartinita_ for the initialized WFST and
+chartinitb_ for the completed WFST.
 
-.. _chartinit:
 .. ex::
-  .. ex:: Initialized WFST
-          |chart_wfst1|
 
-  .. ex:: Completed WFST
-          |chart_wfst2|
+  .. _chartinita:
+  .. ex::
+      .. image:: ../images/chart_wfst1.png
+         :scale: 25
 
-.. |chart_wfst1| image:: ../images/chart_wfst1.png
-   :scale: 25
-
-.. |chart_wfst2| image:: ../images/chart_wfst2.png
-   :scale: 25
-
-
-
-
-.. _chart_fundamental:
-.. figure:: ../images/chart_fundamental.png
-   :scale: 30
-
-   Example of Dotted Edges and the Fundamental Rule
-
+  .. _chartinitb:
+  .. ex::
+     .. image:: ../images/chart_wfst2.png
+        :scale: 25
 
 In general, a chart parser hypothesizes constituents (i.e. adds edges)
 based on the grammar, the tokens, and the constituents already found.
@@ -1525,70 +1519,68 @@ even though many of these hypothetical constituents will never be used in
 the final result.  A |WFST| just records these hypotheses.
 
 All of the edges that we've seen so far represent complete
-constituents.  However, as we will see, it is helpful to hypothesize
-*incomplete* constituents.  For example, the work done by a
-parser in processing the production *VP* |rarr| *V* *NP* *PP*
+constituents.  However, it is helpful to record
+*incomplete* constituents, to document the work
+already done by the parser.  For example, when a
+top-down parser processes *VP* |rarr| *V* *NP* *PP*,
+it may find *V* and *NP* but not the *PP*.  This work
 can be reused when processing *VP* |rarr| *V* *NP*.
 Thus, we will record the
 hypothesis that "the `v`:gc: constituent `likes`:lx: is the beginning of a `vp`:gc:."
 
-We can record such hypotheses by adding a `dot`:dt: to the
-edge's right hand side.  Material to the left of the dot specifies
-what the constituent starts with; and material to the
-right of the dot specifies what still needs to be found in order
-to complete the constituent.  For example, the edge in the
-Figure dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
+We can do this by adding a `dot`:dt: to the edge's right hand side.
+Material to the left of the dot records what has been found so far;
+material to the right of the dot specifies what still needs to be found in order
+to complete the constituent.  For example, the edge in
+dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
 `likes`:lx:, but still needs an `np`:gc: to become complete":
 
 .. _dottededge:
-.. figure:: ../images/chart_intro_dottededge.png
-   :scale: 30
+.. ex::
+   .. image:: ../images/chart_intro_dottededge.png
+      :scale: 30
 
-   Chart Containing Incomplete VP Edge
-
-|nopar| These `dotted edges`:dt: are used to record all of the hypotheses that a
+These `dotted edges`:dt: are used to record all of the hypotheses that a
 chart parser makes about constituents in a sentence.
 
+Types of Edge
+-------------
+
+Let's take stock.
 An edge [`VP`:gc: |rarr| |dot| `V`:gc: `NP`:gc: `PP`:gc:, (*i*, *i*)]
 records the hypothesis that a `VP`:gc: begins at location *i*, and that we anticipate
-finding a sequence `V NP PP`:gc: starting here.  This is known as an
-`incomplete edge`:dt: (also a `self-loop`:dt: edge).
-
+finding a sequence `V NP PP`:gc: starting here.  This is known as a
+`self-loop edge`:dt:; see chart-intro-selfloop_.
 An edge [`VP`:gc: |rarr| `V`:gc: |dot| `NP`:gc: `PP`:gc:, (*i*, *j*)]
 records the fact that we have discovered a `V`:gc: spanning (*i*, *j*),
 and hypothesize a following `NP PP`:gc: sequence to complete a `VP`:gc:
-beginning at *i*.  This is known as an `incomplete edge`:dt:.
-
+beginning at *i*.  This is known as an `incomplete edge`:dt:;
+see chart-intro-incomplete_.
 An edge [`VP`:gc: |rarr| `V`:gc: `NP`:gc: `PP`:gc: |dot| , (*i*, *k*)]
 records the discovery that a `VP`:gc: consisting of the sequence
 `V NP PP`:gc: has been discovered for the span (*i*, *j*).  This is known
-as a `complete edge`:dt:.
-
-If `d = 0`:math:, then `c`:sub:`1` |dots| `c`:sub:`n` is empty
-and the edge is called a `self-loop edge`:dt:.  
-This is illustrated in Table chart_terms_\ (b).
+as a `complete edge`:dt:; see chart-intro-parseedge_.
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
-edge`:dt:, and it encodes one or more parse trees for the sentence.  In
-Table chart_terms_\ (c), [`s`:gc: |rarr| `np`:gc: `vp`:gc: |dot|, (0, 3)] is a parse edge.
+edge`:dt:, and it encodes one or more parse trees for the sentence;
+see chart-intro-parseedge_.
 
-.. table:: chart_terms
+.. ex::
 
-   +--------------------------+-------------------------+-------------------------+
-   | a. Incomplete Edge       | b. Self Loop Edge       | c. Parse Edge           |
-   | |chart_intro_incomplete| | |chart_intro_selfloop|  | |chart_intro_parseedge| |
-   +--------------------------+-------------------------+-------------------------+
+   .. _chart-intro-incomplete:
+   .. ex::
+      .. image:: ../images/chart_intro_incomplete.png
+         :scale: 25
 
-   Chart Terminology
+   .. _chart-intro-selfloop:
+   .. ex::
+      .. image:: ../images/chart_intro_selfloop.png
+         :scale: 25
 
-.. |chart_intro_incomplete| image:: ../images/chart_intro_incomplete.png
-   :scale: 25
-
-.. |chart_intro_selfloop| image:: ../images/chart_intro_selfloop.png
-   :scale: 25
-
-.. |chart_intro_parseedge| image:: ../images/chart_intro_parseedge.png
-   :scale: 25
+   .. _chart-intro-parseedge:
+   .. ex::
+      .. image:: ../images/chart_intro_parseedge.png
+         :scale: 25
 
 The Chart Parser
 ----------------
@@ -1599,15 +1591,17 @@ knowledge about the sentence, and adds them to the chart one at a time
 until one or more parse edges are found.  The edges that it adds can
 be licensed in one of three ways:
 
-1. The *input* can license an edge.  In particular, each word `w`:sub:`i`
+i. The *input* can license an edge: each word `w`:sub:`i`
    in the input licenses the complete edge [`w`:sub:`i` |rarr|
    |dot|, (*i*, *i*\ +1)].
 
-#. The *grammar* can license an edge.  In particular, each grammar
+#. The *grammar* can license an edge: each grammar
    production A |rarr| |alpha| licenses the self-loop edge [*A* |rarr|
    |dot| |alpha|, (*i*, *i*)] for every *i*, 0 |leq| *i* < *n*.
 
-#. The *current chart contents* can license an edge.
+#. The *current chart contents* can license an edge:
+   a suitable pair of existing edges triggers the addition
+   of a new edge. 
 
 Chart parsers use a set of `rules`:dt: to heuristically decide
 when an edge should be added to a chart.  This set of rules, along
@@ -1618,14 +1612,14 @@ The Fundamental Rule
 --------------------
 
 One rule is particularly important, since it is used by every chart
-parser: the `Fundamental Rule`:dt:. 
-This rule is used to combine an
+parser: the `Fundamental Rule`:dt:.  This rule is used to combine an
 incomplete edge that's expecting a nonterminal *B* with a following, complete
-edge whose left hand side is *B*.
+edge whose left hand side is *B*.  The rule is given in fundamental-rule_
+and illustrated in chart-fundamental_.
 
-.. _fundamental-rule:
 .. ex::
-   `Fundamental Rule`:dt:
+  .. _fundamental-rule:
+  .. ex:: `Fundamental Rule`:dt:
 
    .. parsed-literal::
 
@@ -1637,38 +1631,22 @@ edge whose left hand side is *B*.
     where |alpha|, |beta|, and |gamma| are (possibly empty) sequences
     of terminals or non-terminals
 
-Note that the dot has moved one place to the right, and the span of this new edge is the combined
-span of the other two.  Note also that in adding this new edge we do not remove the other two,
+  .. _chart-fundamental:
+  .. ex::
+    .. image:: ../images/chart_fundamental.png
+       :scale: 30
+
+In the new edge, the dot has moved one place to the right.
+Its span is the combined span of the original edges.
+Note that in adding this new edge we do not remove the other two,
 because they might be used again.
-
-A somewhat more intuitive version of the operation of the Fundamental
-Rule can be given using chart diagrams. Thus, if we have a chart of
-the form shown in Table fr_\ (a),
-then we can add a new complete edge as shown in Table fr_\ (b).
-
-.. table:: fr
-
-   +-------------------------------+-------------------------------+
-   | a. Input                      | b. Output                     |
-   | |chart_fr1|                   | |chart_fr2|                   |
-   +-------------------------------+-------------------------------+
-
-   Fundamental Rule
-
-.. |chart_fr1| image:: ../images/chart_fr1.png
-   :scale: 30
-
-.. |chart_fr2| image:: ../images/chart_fr2.png
-   :scale: 30
-
-.. [#] The Fundamental Rule corresponds to the Completer
-   function in the Earley algorithm; cf. [JurafskyMartin2008]_.
 
 Bottom-Up Parsing
 -----------------
 
-As we saw in Chapter chap-parse_, bottom-up parsing starts from the
-input string, and tries to find sequences of words and phrases that
+As we saw with the shift-reduce parser in sec-parsing_,
+bottom-up parsing starts from the input string,
+and tries to find sequences of words and phrases that
 correspond to the *right hand* side of a grammar production. The
 parser then replaces these with the left-hand side of the production,
 until the whole sentence is reduced to an `S`:gc:.  Bottom-up chart
