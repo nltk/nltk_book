@@ -299,7 +299,7 @@ What are the most common verbs in news text?  Let's sort all the verbs by freque
     ['is/V', 'said/VD', 'was/VD', 'are/V', 'be/V', 'has/V', 'have/V', 'says/V',
     'were/VD', 'had/VD', 'been/VN', "'s/V", 'do/V', 'say/V', 'make/V', 'did/VD',
     'rose/VD', 'does/V', 'expected/VN', 'buy/V', 'take/V', 'get/V', 'sell/V',
-    'help/V', 'added/VD', 'including/VG', 'according/VG', 'made/VN', 'pay/V']
+    'help/V', 'added/VD', 'including/VG', 'according/VG', 'made/VN', 'pay/V', ...]
 
 .. note::
    We found the relevant part-of-speech tags using ``tag.startswith('V')``.  We could
@@ -336,7 +336,7 @@ To clarify the distinction between ``VD`` (past tense) and ``VN``
     >>> wsj[idx1-4:idx1+1]
     [('While', 'P'), ('program', 'N'), ('trades', 'N'), ('swiftly', 'ADV'), ('kicked', 'VD')]
     >>> idx2 = wsj.index(('kicked', 'VN'))
-    >>> wsj[idx2-4:idx2+2]
+    >>> wsj[idx2-4:idx2+1]
     [('head', 'N'), ('of', 'P'), ('state', 'N'), ('has', 'V'), ('kicked', 'VN')]
 
 In this case, we see that the past participle of `kicked`:lx: is preceded by a form of
@@ -436,14 +436,14 @@ nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
    :caption: Program to Find the Most Frequent Noun Tags
 
     def findtags(tag_prefix, tagged_text):
-        cfd = nltk.ConditionalFreqDist((word, tag) for (word, tag) in tagged_text
+        cfd = nltk.ConditionalFreqDist((tag, word) for (word, tag) in tagged_text
                                       if tag.startswith(tag_prefix))
         return dict((tag, cfd[tag].keys()[:5]) for tag in cfd.conditions())
 
     >>> tagdict = findtags('NN', nltk.corpus.brown.tagged_words(categories='news'))
     >>> for tag in sorted(tagdict):
     ...     print tag, tagdict[tag]
-   
+    ...
     NN ['year', 'time', 'state', 'week', 'man']
     NN$ ["year's", "world's", "state's", "nation's", "company's"]
     NN$-HL ["Golf's", "Navy's"]
@@ -476,19 +476,20 @@ but exploiting the tags...
 Suppose we're studying the word `often`:lx: and want to see how it is used
 in text.  We could ask to see the following words:
 
-    >>> brown_news_text = brown.tagged_words(categories='news', simplify_tags=True)
-    >>> word_pairs = nltk.bigrams(brown_news_text)
-    >>> list(nltk.FreqDist(b for (a, b) in word_pairs if a == 'often'))
-    ['a', 'ambiguous', 'needs', 'mar', 'that', 'did', 'acceptable', ',', '.',
-    'enough', 'hear', 'build', 'in', 'obstructed']
+    >>> brown_learned_text = brown.words(categories='learned')
+    >>> sorted(set(b for (a, b) in nltk.ibigrams(brown_learned_text) if a == 'often'))
+    [',', '.', 'accomplished', 'analytically', 'appear', 'apt', 'associated', 'assuming',
+    'became', 'become', 'been', 'began', 'call', 'called', 'carefully', 'chose', ...]
 
 However, its probably more instructive to look at the part-of-speech tag of the following
 words:
 
-    >>> brown_news_tagged = brown.tagged_words(categories='news', simplify_tags=True)
-    >>> word_tag_pairs = nltk.bigrams(tagged_text)
-    >>> list(nltk.FreqDist(b[1] for (a, b) in word_tag_pairs if a[0] == 'often'))
-    ['V', 'ADJ', 'DET', 'VD', ',', '.', 'P', 'VBZ', 'CNJ']
+    >>> brown_learned_tagged = brown.tagged_words(categories='learned', simplify_tags=True)
+    >>> tags = [b[1] for (a, b) in nltk.ibigrams(tagged_text) if a[0] == 'often']
+    >>> list(nltk.FreqDist(tags))
+    ['VN', 'V', 'VD', 'DET', 'ADJ', 'ADV', 'P', 'CNJ', ',', 'TO', 'VG', 'WH', 'VBZ', '.']
+
+Thus, `often`:lx: is typically followed by verbs, and never followed by nouns.
 
 .. _sec-dictionaries:
 
@@ -620,7 +621,7 @@ in the dictionary.  We can also use the ``for`` loop in another way,
 just we did for printing lists:
 
     >>> for word in sorted(pos):
-    ...     print word ":", pos[word]
+    ...     print word + ":", pos[word]
     ... 
     colorless: ADJ
     furiously: ADV
@@ -726,8 +727,8 @@ seen it before we increment its count using the ``+=`` operator.
     ...
     >>> counts['N']
     22226
-    >>> list(counts)[:40]
-    ['FW', 'DET', 'WH', 'VBZ', 'ADJ', 'PRO', '-', 'TO', 'NUM', 'NP', ':', 'ADV', ...]
+    >>> list(counts)
+    ['FW', 'DET', 'WH', "''", 'VBZ', 'VB+PPO', "'", ')', 'ADJ', 'PRO', '*', '-', ...]
     
     >>> from operator import itemgetter
     >>> sorted(counts.items(), key=itemgetter(1), reverse=True)

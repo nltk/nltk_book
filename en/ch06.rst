@@ -126,7 +126,7 @@ as required when producing a list of ranked items.
 Its sometimes tempting to use loop variables to store a maximum or minimum value
 seen so far.  Let's use this method to find the longest word in a text.
 
-    >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt'):
+    >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt')
     >>> longest = ''
     >>> for word in text:
     ...     if len(word) > len(longest):
@@ -967,7 +967,7 @@ as parameters to another function:
     >>> sent = ['Take', 'care', 'of', 'the', 'sense', ',', 'and', 'the',
     ...         'sounds', 'will', 'take', 'care', 'of', 'themselves', '.']
     >>> def extract_property(prop):
-    ...     return [prop(word) for word in words]
+    ...     return [prop(word) for word in sent]
     ...
     >>> extract_property(len)
     [4, 4, 2, 3, 5, 1, 3, 3, 6, 4, 4, 4, 2, 10, 1]
@@ -1033,7 +1033,8 @@ Another helpful function, which like ``filter()`` applies a function
 to a sequence, is ``map()``.  Here is a simple
 way to find the average length of a sentence in a section of the Brown Corpus:
 
-    >>> average(map(len, nltk.corpus.brown.sents(categories='news')))
+    >>> lengths = map(len, nltk.corpus.brown.sents(categories='news'))
+    >>> sum(lengths) / float(len(lengths))
     21.7508111616
 
 Instead of ``len()``, we could have passed in any other function we liked:
@@ -1075,9 +1076,8 @@ at least ``min_len`` characters long:
     ...     tokens = nltk.wordpunct_tokenize(text)
     ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
     ...     return freqdist.keys()[:num]
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words',
-    'very', 'using']
+    >>> freq_words('ch01.rst', 4, 10)
+    ['words', 'that', 'text', 'word', 'Python', 'with', 'this', 'have', 'language', 'from']
 
 This function has three arguments.  It follows the convention of listing the most
 basic and substantial argument first (the file).  However, it might be hard to remember
@@ -1092,25 +1092,17 @@ list with an equals sign and a default value:
     ...     return freqdist.keys()[:num]
 
 Now there are several equivalent ways to call this function:
-
-    >>> freq_words('programming.txt', 4, 10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', min=4, num=10)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', num=10, min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+``freq_words('ch01.rst', 4, 10)``, 
+``freq_words('ch01.rst', min=4, num=10)``,
+``freq_words('ch01.rst', num=10, min=4)``.
 
 When we use an integrated development environment such as IDLE,
 simply typing the name of a function at the command prompt will
 list the arguments.  Using named arguments helps someone to re-use the code...
 
 A side-effect of having named arguments is that they permit optionality.  Thus we
-can leave out any arguments where we are happy with the default value.
-
-    >>> freq_words('programming.txt', min=4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
-    >>> freq_words('programming.txt', 4)
-    ['string', 'word', 'that', 'this', 'phrase', 'Python', 'list', 'words', 'very', 'using']
+can leave out any arguments where we are happy with the default value:
+``freq_words('ch01.rst', min=4)``, ``freq_words('ch01.rst', 4)``.
 
 Another common use of optional arguments is to permit a flag, e.g.:
 
@@ -1502,9 +1494,13 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
        pylab.title('Frequency of Six Modal Verbs by Genre')
        pylab.show()
 
-   >>> genres = ['a', 'd', 'e', 'h', 'n']
-   >>> cfdist = count_words_by_tag('MD', genres)
+   >>> genres = ['news', 'religion', 'hobbies', 'government', 'adventure']
    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+   >>> cfdist = nltk.ConditionalFreqDist((g,w)
+   ...                                   for g in genres
+   ...                                   for w in nltk.corpus.brown.words(categories=g)
+   ...                                   if w in modals)
+   ...
    >>> counts = {}
    >>> for genre in genres:
    ...     counts[genre] = [cfdist[genre][word] for word in modals]
@@ -1515,6 +1511,17 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
    :scale: 25
 
    Bar Chart Showing Frequency of Modals in Different Sections of Brown Corpus
+
+
+    
+def count_words_by_tag(t, genres):
+    cfdist = nltk.ConditionalFreqDist()
+    for genre in genres:
+        for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
+            if tag == t:
+                 cfdist[genre].inc(word.lower())
+    return cfdist
+    
 
 From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
 almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
