@@ -52,6 +52,7 @@ in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
 
     >>> text = nltk.Text(word.lower() for word in nltk.corpus.brown.words())
     >>> text.similar('woman')
+    Building word-context index...
     man number fact end time world use kind state matter house result way
     group part day rest sense couple be
     >>> text.similar('bought')
@@ -314,7 +315,7 @@ condition-event pairs.  This lets us see a frequency-ordered list of tags given 
 
     >>> cfd1 = nltk.ConditionalFreqDist(wsj)
     >>> cfd1['yield'].keys()
-    ['N', 'V']
+    ['V', 'N']
     >>> cfd1['cut'].keys()
     ['V', 'VD', 'N', 'VN']
 
@@ -425,12 +426,14 @@ each of these into a tuple (using ``str2tuple()``).
 Unsimplified Tags
 -----------------
 
-Let's find the most frequent nouns of each noun
-part-of-speech type.  The program in Figure findtags_ finds all
-tags starting with `NN`:gc:, and provides a few example words for each
-one.  Observe that there are many noun tags; the most important
-of these have ``$`` for possessive nouns, `S`:gc: for plural nouns (since plural
-nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
+Let's find the most frequent nouns of each noun part-of-speech type.
+The program in Figure findtags_ finds all tags starting with ``NN``,
+and provides a few example words for each one.  You will see that
+there are many variants of ``NN``; the most important contain ``$``
+for possessive nouns, ``S`` for plural nouns (since plural nouns
+typically end in `s`:lx:) and ``P`` for proper nouns.  In addition,
+most of the tags have suffix modifiers: ``-NC`` for citations, ``-HL``
+for words in headlines and ``-TL`` for titles.
 
 .. pylisting:: findtags
    :caption: Program to Find the Most Frequent Noun Tags
@@ -460,10 +463,6 @@ nouns typically end in `s`:lx:), `P`:gc: for proper nouns.
     NNS-TL ['States', 'Nations', 'Masters', 'Rules', 'Communists']
     NNS-TL-HL ['Nations']
 
-Some tags contain a plus sign; these are compound tags, and are
-assigned to words that contain two parts normally treated separately.
-Some tags contain a minus sign; this indicates disjunction.
-
 When we come to constructing part-of-speech taggers later in this chapter,
 we will use the unsimplified tags.
 
@@ -474,18 +473,19 @@ We can continue the kinds of exploration of corpora we saw in previous chapters,
 but exploiting the tags...
 
 Suppose we're studying the word `often`:lx: and want to see how it is used
-in text.  We could ask to see the following words:
+in text.  We could ask to see the following words using the
+``words()`` method:
 
     >>> brown_learned_text = brown.words(categories='learned')
     >>> sorted(set(b for (a, b) in nltk.ibigrams(brown_learned_text) if a == 'often'))
     [',', '.', 'accomplished', 'analytically', 'appear', 'apt', 'associated', 'assuming',
     'became', 'become', 'been', 'began', 'call', 'called', 'carefully', 'chose', ...]
 
-However, its probably more instructive to look at the part-of-speech tag of the following
-words:
+However, it's probably more instructive use the ``tagged_words()``
+method to look at the part-of-speech tag of the following words:
 
     >>> brown_learned_tagged = brown.tagged_words(categories='learned', simplify_tags=True)
-    >>> tags = [b[1] for (a, b) in nltk.ibigrams(tagged_text) if a[0] == 'often']
+    >>> tags = [b[1] for (a, b) in nltk.ibigrams(brown_learned_tagged) if a[0] == 'often']
     >>> list(nltk.FreqDist(tags))
     ['VN', 'V', 'VD', 'DET', 'ADJ', 'ADV', 'P', 'CNJ', ',', 'TO', 'VG', 'WH', 'VBZ', '.']
 
@@ -571,7 +571,8 @@ Python provides a `dictionary`:dt: data type that can be used for
 mapping between arbitrary types.  It is like a conventional dictionary,
 in that it gives you an efficient way to look things up.  However,
 as we see from Table linguistic-objects_, it has a much wider range of uses.
-Here we define ``pos`` to be an empty dictionary and then add four
+
+To illustrate, we define ``pos`` to be an empty dictionary and then add four
 entries to it, specifying the part-of-speech of some words.  We add
 entries to a dictionary using the familiar square bracket notation:
 
@@ -583,24 +584,42 @@ entries to a dictionary using the familiar square bracket notation:
 
 So, for example, ``pos['colorless'] = 'ADJ'`` says that
 the part-of-speech of `colorless`:lx: is adjective, or more
-specifically, that the look-up value of the key ``'colorless'`` in ``pos``
-is the value ``'ADJ'``.  Now we can look up our dictionary
-using these keys:
+specifically, that the `key`:dt: ``'colorless'``
+is assigned the `value`:dt: ``'ADJ'``  in dictionary ``pos``.  Once we
+have populated the dictionary 
+in this way, we can employ the keys to retrieve values:
 
     >>> pos['ideas']
     'N'
     >>> pos['colorless']
     'ADJ'
-    >>> pos['missing']
+
+Of course, we might accidentally use a key that hasn't been assigned a value.
+
+    >>> pos['green']
     Traceback (most recent call last):
       File "<stdin>", line 1, in ?
-    KeyError: 'missing'
+    KeyError: 'green'
 
 This raises an important question.  Unlike lists and strings, where we
-can use ``len()`` to work out which integers will be legal indices, how
-do we work out the legal keys for a dictionary?  We simply convert the
-dictionary to a list, or use the dictionary in a context where a list
-is expected:
+can use ``len()`` to work out which integers will be legal indices,
+how do we work out the legal keys for a dictionary? If the dictionary
+is not too big, we can simply inspect its contents by evaluating the
+variable ``pos``.
+
+    >>> pos
+    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
+
+Here, the contents of the dictionary are shown as `key-value
+pairs`:dt:, separated by a colon.  The order of the
+key-value pairs is different from the order in which they were
+originally entered;  this is because dictionaries are not sequences
+but mappings (cf. Figure fig-maps02_), and the keys are not inherently
+ordered.  
+
+Alternatively, to just find the keys, we can convert the
+dictionary to a list |mdash| or use the dictionary in a context where
+a list is expected, such as a ``for`` loop:
 
     >>> list(pos)
     ['ideas', 'furiously', 'colorless', 'sleep']
@@ -611,14 +630,12 @@ is expected:
 
 .. note::
    When you type `list(pos)` you might see a different order
-   to the one shown above.  This is because
-   dictionaries are not sequences but mappings (cf Figure fig-maps02_),
-   and the keys are not inherently ordered.  If you want
+   to the one shown above.   If you want
    to see the keys in order, just sort them.
 
-The last example above used a ``for`` loop to iterate over all keys
-in the dictionary.  We can also use the ``for`` loop in another way,
-just we did for printing lists:
+As well as iterating over all keys
+in the dictionary with  a ``for`` loop,  we can use the ``for`` loop
+as we did for printing lists:
 
     >>> for word in sorted(pos):
     ...     print word + ":", pos[word]
@@ -628,22 +645,13 @@ just we did for printing lists:
     sleep: V
     ideas: N
 
-We can see what the contents of the dictionary look like by inspecting
-the variable ``pos``.
+..
+    We can use the same key-value pair format to create a dictionary:
 
-    >>> pos
-    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
+	>>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
 
-Here, the contents of the dictionary are shown as `key-value pairs`:dt:,
-separated by a colon.  As you can see,  the order of the key-value pairs
-is different from the order in which they were originally entered.
-
-We can use the same key-value pair format to create a dictionary:
-
-    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
-
-Using the dictionary methods ``keys()``, ``values()`` and ``items()``,
-we can access the keys, values, and key-value pairs as separate lists:
+Finally, the dictionary methods ``keys()``, ``values()`` and
+``items()`` allow us to access the keys, values, and key-value pairs as separate lists:
 
     >>> pos.keys()
     ['colorless', 'furiously', 'sleep', 'ideas']
@@ -652,29 +660,31 @@ we can access the keys, values, and key-value pairs as separate lists:
     >>> pos.items()
     [('colorless', 'ADJ'), ('furiously', 'ADV'), ('sleep', 'V'), ('ideas', 'N')]
     >>> for key, val in sorted(pos.items()):
-    ...     print key ":", val
+    ...     print key + ":", val
     ...
     colorless: ADJ
     furiously: ADV
     ideas: N
     sleep: V
 
-Note that keys are forced to be unique.
-Suppose we try to use a dictionary to store the fact that the
-word `sleep`:lx: can be used as a verb and as a noun:
+We want to be sure that when we look something up in a dictionary, we
+only get one value for each key. Now 
+suppose we try to use a dictionary to store the fact that the
+word `sleep`:lx: can be used as both a verb and a noun:
 
     >>> pos['sleep'] = 'V'
     >>> pos['sleep'] = 'N'
     >>> pos['sleep']
     'N'
 
-Initially, ``pos['sleep']`` is given the value ``'V'``, and this is
+Initially, ``pos['sleep']`` is given the value ``'V'``. But this is
 immediately overwritten with the new value ``'N'``.
-In other words, there is only one entry for ``'sleep'``.
-If we wanted to store multiple values in that entry, we could use a list,
+In other words, there can only be one entry in the dictionary for ``'sleep'``.
+However, there is a way of storing multiple values in
+that entry: we use a list value,
 e.g. ``pos['sleep'] = ['N', 'V']``.  In fact, this is what we
 saw in Section sec-lexical-resources_ for the CMU Pronouncing Dictionary,
-so that we could store multiple pronunciations for a single word.
+which stores multiple pronunciations for a single word.
 
 Default Dictionaries
 --------------------
@@ -683,14 +693,19 @@ Since Python 2.5, a special kind of dictionary has been available, which
 can automatically create a default entry for a given key.  (It is provided
 as ``nltk.defaultdict`` for the benefit of readers who are using Python 2.4).
 In order to use it, we have to supply a parameter which can be used to
-create an empty entry, e.g. ``int``:
+create the right kind of initial entry, e.g. ``int`` or ``list``:
 
     >>> frequency = nltk.defaultdict(int)
     >>> frequency['colorless'] = 4
     >>> frequency['ideas']
     0
+    >>> pos = nltk.defaultdict(list)
+    >>> pos['sleep'] = ['N', 'V']
+    >>> pos['ideas']
+    []
 
-We can supply our own function to be used for creating the initial value.
+If we want to supply our parameter to create a initial value, we have
+to supply it as a function.
 Let's return to our part-of-speech example, and create a dictionary
 whose default value for any entry is ``'N'``.
 
@@ -712,11 +727,12 @@ whose default value for any entry is ``'N'``.
 Incrementally Updating a Dictionary
 ----------------------------------- 
 
-We can use dictionaries to count occurrences, emulating the
-method used for tallying words (Figure fig-tally_).  We begin by initializing
-an empty dictionary, then process each part-of-speech tag in the text.
-If the tag hasn't been seen before, we add it to our list with a zero count.  If we've
-seen it before we increment its count using the ``+=`` operator.
+We can employ dictionaries to count occurrences, emulating the method
+for tallying words shown in Figure fig-tally_, Chapter chap-introduction_.
+We begin by initializing an empty ``defaultdict``, then process each
+part-of-speech tag in the text.  If the tag hasn't been seen before,
+it will have a zero count by default.  Each time we encounter a tag,
+we increment its count using the ``+=`` operator.
 
 .. pylisting:: dictionary
    :caption: Incrementally Updating a Dictionary, and Sorting by Value
@@ -736,8 +752,9 @@ seen it before we increment its count using the ``+=`` operator.
     >>> [t for t,c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
     ['N', 'P', 'DET', 'NP', 'V', 'ADJ', ',', '.', 'CNJ', 'PRO', 'ADV', 'VD', ...]
 
-The listing in Figure dictionary_ illustrates an important idiom for sorting a dictionary in terms of its
-values, to show the words in decreasing order of frequency.  We use the ``sorted()``
+The listing in Figure dictionary_ illustrates an important idiom for
+sorting a dictionary by its
+values, in order to show the words in decreasing order of frequency.  We use the ``sorted()``
 function, with ``key`` and ``reverse`` parameters.  The sort key is the second element of
 each pair, which we would normally access using an index ``[1]``.  We can't use this expression
 on its own (i.e. ``key=[1]``) since ``[1]`` looks like a list containing the integer 1.
