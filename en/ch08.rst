@@ -18,6 +18,22 @@
 8. Grammars and Parsing
 =======================
 
+Earlier chapters focused on words: how to identify them,
+analyze their structure, assign them to lexical categories,
+and access their meanings.
+We have also seen how to identify patterns in word sequences or n-grams.
+Still, there are important patterns that cannot be
+modeled using these methods.
+
+The goal of this chapter is to answer the following questions:
+
+#. How do we represent the structure of sentences using syntax trees?
+#. What is a formal grammar and how can we construct one?
+#. How do parsers analyze a sentence and automatically build a syntax tree?
+
+Along the way, we will cover the fundamentals of English syntax, and
+see that there are systematic aspects of meaning that are much easier
+to capture once we have identified the structure of sentences.
 
 --------------------
 Grammatical Dilemmas
@@ -196,31 +212,12 @@ a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
 and use grammar to formalize observations about language as it is used,
 particularly as it is used in corpora.
 
-In this chapter we present the fundamentals of syntax, focusing on constituency
-and tree representations, before describing the formal notation of context free
-grammar.  Next we present parsers as an automatic way to associate syntactic
-structures with sentences.  Finally, we give a detailed presentation of simple
-top-down and bottom-up parsing algorithms available in |NLTK|.
-Before launching into the theory we present some more naive observations about
-grammar, for the benefit of readers who do not have a background in linguistics.
-
 .. _sec-whats-the-use-of-syntax:
 
 -------------------------
 What's the Use of Syntax?
 -------------------------
 
-Earlier chapters focused on words: how to identify them, how to
-analyze their morphology, and how to assign them to classes via
-part-of-speech tags. We have also seen how to identify recurring
-sequences of words (i.e. n-grams). Nevertheless, there seem to be
-linguistic regularities that cannot be described simply in terms of
-n-grams.
-
-In this section we will see why it is useful to have some
-kind of syntactic representation of sentences.  In particular, we will
-see that there are systematic aspects of meaning that are much easier
-to capture once we have established a level of syntactic structure.
 
 Syntactic Ambiguity
 -------------------
@@ -234,14 +231,14 @@ ambiguity`.
 However, other kinds of ambiguity cannot be explained in terms of
 ambiguity of specific words.  Consider a phrase involving
 an adjective with a conjunction:
-`old men and women`:lx:.
-Does `old`:lx: have wider scope than `and`:lx:, or is it the other way
+`big cats and dogs`:lx:.
+Does `big`:lx: have wider scope than `and`:lx:, or is it the other way
 round? In fact, both interpretations are possible, and we can
 represent the different scopes using parentheses:
 
 .. ex::
-  .. ex::  old (men and women)
-  .. ex::  (old men) and women
+  .. ex::  big (cats and dogs)
+  .. ex::  (big cats) and dogs
 
 One convenient way of representing this scope difference at a structural
 level is by means of a `tree diagram`:dt:, as shown in tree-diagram_.
@@ -249,18 +246,18 @@ level is by means of a `tree diagram`:dt:, as shown in tree-diagram_.
 .. _tree-diagram:
 .. ex::
   .. ex::
-    .. tree:: (NP (Adj old)
+    .. tree:: (NP (Adj big)
                   (NP
-                     (N men)
+                     (N cats)
                      (Conj and)
-                     (N women)))
+                     (N dogs)))
   .. ex::
     .. tree:: (NP (NP
-                     (Adj old)
-                     (N men))
+                     (Adj big)
+                     (N cats))
                   (Conj and)
                   (NP
-                     (N women)))
+                     (N dogs)))
 
 Note that linguistic trees grow upside down: the node labeled `s`:gc:
 is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
@@ -269,8 +266,8 @@ labeled with the words.
 In NLTK, you can easily produce trees like this yourself with the
 following commands:
 
-    >>> tree = nltk.bracket_parse('(NP (Adj old) (NP (N men) (Conj and) (N women)))')
-    >>> tree.draw()                 # doctest: +SKIP
+    >>> tree = nltk.Tree('(NP (Adj big) (NP (N cats) (Conj and) (N dogs)))')
+    >>> tree.draw()             # doctest: +SKIP
 
 We can construct other examples of syntactic ambiguity
 involving the coordinating conjunctions `and`:lx: and `or`:lx:, e.g.
@@ -1932,28 +1929,19 @@ be found in the input.
 By contrast with Bottom-Up Initialization, however, the
 Earley algorithm proceeds strictly left-to-right through the input,
 applying all applicable rules at that point in the chart, and never backtracking.
-The |NLTK| chart parser demo, ``nltk.draw.chart.demo()``, allows the option of
-parsing according to the Earley algorithm.
+
+.. note:: |TRY|
+   The |NLTK| chart parser demo, ``nltk.draw.chart.demo()``, allows the option of
+   parsing according to the Earley algorithm.
 
 Chart Parsing in NLTK
 ---------------------
 
 NLTK defines a simple yet flexible chart parser,
 ``ChartParser``.  A new chart parser is constructed from a
-grammar and a list of chart rules (also known as a *strategy*).  These
-rules will be applied, in order, until no new edges are added to the
-chart.  In particular, ``ChartParser`` uses the algorithm shown in chart-algorithm_.
-
-.. _chart-algorithm:
-.. ex::
-   .. parsed-literal::   
-
-    Until no new edges are added:
-      For each chart rule *R*:
-        Apply *R* to any applicable edges in the chart. 
-        Return any complete parses in the chart. 
-
-``nltk.parse.chart`` defines two ready-made strategies:
+grammar and a strategy.  The strategy is applied until no new edges are added to the
+chart.
+|NLTK| defines two ready-made strategies:
 ``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
 basic bottom-up strategy.  When constructing a chart parser, you
 can use either of these strategies, or create your own.
@@ -1974,10 +1962,10 @@ we wish to use the same tokenized sentence several times.
      ''')
    parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY)
 
-   >>> sent = 'old men and women'.split()
+   >>> sent = ['big', 'cats', 'and', 'dogs']
    >>> for tree in parser.nbest_parse(sent):
    ...     print tree
-   (NP (JJ old) (NNS (NNS men) (CC and) (NNS women)))
+   (NP (JJ big) (NNS (NNS men) (CC and) (NNS women)))
    (NP (NP (JJ old) (NNS men)) (CC and) (NP (NNS women)))
 
 The ``trace`` parameter can be specified when creating a parser, to
