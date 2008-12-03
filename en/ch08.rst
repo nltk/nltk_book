@@ -22,21 +22,84 @@ Earlier chapters focused on words: how to identify them,
 analyze their structure, assign them to lexical categories,
 and access their meanings.
 We have also seen how to identify patterns in word sequences or n-grams.
-Still, there are important patterns that cannot be
-modeled using these methods.
-
+However, these methods only scratch the surface. 
+We need a way to deal with the ambiguity that natural language is famous for.
+We also need to be able to cope with the fact that there are an infinite number
+of possible sentences, and we can only write finite programs to analyze their
+structures and discover their meanings.
+ 
 The goal of this chapter is to answer the following questions:
 
+#. How can we use a formal grammar to describe the structure of an infinite set of sentences?
 #. How do we represent the structure of sentences using syntax trees?
-#. What is a formal grammar and how can we construct one?
 #. How do parsers analyze a sentence and automatically build a syntax tree?
 
 Along the way, we will cover the fundamentals of English syntax, and
 see that there are systematic aspects of meaning that are much easier
 to capture once we have identified the structure of sentences.
 
---------------------
-Grammatical Dilemmas
+.. _dilemmas:
+
+-------------------------
+Some Grammatical Dilemmas
+-------------------------
+
+Infinite Possibilities
+----------------------
+
+Sentences have an interesting property that they can be embedded inside
+larger sentences.  Consider the following examples:
+
+.. ex::
+  .. ex:: Usain Bolt broke the 100m record
+  .. ex:: The Jamaica Observer reported that Usain Bolt broke the 100m record 
+  .. ex:: Andre said The Jamaica Observer reported that Usain Bolt broke the 100m record
+  .. ex:: I think Andre said the Jamaica Observer reported that Usain Bolt broke the 100m record
+
+If we replaced whole sentences with the symbol `s`:gc:, we would see patterns like
+`Andre said S`:lx: and `I think S`:lx:.  These are templates for taking a sentence
+and constructing a bigger sentence.  There are other templates we can use, like
+`S but S`:lx:, and `S when S`:lx:.  With a bit of ingenuity we can construct some
+really long sentences using these templates.  Here's an impressive example from
+a Winnie the Pooh story by A.A. Milne,
+*In which Piglet is Entirely Surrounded by Water*: 
+
+   You can imagine Piglet's joy when at last the ship came in sight of
+   him. In after-years he liked to think that he had been in Very
+   Great Danger during the Terrible Flood, but the only danger he had
+   really been in was the last half-hour of his imprisonment, when
+   Owl, who had just flown up, sat on a branch of his tree to comfort
+   him, and told him a very long story about an aunt who had once laid
+   a seagull's egg by mistake, and the story went on and on, rather
+   like this sentence, until Piglet who was listening out of his
+   window without much hope, went to sleep quietly and naturally,
+   slipping slowly out of the window towards the water until he was
+   only hanging on by his toes, at which moment, luckily, a sudden
+   loud squawk from Owl, which was really part of the story, being
+   what his aunt said, woke the Piglet up and just gave him time to
+   jerk himself back into safety and say, "How interesting, and did
+   she?" when -- well, you can imagine his joy when at last he saw
+   the good ship, Brain of Pooh (Captain, C. Robin; 1st Mate, P. Bear)
+   coming over the sea to rescue him...
+
+This long sentence actually has a simple structure that begins
+`S but S when S`:lx:.  We can see from this example that there is
+no upper bound on the length of a sentence.  Its striking that
+we can produce and understand sentences of arbitrary length
+that we've never heard before.  Its not hard to concoct an
+entirely novel sentence, one that has probably never been used before
+in the history of the language, yet all speakers of the language
+will agree about its meaning.
+
+The purpose of a grammar is to provide a compact definition of
+this infinite set of sentences.  It achieves this using `recursion`:dt:,
+with the help of grammar `productions`:dt: of the form
+`s`:gc: |rarr| `s`:gc: `and`:lx: `s`:gc:, as we will explore in
+sec-context-free-grammar_.  In chap-semantics_ we will extend this,
+to automatically build up the meaning of a sentence out of the meanings
+of its parts.
+
+Ubiquitous Ambiguity
 --------------------
 
 A well-known example of ambiguity is shown in marx-elephant_  
@@ -52,7 +115,7 @@ Let's take a closer look at the ambiguity in the phrase:
 `I shot an elephant in my pajamas`:lx:.  First we
 need to define a simple grammar:
 
-    >>> grammar = nltk.parse_cfg("""
+    >>> groucho_grammar = nltk.parse_cfg("""
     ... S -> NP VP
     ... PP -> P NP
     ... NP -> Det N | Det N PP | 'I'
@@ -68,8 +131,11 @@ depending on whether the prepositional phrase `in my pajamas`:lx:
 describes the elephant or the shooting event.
 
     >>> sent = ['I', 'shot', 'an', 'elephant', 'in', 'my', 'pajamas']
-    >>> parser = nltk.ChartParser(grammar) 
-    >>> trees = parser.nbest_parse(sent) 
+    >>> parser = nltk.ChartParser(groucho_grammar) 
+    >>> trees = parser.nbest_parse(sent)
+    >>> for tree in trees:
+    ...     print tree
+    ... 
     (S
       (NP I)
       (VP
@@ -123,38 +189,6 @@ prefixed with an asterisk.)
   .. ex:: \*The farmer *dumped* the cart with sand
   .. ex:: The farmer *dumped* sand into the cart
 
-A further notable fact is that we have no difficulty accessing the meaning of
-sentences we have never encountered before.  It is not difficult to concoct an
-entirely novel sentence, one that has probably never been used before
-in the history of the language, and yet all speakers of the language
-will agree about its meaning.  In fact, the set of possible sentences is
-infinite, given that there is no upper bound on length.
-Consider the following passage from a children's story, containing a
-rather impressive sentence:
-
-   You can imagine Piglet's joy when at last the ship came in sight of
-   him. In after-years he liked to think that he had been in Very
-   Great Danger during the Terrible Flood, but the only danger he had
-   really been in was the last half-hour of his imprisonment, when
-   Owl, who had just flown up, sat on a branch of his tree to comfort
-   him, and told him a very long story about an aunt who had once laid
-   a seagull's egg by mistake, and the story went on and on, rather
-   like this sentence, until Piglet who was listening out of his
-   window without much hope, went to sleep quietly and naturally,
-   slipping slowly out of the window towards the water until he was
-   only hanging on by his toes, at which moment, luckily, a sudden
-   loud squawk from Owl, which was really part of the story, being
-   what his aunt said, woke the Piglet up and just gave him time to
-   jerk himself back into safety and say, "How interesting, and did
-   she?"  when -- well, you can imagine his joy when at last he saw
-   the good ship, Brain of Pooh (Captain, C. Robin; 1st Mate, P. Bear)
-   coming over the sea to rescue him...  (from A.A. Milne *In which
-   Piglet is Entirely Surrounded by Water*)
-
-Our ability to produce and understand entirely new sentences, of
-arbitrary length, demonstrates that the set of well-formed sentences in
-English is infinite.  The same case can be made for any human language.
-
 This chapter presents grammars and parsing, as the formal and
 computational methods for investigating and modeling the linguistic
 phenomena we have been touching on (or tripping over).
@@ -170,37 +204,38 @@ questions about "what happened" or "who did what to whom."  Also as
 before, we will develop simple programs to process annotated corpora
 and perform useful tasks.
 
-More Dilemmas
--------------
+Old School Grammar
+------------------
 
-Early experiences with the kind of grammar taught in school are sometimes perplexing.
-Your written work might have been graded by a teacher who red-lined all
+Early experiences with the kind of grammar taught in school are sometimes perplexing,
+if not downright frustrating.
+Written work is graded by a teacher who red-lined all
 the grammar errors they wouldn't put up with.
 Like the plural pronoun or the dangling preposition in the last sentence,
 or sentences like this one that lack a main verb.
 If you learnt English as a second language, you might have found it difficult
-to discover which of these errors need to be fixed (or *needs* to be fixed?).
-Correct punctuation is an obsession for many writers and editors.
-It is easy to find cases where changing punctuation changes meaning.
-In the following example, the interpretation of a relative clause as
-restrictive or non-restrictive depends on the presence of commas alone:
+to discover which of these errors actually need to be fixed (or should that be: *needs* to be fixed?).
+As a consequence, many people are afraid of grammar.  However, as users of
+language we depend on our knowledge of grammar in order to produce and
+understand sentences.  To see why grammar matters, consider the following
+two sentences, which have an important difference of meaning:
 
 .. ex::
   .. _rest:
-  .. ex:: The presidential candidate, who was extremely popular,
+  .. ex:: The vice-presidential candidate, who was wearing a $10,000 outfit,
           smiled broadly.
   .. _nonrest:
-  .. ex:: The presidential candidate who was extremely popular smiled broadly.
+  .. ex:: The vice-presidential candidate who was wearing a $10,000 outfit smiled broadly.
 
-In rest_, we assume there is just one presidential candidate, and say
-two things about her: that she was popular and that she smiled. In
-nonrest_, on the other hand, we use the description `who was extremely
-popular`:lx: as a means of identifying which of several possible
-candidates we are referring to. 
+In rest_, we assume there is just one candidate, and say
+two things about her: that she was wearing an expensive outfit and that she smiled. In
+nonrest_, on the other hand, we use the description `who was wearing a $10,000 outfit`:lx:
+as a means of identifying which particular candidate we are referring to.
+In the above examples, punctuation is a clue to grammatical structure.  In particular,
+it tells us whether the relative clause is restrictive or non-restrictive. 
 
-It is clear that some of these rules are important.
-However, others seem to be vestiges of antiquated style.
-Consider the injunction that :lx:`however`
+In contrast, other grammatical concerns are nothing more than
+vestiges of antiquated style.  For example, consider the injunction that :lx:`however`
 |mdash| when used to mean *nevertheless* |mdash|
 must not appear at the start of a sentence.
 Pullum argues that Strunk and White [StrunkWhite1999]_ were
@@ -208,9 +243,15 @@ merely insisting that English usage should conform to "an utterly
 unimportant minor statistical detail of style concerning adverb
 placement in the literature they knew" [Pullum2005However]_.
 This is a case where, a `descriptive`:em: observation about language use became
-a `prescriptive`:em: requirement.  In NLP we usually discard such prescriptions,
+a `prescriptive`:em: requirement.
+
+In |NLP| we usually discard such prescriptions,
 and use grammar to formalize observations about language as it is used,
 particularly as it is used in corpora.
+We create our own formal grammars and write programs to parse sentences.
+This is a far cry from "old school" grammar.  It is a thoroughly objective
+approach that makes grammatical structures explicit with the help of
+corpora, formal grammars, and parsers.
 
 .. _sec-whats-the-use-of-syntax:
 
@@ -532,86 +573,6 @@ notion of a noun phrase in defining the subject of sentence, which in
 turn is a crucial ingredient in determining the "who does what to
 whom" aspect of meaning.
 
-More on Trees
--------------
-
-A tree is a set of connected nodes, each of which is labeled with a
-category.  It common to use a 'family' metaphor to talk about the
-relationships of nodes in a tree: for example, `s`:gc: is the
-`parent`:dt: of `vp`:gc:; conversely `vp`:gc: is a `daughter`:dt: (or
-`child`:dt:) of `s`:gc:.  Also, since `np`:gc: and `vp`:gc: are both
-daughters of `s`:gc:, they are also `sisters`:dt:. 
-Here is an example of a tree:
-
-.. ex::
-  .. tree:: (S (NP Lee) (VP (V saw) (NP the dog)))
-
-Although it is helpful to represent trees in a graphical format, for
-computational purposes we usually need a more text-oriented
-representation.  We will use the same format as the Penn Treebank,
-a combination of brackets and labels:
-
-.. doctest-ignore::
-      (S 
-         (NP Lee)
-         (VP 
-            (V saw)
-            (NP 
-               (Det the)
-               (N dog))))
-
-Here, the node value is a constituent type (e.g., `np`:gc: or `vp`:gc:),
-and the children encode the hierarchical contents of the tree.
-
-Although we will focus on syntactic trees, trees can be used to encode
-`any`:em: homogeneous hierarchical structure that spans a sequence
-of linguistic forms (e.g. morphological structure, discourse structure).
-In the general case, leaves and node values do not have to be strings.
-
-In NLTK, trees are created with the ``Tree`` constructor, which takes a
-node value and a list of zero or more children.  Here's a couple of
-simple trees:
-
-    >>> tree1 = nltk.Tree('NP', ['John'])
-    >>> print tree1
-    (NP John)
-    >>> tree2 = nltk.Tree('NP', ['the', 'man'])
-    >>> print tree2
-    (NP the man)
-
-|nopar|
-We can incorporate these into successively larger trees as follows:
-
-    >>> tree3 = nltk.Tree('VP', ['saw', tree2])
-    >>> tree4 = nltk.Tree('S', [tree1, tree3])
-    >>> print tree4
-    (S (NP John) (VP saw (NP the man)))
-
-|nopar|
-Here are some of the methods available for tree objects:
-
-    >>> print tree4[1]
-    (VP saw (NP the man))
-    >>> tree4[1].node
-    'VP'
-    >>> tree4.leaves()
-    ['John', 'saw', 'the', 'man']
-    >>> tree4[1,1,1]
-    'man'
-
-The printed representation for complex trees can be difficult to read.
-In these cases, the ``draw`` method can be very useful. 
-It opens a new window, containing a graphical representation
-of the tree.  The tree display window allows you to zoom in and out;
-to collapse and expand subtrees; and to print the graphical
-representation to a postscript file (for inclusion in a document).
-
-    >>> tree3.draw()                           # doctest: +SKIP
-
-.. image:: ../images/parse_draw.png
-   :scale: 70
-
-
 .. _sec-context-free-grammar:
 
 --------------------
@@ -748,18 +709,7 @@ As we will see, dealing with ambiguity is a key challenge in parsing.
 Recursion in Syntactic Structure
 --------------------------------
 
-Observe that sentences can be nested within sentences, with no limit
-to the depth:
-
-.. ex::
-  .. ex:: Jodie won the 100m freestyle
-  .. ex:: "The Age" reported that Jodie won the 100m freestyle
-  .. ex:: Sandy said "The Age" reported that Jodie won the 100m freestyle
-  .. ex::  I think Sandy said "The Age" reported that Jodie won the 100m freestyle
-
-|nopar|
-This nesting is explained in terms of :dt:`recursion`. A grammar is
-said to be :dt:`recursive` if a category occurring on the left hand
+A grammar is said to be :dt:`recursive` if a category occurring on the left hand
 side of a production (such as `s`:gc: in this case) also appears on
 the right hand side of a production. If this dual occurrence takes
 place in *one and the same production*, then we have :dt:`direct
@@ -935,6 +885,37 @@ The revised grammar for `vp`:gc: will now look like this:
 Notice that according to subcat3_, a given lexical item can belong to more
 than one subcategory. For example, `sang`:lx: can occur both with and
 without a following `np`:gc: complement.
+
+Scaling Up
+----------
+
+So far, we have only considered "toy grammars," small grammars that
+illustrate the key aspects of parsing.  But there is an obvious
+question as to whether the approach can be scaled up to cover
+large corpora of natural languages. How hard would it be to construct
+such a set of productions by hand? In general, the answer is: *very
+hard*. Even if we allow ourselves to use various formal devices that
+give much more succinct representations of grammar productions (some
+of which will be discussed in Chapter chap-advanced-parsing_), it is still extremely
+difficult to keep control of the complex interactions between the many
+productions required to cover the major constructions of a
+language. In other words, it is hard to modularize grammars so that
+one portion can be developed independently of the other parts. This in
+turn means that it is difficult to distribute the task of grammar
+writing across a team of linguists. Another difficulty is that as the
+grammar expands to cover a wider and wider range of constructions,
+there is a corresponding increase in the number of analyses which are
+admitted for any one sentence. In other words, ambiguity increases
+with coverage.
+
+Despite these problems, some large collaborative
+projects have achieved interesting and impressive results in
+developing rule-based grammars for several languages. Examples are the
+Lexical Functional Grammar (LFG) Pargram project
+(http://www2.parc.com/istl/groups/nltt/pargram/), the Head-Driven
+Phrase Structure Grammar (HPSG) LinGO Matrix framework
+(http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
+Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
 
 Context Free Grammar in NLTK
 ----------------------------
@@ -1564,14 +1545,14 @@ see chart-intro-parseedge_.
 
 .. ex::
 
-   .. _chart-intro-incomplete:
-   .. ex::
-      .. image:: ../images/chart_intro_incomplete.png
-         :scale: 25
-
    .. _chart-intro-selfloop:
    .. ex::
       .. image:: ../images/chart_intro_selfloop.png
+         :scale: 25
+
+   .. _chart-intro-incomplete:
+   .. ex::
+      .. image:: ../images/chart_intro_incomplete.png
          :scale: 25
 
    .. _chart-intro-parseedge:
@@ -1611,27 +1592,17 @@ The Fundamental Rule
 One rule is particularly important, since it is used by every chart
 parser: the `Fundamental Rule`:dt:.  This rule is used to combine an
 incomplete edge that's expecting a nonterminal *B* with a following, complete
-edge whose left hand side is *B*.  The rule is given in fundamental-rule_
-and illustrated in chart-fundamental_.
+edge whose left hand side is *B*.  The rule is defined and illustrated in fundamental-rule_.
+We will use |alpha|, |beta|, and |gamma| to denote (possibly empty) sequences
+of terminals or non-terminals.
 
-.. ex::
-  .. _fundamental-rule:
-  .. ex:: `Fundamental Rule`:dt:
-
-   .. parsed-literal::
-
-    If the chart contains the edges
-      [*A* |rarr| |alpha| |dot| *B* |beta| , (*i*, *j*\ )]
-      [*B* |rarr| |gamma| |dot| , (*j*, *k*\ )]
-    then add the new edge
-      [*A* |rarr| |alpha| *B* |dot| |beta| , (*i*, *k*)]
-    where |alpha|, |beta|, and |gamma| are (possibly empty) sequences
-    of terminals or non-terminals
-
-  .. _chart-fundamental:
-  .. ex::
-    .. image:: ../images/chart_fundamental.png
-       :scale: 30
+.. _fundamental-rule:
+.. ex:: `Fundamental Rule`:dt: If the chart contains the edges
+   [*A* |rarr| |alpha|\ |dot|\ *B*\ |beta|\ , (*i*, *j*\ )] and
+   [*B* |rarr| |gamma|\ |dot|\ , (*j*, *k*\ )] then add a new edge
+   [*A* |rarr| |alpha|\ *B*\ |dot|\ |beta|\ , (*i*, *k*)].
+   .. image:: ../images/chart_fundamental.png
+      :scale: 30
 
 In the new edge, the dot has moved one place to the right.
 Its span is the combined span of the original edges.
@@ -1685,9 +1656,6 @@ the input.
   .. ex::
     .. image:: ../images/chart_bu_ex1.png
        :scale: 30
-
-Notice that the dot on the right hand side of these productions
-is telling us that we have complete edges for the lexical items.
 
 Next, suppose the chart contains a complete edge *e* whose
 left hand category is *A*. Then the Bottom-Up Predict Rule requires the
@@ -1753,10 +1721,9 @@ Top-Down Parsing
 ----------------
 
 Top-down chart parsing works in a similar way to the recursive descent
-parser discussed in Chapter chap-parse_, in that it starts off with
-the top-level goal of finding an `s`:gc:. This goal is then broken into
-the subgoals of trying to find constituents such as `np`:gc: and
-`vp`:gc: that can be immediately dominated by  `s`:gc:.
+parser, in that it starts off with the top-level goal of finding an `s`:gc:.
+This goal is broken down into the subgoals of trying to find constituents such as `np`:gc: and
+`vp`:gc: predicted by the grammar.
 To create a top-down chart parser, we use the Fundamental Rule as before plus
 three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
 Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
@@ -1784,14 +1751,11 @@ parse must be the start symbol `s`:gc:\.
 .. |chart_td_ex1| image:: ../images/chart_td_ex1.png
    :scale: 30
 
-As we mentioned before, the dot on the right hand side of a production
-records how far our goals have been satisfied. So in
-chart_td_ex1_, we are predicting that we will be able to find an `np`:gc: and a
-`vp`:gc:, but have not yet satisfied these subgoals. So how do we
-pursue them? In order to find an  `np`:gc:, for instance, we need to
-invoke a production that has `np`:gc: on its left hand side. The step
-of adding the required edge to the chart is accomplished with the
-Top-Down Expand Rule td-expand-rule_.
+In chart_td_ex1_, we are predicting that we will be able to find an `np`:gc: and a
+`vp`:gc: starting at 0, but have not yet satisfied these subgoals.
+In order to find an  `np`:gc: we need to
+invoke a production that has `np`:gc: on its left hand side. This work
+is done by the Top-Down Expand Rule td-expand-rule_.
 This tells us that if our chart contains an incomplete
 edge whose dot is followed by a nonterminal *B*, then the parser
 should add any self-loop edges licensed by the grammar whose left-hand
@@ -1944,136 +1908,21 @@ chart.
 |NLTK| defines two ready-made strategies:
 ``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
 basic bottom-up strategy.  When constructing a chart parser, you
-can use either of these strategies, or create your own.
+can use either of these strategies, or create your own.  We've
+already seen how to define a chart parser in section dilemmas_.
+This time we'll specify a strategy and turn on tracing:
 
-The following example illustrates the use of the chart parser.
-We start by defining a simple grammar, and tokenizing a sentence.
-We make sure it is a list (not an iterator), since
-we wish to use the same tokenized sentence several times.
+.. doctest-ignore::
+    >>> sent = ['I', 'shot', 'an', 'elephant', 'in', 'my', 'pajamas']
+    >>> parser = nltk.ChartParser(groucho_grammar, nltk.parse.BU_STRATEGY)
+    >>> trees = parser.nbest_parse(sent, trace=2)
 
-.. pylisting:: chart-demo
-   :caption: Chart Parsing with NLTK
+.. note: |TRY|
+   Try running the above example to view the operation of the chart
+   parser in detail.  In the output, ``[-----]`` indicates a complete edge,
+   ``>`` indicates a self-loop edge, ``[----->`` indicates an
+   incomplete edge, and ``[======]`` indicates a parse edge.
 
-   grammar = nltk.parse_cfg('''
-     NP  -> NNS | JJ NNS | NP CC NP
-     NNS -> "men" | "women" | "children" | NNS CC NNS
-     JJ  -> "old" | "young"
-     CC  -> "and" | "or"
-     ''')
-   parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY)
-
-   >>> sent = ['big', 'cats', 'and', 'dogs']
-   >>> for tree in parser.nbest_parse(sent):
-   ...     print tree
-   (NP (JJ big) (NNS (NNS men) (CC and) (NNS women)))
-   (NP (NP (JJ old) (NNS men)) (CC and) (NP (NNS women)))
-
-The ``trace`` parameter can be specified when creating a parser, to
-turn on tracing (higher trace levels produce more verbose output).
-Example butrace_ shows the trace output for parsing a
-sentence with the bottom-up strategy.
-Notice that in this output, ``'[-----]'`` indicates a complete edge,
-``'>'`` indicates a self-loop edge, and ``'[----->'`` indicates an
-incomplete edge.
-
-.. pylisting:: butrace
-   :caption: Trace of Bottom-Up Parser
-
-   >>> parser = nltk.ChartParser(grammar, nltk.parse.BU_STRATEGY, trace=2)
-   >>> trees = parser.nbest_parse(sent)
-   |.   old   .   men   .   and   .  women  .|
-   Bottom Up Init Rule:
-   |[---------]         .         .         .| [0:1] 'old' 
-   |.         [---------]         .         .| [1:2] 'men' 
-   |.         .         [---------]         .| [2:3] 'and' 
-   |.         .         .         [---------]| [3:4] 'women' 
-   Bottom Up Predict Rule:
-   |>         .         .         .         .| [0:0] JJ -> * 'old' 
-   |.         >         .         .         .| [1:1] NNS -> * 'men' 
-   |.         .         >         .         .| [2:2] CC -> * 'and' 
-   |.         .         .         >         .| [3:3] NNS -> * 'women' 
-   Fundamental Rule:
-   |[---------]         .         .         .| [0:1] JJ -> 'old' * 
-   |.         [---------]         .         .| [1:2] NNS -> 'men' * 
-   |.         .         [---------]         .| [2:3] CC -> 'and' * 
-   |.         .         .         [---------]| [3:4] NNS -> 'women' * 
-   Bottom Up Predict Rule:
-   |>         .         .         .         .| [0:0] NP -> * JJ NNS 
-   |.         >         .         .         .| [1:1] NP -> * NNS 
-   |.         >         .         .         .| [1:1] NNS -> * NNS CC NNS 
-   |.         .         .         >         .| [3:3] NP -> * NNS 
-   |.         .         .         >         .| [3:3] NNS -> * NNS CC NNS 
-   Fundamental Rule:
-   |[--------->         .         .         .| [0:1] NP -> JJ * NNS 
-   |.         [---------]         .         .| [1:2] NP -> NNS * 
-   |.         [--------->         .         .| [1:2] NNS -> NNS * CC NNS 
-   |[-------------------]         .         .| [0:2] NP -> JJ NNS * 
-   |.         [------------------->         .| [1:3] NNS -> NNS CC * NNS 
-   |.         .         .         [---------]| [3:4] NP -> NNS * 
-   |.         .         .         [--------->| [3:4] NNS -> NNS * CC NNS 
-   |.         [-----------------------------]| [1:4] NNS -> NNS CC NNS * 
-   |.         [-----------------------------]| [1:4] NP -> NNS * 
-   |.         [----------------------------->| [1:4] NNS -> NNS * CC NNS 
-   |[=======================================]| [0:4] NP -> JJ NNS * 
-   Bottom Up Predict Rule:
-   |.         >         .         .         .| [1:1] NP -> * NP CC NP 
-   |>         .         .         .         .| [0:0] NP -> * NP CC NP 
-   |.         .         .         >         .| [3:3] NP -> * NP CC NP 
-   Fundamental Rule:
-   |.         [--------->         .         .| [1:2] NP -> NP * CC NP 
-   |[------------------->         .         .| [0:2] NP -> NP * CC NP 
-   |.         .         .         [--------->| [3:4] NP -> NP * CC NP 
-   |.         [----------------------------->| [1:4] NP -> NP * CC NP 
-   |[--------------------------------------->| [0:4] NP -> NP * CC NP 
-   |.         [------------------->         .| [1:3] NP -> NP CC * NP 
-   |[----------------------------->         .| [0:3] NP -> NP CC * NP 
-   |.         [-----------------------------]| [1:4] NP -> NP CC NP * 
-   |[=======================================]| [0:4] NP -> NP CC NP * 
-   |.         [----------------------------->| [1:4] NP -> NP * CC NP 
-   |[--------------------------------------->| [0:4] NP -> NP * CC NP 
-
-
-----------
-Conclusion
-----------
-
-We began this chapter talking about confusing encounters with grammar
-at school.  We just wrote what we wanted to say, and our work was
-handed back with red marks showing all our grammar mistakes.  If this
-kind of "grammar" seems like secret knowledge, the linguistic approach
-we have taken in this chapter is quite the opposite: grammatical
-structures are made explicit as we build trees on top of sentences.
-We can write down the grammar productions, and parsers can build the
-trees automatically.  This thoroughly objective approach
-is widely referred to as `generative grammar`:dt:.
-
-Note that we have only considered "toy grammars," small grammars that
-illustrate the key aspects of parsing.  But there is an obvious
-question as to whether the general approach can be scaled up to cover
-large corpora of natural languages. How hard would it be to construct
-such a set of productions by hand? In general, the answer is: *very
-hard*. Even if we allow ourselves to use various formal devices that
-give much more succinct representations of grammar productions (some
-of which will be discussed in Chapter chap-advanced-parsing_), it is still extremely
-difficult to keep control of the complex interactions between the many
-productions required to cover the major constructions of a
-language. In other words, it is hard to modularize grammars so that
-one portion can be developed independently of the other parts. This in
-turn means that it is difficult to distribute the task of grammar
-writing across a team of linguists. Another difficulty is that as the
-grammar expands to cover a wider and wider range of constructions,
-there is a corresponding increase in the number of analyses which are
-admitted for any one sentence. In other words, ambiguity increases
-with coverage.
-
-Despite these problems, there are a number of large collaborative
-projects that have achieved interesting and impressive results in
-developing rule-based grammars for several languages. Examples are the
-Lexical Functional Grammar (LFG) Pargram project
-(http://www2.parc.com/istl/groups/nltt/pargram/), the Head-Driven
-Phrase Structure Grammar (HPSG) LinGO Matrix framework
-(http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
-Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
 
 ---------------
 Summary (notes)
@@ -2109,7 +1958,9 @@ There are many introductory books on syntax. [O'Grady1989LI]_ is a
 general introduction to linguistics, while [Radford1988TG]_ provides a
 gentle introduction to transformational grammar, and can be
 recommended for its coverage of transformational approaches to
-unbounded dependency constructions. 
+unbounded dependency constructions.  The most widely used
+term in linguistics for formal grammar is
+`generative grammar`:lx:, though it has nothing to do with generation. 
 
 [BurtonRoberts1997AS]_ is very practically oriented textbook on how to
 analyze constituency in English, with extensive exemplification and
