@@ -44,14 +44,10 @@ BIBTEX = bibtex -terse
 
 # <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
 BIB2XHTML = bib2xhtml -s named
-
-WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
-BETA = $(WEB)/beta
-RSYNC_OPTS = -arvz -e ssh --relative --cvs-exclude
-
 LATEX_STYLESHEET_PATH = ../definitions.sty
+RSTHACKS = python ../rsthacks.py
 
-.SUFFIXES: .rst .html .pdf .errs .py
+.SUFFIXES: .rst .rst2 .html .pdf .errs .py
 
 help: usage
 usage:
@@ -74,7 +70,7 @@ errs: $(ERRS)
 
 clean:	clean_up
 	rm -f $(PDF) $(HTML) $(ERRS) $(REF) $(PY) $(TEX)
-	rm -f book.pdf book.html book.tex bibliography.html
+	rm -f book.pdf book.html book.tex bibliography.html *.rst2
 	rm -rf tree_images
 
 clean_up:
@@ -86,17 +82,26 @@ clean_up:
 	$(RST2REF) $<
 
 %.html: %.rst $(REF) revision.rst
-	$(RST2HTML) $(REF) $< 
+	RST2 = `basename $< .rst`.rst2
+	$(RSTHACKS) --format=html $<
+	$(RST2HTML) $(REF) $(RST2) 
+	rm -f $(RST2)
 
 %.xml: %.rst $(RST) ../docbook.py $(REF) revision.rst
-	$(RST2DOCBOOK) $(REF) $<
+       RST2 = `basename $< .rst`.rst2
+       $(RSTHACKS) --format=xml $<
+       $(RST2DOCBOOK) $(REF) $(RST2)
+       rm -f $(RST2)
 #	$(PYTHON) ../xmlpp.py $@ > tmp.xml
 #	mv tmp.xml $@
 	xmllint --noout --dtdvalid $(DOCBOOKDTD) $@
 
 %.tex: %.rst $(REF) revision.rst
-	$(RST2LATEX) $(REF) $<
-	$(LATEXHACKS) $@
+       RST2 = `basename $< .rst`.rst2
+       $(RSTHACKS) --format=latex $<
+       $(RST2LATEX) $(REF) $(RST2)
+       rm -f $(RST2)
+       $(LATEXHACKS) $@
 
 revision.rst: $(CHAPTERS)
 	echo "This document is" > revision.rst
