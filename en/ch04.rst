@@ -45,6 +45,39 @@ sequence labeling, n-gram models, backoff, and evaluation.  These techniques
 are useful in many areas, and tagging gives us a simple context in which
 to present them.
 
+The process of classifying words into their parts-of-speech and
+labeling them accordingly is known as `part-of-speech tagging`:dt:,
+`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
+used for a particular task is known as a `tagset`:dt:.  Our emphasis
+in this chapter is on exploiting tags, and tagging text automatically.
+
+-----------------------
+Applications of Tagging
+-----------------------
+
+Automatic tagging has several applications.  We have already
+seen an example of how to exploit tags in corpus analysis |mdash| we
+get a clear understanding of the distribution of `often`:lx: by
+looking at the tags of adjacent words.  Automatic tagging
+also helps predict the behavior of previously unseen words.
+For example, if we encounter the word
+`scrobbling`:lx: we can probably infer that it is a verb, with
+the root `scrobble`:lx:, and likely to occur after forms of the auxiliary
+``to be`` (e.g. `he was scrobbling`:lx:).  Parts-of-speech are also used
+in speech synthesis and recognition.  For example, ``wind/NN``, as in
+`the wind blew`:lx:, is pronounced with a short vowel, whereas
+``wind/VB``, as in `to wind the clock`:lx:, is pronounced with a long
+vowel.  Other examples can be found where the stress pattern differs
+depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
+`insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
+Without knowing the part-of-speech we cannot be sure of pronouncing
+the word correctly. Finally, there are many applications where
+automatic part-of-speech tagging is a vital step that feeds into later
+processing. We will look at many examples of this in later chapters.
+
+Evidence for Lexical Categories: Distributional Similarity
+----------------------------------------------------------
+
 Before we go further, let's look for words based on similar distribution
 in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
 `over`:lx: (a preposition), and `the`:lx: (a determiner), using
@@ -78,12 +111,6 @@ searching for `the`:lx: finds several *determiners*.
 These groups of words are so important that they have several names,
 all in common use: `word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
 We'll use these names interchangeably.
-
-The process of classifying words into their parts-of-speech and
-labeling them accordingly is known as `part-of-speech tagging`:dt:,
-`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
-used for a particular task is known as a `tagset`:dt:.  Our emphasis
-in this chapter is on exploiting tags, and tagging text automatically.
 
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
@@ -915,65 +942,19 @@ Table tab-dict_ lists the most important dictionary methods you should know.
 Automatic Tagging
 -----------------
 
-Automatic tagging has several applications.  We have already
-seen an example of how to exploit tags in corpus analysis |mdash| we
-get a clear understanding of the distribution of `often`:lx: by
-looking at the tags of adjacent words.  Automatic tagging
-also helps predict the behavior of previously unseen words.
-For example, if we encounter the word
-`scrobbling`:lx: we can probably infer that it is a verb, with
-the root `scrobble`:lx:, and likely to occur after forms of the auxiliary
-``to be`` (e.g. `he was scrobbling`:lx:).  Parts-of-speech are also used
-in speech synthesis and recognition.  For example, ``wind/NN``, as in
-`the wind blew`:lx:, is pronounced with a short vowel, whereas
-``wind/VB``, as in `to wind the clock`:lx:, is pronounced with a long
-vowel.  Other examples can be found where the stress pattern differs
-depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
-`insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
-Without knowing the part-of-speech we cannot be sure of pronouncing
-the word correctly. Finally, there are many applications where
-automatic part-of-speech tagging is a vital step that feeds into later
-processing. We will look at many examples of this in later chapters.
-
-The rest of this chapter will review various approaches to automatic
-part-of-speech tagging.  It can often be observed that downstream
-processing |mdash| say syntactic parsing |mdash| is very sensitive to
-the quality of the preceding part-of-speech tagging. (This is an
-example of the "garbage-in, garbage-out" maxim.) Consequently, we will
-consistently be concerned about the `performance`:dt: of a given
-automatic tagging method. What do we mean by this? Simply, how well
-does the automatic tagger reflect the judgments that would have been
-made by a human annotator? Since we don't usually have access to an
-expert and impartial human judge, we make do instead with `gold
-standard`:dt: test data. This is a corpus which has been manually
-annotated and which is accepted as a standard against which the
-guesses of an automatic system are assessed. The tagger is regarded as
-being correct if the tag it guesses for a given word is the same as
-the gold standard tag. 
-
-.. note:: Of course, the humans who designed and carried out the
-    original gold standard annotation were only human. Further
-    reflection or analysis might lead to the view that the gold
-    standard tag was actually a mistake. Nevertheless, the gold
-    standard is by definition "correct" as far as the evaluation of an
-    automatic tagger is concerned.
-
-
 The Default Tagger
 ------------------
 
 The simplest possible tagger assigns the same tag to each token.  This
 may seem to be a rather banal step, but it establishes an important
 baseline for tagger performance.  In order to get the best result, we
-tag each word with the most likely word.  (This kind of tagger is
-known as a `majority class classifier`:dt:).  What then, is the most
-frequent tag?  We can find out using a one-line program:
+tag each word with the most likely tag.  Let's find out which tag is
+most likely:
 
     >>> nltk.FreqDist(tag for (word, tag) in brown_news_tagged).max()
     'NN'
 
-Now we can create a tagger, called ``default_tagger``, that
-tags everything as ``NN``.
+Now we can create a tagger that tags everything as ``NN``.
 
     >>> raw = 'I do not like green eggs and ham, I do not like them Sam I am!'
     >>> tokens = nltk.wordpunct_tokenize(raw)
@@ -984,7 +965,7 @@ tags everything as ``NN``.
     ('do', 'NN'), ('not', 'NN'), ('like', 'NN'), ('them', 'NN'), ('Sam', 'NN'),
     ('I', 'NN'), ('am', 'NN'), ('!', 'NN')]
 
-This method performs poorly when used on its own.
+Unsurprisingly, this method performs rather poorly.
 On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
     >>> brown_news_tagged = brown.tagged_words(categories='news')
@@ -993,43 +974,34 @@ On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
 Default taggers assign their tag to every single word, even words that
 have never been encountered before.  As it happens, most new words are
-nouns.  Thus, default taggers help to improve the
+nouns.  As we will see, this means that default taggers can help to improve the
 robustness of a language processing system.  We will return to them
-later, in the context of our discussion of *backoff*.
+shortly.
 
 The Lookup Tagger
 -----------------
 
 A lot of high-frequency words do not have the ``NN`` tag.
-Let's find some of these words and their tags.  The
-following code takes a list of sentences and counts up the words,
-and prints the 100 most frequent words:
+Let's find some of these words and their tags.  Let's find the
+hundred most frequent words and store their most likely tag.
+We can then use this information as the model for a "lookup tagger". 
 
     >>> brown_news_text = brown.words(categories='news')
+    >>> brown_news_tagged = brown.tagged_words(categories='news')
     >>> fd = nltk.FreqDist(brown_news_text)
-    >>> most_freq_words = fd.keys()[:100]
-    >>> most_freq_words
-    ['the', ',', '.', 'of', 'and', 'to', 'a', 'in', 'for', 'The', 'that', '``',
-    'is', 'was', "''", 'on', 'at', 'with', 'be', 'by', 'as', 'he', 'said', ...]
-
-Next, let's set up a dictionary that maps from each of the 100 most frequent
-words to its most likely tag:
-
     >>> cfd = nltk.ConditionalFreqDist(brown_news_tagged)
+    >>> most_freq_words = fd.keys()[:100]
     >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
-
-Finally, we can create and evaluate a simple tagger that assigns tags to words
-based on the ``likely_tags`` dictionary:
-
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
     >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
     0.45578495136941344
 
-This is surprisingly good; just knowing the tags for the 100 most frequent
-words enables us to tag nearly half of all words correctly!  Let's see
+It should come as no surprise by now that simply
+knowing the tags for the 100 most frequent
+words enables us to tag nearly half of all words correctly.  Let's see
 what it does on some untagged input text:
 
-    >>> baseline_tagger.tag(brown.sents(categories='news')[3])
+    >>> baseline_tagger.tag(brown_news_text[3])
     [('``', '``'), ('Only', None), ('a', 'AT'), ('relative', None),
     ('handful', None), ('of', 'IN'), ('such', None), ('reports', None), 
     ('was', 'BEDZ'), ('received', None), ("''", "''"), (',', ','),
@@ -1040,35 +1012,23 @@ what it does on some untagged input text:
     ('voters', None), ('and', 'CC'), ('the', 'AT'), ('size', None),
     ('of', 'IN'), ('this', 'DT'), ('city', None), ("''", "''"), ('.', '.')]
 
-Notice that a lot of these words have been assigned a tag of ``None``.
-That is because they were not among the 100 most frequent words.
+Many words have been assigned a tag of ``None``,
+because they were not among the 100 most frequent words.
 In these cases we would like to assign the default tag of ``NN``,
 a process known as backoff.
 
 Getting Better Coverage with Backoff
 ------------------------------------
 
-So far the performance of our simple taggers has been disappointing.
-Before we embark on a process to get 90+% accuracy, we need to do
-two more things.  First, we need to establish a more principled
-baseline performance than the default tagger, which was too
-simplistic, and the regular expression tagger, which was too
-arbitrary.  Second, we need a way to connect multiple taggers
-together, so that if a more specialized tagger is unable to assign
-a tag, we can "back off" to a more generalized tagger.
-
 How do we combine these taggers?  We want to use the lookup table
 first, and if it is unable to assign a tag, then use the default tagger.
-We do this by specifying the default tagger as an argument to the
-lookup tagger.  The lookup tagger will invoke the default tagger just
-in case it can't assign a tag itself.
+We do this by specifying the default tagger as a parameter to the
+lookup tagger.  The lookup tagger will invoke the default tagger when
+it can't assign a tag itself.
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
     >>> nltk.tag.accuracy(baseline_tagger, brown_news_tagged)
     0.58177695566561249
-
-We will return to this technique in the context of a broader discussion
-on combining taggers in Section sec-n-gram-tagging_.
 
 We can put all this together to write a simple (but somewhat inefficient) program to create and
 evaluate lookup taggers having a range of sizes, as shown in Figure baseline-tagger_.
@@ -1108,6 +1068,30 @@ Observe that performance initially increases rapidly as the model size grows, ev
 reaching a plateau, when large increases in model size yield little improvement
 in performance.  (This example used the ``pylab`` plotting package; we will
 return to this in Section sec-visualization_).
+
+Evaluation
+----------
+
+In the above examples, you will have noticed an emphasis on
+accuracy scores.  In fact, evaluating the performance of
+such tools is a central theme in |NLP|.  Recall the processing
+pipeline in Figure fig-sds_; any errors in the output of one
+module are greatly multiplied in the downstream modules.
+
+We evaluate the performance of a tagger relative to the tags
+a human expert would assign.  Since we don't usually have access
+to an expert and impartial human judge, we make do instead with
+`gold standard`:dt: test data. This is a corpus which has been manually
+annotated and which is accepted as a standard against which the
+guesses of an automatic system are assessed. The tagger is regarded as
+being correct if the tag it guesses for a given word is the same as
+the gold standard tag. 
+
+Of course, the humans who designed and carried out the
+original gold standard annotation were only human. Further
+analysis might show mistakes in the gold standard.
+Nevertheless, the gold standard is by definition "correct"
+as far as the evaluation of an automatic tagger is concerned.
 
 .. _sec-regular-expression-tagging:
 
@@ -1295,11 +1279,10 @@ verb (e.g. `I frequent this cafe`:lx:).
 A unigram tagger behaves just like a lookup tagger (Section sec-automatic-tagging_),
 except there is a more convenient technique for setting it up,
 called `training`:dt:\ .  In the following code sample,
-we initialize and train a unigram tagger (line tag-train_),
-use it to tag a sentence, then finally compute the tagger's overall accuracy:
+we train a unigram tagger, use it to tag a sentence, then evaluate:
 
     >>> brown_news = brown.tagged_sents(categories='news')
-    >>> unigram_tagger = nltk.UnigramTagger(brown_news)               # [_tag-train]
+    >>> unigram_tagger = nltk.UnigramTagger(brown_news)
     >>> sent = brown.sents(categories='news')[2007]
     >>> unigram_tagger.tag(sent)
     [('Various', None), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
@@ -1309,6 +1292,23 @@ use it to tag a sentence, then finally compute the tagger's overall accuracy:
     >>> nltk.tag.accuracy(unigram_tagger, brown_news)
     0.8550331165343994
 
+Separating the Training and Testing Data
+----------------------------------------
+
+Now that we are training a tagger on some data, we must be careful not to test it on the
+same data, as we did in the above example.  A tagger that simply memorized its training data
+and made no attempt to construct a general model would get a perfect score, but would also
+be useless for tagging new text.  Instead, we should split the data, training on 90% and
+testing on the remaining 10%:
+
+    >>> size = int(len(brown_news) * 0.9)
+    >>> brown_news_train, brown_news_test = brown_news[:size], brown_news[size:]
+    >>> unigram_tagger = nltk.UnigramTagger(brown_news_train)
+    >>> nltk.tag.accuracy(unigram_tagger, brown_news_test)
+    0.77294926741752212
+
+Although the score is worse, we now have a better picture of the usefulness of
+this tagger, i.e. its performance on previously unseen text. 
 
 N-Gram Tagging
 --------------
@@ -1346,16 +1346,28 @@ part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger.
 First we train it, then use it to tag untagged sentences:
 
-    >>> bigram_tagger = nltk.BigramTagger(brown_news, cutoff=0)
+    >>> bigram_tagger = nltk.BigramTagger(brown_news_train, cutoff=0)
     >>> bigram_tagger.tag(sent)
-    [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
-    ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
-    ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
-    ('so', 'CS'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'),
-    ('.', '.')]
+    [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'),
+    ('are', 'BER'), ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'),
+    ('type', 'NN'), (',', ','), ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'),
+    ('ground', 'NN'), ('floor', 'NN'), ('so', 'CS'), ('that', 'CS'),
+    ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
+    >>> unseen_sent = brown.sents(categories='news')[4203]
+    >>> bigram_tagger.tag(unseen_sent)
+    [('The', 'AT'), ('population', 'NN'), ('of', 'IN'), ('the', 'AT'), ('Congo', 'NP'),
+    ('is', 'BEZ'), ('13.5', None), ('million', None), (',', None), ('divided', None),
+    ('into', None), ('at', None), ('least', None), ('seven', None), ('major', None),
+    ('``', None), ('culture', None), ('clusters', None), ("''", None), ('and', None),
+    ('innumerable', None), ('tribes', None), ('speaking', None), ('400', None),
+    ('separate', None), ('dialects', None), ('.', None)]
 
-As with the other taggers, n-gram taggers assign the tag `None`:gc: to
-any token whose context was not seen during training.
+Notice that the bigram tagger manages to tag every word in a sentence it saw during
+training, but does badly on an unseen sentence.  As soon as it encounters a new word
+(i.e., `13.5`:lx:), it is unable to assign a tag.  It cannot tag the following word
+(i.e., `million`:lx:) even if it was seen during training, simply because it never
+saw it during training with a ``None`` tag on the previous word.  Consequently, the
+tagger fails to tag the rest of the sentence. 
 
 As *n* gets larger, the specificity of the contexts increases,
 as does the chance that the data we wish to tag contains contexts that
@@ -1389,10 +1401,10 @@ Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
     >>> t0 = nltk.DefaultTagger('NN')
-    >>> t1 = nltk.UnigramTagger(brown_news, backoff=t0)
-    >>> t2 = nltk.BigramTagger(brown_news, backoff=t1)
-    >>> nltk.tag.accuracy(t2, brown_news)
-    0.88565347972233821
+    >>> t1 = nltk.UnigramTagger(brown_news_train, backoff=t0)
+    >>> t2 = nltk.BigramTagger(brown_news_train, backoff=t1)
+    >>> nltk.tag.accuracy(t2, brown_news_test)
+    0.81281770158477029
 
 .. Note:: We specify the backoff tagger when the tagger is
    initialized, so that training can take advantage of the backoff tagger.
@@ -1977,6 +1989,14 @@ Exercises
    own by discarding all but the first character of each tag name).
    Such a tagger has fewer distinctions to make, but much less
    information on which to base its work.  Discuss your findings.
+
+#. |soso|
+   Recall the example of a bigram tagger which encountered a word it hadn't
+   seen during training, and tagged the rest of the sentence as ``None``.
+   It is possible for a bigram tagger to fail part way through a sentence
+   even if it contains no unseen words (even if the sentence was used during
+   training).  In what circumstance can this happen?  Can you write a program
+   to find some examples of this?
 
 #. |hard|
    Create a default tagger and various unigram and n-gram taggers,
