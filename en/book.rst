@@ -22,19 +22,19 @@ Natural Language Processing
 
 .. body::
 
-.. include:: ch01.rst
-.. include:: ch02.rst
-.. include:: ch03.rst
-.. include:: ch04.rst
-.. include:: ch05.rst
-.. include:: ch06.rst
-.. include:: ch07.rst
-.. include:: ch08.rst
-.. include:: ch09.rst
-.. include:: ch10.rst
-.. include:: ch11.rst
-.. include:: ch12.rst
-.. .. include:: ch13.rst
+.. include:: ch01.rst2
+.. include:: ch02.rst2
+.. include:: ch03.rst2
+.. include:: ch04.rst2
+.. include:: ch05.rst2
+.. include:: ch06.rst2
+.. include:: ch07.rst2
+.. include:: ch08.rst2
+.. include:: ch09.rst2
+.. include:: ch10.rst2
+.. include:: ch11.rst2
+.. include:: ch12.rst2
+.. .. include:: ch13.rst2
 
 :raw-latex:`\part{APPENDICES}`
 
