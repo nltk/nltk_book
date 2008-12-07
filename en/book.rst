@@ -18,7 +18,7 @@ Natural Language Processing
    :depth: 2
 
 .. preface::
-.. include:: ch00.rst
+.. include:: ch00.rst2
 
 .. body::
 
