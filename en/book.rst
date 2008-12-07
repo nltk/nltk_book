@@ -39,6 +39,7 @@ Natural Language Processing
 :raw-latex:`\part{APPENDICES}`
 
 .. appendix::
+.. include:: app-tagsets.rst
 .. include:: app-unicode.rst
 .. include:: app-nlp-python.rst
 .. include:: app-modules.rst

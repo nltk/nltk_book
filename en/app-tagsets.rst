@@ -7,8 +7,9 @@
 Appendix: Tagsets
 =================
 
+------------
 Brown Tagset
-============
+------------
 
 Based on `<http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html>`_
 
@@ -844,9 +845,9 @@ Based on `<http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html>`_
      - where'd
 
 
-
+-------------
 CLAWS5 Tagset
-=============
+-------------
 
 Based on `<http://ucrel.lancs.ac.uk/claws5tags.html>`_
 
@@ -1044,9 +1045,9 @@ Based on `<http://ucrel.lancs.ac.uk/claws5tags.html>`_
      - alphabetical symbol
      - A, B, c, d
 
-
+------------
 UPenn Tagset
-============
+------------
 
 Based on `<http://www.comp.leeds.ac.uk/amalgam/tagsets/upenn.html>`_
 
