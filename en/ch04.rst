@@ -260,7 +260,7 @@ For example, Figure fig-tag-indian_ shows the output of the demonstration code
 If the corpus is also segmented into sentences, it will have
 a ``tagged_sents()`` method that divides up the tagged words into
 sentences rather than presenting them as one big list.
-This will be useful when we come to training automatic taggers,
+This will be useful when we come to developing automatic taggers,
 as they typically function on a sentence at a time.
 
 Nouns
@@ -545,7 +545,7 @@ kind of table, as shown in Figure fig-maps01_.
 
 .. _fig-maps01:
 .. figure:: ../images/maps01.png
-   :scale: 20:100:20
+   :scale: 20:90:20
 
    List Look-up
 
@@ -980,6 +980,45 @@ nouns.  As we will see, this means that default taggers can help to improve the
 robustness of a language processing system.  We will return to them
 shortly.
 
+The Regular Expression Tagger
+-----------------------------
+
+The regular expression tagger assigns tags to tokens on the basis of
+matching patterns.  For instance, we might guess that any word ending
+in `ed`:lx: is the past participle of a verb, and any word ending with
+`'s`:lx: is a possessive noun.  We can express these as a list of
+regular expressions:
+
+    >>> patterns = [
+    ...     (r'.*ing$', 'VBG'),               # gerunds
+    ...     (r'.*ed$', 'VBD'),                # simple past
+    ...     (r'.*es$', 'VBZ'),                # 3rd singular present
+    ...     (r'.*ould$', 'MD'),               # modals
+    ...     (r'.*\'s$', 'NN$'),               # possessive nouns
+    ...     (r'.*s$', 'NNS'),                 # plural nouns
+    ...     (r'^-?[0-9]+(.[0-9]+)?$', 'CD'),  # cardinal numbers
+    ...     (r'.*', 'NN')                     # nouns (default)
+    ... ]
+
+Note that these are processed in order, and the first one that matches is applied.
+Now we can set up a tagger and use it to tag some text.
+
+    >>> regexp_tagger = nltk.RegexpTagger(patterns)
+    >>> regexp_tagger.tag(brown.sents(categories='news')[3])
+    [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
+    ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
+    ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
+    ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
+    ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ..., ('.', 'NN')]
+    >>> nltk.tag.accuracy(regexp_tagger, brown.tagged_sents(categories='news'))
+    0.20326391789486245
+
+The final regular expression |l|\ ``.*``\ |r| is a catch-all that tags everything as a noun.
+This is equivalent to the default tagger (only much less efficient).
+Instead of re-specifying this as part of the regular expression tagger,
+is there a way to combine this tagger with the default tagger?  We
+will see how to do this shortly.
+
 The Lookup Tagger
 -----------------
 
@@ -1048,11 +1087,11 @@ pairs for words other than nouns.
 
    def display():
        import pylab
-       words_by_freq = nltk.FreqDist(brown.words(categories='news')).keys()
+       words_by_freq = list(nltk.FreqDist(brown.words(categories='news')))
        cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
        sizes = 2 ** pylab.arange(15)
        perfs = [performance(cfd, words_by_freq[:size]) for size in sizes]
-       pylab.semilogx(sizes, perfs, '-bo')
+       pylab.plot(sizes, perfs, '-bo')
        pylab.title('Lookup Tagger Performance with Varying Model Size')
        pylab.xlabel('Model Size')
        pylab.ylabel('Performance')
@@ -1106,174 +1145,6 @@ as far as the evaluation of an automatic tagger is concerned.
    make their work as theory-neutral as possible in order to
    maximize the usefulness of their work.
 
-.. _sec-regular-expression-tagging:
-
---------------------------
-Regular Expression Tagging
---------------------------
-
-Some Morphology
----------------
-
-English nouns can be morphologically complex.  For example, words like
-`books`:lx: and `women`:lx: are plural.  Words with the `-ness`:lx:
-suffix are nouns that have been derived from adjectives,
-e.g. `happiness`:lx: and `illness`:lx:.  The `-ment`:lx: suffix
-appears on certain nouns derived from verbs, e.g. `government`:lx: and
-`establishment`:lx:.
-
-English verbs can also be morphologically complex.  For instance, the
-`present participle`:dt: of a verb ends in `-ing`:lx:, and expresses
-the idea of ongoing, incomplete action (e.g. `falling`:lx:, `eating`:lx:).
-The `-ing`:lx: suffix also appears on nouns derived from verbs, e.g. `the
-falling of the leaves`:lx: (this is known as the `gerund`:dt:).
-In the Brown corpus, these are tagged `VBG`:gc:.
-
-The `past participle`:dt: of a verb often ends in `-ed`:lx:, and
-expresses the idea of a completed action (e.g. `walked`:lx:, `cried`:lx:).
-These are tagged `VBD`:gc:.
-
-.. TODO: Modal verbs, e.g. `would`:lx: ...
-
-Common tagsets often capture some `morpho-syntactic`:dt: information;
-that is, information about the kind of morphological markings that
-words receive by virtue of their syntactic role.  Consider, for
-example, the selection of distinct grammatical forms of the word
-`go`:lx: illustrated in the following sentences:
-
-.. _go:
-.. ex::
-  .. ex:: *Go* away!
-  .. ex::  He sometimes *goes* to the cafe.
-  .. ex::  All the cakes have *gone*.
-  .. ex::  We *went* on the excursion.
-
-Each of these forms |mdash| `go`:lx:, `goes`:lx:, `gone`:lx:, and `went`:lx: |mdash|
-is morphologically distinct from the others. Consider the form,
-`goes`:lx:. This occurs in a restricted set of grammatical contexts, and
-requires a third person singular subject. Thus, the
-following sentences are ungrammatical.
-
-.. ex::
-  .. ex:: \*They sometimes *goes* to the cafe.
-  .. ex:: \*I sometimes *goes* to the cafe.
-
-By contrast, `gone`:lx: is the past participle form; it is required
-after `have`:lx: (and cannot be replaced in this context by
-`goes`:lx:), and cannot occur as the main verb of a clause. 
-
-.. ex::
-  .. ex:: \*All the cakes have *goes*.
-  .. ex:: \*He sometimes *gone* to the cafe.
-
-We can easily imagine a tagset in which the four distinct
-grammatical forms just discussed were all tagged as ``VB``. Although
-this would be adequate for some purposes, a more fine-grained tagset
-will provide useful information about these forms that can be of value
-to other processors that try to detect syntactic patterns from tag
-sequences. As we noted at the beginning of this chapter,
-the Brown tagset does in fact capture these distinctions,
-as summarized in Table morphosyntax_.
-
-.. table:: morphosyntax
-
-   =======  ======================  =====
-   Form     Category                Tag
-   =======  ======================  =====
-   go       base                    VB
-   goes     3rd singular present    VBZ
-   gone     past participle         VBN
-   going    gerund                  VBG
-   went     simple past             VBD
-   =======  ======================  =====
-
-   Some morphosyntactic distinctions in the Brown tagset
-
-In addition to this set of verb tags, the various forms of the verb `to be`:lx:
-have special tags:   
-``be/BE, being/BEG, am/BEM, are/BER, is/BEZ, been/BEN, were/BED`` and
-``was/BEDZ`` (plus extra tags for negative forms of the verb).   All told,
-this fine-grained tagging of verbs means that an automatic tagger
-that uses this tagset is in effect carrying out a limited amount
-of morphological analysis.
-
-Most part-of-speech tagsets make use of the same basic categories,
-such as noun, verb, adjective, and preposition. However, tagsets
-differ both in how finely they divide words into categories, and in
-how they define their categories. For example, `is`:lx: might be tagged
-simply as a verb in one tagset; but as a distinct form of the lexeme `BE`:lx:
-in another tagset (as in the Brown Corpus).  This variation in tagsets is
-unavoidable, since part-of-speech tags are used in different ways for
-different tasks. In other words, there is no one 'right way' to assign
-tags, only more or less useful ways depending on one's goals.
-
-.. More details about the Brown corpus tagset can be found in the `Appendix`_
-   at the end of this chapter.
-
-The Regular Expression Tagger
------------------------------
-
-The regular expression tagger assigns tags to tokens on the basis of
-matching patterns.  For instance, we might guess that any word ending
-in `ed`:lx: is the past participle of a verb, and any word ending with
-`'s`:lx: is a possessive noun.  We can express these as a list of
-regular expressions:
-
-    >>> patterns = [
-    ...     (r'.*ing$', 'VBG'),               # gerunds
-    ...     (r'.*ed$', 'VBD'),                # simple past
-    ...     (r'.*es$', 'VBZ'),                # 3rd singular present
-    ...     (r'.*ould$', 'MD'),               # modals
-    ...     (r'.*\'s$', 'NN$'),               # possessive nouns
-    ...     (r'.*s$', 'NNS'),                 # plural nouns
-    ...     (r'^-?[0-9]+(.[0-9]+)?$', 'CD'),  # cardinal numbers
-    ...     (r'.*', 'NN')                     # nouns (default)
-    ... ]
-
-Note that these are processed in order, and the first one that matches is applied.
-
-Now we can set up a tagger and use it to tag some text.
-
-    >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> regexp_tagger.tag(brown.sents(categories='news')[3])
-    [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
-    ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
-    ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
-    ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
-    ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ..., ('.', 'NN')]
-
-How well does this do?
-
-    >>> nltk.tag.accuracy(regexp_tagger, brown.tagged_sents(categories='news'))
-    0.20326391789486245
-
-The final regular expression |l|\ ``.*``\ |r| is a catch-all that tags everything as a noun.
-This is equivalent to the default tagger (only much less efficient).
-Instead of re-specifying this as part of the regular expression tagger,
-is there a way to combine this tagger with the default tagger?  We
-will see how to do this later, under the heading of backoff taggers.
-
-
-Affix Taggers
--------------
-
-Affix taggers are like unigram taggers, except they are trained on
-word prefixes or suffixes of a specified length.  (NB. Here we use
-*prefix* and *suffix* in the string sense, not the morphological
-sense.)  For example, the following tagger will consider suffixes of
-length 3 (e.g. *-ize*, *-ion*), for words having at least 5
-characters.
-
-    >>> affix_tagger = nltk.AffixTagger(brown.tagged_sents(categories='news'),
-    ...                     affix_length=-2, min_stem_length=3)
-    >>> affix_tagger.tag(sent)
-    [('Various', 'JJ'), ('of', None), ('the', None), ('apartments', 'NNS'), ('are', None),
-    ('of', None), ('the', None), ('terrace', 'NN'), ('type', None), (',', None),
-    ('being', 'VBG'), ('on', None), ('the', None), ('ground', 'NN'), ('floor', 'NN'),
-    ('so', None), ('that', None), ('entrance', 'NN'), ('is', None), ('direct', 'NN'),
-    ('.', None)]
-
-
 .. _sec-n-gram-tagging:
 
 --------------
@@ -1304,6 +1175,11 @@ we train a unigram tagger, use it to tag a sentence, then evaluate:
     ('so', 'QL'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
     >>> nltk.tag.accuracy(unigram_tagger, brown_news)
     0.8550331165343994
+
+We `train`:dt: a ``UnigramTagger`` by specifying tagged sentence data as
+a parameter when we initialize the tagger.  The training process involves
+inspecting the tag of each word and storing the most likely tag for any word
+in a dictionary, stored inside the tagger.
 
 Separating the Training and Testing Data
 ----------------------------------------
@@ -1359,7 +1235,7 @@ part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger.
 First we train it, then use it to tag untagged sentences:
 
-    >>> bigram_tagger = nltk.BigramTagger(brown_news_train, cutoff=0)
+    >>> bigram_tagger = nltk.BigramTagger(brown_news_train)
     >>> bigram_tagger.tag(sent)
     [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'),
     ('are', 'BER'), ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'),
@@ -1380,17 +1256,22 @@ training, but does badly on an unseen sentence.  As soon as it encounters a new 
 (i.e., `13.5`:lx:), it is unable to assign a tag.  It cannot tag the following word
 (i.e., `million`:lx:) even if it was seen during training, simply because it never
 saw it during training with a ``None`` tag on the previous word.  Consequently, the
-tagger fails to tag the rest of the sentence. 
+tagger fails to tag the rest of the sentence.  Its overall accuracy score is very low: 
+
+    >>> nltk.tag.accuracy(bigram_tagger, brown_news_test)
+    0.10276088906608193
+
+.. expand the following discussion if possible:
 
 As *n* gets larger, the specificity of the contexts increases,
 as does the chance that the data we wish to tag contains contexts that
 were not present in the training data. This is known as the *sparse
-data* problem, and is quite pervasive in NLP. Thus, there is a
+data* problem, and is quite pervasive in NLP. As a consequence, there is a
 trade-off between the accuracy and the coverage of our results (and
 this is related to the `precision/recall trade-off`:dt: in information
 retrieval).
 
-.. Note:: n-gram taggers should not consider context that crosses a
+.. caution:: n-gram taggers should not consider context that crosses a
    sentence boundary.  Accordingly, NLTK taggers are designed to work
    with lists of sentences, where each sentence is a list of words.  At
    the start of a sentence, *t*\ `n-1`:subscript: and preceding
@@ -1491,12 +1372,14 @@ encounter?  We can determine the answer to this question empirically:
     >>> sum(cfd[c].N() for c in ambiguous_contexts) / float(cfd.N())
     0.049297702067999993
 
-Thus, one out of twenty trigrams is ambiguous.  Given the
+Thus, one out of twenty trigrams is ambiguous [EXAMPLES].  Given the
 current word and the previous two tags, in 5% of cases there is more than one tag
 that could be legitimately assigned to the current word according to
 the training data.  Assuming we always pick the most likely tag in
 such ambiguous contexts, we can derive an empirical upper bound on
 the performance of a trigram tagger.
+
+.. be more specific about this bound?
 
 Another way to investigate the performance of a tagger is to study
 its mistakes.  Some tags may be harder than others to assign, and
@@ -1513,9 +1396,14 @@ against actual tags generated by a tagger:
     >>> test = tag_list(apply_tagger(t2, brown.tagged_sents(categories='editorial')))
     >>> print nltk.ConfusionMatrix(gold, test)                # doctest: +SKIP
 
+[EXAMPLE OF CONFUSION MATRIX]
+
 Based on such analysis we may decide to modify the tagset.  Perhaps
 a distinction between tags that is difficult to make can be dropped,
 since it is not important in the context of some larger processing task.
+
+Another way to analyze the performance bound on a tagger comes from
+the less than 100% agreement between human annotators.  [MORE]
 
 In general, observe that the tagging process simultaneously collapses distinctions
 (i.e., lexical identity is usually lost when all personal pronouns are
@@ -1585,32 +1473,30 @@ blue in the gaps, it is simpler to paint the whole canvas blue, then
 the same fashion we might paint the trunk a uniform brown before going
 back to over-paint further details with even finer brushes.  Brill
 tagging uses the same idea: begin with broad brush strokes then fix up
-the details, with successively finer changes.  Table brill-tagging_
+the details, with successively finer changes.  Let's look at an
+example involving the following sentence:
+
+.. ex::
+   The President said he will ask Congress to increase grants to states
+   for vocational rehabilitation
+
+We will examine the operation of two rules:
+(a) Replace ``NN`` with ``VB`` when the previous word is ``TO``;
+(b) Replace ``TO`` with ``IN`` when the next tag is ``NNS``. 
+Table brill-tagging_
 illustrates this process, first tagging with the unigram tagger, then
-fixing the errors.
+applying the rules to fix the errors.
 
 .. table:: brill-tagging
 
-   ==============  =======  ========  =================================  =============================
-   Sentence:       Gold:    Unigram:  Replace ``NN`` with ``VB``         Replace ``TO`` with ``IN``
-                                      when the previous word is ``TO``   when the next tag is ``NNS`` 
-   ==============  =======  ========  =================================  =============================
-   The             AT       AT
-   President       NN-TL    NN-TL
-   said            VBD      VBD
-   he              PPS      PPS
-   will            MD       MD
-   ask             VB       VB
-   Congress        NP       NP
-   to              TO       TO
-   increase        VB       *NN*      *VB*
-   grants          NNS      NNS
-   to              IN       *TO*      *TO*                               *IN*
-   states          NNS      NNS
-   for             IN       IN
-   vocational      JJ       JJ
-   rehabilitation  NN       NN
-   ==============  =======  ========  =================================  =============================
+   ===========  ==  ========  ======  ====  ======  ===  ==========  ==============
+   **Phrase**   to  increase  grants  to    states  for  vocational  rehabilitation
+   **Gold**     TO  VB        NNS     IN    NNS     IN   JJ          NN
+   **Unigram**  TO  *NN*      NNS     *TO*  NNS     IN   JJ          NN
+   **Rule 1**       *VB*
+   **Rule 2**                         *IN*
+   **Output**   TO  VB        NNS     IN    NNS     IN   JJ          NN
+   ===========  ==  ========  ======  ====  ======  ===  ==========  ==============
 
    Steps in Brill Tagging
  
@@ -1693,16 +1579,34 @@ How to Determine the Category of a Word
 
 Now that we have examined word classes in detail, we turn to a more
 basic question: how do we decide what category a word belongs to in
-the first place? In general, linguists use three criteria:
-morphological (or formal); syntactic (or distributional); semantic (or
-notional).  A `morphological`:dt: criterion is one that looks at the
-internal structure of a word. For example, `-ness`:lx: is a suffix
-that combines with an adjective to produce a noun. Examples are
+the first place? In general, linguists use morphological, syntactic,
+and semantic clues to determine the category of a word.
+
+Morphological Clues
+-------------------
+
+The internal structure of a word may give useful clues as to the
+word's category. For example, `-ness`:lx: is a suffix
+that combines with an adjective to produce a noun, e.g.
 `happy`:lx: |rarr| `happiness`:lx:, `ill`:lx: |rarr| `illness`:lx:. So
 if we encounter a word that ends in `-ness`:lx:, this is very likely
-to be a noun.
+to be a noun.  Similarly, `-ment`:lx: is a suffix that combines
+with some verbs to produce a noun, e.g.
+`govern`:lx: |rarr| `government`:lx: and `establish`:lx: |rarr| `establishment`:lx:.
 
-A `syntactic`:dt: criterion refers to the contexts in which a word can
+English verbs can also be morphologically complex.  For instance, the
+`present participle`:dt: of a verb ends in `-ing`:lx:, and expresses
+the idea of ongoing, incomplete action (e.g. `falling`:lx:, `eating`:lx:).
+The `-ing`:lx: suffix also appears on nouns derived from verbs, e.g. `the
+falling of the leaves`:lx: (this is known as the `gerund`:dt:).
+(Since the present participle and the gerund cannot be systematically
+distinguished, they are often tagged with the same tag, i.e. `VBG`:gc:
+in the Brown Corpus tagset).
+
+Syntactic Clues
+---------------
+
+Another source of information is the typical contexts in which a word can
 occur. For example, assume that we have already determined the
 category of nouns. Then we might say that a syntactic criterion for an
 adjective in English is that it can occur immediately before a noun,
@@ -1713,19 +1617,26 @@ to these tests, `near`:lx: should be categorized as an adjective:
    .. ex:: the near window
    .. ex:: The end is (very) near.
 
-A familiar example of a `semantic`:dt: criterion is that a noun is
-"the name of a person, place or thing". Within modern linguistics,
+Semantic Clues
+--------------
+
+Finally, the meaning of a word is a useful clue as to its lexical
+category.  For example, the best-known definition of a noun is
+semantic: "the name of a person, place or thing". Within modern linguistics,
 semantic criteria for word classes are treated with suspicion, mainly
 because they are hard to formalize. Nevertheless, semantic criteria
 underpin many of our intuitions about word classes, and enable us to
 make a good guess about the categorization of words in languages that
-we are unfamiliar with.  For example, if we all we know about the Dutch
+we are unfamiliar with.  For example, if all we know about the Dutch word
 `verjaardag`:lx: is that it means the same as the English word
 `birthday`:lx:, then we can guess that `verjaardag`:lx: is a noun in
 Dutch. However, some care is needed: although we might translate `zij
 is vandaag jarig`:lx: as `it's her birthday today`:lx:, the word
 `jarig`:lx: is in fact an adjective in Dutch, and has no exact
-equivalent in English!
+equivalent in English.
+
+New Words
+---------
 
 All languages acquire new lexical items. A list of words recently
 added to the Oxford Dictionary of English includes `cyberslacker,
@@ -1737,6 +1648,86 @@ words belonging to the class (e.g., `above, along, at, below, beside,
 between, during, for, from, in, near, on, outside, over, past,
 through, towards, under, up, with`:lx:), and membership of the set only
 changes very gradually over time.
+
+Morphology in Part of Speech Tagsets
+------------------------------------
+
+.. TODO: Modal verbs, e.g. `would`:lx: ...
+
+Common tagsets often capture some `morpho-syntactic`:dt: information;
+that is, information about the kind of morphological markings that
+words receive by virtue of their syntactic role.  Consider, for
+example, the selection of distinct grammatical forms of the word
+`go`:lx: illustrated in the following sentences:
+
+.. _go:
+.. ex::
+  .. ex:: *Go* away!
+  .. ex::  He sometimes *goes* to the cafe.
+  .. ex::  All the cakes have *gone*.
+  .. ex::  We *went* on the excursion.
+
+Each of these forms |mdash| `go`:lx:, `goes`:lx:, `gone`:lx:, and `went`:lx: |mdash|
+is morphologically distinct from the others. Consider the form,
+`goes`:lx:. This occurs in a restricted set of grammatical contexts, and
+requires a third person singular subject. Thus, the
+following sentences are ungrammatical.
+
+.. ex::
+  .. ex:: \*They sometimes *goes* to the cafe.
+  .. ex:: \*I sometimes *goes* to the cafe.
+
+By contrast, `gone`:lx: is the past participle form; it is required
+after `have`:lx: (and cannot be replaced in this context by
+`goes`:lx:), and cannot occur as the main verb of a clause. 
+
+.. ex::
+  .. ex:: \*All the cakes have *goes*.
+  .. ex:: \*He sometimes *gone* to the cafe.
+
+We can easily imagine a tagset in which the four distinct
+grammatical forms just discussed were all tagged as ``VB``. Although
+this would be adequate for some purposes, a more fine-grained tagset
+provides useful information about these forms that can help
+other processors that try to detect patterns in tag
+sequences.  The Brown tagset captures these distinctions,
+as summarized in Table morphosyntax_.
+
+.. table:: morphosyntax
+
+   =======  ======================  =====
+   Form     Category                Tag
+   =======  ======================  =====
+   go       base                    VB
+   goes     3rd singular present    VBZ
+   gone     past participle         VBN
+   going    gerund                  VBG
+   went     simple past             VBD
+   =======  ======================  =====
+
+   Some morphosyntactic distinctions in the Brown tagset
+
+In addition to this set of verb tags, the various forms of the verb `to be`:lx:
+have special tags:   
+``be/BE, being/BEG, am/BEM, are/BER, is/BEZ, been/BEN, were/BED`` and
+``was/BEDZ`` (plus extra tags for negative forms of the verb).   All told,
+this fine-grained tagging of verbs means that an automatic tagger
+that uses this tagset is effectively carrying out a limited amount
+of "morphological analysis."
+
+Most part-of-speech tagsets make use of the same basic categories,
+such as noun, verb, adjective, and preposition. However, tagsets
+differ both in how finely they divide words into categories, and in
+how they define their categories. For example, `is`:lx: might be tagged
+simply as a verb in one tagset; but as a distinct form of the lexeme `BE`:lx:
+in another tagset (as in the Brown Corpus).  This variation in tagsets is
+unavoidable, since part-of-speech tags are used in different ways for
+different tasks. In other words, there is no one 'right way' to assign
+tags, only more or less useful ways depending on one's goals.
+
+.. More details about the Brown corpus tagset can be found in the `Appendix`_
+   at the end of this chapter.
+
 
 -------
 Summary
@@ -1765,6 +1756,11 @@ Summary
   such as a string and a number: ``freq['cat'] = 12``.  We create
   dictionaries using the brace notation: ``pos = {}``,
   ``pos = {'furiously': 'adv', 'ideas': 'n', 'colorless': 'adj'}``.
+
+* Ngram taggers can be defined for large values of *n*, but once
+  *n* is larger than 3 we usually encounter the sparse data problem;
+  even with a large quantity of training data we only see a tiny
+  fraction of possible contexts.
 
 .. _sec-tag-further-reading:
 
@@ -2010,6 +2006,12 @@ Exercises
    even if it contains no unseen words (even if the sentence was used during
    training).  In what circumstance can this happen?  Can you write a program
    to find some examples of this?
+
+#. |soso|
+   Modify the program in Figure fig-tag-lookup_ to use a logarithmic scale on
+   the *x*\ -axis, by replacing ``pylab.plot()`` with ``pylab.semilogx()``.
+   What do you notice about the shape of the resulting plot?  Does the gradient
+   tell you anything?
 
 #. |hard|
    Create a default tagger and various unigram and n-gram taggers,

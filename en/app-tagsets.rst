@@ -16,7 +16,7 @@ Based on `<http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html>`_
    :widths: 8 20 30
    :header-rows: 1
 
-   * - Tag
+   * - Brown Tag
      - Description
      - Examples
    * - (
@@ -854,7 +854,7 @@ Based on `<http://ucrel.lancs.ac.uk/claws5tags.html>`_
    :widths: 8 20 30
    :header-rows: 1
 
-   * - Tag
+   * - CLAWS5 Tag
      - Description
      - Examples
    * - AJ0
@@ -1054,7 +1054,7 @@ Based on `<http://www.comp.leeds.ac.uk/amalgam/tagsets/upenn.html>`_
    :widths: 8 20 30
    :header-rows: 1
 
-   * - Tag
+   * - UPenn Tag
      - Description
      - Examples
    * - $
