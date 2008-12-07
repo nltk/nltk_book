@@ -812,10 +812,10 @@ Here's another instance of this pattern, where we index words according to their
     ...     last_letters[key].append(word)
     ...
     >>> last_letters['ly']
-    ['abjectly', 'ably', 'abnormally', 'abortively', 'abruptly', 'absently', 'absolutely',
-    'abstractly', 'absurdly', 'abundantly', 'abysmally', 'academically', 'acceptably', ...]
+    ['abactinally', 'abandonedly', 'abasedly', 'abashedly', 'abashlessly', 'abbreviately',
+    'abdominally', 'abhorrently', 'abidingly', 'abiogenetically', 'abiologically', ...]
     >>> last_letters['zy']
-    ['breezy', 'buzzy', 'cozy', 'crazy', 'dizzy', 'frenzy', 'fuzzy', 'hazy', 'jazzy', ...]
+    ['blazy', 'bleezy', 'blowzy', 'boozy', 'breezy', 'bronzy', 'buzzy', 'Chazy', 'cozy', ...]
 
 The following example uses the same pattern to create an anagram dictionary.
 (You might experiment with the third line to get an idea of why this program works.)
@@ -944,6 +944,13 @@ Table tab-dict_ lists the most important dictionary methods you should know.
 Automatic Tagging
 -----------------
 
+In this and the following sections we will explore various ways to automatically
+add part-of-speech tags to some text.  We'll begin by loading the data we will be using.
+
+    >>> from nltk.corpus import brown
+    >>> brown_news_tagged = brown.tagged(categories='news')
+    >>> brown_news_text = brown.words(categories='news')
+
 The Default Tagger
 ------------------
 
@@ -951,7 +958,7 @@ The simplest possible tagger assigns the same tag to each token.  This
 may seem to be a rather banal step, but it establishes an important
 baseline for tagger performance.  In order to get the best result, we
 tag each word with the most likely tag.  Let's find out which tag is
-most likely:
+most likely (now using the unsimplified tagset):
 
     >>> nltk.FreqDist(tag for (word, tag) in brown_news_tagged).max()
     'NN'
@@ -970,7 +977,6 @@ Now we can create a tagger that tags everything as ``NN``.
 Unsurprisingly, this method performs rather poorly.
 On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
-    >>> brown_news_tagged = brown.tagged_words(categories='news')
     >>> nltk.tag.accuracy(default_tagger, brown_news_tagged)
     0.13089484257215028
 
@@ -1001,16 +1007,16 @@ regular expressions:
     ... ]
 
 Note that these are processed in order, and the first one that matches is applied.
-Now we can set up a tagger and use it to tag some text.
+Now we can set up a tagger and use it to tag a sentence.
 
     >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> regexp_tagger.tag(brown.sents(categories='news')[3])
+    >>> regexp_tagger.tag(brown_news_text[3:4])
     [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
     ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
     ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
     ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
     ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ..., ('.', 'NN')]
-    >>> nltk.tag.accuracy(regexp_tagger, brown.tagged_sents(categories='news'))
+    >>> nltk.tag.accuracy(regexp_tagger, brown_news_tagged)
     0.20326391789486245
 
 The final regular expression |l|\ ``.*``\ |r| is a catch-all that tags everything as a noun.
@@ -1027,8 +1033,6 @@ Let's find some of these words and their tags.  Let's find the
 hundred most frequent words and store their most likely tag.
 We can then use this information as the model for a "lookup tagger". 
 
-    >>> brown_news_text = brown.words(categories='news')
-    >>> brown_news_tagged = brown.tagged_words(categories='news')
     >>> fd = nltk.FreqDist(brown_news_text)
     >>> cfd = nltk.ConditionalFreqDist(brown_news_tagged)
     >>> most_freq_words = fd.keys()[:100]
@@ -1165,15 +1169,15 @@ except there is a more convenient technique for setting it up,
 called `training`:dt:\ .  In the following code sample,
 we train a unigram tagger, use it to tag a sentence, then evaluate:
 
-    >>> brown_news = brown.tagged_sents(categories='news')
-    >>> unigram_tagger = nltk.UnigramTagger(brown_news)
+    >>> brown_news_tagged = brown.tagged_sents(categories='news')
+    >>> unigram_tagger = nltk.UnigramTagger(brown_news_tagged)
     >>> sent = brown.sents(categories='news')[2007]
     >>> unigram_tagger.tag(sent)
     [('Various', None), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
     ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
     ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
     ('so', 'QL'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
-    >>> nltk.tag.accuracy(unigram_tagger, brown_news)
+    >>> nltk.tag.accuracy(unigram_tagger, brown_news_tagged)
     0.8550331165343994
 
 We `train`:dt: a ``UnigramTagger`` by specifying tagged sentence data as
@@ -1190,8 +1194,9 @@ and made no attempt to construct a general model would get a perfect score, but 
 be useless for tagging new text.  Instead, we should split the data, training on 90% and
 testing on the remaining 10%:
 
-    >>> size = int(len(brown_news) * 0.9)
-    >>> brown_news_train, brown_news_test = brown_news[:size], brown_news[size:]
+    >>> size = int(len(brown_news_tagged) * 0.9)
+    >>> brown_news_train = brown_news_tagged[:size]
+    >>> brown_news_test = brown_news_tagged[size:]
     >>> unigram_tagger = nltk.UnigramTagger(brown_news_train)
     >>> nltk.tag.accuracy(unigram_tagger, brown_news_test)
     0.77294926741752212
