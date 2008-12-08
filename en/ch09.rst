@@ -14,11 +14,11 @@
 9. Advanced Topics in Parsing
 =============================
 
-.. _ch09-introduction:
 
-------------
-Introduction
-------------
+
+------------------
+A Problem of Scale
+------------------
 
 Parsing builds trees over sentences, according to a phrase
 structure grammar.  Now, all the examples we gave in Chapter
@@ -341,7 +341,7 @@ The parse tree returned by ``parse()`` includes probabilities:
     (S (NP Jack) (VP (TV saw) (NP telescopes))) (p=0.064)
 
 The next two sections introduce two probabilistic parsing algorithms
-for PCFGs.  The first is an A* parser that uses Viterbi-style dynamic
+for PCFGs.  The first is an A* parser that uses dynamic
 programming to find the single most likely parse for a given text.
 Whenever it finds multiple possible parses for a subtree, it discards
 all but the most likely parse.  The second is a bottom-up chart parser
@@ -462,15 +462,15 @@ parse, that ``nbest_parse()`` will never return more than one parse.
 
    grammar = nltk.parse_pcfg('''
      NP  -> NNS [0.5] | JJ NNS [0.3] | NP CC NP [0.2]
-     NNS -> "men" [0.1] | "women" [0.2] | "children" [0.3] | NNS CC NNS [0.4]
-     JJ  -> "old" [0.4] | "young" [0.6]
+     NNS -> "cats" [0.1] | "dogs" [0.2] | "mice" [0.3] | NNS CC NNS [0.4]
+     JJ  -> "big" [0.4] | "small" [0.6]
      CC  -> "and" [0.9] | "or" [0.1]
      ''')
    viterbi_parser = nltk.ViterbiParser(grammar)
 
-   >>> sent = 'old men and women'.split()
+   >>> sent = 'big cats and dogs'.split()
    >>> print viterbi_parser.parse(sent)
-   (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)    
+   (NP (JJ big) (NNS (NNS cats) (CC and) (NNS dogs))) (p=0.000864)    
 
 The ``trace`` method can be used to set the level of tracing output
 that is generated when parsing a text.  Trace output displays the
@@ -481,16 +481,16 @@ likelihood for each constituent.
     >>> viterbi_parser.trace(3)
     >>> print viterbi_parser.parse(sent)
     Inserting tokens into the most likely constituents table...
-       Insert: |=...| old
-       Insert: |.=..| men
+       Insert: |=...| big
+       Insert: |.=..| cats
        Insert: |..=.| and
-       Insert: |...=| women
+       Insert: |...=| dogs
     Finding the most likely constituents spanning 1 text elements...
-       Insert: |=...| JJ -> 'old' [0.4]                 0.4000000000 
-       Insert: |.=..| NNS -> 'men' [0.1]                0.1000000000 
+       Insert: |=...| JJ -> 'big' [0.4]                 0.4000000000 
+       Insert: |.=..| NNS -> 'cats' [0.1]               0.1000000000 
        Insert: |.=..| NP -> NNS [0.5]                   0.0500000000 
        Insert: |..=.| CC -> 'and' [0.9]                 0.9000000000 
-       Insert: |...=| NNS -> 'women' [0.2]              0.2000000000 
+       Insert: |...=| NNS -> 'dogs' [0.2]               0.2000000000 
        Insert: |...=| NP -> NNS [0.5]                   0.1000000000 
     Finding the most likely constituents spanning 2 text elements...
        Insert: |==..| NP -> JJ NNS [0.3]                0.0120000000 
@@ -504,7 +504,7 @@ likelihood for each constituent.
        Insert: |====| NP -> JJ NNS [0.3]                0.0008640000 
       Discard: |====| NP -> NP CC NP [0.2]              0.0002160000 
       Discard: |====| NP -> NP CC NP [0.2]              0.0002160000 
-    (NP (JJ old) (NNS (NNS men) (CC and) (NNS women))) (p=0.000864)
+    (NP (JJ big) (NNS (NNS cats) (CC and) (NNS dogs))) (p=0.000864)
 
 
 A Bottom-Up PCFG Chart Parser
@@ -525,12 +525,12 @@ probability estimates from the parser and the semantic system, the
 parse with the interpretation "I saw John, who had my cookie" would be
 given a higher overall probability.
 
-This section describes a probabilistic bottom-up chart parser.
-It maintains an `edge queue`:dt:, and adds these edges to the chart one at a time.
+A probabilistic bottom-up chart parser
+maintains an `edge queue`:dt:, and adds these edges to the chart one at a time.
 The ordering of this queue is based on the probabilities associated with the edges,
 and this allows the parser to insert the most probable edges first.
 Each time an edge is added to the chart, it may become possible
-to insert new edges, so these are added to the queue.
+to insert further edges, so these are added to the queue.
 The bottom-up chart parser continues adding the edges in the
 queue to the chart until enough complete parses have been found, or
 until the edge queue is empty.
@@ -541,19 +541,18 @@ However, unlike ordinary charts, this time the tree is weighted
 with a probability.  Its probability
 is the product of the probability of the production that
 generated it and the probabilities of its children.  For example, the
-probability of the edge ``[Edge: S`` |rarr| ``NP`` |dot| ``VP, 0:2]``
+probability of the edge ``[Edge: S`` |rarr| ``NP``\ |dot|\ ``VP, 0:2]``
 is the probability of the PCFG production ``S`` |rarr| ``NP VP``
 multiplied by the probability of its `np`:gc: child.
 (Note that an edge's tree only includes children for elements to the left
-of the edge's dot.  Thus, the edge's probability does *not* include
-probabilities for the constituents to the right of the edge's dot.)
+of the edge's dot.)
 
 Bottom-Up PCFG Strategies
 -------------------------
 
 The `edge queue`:idx: is a sorted list of edges that can be added to the
-chart.  It is initialized with a single edge for each token in the
-text, with the form ``[Edge: token |rarr| |dot|]``.
+chart.  It is initialized with a single edge for each token,
+with the form ``[Edge: token`` |rarr| |dot|\ ``]``.
 As each edge from the queue is added to the chart, it may
 become possible to add further edges, according to two rules:
 (i) the Bottom-Up Initialization Rule can be used to add a
@@ -573,17 +572,18 @@ Instead, different strategies are implemented in subclasses of ``BottomUpChartPa
 
 **Lowest Cost First:**
 The simplest way to order the edge queue is to sort edges by the
-probabilities of their associated trees (``nltk.InsideChartParser()``).
+probabilities of their associated trees.
 This ordering concentrates the efforts of the parser on those edges
-that are more likely to be correct analyses of their underlying tokens.
-
-The probability of an edge's tree provides an upper bound on the
+that are more likely to be correct analyses of their corresponding
+input tokens.
+Now, the probability of an edge's tree provides an upper bound on the
 probability of any parse produced using that edge.  The probabilistic
 "cost" of using an edge to form a parse is one minus its tree's
 probability.  Thus, inserting the edges with the most likely trees
 first results in a `lowest-cost-first search strategy`:dt:.
-Lowest-cost-first search is optimal: the first
-solution it finds is guaranteed to be the best solution.
+Lowest-cost-first search turns out to be optimal: the first
+solution it finds is guaranteed to be the best solution
+(cf the A* parser).
 
 However, lowest-cost-first search can be rather inefficient.  Recall that a
 tree's probability is the product of the probabilities of all the
@@ -606,19 +606,18 @@ approximate that probability.
 **Best-First Search:**
 This method sorts the edge queue in descending order of the edges'
 span, no the assumption that edges having a larger span are more likely
-to form part of a complete parse.
-Thus, ``LongestParse`` employs a `best-first search strategy`:dt:,
-where it inserts the edges that are closest to producing
-complete parses before trying any other edges.  Best-first search is
-*not* an optimal search strategy: the first solution it finds is not
+to form part of a complete parse.  This is a `best-first search strategy`:dt:,
+since it inserts the edges that are closest to producing
+complete parses before trying any other edges.  However, best-first search is
+*not* optimal: the first solution it finds is not
 guaranteed to be the best solution.  However, it will usually find a
 complete parse much more quickly than lowest-cost-first search.
 
 **Beam Search:**
 When large grammars are used to parse a text, the edge queue can grow
-quite long.  The edges at the end of a large well-sorted queue are
-unlikely to be used.  Therefore, it is reasonable to remove (or
-*prune*) these edges from the queue.  This strategy is known as
+quite long.  The edges at the end of a long queue are
+unlikely to be used.  Therefore, it is reasonable to remove
+these edges from the queue.  This strategy is known as
 `beam search`:dt:; it only keeps the best partial results.
 The bottom-up chart parsers take an optional parameter ``beam_size``;
 whenever the edge queue grows longer than this, it is pruned.
@@ -628,11 +627,11 @@ search, by discarding edges that are not likely to be used.  But beam
 search also loses many of lowest-cost-first search's more useful
 properties.  Beam search is not optimal: it is not guaranteed to find
 the best parse first.  In fact, since it might prune a necessary edge,
-beam search is not even `complete`:idx:\ : it is not guaranteed to return a
-parse if one exists.
+beam search is not `complete`:idx:\ : it won't find every parse,
+and it is not even guaranteed to return a parse if one exists.
 
-In NLTK we can construct these parsers using
-``InsideChartParser``, ``LongestChartParser``, ``RandomChartParser``.
+The code in Figure bottom-up-chart-parsers_ demonstrates how
+we define and use these probabilistic chart parsers in |NLTK|.
 
 .. pylisting:: bottom-up-chart-parsers
 
@@ -657,50 +656,10 @@ that is generated when parsing a text.  Trace output displays edges as
 they are added to the chart, and shows the probability for each edges'
 tree.
 
-    >>> inside_parser.trace(3)
-    >>> trees = inside_parser.nbest_parse(sent)
-      |. . . [-]| [3:4] 'women'                          [1.0]
-      |. . [-] .| [2:3] 'and'                            [1.0]
-      |. [-] . .| [1:2] 'men'                            [1.0]
-      |[-] . . .| [0:1] 'old'                            [1.0]
-      |. . [-] .| [2:3] CC -> 'and' *                    [0.9]
-      |. . > . .| [2:2] CC -> * 'and'                    [0.9]
-      |[-] . . .| [0:1] JJ -> 'old' *                    [0.4]
-      |> . . . .| [0:0] JJ -> * 'old'                    [0.4]
-      |> . . . .| [0:0] NP -> * JJ NNS                   [0.3]
-      |. . . [-]| [3:4] NNS -> 'women' *                 [0.2]
-      |. . . > .| [3:3] NP -> * NNS                      [0.5]
-      |. . . > .| [3:3] NNS -> * NNS CC NNS              [0.4]
-      |. . . > .| [3:3] NNS -> * 'women'                 [0.2]
-      |[-> . . .| [0:1] NP -> JJ * NNS                   [0.12]
-      |. . . [-]| [3:4] NP -> NNS *                      [0.1]
-      |. . . > .| [3:3] NP -> * NP CC NP                 [0.2]
-      |. [-] . .| [1:2] NNS -> 'men' *                   [0.1]
-      |. > . . .| [1:1] NP -> * NNS                      [0.5]
-      |. > . . .| [1:1] NNS -> * NNS CC NNS              [0.4]
-      |. > . . .| [1:1] NNS -> * 'men'                   [0.1]
-      |. . . [->| [3:4] NNS -> NNS * CC NNS              [0.08]
-      |. [-] . .| [1:2] NP -> NNS *                      [0.05]
-      |. > . . .| [1:1] NP -> * NP CC NP                 [0.2]
-      |. [-> . .| [1:2] NNS -> NNS * CC NNS              [0.04]
-      |. [---> .| [1:3] NNS -> NNS CC * NNS              [0.036]
-      |. . . [->| [3:4] NP -> NP * CC NP                 [0.02]
-      |[---] . .| [0:2] NP -> JJ NNS *                   [0.012]
-      |> . . . .| [0:0] NP -> * NP CC NP                 [0.2]
-      |. [-> . .| [1:2] NP -> NP * CC NP                 [0.01]
-      |. [---> .| [1:3] NP -> NP CC * NP                 [0.009]
-      |. [-----]| [1:4] NNS -> NNS CC NNS *              [0.0072]
-      |. [-----]| [1:4] NP -> NNS *                      [0.0036]
-      |. [----->| [1:4] NNS -> NNS * CC NNS              [0.00288]
-      |[---> . .| [0:2] NP -> NP * CC NP                 [0.0024]
-      |[-----> .| [0:3] NP -> NP CC * NP                 [0.00216]
-      |. [-----]| [1:4] NP -> NP CC NP *                 [0.0009]
-      |[=======]| [0:4] NP -> JJ NNS *                   [0.000864]
-      |. [----->| [1:4] NP -> NP * CC NP                 [0.00072]
-      |[=======]| [0:4] NP -> NP CC NP *                 [0.000216]
-      |. [----->| [1:4] NP -> NP * CC NP                 [0.00018]
-      |[------->| [0:4] NP -> NP * CC NP                 [0.0001728]
-      |[------->| [0:4] NP -> NP * CC NP                 [4.32e-05]
+.. note:: |TRY|
+   Run the above example using tracing, by calling
+   ``inside_parser.trace(3)`` before running the parser.
+
 
 .. _sec-grammar-induction:
 
@@ -941,7 +900,8 @@ Exercises
    (More examples of these sentences can be found at ``http://en.wikipedia.org/wiki/List_of_homophonous_phrases``).
 
 #. |soso| Consider the algorithm in Figure wfst_.  Can you explain why
-   parsing context-free grammar is proportional to `n`:sup:`3`\ ?
+   parsing context-free grammar is proportional to `n`:sup:`3`\ , where *n*
+   is the length of the input sentence.
 
 #. |soso| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
    that the contents of each cell in the |WFST| is a set of
