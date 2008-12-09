@@ -481,14 +481,50 @@ domain-specific markup languages.  It is sometimes used for representing
 annotated text and for lexical resources.  Unlike HTML, with its predefined
 tags, XML permits us to make up our own tags.  Unlike a database, XML
 permits us to create data without first specifying its structure, and it
-permits us to have optional and repeatable elements. 
+permits us to have optional and repeatable elements.
 
-data modeling
+Using XML for Linguistic Structures
+-----------------------------------
 
-unlike database
+Thanks to its flexibility and extensibility, XML is a natural
+choice for representing linguistic structures.  Here's an example
+of a simple lexical entry:
 
-The primary function of XML is
-interchanging data.
+|  <entry>
+|    <headword>whale</headword>
+|    <pos>noun</pos>
+|    <gloss>any of the larger cetacean mammals having a streamlined
+|       body and breathing through a blowhole on the head</gloss>
+|  </entry>
+
+[well-formedness; significance of whitespace]
+
+[adding extra fields; second gloss: "a very large person; impressive in size or qualities"]
+
+[added nested structure, e.g. for gloss and translation into another language.]
+
+[fields that are conditional on the value of other fields, e.g. nouns should have
+plural (if irregular); verbs should have past tense (if irregular)]
+
+[representing parse trees]
+
+The Role of XML
+---------------
+
+We can use XML to represent linguistic information, however the flexibility
+comes at a price.  Each time we introduce a complication, e.g. by permitting
+an element to be optional or repeated, we make more work for any program
+that accesses the data.  We also make it harder to check the validity of the
+data.
+
+Thus, using XML to represent linguistic structures does not solve the data
+modeling problem or the data interchange problem.
+We still have to work out how best to structure the data, and
+we still have to write programs to read and write the format.
+
+[Some principles of normalization from databases that apply to XML:
+not duplicating information but storing it once; identifying
+dependencies; dealing with many-to-many relations.]  
 
 ElementTree API
 ---------------
@@ -500,15 +536,69 @@ ElementTree API
     >>> from nltk.etree.ElementTree import ElementTree
     >>> from nltk import data
     >>> merchant = ElementTree().parse(data.find('corpora/shakespeare/merchant.xml'))
+    >>> merchant[0]
+    <Element TITLE at 2101670>
     >>> merchant[0].text
     'The Merchant of Venice'
 
-[Structure of each play: act, scene, speech, line]
+The variable ``merchant`` contains an XML tree.  Its first child is a TITLE element,
+whose text content is the name of the play.  We can access the other children as
+follows:
 
-    >>> merchant[7][1][54][1].text
-    'The quality of mercy is not strain'd,'
+    >>> merchant.getchildren()
+    [<Element TITLE at 2101670>, <Element PERSONAE at 21016c0>, <Element SCNDESCR at 2101eb8>,
+    <Element PLAYSUBT at 2101ee0>, <Element ACT at 2101f30>, <Element ACT at 2156a08>,
+    <Element ACT at 21e2558>, <Element ACT at 224cee0>, <Element ACT at 22ac148>]
+    
+The play consists of a title, the personae, a scene description, a subtitle, and five acts.
+Each act has a title and some scenes, and each scene consists of speeches which are made
+up of lines, a structure with four levels of nesting.  Let's dig down into Act IV: 
 
+    >>> merchant[-2][0].text
+    'ACT IV'
+    >>> merchant[-2][1]
+    <Element SCENE at 224cf80>
+    >>> merchant[-2][1][0].text
+    'SCENE I.  Venice. A court of justice.'
+    >>> merchant[-2][1][54]
+    <Element SPEECH at 226ee40>
+    >>> merchant[-2][1][54][0]
+    <Element SPEAKER at 226ee90>
+    >>> merchant[-2][1][54][0].text
+    'PORTIA'
+    >>> merchant[-2][1][54][1]
+    <Element LINE at 226eee0>
+    >>> merchant[-2][1][54][1].text
+    "The quality of mercy is not strain'd,"
 
+Although we can access the entire tree this way, it is more convenient to search for
+sub-elements with particular names.  Recall that the elements at the top level have
+several types.  We can iterate over just the types we are interested in (such as
+the acts), using ``merchant.findall('ACT')``.  Here's an example of doing such
+tag-specific searches at every level of nesting:
+
+    >>> for i, act in enumerate(merchant.findall('ACT')):
+    ...     for j, scene in enumerate(act.findall('SCENE')):
+    ...         for k, speech in enumerate(scene.findall('SPEECH')):
+    ...             for line in speech.findall('LINE'):
+    ...                 if 'music' in str(line.text):
+    ...                     print "Act %d Scene %d Speech %d: %s" % (i+1, j+1, k+1, line.text)
+    Act 3 Scene 2 Speech 9: Let music sound while he doth make his choice;
+    Act 3 Scene 2 Speech 9: Fading in music: that the comparison
+    Act 3 Scene 2 Speech 9: And what is music then? Then music is
+    Act 5 Scene 1 Speech 23: And bring your music forth into the air.
+    Act 5 Scene 1 Speech 23: Here will we sit and let the sounds of music
+    Act 5 Scene 1 Speech 23: And draw her home with music.
+    Act 5 Scene 1 Speech 24: I am never merry when I hear sweet music.
+    Act 5 Scene 1 Speech 25: Or any air of music touch their ears,
+    Act 5 Scene 1 Speech 25: By the sweet power of music: therefore the poet
+    Act 5 Scene 1 Speech 25: But music for the time doth change his nature.
+    Act 5 Scene 1 Speech 25: The man that hath no music in himself,
+    Act 5 Scene 1 Speech 25: Let no such man be trusted. Mark the music.
+    Act 5 Scene 1 Speech 29: It is your music, madam, of the house.
+    Act 5 Scene 1 Speech 32: No better a musician than the wren.
+
+[explain the use of paths]
 
 
 Case Study: Using XML API for working with Toolbox Data
@@ -999,9 +1089,9 @@ The following papers give accounts of work on corpora that put them to
 entirely different uses than were envisaged at the time they were created
 [Graff2000Switchboard]_, [Cieri2002DASL]_.
 
-**XML for Corpora:**
+**XML:**
 Published corpora that use XML; standard interchange formats, e.g. for lexicons
-and ontologies.
+and ontologies.  Python+XML books; XML-aware editors.
 
 **Annotation models and tools:**
 An extensive set of models and tools are available, surveyed at
