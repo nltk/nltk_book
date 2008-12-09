@@ -42,6 +42,7 @@ Natural Language Processing
 .. include:: app-tagsets.rst
 .. include:: app-unicode.rst
 .. include:: app-nlp-python.rst
+.. include:: app-sets.rst
 .. include:: app-modules.rst
 .. include:: app-cheat-sheet.rst
 
