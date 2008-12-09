@@ -15,7 +15,7 @@
   .. |DRS| replace:: DRS
   .. |CoNLL| replace:: CoNLL
   .. |CYK| replace:: CYK
-  .. |FOL| replace:: FOL
+  .. |FOL| replace:: first-order logic
   .. |FSRL| replace:: FSRL
   .. |HTML| replace:: HTML
   .. |IDLE| replace:: IDLE

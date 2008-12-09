@@ -9,9 +9,9 @@
 
 .. _chap-data-intensive:
 
-=====================================
-5. Data-Intensive Language Processing
-=====================================
+=======================================
+ 5. Data-Intensive Language Processing
+=======================================
 
 .. nomenclature note: training corpus/test corpus or training set/test set??
 .. discuss qc corpus
@@ -20,9 +20,8 @@
 
 .. _ch05-introduction:
 
-------------
 Introduction
-------------
+============
 
 .. SB: Opening of chapter should follow pattern of previous chapters.
 
@@ -55,9 +54,8 @@ a noun in the context `good deal`:lx: (and not a verb, as in `to deal cards`:lx:
 
 .. _sec-exploratory-data-analysis:
 
--------------------------
 Exploratory Data Analysis
--------------------------
+=========================
 
 As language speakers, we all have intuitions about how language works,
 and what patterns it contains.  Unfortunately, those intuitions are
@@ -134,9 +132,8 @@ can skip the search step if we already have a corpus of the relevant
 constructions; and we can skip categorization if the constructions are
 already labeled.
 
-------------------
 Selecting a Corpus
-------------------
+==================
 
 In exploratory data analysis, we learn about a specific linguistic
 pattern by objectively examining how it is used.  We therefore must
@@ -316,9 +313,8 @@ just because we did not find it in our small sample of language data.
    Example Corpora.  This table summarizes some important properties
    of several popular corpora.
 
-------
 Search
-------
+======
 
 Once we've selected or constructed a corpus, the next step is to
 search that corpus for instances of the linguistic phenomenon we're
@@ -672,9 +668,8 @@ explain some features, do some counts using python.
 
 .. _sec-data-modeling:
 
--------------
 Data Modeling
--------------
+=============
 
 Exploratory data analysis helps us to understand the linguistic
 patterns that occur in natural language corpora.  Once we have a basic
@@ -782,7 +777,7 @@ The first step in creating a model is deciding what information about
 the input might be relevant to the classification task; and how to
 encode that information.  In other words, we must decide which
 `features`:dt: of the input are relevant, and how to `encode`:dt:
-those features.  Most automatic learning methods restirct features to
+those features.  Most automatic learning methods restrict features to
 have simple value types, such as booleans, numbers, and strings.  But
 note that just because a feature has a simple type, does not
 necessarily mean that the feature's value is simple to express or
@@ -848,16 +843,16 @@ classifier's constructor:
 
 .. XX THIS IS CURRENTLY NOT USING THE CONSTRUCTOR
 
->>> train = [(extract_features(word), label)
-...          for (word, label) in labeled_words]
->>> classifier = nltk.NaiveBayesClassifier.train(train)
+    >>> train = [(extract_features(word), label)
+    ...          for (word, label) in labeled_words]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train)
 
 The constructed model ``classifier`` can then be used to predict the
 labels for unseen inputs:
 
->>> test_featuresets = [extract_features(word)
-...                     for word in unseen_labeled_words]
->>> predicted = classifier.batch_classify(test)
+    >>> test_featuresets = [extract_features(word)
+    ...                     for word in unseen_labeled_words]
+    >>> predicted = classifier.batch_classify(test)
 
 .. note:: When working with large corpora, constructing a single list
    that contains the features of every instance can use up a large
@@ -1059,10 +1054,105 @@ documents by genre:
 
    Document Classification
 
+Example: Recognizing Textual Entailment
+---------------------------------------
 
-----------
+Recognizing textual entailment (RTE) is the task of determining
+whether a given piece of text *T* entails another text called the
+"hypothesis". To date, there have been four RTE Challenges, where
+shared development and test data is made available to competing teams.
+Here are a couple of examples of Text/Hypothesis pairs from the
+Challenge 3 development dataset. The label *True* indicates that the
+entailment holds, and *False*, that it fails to hold.
+
+    Challenge 3, Pair 34 (True)
+    
+      **T**: Parviz Davudi was representing Iran at a meeting of the Shanghai
+      Co-operation Organisation (SCO), the fledgling association that
+      binds Russia, China and four former Soviet republics of central
+      Asia together to fight terrorism.
+    
+      **H**: China is a member of SCO.
+
+    Challenge 3, Pair 81 (False)
+
+      **T**: According to NC Articles of Organization, the members of LLC
+      company are H. Nelson Beavers, III, H. Chester Beavers and Jennie
+      Beavers Stewart.
+
+      **H**: Jennie Beavers Stewart is a share-holder of Carolina Analytical
+      Laboratory.
+
+It should be emphasised that the relationship between Text and
+Hypothesis is not intended to be logical entailment, but rather
+whether a human would conclude that the Text provides reasonable
+evidence for taking the Hypothesis to be true.
+
+We can treat RTE as a classification task, in which we try to
+predict the *True*\ /*False* label for each pair. Although it seems
+likely that successful approaches to this task will involve a
+combination of parsing, compositional and lexical semantics and real world
+knowledge, many early attempts at RTE achieved reasonably good results
+with shallow analysis, based on similarity between the Text and
+Hypothesis at the word level. In the ideal case, we would expect that if
+there is an entailment, then all the information expressed by the Hypothesis
+should also be present in the Text. Conversely, if there is information
+found in the Hypothesis that is absent from the Text, then there
+will be no entailment. We let words (i.e., word types) go proxy for information, and
+our features count the degree of word overlap, and the degree to which
+there are words in the Hypothesis but not in the Text (captured by the
+method ``hyp_extra()``). Not all words are equally important |mdash|
+Named Entity mentions such as the names of people, organizations and
+places are likely to be more significant, which motivates us to
+extract distinct information for ``word``\ s  and ``ne``\ s (Named
+Entities). In addition, some high frequency function words are
+filtered out as "stopwords".
+
+.. pylisting:: rte_features
+
+    def rte_features(rtepair):
+	extractor = RTEFeatureExtractor(rtepair)
+	features['word_overlap'] = len(extractor.overlap('word'))
+	features['word_hyp_extra'] = len(extractor.hyp_extra('word'))
+	features['ne_overlap'] = len(extractor.overlap('ne'))
+	features['ne_hyp_extra'] = len(extractor.hyp_extra('ne'))
+	return features 
+
+To illustrate the content of these features, we examine some
+attributes of the Text/Hypothesis Pair 34 shown earlier:
+
+    >>> rtepair = nltk.corpus.rte.pairs(['rte3_dev.xml'])[33]
+    >>> extractor = RTEFeatureExtractor(rtepair)
+    >>> print extractor.text_words
+    set(['Russia', 'Organisation', 'Shanghai', 'Asia', 'four', 'at',
+    'operation', 'SCO', ...])
+    >>> print extractor.hyp_words
+    set(['member', 'SCO', 'China'])
+    >>> print extractor.overlap('word')
+    set([])
+    >>> print extractor.overlap('ne')
+    set(['SCO', 'China'])
+    >>> print extractor.hyp_extra('word')
+    set(['member'])  
+
+These features indicate that all important words in the Hypothesis are
+contained in the Text, and thus there is some evidence for labelling this
+as *True*.
+
+.. need to decide how to import RTEFeatureExtractor
+
+The module ``nltk.classify.rte_classify`` reaches just over 58%
+accuracy on the combined RTE test data using methods like these. Although
+this figure is not very impressive, it is surprisingly hard to achieve
+much better results without considerable effort, and the performance
+is comparable with that achieved by systems submitted for RTE
+Challenge 1.
+
+.. check the official challenge results
+     
+
 Evaluation
-----------
+==========
 
 In order to decide whether a classification model is accurately
 capturing a pattern, we must evaluate that model.  The result of this
@@ -1201,9 +1291,8 @@ data it will produce more reliable or less reliable results for.
 
 Talk some about how to do error analysis?
 
-----------------------
 Classification Methods
-----------------------
+======================
 
 In this section, we'll take a closer took at three machine learning
 methods that can be used to automatically build classification models:
@@ -1219,9 +1308,8 @@ And an understanding of the generated models can allow us to extract
 useful information about which features are most informative, and how
 those features relate to one another.
 
---------------
 Decision Trees
---------------
+==============
 
 .. Note that they haven't necessarily seen syntax trees before this, so
    it may seem odd to them (or at least not obvious) that these "trees"
@@ -1624,9 +1712,8 @@ However, in the next section, we'll look at a classifier that
 considers the possible interactions between these parameters when
 choosing their values.
 
----------------------------
 Maximum Entropy Classifiers
----------------------------
+===========================
 
 The `Maximum Entropy`:dt: classifier uses a model that is very similar
 to the model used by the Naive Bayes classifier.  But rather than
@@ -1891,9 +1978,8 @@ labels are all large.
     - Jurafsky and Martin, Manning and Schutze chapters
 
 
----------
 Exercises
----------
+=========
 
 #. |easy| Read up on one of the language technologies mentioned in this section, such as
    word sense disambiguation, semantic role labeling, question answering, machine translation,
