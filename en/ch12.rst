@@ -453,24 +453,16 @@ and that we can save the data to a file ``dict.csv``::
     "walk","wo:k","v.intr","progress by lifting and setting down each foot ..."
     "wake","weik","intrans","cease to sleep"
 
-Now we can express this query as shown in Figure undefined-words_.
+Now we can express this query as shown below:
 
-.. pylisting:: undefined-words
-   :caption: Finding definition words not themselves defined
-
-   def undefined_words(csv_file):
-       import csv
-       lexemes = set()
-       defn_words = set()
-       for row in csv.reader(open(csv_file)):
-           lexeme, pron, pos, defn = row
-           lexemes.add(lexeme)
-           defn_words.union(defn.split())
-       return sorted(defn_words.difference(lexemes))
-
-   >>> print undefined_words("dict.csv")
-   ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
-   'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
+    >>> import csv
+    >>> lexicon = csv.reader(open('dict.csv'))
+    >>> pairs = [(lexeme, defn) for (lexeme, _, _, defn) in lexicon]
+    >>> lexemes, defns = zip(*pairs) 
+    >>> defn_words = set(w for defn in defns for w in defn.split())
+    >>> sorted(defn_words.difference(lexemes))
+    ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
+    'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
 ----------------
 Working with XML
@@ -598,9 +590,37 @@ tag-specific searches at every level of nesting:
     Act 5 Scene 1 Speech 29: It is your music, madam, of the house.
     Act 5 Scene 1 Speech 32: No better a musician than the wren.
 
-[explain the use of paths]
+Instead of navigating each step of the way down the hierarchy, we can search for
+particular embedded elements.  For example, let's examine the sequence of speakers.
+We can use a frequency distribution to see who has the most to say:
 
+    >>> speaker_seq = [s.text for s in merchant.findall('ACT/SCENE/SPEECH/SPEAKER')]
+    >>> speaker_freq = nltk.FreqDist(speaker_seq)
+    >>> top5 = speaker_freq.keys()[:5]
+    >>> top5
+    ['PORTIA', 'SHYLOCK', 'BASSANIO', 'GRATIANO', 'ANTONIO']
 
+We can also look for patterns in who follows who in the dialogues.
+Since there's 23 speakers, we need to reduce the "vocabulary"
+to a manageble size first, using the method described in
+Section sec-dictionaries_.
+
+    >>> mapping = nltk.defaultdict(lambda: 'OTH')
+    >>> for s in top5:
+    ...     mapping[s] = s[:4]
+    ...
+    >>> speaker_seq2 = [mapping[s] for s in speaker_seq]
+    >>> cfd = nltk.ConditionalFreqDist(nltk.ibigrams(speaker_seq2))
+    >>> cfd.tabulate()
+         ANTO BASS GRAT  OTH PORT SHYL
+    ANTO    0   11    4   11    9   12
+    BASS   10    0   11   10   26   16
+    GRAT    6    8    0   19    9    5
+     OTH    8   16   18  153   52   25
+    PORT    7   23   13   53    0   21
+    SHYL   15   15    2   26   21    0
+
+    
 Case Study: Using XML API for working with Toolbox Data
 -------------------------------------------------------
 
@@ -974,6 +994,7 @@ the target segment.  Thus, if lex is ``kasi``, then context is
 ``lex[:1]+'_'+lex[2:]``, or ``k_si``.  Note that no parameters are
 generated if the lexeme does not consist of exactly four segments.
 
+    >>> lexemes = [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
     >>> pos = 1
     >>> ms = nltk.MinimalSet((lex[:pos] + '_' + lex[pos+1:], lex[pos], lex)
     ...                       for lex in lexemes if len(lex) == 4)

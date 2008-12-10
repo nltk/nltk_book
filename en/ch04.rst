@@ -7,7 +7,6 @@
 
 .. TODO: exercise on cascaded tagging
 .. TODO: other simplified tagset
-.. TODO: better approach to tagging unknown words using special UNK token
 .. TODO: motivate trigram tagging by showing some cases where bigram tagging doesn't work
 .. TODO: xref to unicode section in prog chapter
 .. TODO: * outstanding problems:
@@ -21,7 +20,7 @@
 .. TODO: possibly add section on exploring tagged corpora
 .. TODO: fix up tag-context.png
 .. TODO: add back in short section on Brill and HMM tagging
-.. TODO: discuss problem of testing on training data
+.. TODO: how to tag unknown words
 
 .. _chap-tag:
 
@@ -750,6 +749,38 @@ whose default value for any entry is ``'N'``.
       >>> f()
       'N'
 
+Many language processing tasks, including tagging, struggle to correctly process
+the hapaxes of a text.  They can perform better with a fixed vocabulary and a
+guarantee that no new words will appear.  We can preprocess a text to replace
+low-frequency words with a special "out of vocabulary" token ``UNK``, with
+the help of a default dictionary.  (Can you work out how to do this without
+reading on?)
+
+We need to create a default dictionary that maps each word to its replacement.
+The most frequent `n`:math: words will be mapped to themselves.
+Everything else will be mapped to ``UNK``.
+
+    >>> alice = nltk.corpus.gutenberg.words('carroll-alice.txt')
+    >>> vocab = nltk.FreqDist(alice)
+    >>> v1000 = list(vocab)[:1000]
+    >>> mapping = nltk.defaultdict(lambda: 'UNK')
+    >>> for v in v1000:
+    ...     mapping[v] = v
+    ... 
+    >>> alice2 = [mapping[v] for v in alice]
+    >>> alice2[:100]
+    ['UNK', 'Alice', "'", 's', 'Adventures', 'in', 'Wonderland', 'by', 'UNK', 'UNK',
+    'UNK', 'UNK', 'CHAPTER', 'I', '.', 'UNK', 'the', 'Rabbit', '-', 'UNK', 'Alice',
+    'was', 'beginning', 'to', 'get', 'very', 'tired', 'of', 'sitting', 'by', 'her',
+    'sister', 'on', 'the', 'bank', ',', 'and', 'of', 'having', 'nothing', 'to', 'do',
+    ':', 'once', 'or', 'twice', 'she', 'had', 'UNK', 'into', 'the', 'book', 'her',
+    'sister', 'was', 'UNK', ',', 'but', 'it', 'had', 'no', 'pictures', 'or', 'UNK',
+    'in', 'it', ',', "'", 'and', 'what', 'is', 'the', 'use', 'of', 'a', 'book', ",'",
+    'thought', 'Alice', "'", 'without', 'pictures', 'or', 'conversation', "?'", ...]
+    >>> len(set(alice2))
+    1001
+
+
 Incrementally Updating a Dictionary
 ----------------------------------- 
 
@@ -957,7 +988,7 @@ The Default Tagger
 The simplest possible tagger assigns the same tag to each token.  This
 may seem to be a rather banal step, but it establishes an important
 baseline for tagger performance.  In order to get the best result, we
-tag each word with the most likely tag.  Let's find out which tag is
+tag each word with the most likely tag.  Let's find out which t ag is
 most likely (now using the unsimplified tagset):
 
     >>> nltk.FreqDist(tag for (word, tag) in brown_news_tagged).max()
@@ -1320,17 +1351,23 @@ Tagging Unknown Words
 
 Our approach to tagging unknown words still uses backoff to a regular-expression tagger
 or a default tagger.  These are unable to make use of context.  Thus, if our tagger
-encountered the word `blog`:lx:, not seen during training, it would assign it a tag
+encountered the word `blog`:lx:, not seen during training, it would assign it the same tag,
 regardless of whether this word appeared in the context `the blog`:lx: or `to blog`:lx:.
 How can we do better with these unknown words, or `out-of-vocabulary`:dt: items?
 
 A useful method to tag unknown words based on context is to limit the vocabulary
 of a tagger to the most frequent `n`:math: words, and to replace every other word
-with a special word `UNK`:lx:\ .  During training, a unigram tagger will probably
-learn that this "word" is usually a noun.  However, the n-gram taggers will
-detect contexts in which it has some other tag.  For example, if the
-preceding word is `to`:lx: (tagged ``TO``), then `UNK`:lx: will probably
-be tagged as a verb.  Full exploration of this method is left to the exercises.
+with a special word `UNK`:lx:\ using the method shown in Section sec-dictionaries_.
+During training, a unigram tagger will probably learn that `UNK`:lx: is usually a noun.
+However, the n-gram taggers will detect contexts in which it has some other tag.
+For example, if the preceding word is `to`:lx: (tagged ``TO``), then `UNK`:lx:
+will probably be tagged as a verb.
+
+.. note:: |TRY|
+   Preprocess the Brown News data by replacing low frequency words with `UNK`:lx:,
+   but leaving the tags untouched.  Now train and evaluate the above bigram tagger
+   on this data.  How much does this help?  What is the contribution of the unigram
+   tagger and default tagger now?
 
 Storing Taggers
 ---------------
@@ -2045,14 +2082,6 @@ Exercises
    b) Add this tagger to the sequence of backoff taggers (including ordinary trigram
       and bigram taggers that look at words), right before the usual default tagger.
    c) Evaluate the contribution of this new unigram tagger.
-
-#. |hard|
-   Write code to preprocess tagged training data, replacing all but the most frequent
-   `n`:math: words with the special word `UNK`:lx:.  Train an n-gram backoff tagger
-   on this data, then use it to tag some new text.  Note that you will have
-   to preprocess the text to replace unknown words with `UNK`:lx:, and post-process
-   the tagged output to replace the `UNK`:lx: words with the words from the original
-   input.
 
 #. |hard|
    Consider the code in sec-n-gram-tagging_ which
