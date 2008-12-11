@@ -12,7 +12,7 @@ a technique described in Section sec-algorithm-design-strategies_.
 It extends the method of well-formed substring tables from
 Section sec-parsing_.
 
-
+-------------
 Active Charts
 -------------
 
@@ -63,6 +63,7 @@ dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
 These `dotted edges`:dt: are used to record all of the hypotheses that a
 chart parser makes about constituents in a sentence.
 
+-------------
 Types of Edge
 -------------
 
@@ -102,6 +103,7 @@ see chart-intro-parseedge_.
       .. image:: ../images/chart_intro_parseedge.png
          :scale: 25
 
+----------------
 The Chart Parser
 ----------------
 
@@ -128,6 +130,7 @@ when an edge should be added to a chart.  This set of rules, along
 with a specification of when they should be applied, forms a
 `strategy`:dt:.
 
+--------------------
 The Fundamental Rule
 --------------------
 
@@ -154,6 +157,7 @@ Its span is the combined span of the original edges.
 Note that in adding this new edge we do not remove the other two,
 because they might be used again.
 
+-----------------
 Bottom-Up Parsing
 -----------------
 
@@ -243,6 +247,7 @@ bottom-up-strategy_.
    The tool comes with a pre-defined input string and grammar, but both
    of these can be readily modified with options inside the *Edit* menu.
 
+----------------
 Top-Down Parsing
 ----------------
 
@@ -329,6 +334,7 @@ top-down-strategy_.
    We encourage you to experiment with the |NLTK| chart parser demo,
    as before, in order to test out the top-down strategy yourself.
 
+--------------------
 The Earley Algorithm
 --------------------
 
@@ -390,6 +396,7 @@ applying all applicable rules at that point in the chart, and never backtracking
    The |NLTK| chart parser demo, ``nltk.draw.chart.demo()``, allows the option of
    parsing according to the Earley algorithm.
 
+---------------------
 Chart Parsing in NLTK
 ---------------------
 
