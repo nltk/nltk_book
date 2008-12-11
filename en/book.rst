@@ -38,13 +38,13 @@ Natural Language Processing
 :raw-latex:`\part{APPENDICES}`
 
 .. appendix::
-.. include:: app-tagsets.rst
-.. include:: app-chart.rst
-.. include:: app-unicode.rst
-.. include:: app-nlp-python.rst
-.. include:: app-sets.rst
-.. include:: app-modules.rst
-.. include:: app-cheat-sheet.rst
+.. include:: app-tagsets.rst2
+.. include:: app-chart.rst2
+.. include:: app-unicode.rst2
+.. include:: app-nlp-python.rst2
+.. include:: app-sets.rst2
+.. include:: app-modules.rst2
+.. include:: app-cheat-sheet.rst2
 
 .. index::
 
