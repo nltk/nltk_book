@@ -226,6 +226,7 @@ The following screenshot illustrates the use of UTF-8 encoded string
 literals within the IDLE editor:
 
 .. image:: ../images/polish-utf8.png
+   :scale: 100:100:75
 
 .. Note:: The above example requires that an appropriate font is set in
    IDLE's preferences. In this case, we chose Courier CE.

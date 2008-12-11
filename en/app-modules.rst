@@ -56,13 +56,8 @@ point for future student projects.
 In addition to software and documentation, NLTK provides substantial
 corpus samples.  Many of these can be accessed using the ``corpora``
 module, avoiding the need to write specialized file parsing code
-before you can do NLP tasks.  These corpora include: Brown Corpus
-|mdash| 1.15 million words of tagged text in 15 genres; a 10% sample
-of the Penn Treebank corpus, consisting of 40,000 words of
-syntactically parsed text; a selection of books from Project Gutenberg
-totally 1.7 million words; and other corpora for chunking,
-prepositional phrase attachment, word-sense disambiguation,
-text categorization, and information extraction.
+before you can do NLP tasks.  See ``http://www.nltk.org/data``
+for a complete list.
 
 ===========================  =====================  ============================================================
 Corpora and Corpus Samples Distributed with NLTK
@@ -74,12 +69,16 @@ Australian ABC News          Bird                   2 genres, 660k words, senten
 Brown Corpus                 Francis, Kucera        15 genres, 1.15M words, tagged, categorized
 CESS-CAT Catalan Treebank    CLiC-UB et al          500k words, tagged and parsed
 CESS-ESP Spanish Treebank    CLiC-UB et al          500k words, tagged and parsed
+Chat-80 Data Files           Pereira & Warren       World Geographic Database
 CMU Pronouncing Dictionary   CMU                    127k entries
 CoNLL 2000 Chunking Data     Tjong Kim Sang         270k words, tagged and chunked
 CoNLL 2002 Named Entity      Tjong Kim Sang         700k words, pos- and named-entity-tagged (Dutch, Spanish)
+Dependency Treebank          Jason Narad            Dependency parsed version of Penn Treebank sample
 Floresta Treebank            Diana Santos et al     9k sentences (Portuguese)
+Gazetteer Lists              -                      Lists of cities and countries
 Genesis Corpus               Misc web sources       6 texts, 200k words, 6 languages
 Gutenberg (sel)              Hart, Newby, et al     14 texts, 1.7M words
+Inaugural Address Corpus     CSpan                  US Presidential Inaugural Addresses (1789-present)
 Indian POS-Tagged Corpus     Kumaran et al          60k words, tagged (Bangla, Hindi, Marathi, Telugu)
 MacMorpho Corpus             NILC, USP, Brazil      1M words, tagged (Brazilian Portuguese)
 Movie Reviews                Pang, Lee              Sentiment Polarity Dataset 2.0
@@ -95,6 +94,7 @@ Roget's Thesaurus            Project Gutenberg      200k words, formatted text
 RTE Textual Entailment       Dagan et al            8k sentence pairs, categorized
 SEMCOR                       Rus, Mihalcea          880k words, part-of-speech and sense tagged
 SENSEVAL 2 Corpus            Ted Pedersen           600k words, part-of-speech and sense tagged
+Sentiment Polarity           Pang, Lee              2k movie reviews, sentiment classified
 Shakespeare XML texts (sel)  Jon Bosak              8 books
 Stopwords Corpus             Porter et al           2,400 stopwords for 11 languages
 Switchboard Corpus (sel)     LDC                    36 phonecalls, transcribed, parsed

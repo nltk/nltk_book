@@ -58,7 +58,7 @@ dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
 .. _dottededge:
 .. ex::
    .. image:: ../images/chart_intro_dottededge.png
-      :scale: 30:75:30
+      :scale: 30:75:75
 
 These `dotted edges`:dt: are used to record all of the hypotheses that a
 chart parser makes about constituents in a sentence.
@@ -96,7 +96,7 @@ see chart-intro-parseedge_.
    .. _chart-intro-incomplete:
    .. ex::
       .. image:: ../images/chart_intro_incomplete.png
-         :scale: 25
+         :scale: 25:25:75
 
    .. _chart-intro-parseedge:
    .. ex::
@@ -150,7 +150,7 @@ of terminals or non-terminals.
    |chart_fundamental|
 
 .. |chart_fundamental| image:: ../images/chart_fundamental.png
-   :scale: 30
+   :scale: 30:100:30
 
 In the new edge, the dot has moved one place to the right.
 Its span is the combined span of the original edges.
