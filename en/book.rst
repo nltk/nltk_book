@@ -33,8 +33,7 @@ Natural Language Processing
 .. include:: ch09.rst2
 .. include:: ch10.rst2
 .. include:: ch11.rst2
-.. include:: ch12.rst2
-.. .. include:: ch13.rst2
+.. .. include:: ch12.rst2
 
 :raw-latex:`\part{APPENDICES}`
 
