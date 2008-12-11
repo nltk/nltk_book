@@ -140,6 +140,7 @@
   .. |times| unicode:: U+00D7 .. multiplication
   .. |vee| unicode:: U+2228 .. or
   .. |wedge| unicode:: U+2227 .. and
+  .. |prod| replace:: Prod
   
   .. sets
   .. |cup| unicode:: U+0222A .. union 

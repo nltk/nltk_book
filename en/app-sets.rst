@@ -139,7 +139,7 @@ which belong to some `already defined set`:em: `B`:math:\:
 .. _comprax:
 .. ex:: |forall|\ `B`:math: |exists|\ `A`:math:\ |forall|\ `x`:math:.
         (`x`:math: |element| `A`:math: |iff| `x`:math: |element|
-    `B`:math: |wedge|  `P(x)`:math:\ )
+        `B`:math: |wedge|  `P(x)`:math:\ )
 
 |nopar| (For all sets `B`:math: there is a set `A`:math: such that for all
 `x`:math:, `x`:math: belongs to `A`:math: if and only if `x`:math:
