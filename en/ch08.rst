@@ -14,6 +14,8 @@
 .. TODO: give an example of a text generated from bigrams, then talk the
          reader through constructing a simple grammar over this by talking
          about local contexts, and contrast this with the grammar
+.. TODO: update images in parser-problem table (NP -> NP PP replaced
+         by Nom -> Nom PP
 
 .. _chap-parse:
 
@@ -1437,10 +1439,317 @@ Chart parsers use a slighly richer data structure and some interesting
 algorithms to solve these problems.  Please see Appendix app-chart_
 for details.
 
+------------------
+Dependency Grammar
+------------------
+
+Context Free Grammar is founded on the notion that sequences of adjacent words
+can be grouped into constituents, such as as prepositional phrases.
+A separate tradition in syntax, recently gaining popularity in |NLP|, is
+known as dependency grammar.  Here, the most basic notion is that of
+dependency: words are `dependent`:dt: on another words. 
+The root of a sentence is usually taken to be the main verb, and every other word is
+either dependent on the root, or connects to it through a path of
+dependencies. Figure depgraph0_ illustrates a dependency graph, where
+the head of the arrow points to the head of a dependency. 
+
+.. _depgraph0:
+.. ex::
+    .. image:: ../images/depgraph0.png
+       :scale: 30
+
+As you will see, the arcs in Figure depgraph0_ are labeled with the
+particular dependency relation that holds between a dependent and its
+head. For example, `Esso`:lx: bears the subject relation to `said`:lx:
+(which is the head of the whole sentence), and `Tuesday`:lx: bears a
+verbal modifier (`vmod`:gc:) relation to `started`:lx:.
+
+An alternative way of representing the dependency relationships is illustrated
+in the tree depgraph1_,
+where dependents are shown as daughters of their heads.
+
+.. _depgraph1:
+.. ex::
+    .. tree:: (said Esso (started (field the Whiting) production Tuesday))
+
+One format for encoding dependency information places each word on a
+line, followed by its part-of-speech tag, the index of its head, and
+the label of the dependency relation (cf. [Nivre2006MP]_). The index
+of a word is implicitly given by the ordering of the lines (with 1 as the
+first index). This is illustrated in the following code snippet:
+
+    >>> from nltk import DependencyGraph
+    >>> dg = DependencyGraph("""Esso    NNP 2   SUB
+    ... said    VBD 0   ROOT
+    ... the     DT  5   NMOD
+    ... Whiting NNP 5   NMOD
+    ... field   NN  6   SUB
+    ... started VBD 2   VMOD
+    ... production  NN  6   OBJ
+    ... Tuesday NNP 6   VMOD""")
+
+As you will see, this format also adopts the convention that the head
+of the sentence is dependent on an empty node, indexed as 0. We can
+use the ``deptree()`` method of a ``DependencyGraph()`` object to build an |NLTK|
+tree like that illustrated earlier in depgraph1_.
+
+    >>> tree = dg.deptree()
+    >>> tree.draw()                                 # doctest: +SKIP
+
+Projective Dependency Parsing
+-----------------------------
+
+    >>> grammar = nltk.parse_dependency_grammar("""
+    ... 'fell' -> 'price' | 'stock'
+    ... 'price' -> 'of' 'the'
+    ... 'of' -> 'stock'
+    ... 'stock' -> 'the'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 5 productions
+      'fell' -> 'price'
+      'fell' -> 'stock'
+      'price' -> 'of' 'the'
+      'of' -> 'stock'
+      'stock' -> 'the'
+    
+    >>> dp = nltk.ProjectiveDependencyParser(grammar)
+    >>> for t in dp.parse(['the', 'price', 'of', 'the', 'stock', 'fell']):
+    ...     print tree
+    (fell (price the of the) stock)
+    (fell (price the of) (stock the))
+    (fell (price the (of (stock the))))
+
+Non-Projective Dependency Parsing
+---------------------------------
+
+    >>> grammar = nltk.parse_dependency_grammar("""
+    ... 'taught' -> 'play' | 'man'
+    ... 'man' -> 'the'
+    ... 'play' -> 'golf' | 'dog' | 'to'
+    ... 'dog' -> 'his'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 7 productions
+      'taught' -> 'play'
+      'taught' -> 'man'
+      'man' -> 'the'
+      'play' -> 'golf'
+      'play' -> 'dog'
+      'play' -> 'to'
+      'dog' -> 'his'
+    
+    >>> dp = nltk.NonprojectiveDependencyParser(grammar)
+    >>> for g in dp.parse(['the', 'man', 'taught', 'his', 'dog', 'to', 'play', 'golf']):
+    ...     print g
+    [{'address': 0, 'deps': 3, 'rel': 'TOP', 'tag': 'TOP', 'word': None},
+     {'address': 1, 'deps': [], 'word': 'the'},
+     {'address': 2, 'deps': [1], 'word': 'man'},
+     {'address': 3, 'deps': [2, 7], 'word': 'taught'},
+     {'address': 4, 'deps': [], 'word': 'his'},
+     {'address': 5, 'deps': [4], 'word': 'dog'},
+     {'address': 6, 'deps': [], 'word': 'to'},
+     {'address': 7, 'deps': [5, 6, 8], 'word': 'play'},
+     {'address': 8, 'deps': [], 'word': 'golf'}]
+
+.. note:: The dependency parser modules also support probabilistic dependency parsing.
+
+------------------
+A Problem of Scale
+------------------
+
+Parsing builds trees over sentences, according to a phrase
+structure grammar.  Now, all the examples we gave above
+only involved toy grammars containing a handful of productions.
+What happens if we try to scale up this approach to deal
+with realistic corpora of language?  In this section we will
+see how to access treebanks, and look at the challenge of developing
+broad-coverage grammars.
+
+Treebanks
+---------
+
+The ``corpus`` module defines the ``treebank`` corpus reader,
+which contains a 10% sample of the Penn Treebank corpus.
+
+    >>> print nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
+    (S
+      (NP-SBJ
+        (NP (NNP Pierre) (NNP Vinken))
+        (, ,)
+        (ADJP (NP (CD 61) (NNS years)) (JJ old))
+        (, ,))
+      (VP
+        (MD will)
+        (VP
+          (VB join)
+          (NP (DT the) (NN board))
+          (PP-CLR
+            (IN as)
+            (NP (DT a) (JJ nonexecutive) (NN director)))
+          (NP-TMP (NNP Nov.) (CD 29))))
+      (. .))
+
+
+
+NLTK also includes a sample from the *Sinica Treebank Corpus*,
+consisting of 10,000 parsed sentences drawn from the
+*Academia Sinica Balanced Corpus of Modern Chinese*.
+Here is a code fragment to read and display one of the trees in this corpus.
+
+    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
+
+
+.. _sinica-tree:
+.. ex::
+    .. image:: ../images/sinica-tree.png
+       :scale: 70
+
+[MORE: PE08 corpus]
+
+
+Grammar Development Strategies
+------------------------------
+
+[Test suites, intertwined analyses of phenomena...]
+
+Pernicious Ambiguity
+--------------------
+
+Unfortunately, as the coverage of
+the grammar increases and the length of the input sentences grows, the
+number of parse trees grows rapidly.  In fact, it grows at an
+astronomical rate.
+
+Let's explore this issue with the help of a simple example.
+The word
+`fish`:lx: is both a noun and a verb.  We can make up the sentence
+`fish fish fish`:lx:, meaning *fish like to fish for other fish*.
+(Try this with `police`:lx: if you prefer something more sensible.)
+Here is a toy grammar for the "fish" sentences.
+
+    >>> grammar = nltk.parse_cfg("""
+    ... S -> NP V NP
+    ... NP -> NP Sbar
+    ... Sbar -> NP V 
+    ... NP -> 'fish'
+    ... V -> 'fish'
+    ... """)
+
+Now we can try parsing a longer sentence, `fish fish fish fish
+fish`:lx:, which amongst other things, means 'fish that other fish
+fish are in the habit of fishing fish themselves'. We use the |NLTK|
+chart parser, which is presented later on in this chapter.  This
+sentence has two readings.
+
+    >>> tokens = ["fish"] * 5
+    >>> cp = nltk.ChartParser(grammar, nltk.parse.TD_STRATEGY)
+    >>> for tree in cp.nbest_parse(tokens):
+    ...     print tree
+    (S (NP (NP fish) (Sbar (NP fish) (V fish))) (V fish) (NP fish))
+    (S (NP fish) (V fish) (NP (NP fish) (Sbar (NP fish) (V fish))))
+
+As the length of this sentence goes up (3, 5, 7, ...) we get the
+following numbers of parse trees:
+1; 2; 5; 14; 42; 132; 429; 1,430; 4,862; 16,796; 58,786; 208,012; ...
+(These are the `Catalan numbers`:idx:, which we saw in an exercise
+in Section sec-algorithm-design-strategies_).
+The last of these is for a sentence of length 23, the average length
+of sentences in the  WSJ section of Penn Treebank.  For a sentence
+of length 50 there would be over 10\ :superscript:`12` parses, and this
+is only half the length of the Piglet sentence
+(Section sec-dilemmas_),
+which young children process effortlessly.
+No practical |NLP| system could construct millions of trees for a
+sentence and choose the appropriate one in the context.
+It's clear that humans don't do this either!
+
+Note that the problem is not with our choice of example. 
+[Church1982CSA]_ point out that the syntactic ambiguity of `pp`:gc:
+attachment in sentences like pp_ also grows in proportion to the Catalan
+numbers.
+
+.. _pp:
+.. ex:: Put the block in the box on the table.
+
+So much for structural ambiguity; what about lexical ambiguity?
+As soon as we try to construct a broad-coverage grammar, we
+are forced to make lexical entries highly ambiguous for their part of
+speech.  In a toy grammar, `a`:lx: is only a determiner, `dog`:lx: is
+only a noun, and `runs`:lx: is only a verb.  However, in a
+broad-coverage grammar, `a` is also a noun (e.g. `part a`:lx:),
+`dog`:lx: is also a verb (meaning to follow closely), and `runs`:lx:
+is also a noun (e.g. `ski runs`:lx:).  In fact, all words can be
+referred to by name: e.g. `the verb 'ate' is spelled with three
+letters`:lx:; in speech we do not need to supply quotation marks.
+Furthermore, it is possible to *verb* most nouns.  Thus a parser for a
+broad-coverage grammar will be overwhelmed with ambiguity.  Even
+complete gibberish will often have a reading, e.g. `the a are of
+I`:lx:.  As [Abney1996SML]_ has pointed out, this is not word salad but a
+grammatical noun phrase, in which `are`:lx: is a noun meaning a
+hundredth of a hectare (or 100 sq m), and `a`:lx: and `I`:lx: are
+nouns designating coordinates, as shown in Figure are_.
+
+.. _are:
+.. figure:: ../images/are.png
+   :scale: 20
+
+   The a are of I
+
+|nopar|
+Even though this phrase is unlikely, it is still grammatical and a
+a broad-coverage parser should be able to construct a parse tree
+for it.  Similarly, sentences that seem to be
+unambiguous, such as `John saw Mary`:lx:, turn out to have other
+readings we would not have anticipated (as Abney explains).  This
+ambiguity is unavoidable, and leads to horrendous inefficiency in
+parsing seemingly innocuous sentences. 
+
+Let's look more closely at this issue of efficiency.
+The top-down recursive-descent parser presented
+in Chapter chap-parse_ can be very inefficient, since it often builds
+and discards the same sub-structure many times over.  We see this
+in Figure parser-problem_, where a phrase `the block`:lx: is identified
+as a noun phrase several times, and where this information is discarded
+each time we backtrack.
+
+.. Note::
+   You should try the recursive-descent parser demo if you haven't
+   already: ``nltk.draw.srparser.demo()``
+
+.. table:: parser-problem
+
+   +-----------------------------------+-----------------------------------+
+   | a. Initial stage                  | b. Backtracking                   |
+   |                                   |                                   |
+   | |findtheblock1|                   | |findtheblock2|                   |
+   +-----------------------------------+-----------------------------------+
+   | c. Failing to match `on`:lx:      | d. Completed parse                |
+   |                                   |                                   |
+   | |findtheblock3|                   | |findtheblock4|                   |
+   +-----------------------------------+-----------------------------------+
+
+   Backtracking and Repeated Parsing of Subtrees
+
+.. |findtheblock1| image:: ../images/findtheblock1.png
+   :scale: 85
+.. |findtheblock2| image:: ../images/findtheblock2.png
+   :scale: 85
+.. |findtheblock3| image:: ../images/findtheblock3.png
+   :scale: 85
+.. |findtheblock4| image:: ../images/findtheblock4.png
+   :scale: 85
+
+
+The solution to these problems is provided by
+`probabilistic parsing`:em:, which allows us to `rank`:em:
+the parses of an ambiguous sentence on the basis of evidence from corpora.
+We return to this topic in Chapter chap-conclusion_.
+
+
 -------
 Summary
 -------
-
 
 * Sentences have internal organization, or constituent structure,
   that can be represented using a tree; notable features of constituent
@@ -1584,6 +1893,16 @@ Exercises
 #. |easy| We have seen that a chart parser adds but never removes edges
    from a chart.  Why?
 
+#. |easy| Consider the sequence of words:
+   `Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo`:lx:.
+   This is a grammatically correct sentence, as explained at
+   ``http://en.wikipedia.org/wiki/Buffalo_buffalo_Buffalo_buffalo_buffalo_buffalo_Buffalo_buffalo.``
+   Consider the tree diagram presented on this Wikipedia page, and write down a suitable
+   grammar.  Normalize case to lowercase, to simulate the problem that a listener has when hearing
+   this sentence.  Can you find other parses for this sentence?  
+   How does the number of parse trees grow as the sentence gets longer?
+   (More examples of these sentences can be found at ``http://en.wikipedia.org/wiki/List_of_homophonous_phrases``).
+
 #. |soso| You can modify the grammar in the recursive descent parser demo
    by selecting *Edit Grammar*  in the *Edit* menu. Change
    the first expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
@@ -1660,6 +1979,20 @@ Exercises
    What is the longest sentence you can find?  What syntactic construction(s)
    are responsible for such long sentences?
 
+#. |soso| Modify the functions ``init_wfst()`` and ``complete_wfst()`` so
+   that the contents of each cell in the |WFST| is a set of
+   non-terminal symbols rather than a single non-terminal.
+
+#. |soso| Consider the algorithm in Figure wfst_.  Can you explain why
+   parsing context-free grammar is proportional to `n`:sup:`3`\ , where *n*
+   is the length of the input sentence.
+
+#. |soso| Process each tree of the Treebank corpus sample ``nltk.corpus.treebank``
+   and extract the productions with the help of ``Tree.productions()``.  Discard
+   the productions that occur only once.  Productions with the same left hand side,
+   and similar right hand sides can be collapsed, resulting in an equivalent but
+   more compact set of rules.  Write code to output a compact grammar. 
+
 #. |hard| One common way of defining the subject of a sentence `s`:gc: in
    English is as *the noun phrase that is the daughter of* `s`:gc: *and
    the sister of* `vp`:gc:.   Write a function that takes the tree for
@@ -1708,4 +2041,3 @@ Exercises
    function that will convert a |WFST| in this form to a parse tree.
 
 .. include:: footer.rst
-
