@@ -9,48 +9,143 @@
 
 .. _chap-data-intensive:
 
-=======================================
- 5. Data-Intensive Language Processing
-=======================================
+=================================
+5. Classifying Text Automatically
+=================================
 
 .. nomenclature note: training corpus/test corpus or training set/test set??
 .. discuss qc corpus
 .. explain that segmentation (e.g. tokenization, sentence segmentation) can
    be viewed as a classification task
 
-.. SB: need a new opening now
+Detecting patterns is a central part of |NLP|.
+Words ending in `-ed`:lx: tend to be past tense verbs (Chapter chap-tag_).
+Frequent use of `will`:lx: is indicative of news text (Chapter chap-words_).
+These observable patterns |mdash| word structure and word frequency |mdash|
+happen to correlate with particular aspects of meaning, such as tense and topic.
+But how did we know where to start looking, which aspects of form to associate
+with which aspects of meaning? 
 
-Language is full of patterns.  In Chapter chap-words_ we saw that
-frequent use of the modal verb `will`:lx: is characteristic of news
-text, and more generally, that we can use the frequency of a small
+The goal of this chapter is to answer the following questions:
+
+#. How can we identify particular features of language data that
+   are salient for classifying it?
+#. How can we construct models of language that can
+   be used to perform language processing tasks automatically?
+#. What can we learn about language from these models?
+
+Along the way we will study some important machine learning techniques,
+including as decision trees, naive Bayes' classifiers, maximum entropy classifiers.
+We will gloss over the mathematical and statistical underpinnings of these
+techniques, focusing instead on how and when to use them (see the
+further readings section for more technical background). 
+Before looking at these methods, we first need to appreciate the
+broad scope of this topic.
+
+----------------------------
+Everything is Classification
+----------------------------
+
+Tagging as Classification
+-------------------------
+
+In Chapter chap-tag_ we saw that part-of-speech tagging is a kind of classification.
+A bigram tagger chooses the tag to assign to a word based on the identity of
+the word and the tag of the previous word.  A regular expression tagger looks
+at the internal make-up of the word.  However, the regular expression tagger had
+to be hand-crafted.  Instead, we can train a classifier to work out which
+suffixes are most informative.  The first step is to define a function to extract
+the features |mdash| the observable properties |mdash| of the input that our
+classifier will exploit.
+
+    >>> def suffix_features(word, n=3):
+    ...     features = {}
+    ...     for i in range(1, n+1):
+    ...         features["suffix(%d)" % i] = word[-i:]
+    ...     return features
+    ...
+    >>> suffix_features('studied')
+    {'suffix(1)': 'd', 'suffix(3)': 'ied', 'suffix(2)': 'ed'}
+    >>> suffix_features('if')
+    {'suffix(1)': 'f', 'suffix(3)': 'if', 'suffix(2)': 'if'}
+
+The features behave like tinted glasses, highlighting some of the
+properties (colors) in our data and making it impossible to see
+other properties.
+    
+    >>> tagged_data = nltk.corpus.brown.tagged_words(categories='news')
+    >>> features = [(suffix_features(n), g) for (n,g) in tagged_data]
+    >>> size = int(len(tagged_data) * 0.9)
+    >>> classifier = nltk.DecisionTreeClassifier.train(features[:size])
+    >>> nltk.classify.accuracy(classifier, features[size:])
+    0.809864757359
+
+[explain how to access informative features from the classifier,
+and learn something about the data.]
+
+.. note:: |TRY|
+   Modify the above code to implement a bigram tagger.
+   Define ``bigram_features(prevtag, word)`` to put
+   its two parameters into a dictionary.  Create a list
+   ``features`` by iterating over the bigrams of the tagged
+   data, using ``nltk.ibigrams()``, and pulling out the
+   previous tag and the current word.  Try using the
+   naive Bayes' classifier ``nltk.NaiveBayesClassifier``.
+
+Segmentation as Classification
+------------------------------
+
+Encoding this information -- features.  We need to encode this info in
+a concrete way.  Use a feature dictionary for each occurrence, mapping
+feature names (eg 'prevword') to concrete values (eg a string, int).
+Features should have simple values (i.e. not list values).
+
+.. pylisting:: segmentation
+
+   def preprocess(sents):
+       tokens = []
+       boundaries = []
+       for sent in sents:
+           for token in sent:
+               tokens.append(token)
+           boundaries.append(False)
+           boundaries[-1] = True
+       return (tokens, boundaries)
+
+   def get_instances(tokens, boundaries):
+       instances = []
+       for i in range(len(tokens)):
+           if tokens[i] in ".?!":
+               try:
+                   instances.append(
+                       (dict( upper = tokens[i+1][0].isupper(),
+                              abbrev = len(tokens[i-1]) == 1 ),
+                        boundaries[i]))
+               except IndexError:
+                   pass
+       return instances     
+
+   >>> tokens, boundaries = preprocess(nltk.corpus.abc.sents())
+   >>> data = get_instances(tokens, boundaries)
+   >>> train = data[1000:]
+   >>> test = data[:1000]
+   >>> classifier = nltk.NaiveBayesClassifier.train(train)
+   >>> nltk.classify.accuracy(classifier, test)
+   0.9960
+
+QC corpus
+
+and more generally, that we can use the frequency of a small
 number of diagnostic words in order to automatically guess the genre
-of a text (Table brown-types_).  In Chapter chap-tag_ we saw that
-words ending in `-ed`:lx: tend to be past tense verbs, and more
+of a text (Table brown-types_).  
+
+
 generally, that the internal structure of words tells us something
 about their part of speech.  Detecting and understanding such patterns
 is central to many NLP tasks, particularly those that try to access
 the meaning of a text.
 
-The goal of this chapter is to answer the following questions:
 
-#. How can various types of corpora be used to learn about linguistic
-   patterns?
-#. How can we use these patterns to create `models`:dt: that perform
-   language processing tasks automatically?
-#. What can we learn about language from these models?
-
-In order to study and model linguistic patterns, we need to be able to
-write programs to process large quantities of annotated text.  In this
-chapter we will focus on data-intensive language processing, covering
-manual approaches to exploring linguistic data in Section
-sec-exploratory-data-analysis_ and automatic approaches in Section
-sec-data-modeling_.
-
-.. do we need more motivation and overview of this simple ontology
-   (manual vs automatic)?
-
-
-Examples to be worked into opening section:
 
 We have already seen a simple application of classification in the
 case of part-of-speech tagging.  Recall that we
@@ -58,31 +153,12 @@ devised a regular expression tagger (Section sec-automatic-tagging_)
 that assigned part-of-speech tags based on hand-crafted patterns.
 We can do a similar task automatically, by training a classifier:
 
-.. pylisting:: suffix-tagger
-
-   def tag_features(word, n=3):
-       features = {}
-       for i in range(n):
-           features["suffix(%d)" % n] = word[-(n+1):]
-       return features
-
-   def evaluate_suffix_tagger(classifier, tagged_data):
-       size = int(len(tagged_data) * 0.9)
-       train, test = tagged_data[:size], tagged_data[size:]
-       train_features = [(tag_features(n), g) for (n,g) in train]
-       test_features =  [(tag_features(n), g) for (n,g) in test]
-       c = classifier.train(train_features)
-       return nltk.classify.accuracy(c, test_features)
-        
-    >>> tagged_data = nltk.corpus.brown.tagged_words(categories='news')
-    >>> evaluate_suffix_tagger(nltk.DecisionTreeClassifier, tagged_data)
-    0.809864757359
-
-[explain how to access informative features from the classifier,
-and learn something about the data.]
 
 
+Categorized Corpora
+-------------------
 
+Description of the available categorized corpora
 
 Searching Automatically Annotated Data
 --------------------------------------
@@ -130,51 +206,6 @@ to categorize them.  In general, we're interested in two things:
   - features of the construction itself
   - features of the context that we think are relevant to the phenomenon.
 
-Categorization can be automatic or manual
-
-  - automatic: when the decision can be made deterministically.  e.g.,
-    what is the previous word?
-    
-  - manual: when the decision needs human judgement.  example.. animacy?
-
-Encoding this information -- features.  We need to encode this info in
-a concrete way.  Use a feature dictionary for each occurrence, mapping
-feature names (eg 'prevword') to concrete values (eg a string, int).
-Features are typically simple-valued, but don't necessarily need to
-be.  (Though they will need to be for automatic methods.. coming up)
-
-.. pylisting:: segmentation
-
-   def preprocess(sents):
-       tokens = []
-       boundaries = []
-       for sent in sents:
-           for token in sent:
-               tokens.append(token)
-           boundaries.append(False)
-           boundaries[-1] = True
-       return (tokens, boundaries)
-
-   def get_instances(tokens, boundaries):
-       instances = []
-       for i in range(len(tokens)):
-           if tokens[i] in ".?!":
-               try:
-                   instances.append(
-                       (dict( upper = tokens[i+1][0].isupper(),
-                              abbrev = len(tokens[i-1]) == 1 ),
-                        boundaries[i]))
-               except IndexError:
-                   pass
-       return instances		
-
-   >>> tokens, boundaries = preprocess(nltk.corpus.abc.sents())
-   >>> data = get_instances(tokens, boundaries)
-   >>> train = data[1000:]
-   >>> test = data[:1000]
-   >>> classifier = nltk.NaiveBayesClassifier.train(train)
-   >>> nltk.classify.accuracy(classifier, test)
-   0.9960
 
   
 Counting
@@ -1817,14 +1848,10 @@ Summary
 
 * intuitions about how language works are unreliable.
 
-* Exploratory data analysis, a technique for learning about a specific
-  linguistic pattern, consists of four steps: search, categorization,
-  counting, and hypothesis refintement.
-
-* Data modeling help us to understand the linguistic patterns, and
+* data modeling helps us to understand the linguistic patterns, and
   can be used to make predictions about new language data.
 
-* Automatically constructed models are typically descriptive, not
+* automatically constructed models are typically descriptive, not
   explanatory.
 
 * supervised classification: training data, dev set, test set.
