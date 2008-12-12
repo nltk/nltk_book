@@ -31,214 +31,17 @@ function, and illustrates them in terms of Python data structures.
 It contains many working program fragments that you should try yourself.
 
 
--------------------
-Program Development
--------------------
-
-Programming is a skill that is acquired over several years of
-experience with a variety of programming languages and tasks.  Key
-high-level abilities are *algorithm design* and its manifestation in
-*structured programming*.  Key low-level abilities include familiarity
-with the syntactic constructs of the language, and knowledge of a
-variety of diagnostic methods for trouble-shooting a program which
-does not exhibit the expected behavior.
-
-.. note:: If you are new to programming, you will probably find
-   writing a complete program from scratch quite daunting.  Instead,
-   it is a good idea to begin by looking at many small example
-   programs and understand why they work, then modifying them in small
-   ways to change their behavior.
-
-Programming Style
------------------
-
-We have just seen how the same task can be performed in different
-ways, with implications for efficiency.  Another factor influencing
-program development is *programming style*.  Consider the following
-program to compute the average length of words in the Brown Corpus:
-
-    >>> tokens = nltk.corpus.brown.words(categories='news')
-    >>> count = 0
-    >>> total = 0
-    >>> for token in tokens:
-    ...     count += 1
-    ...     total += len(token)
-    >>> print float(total) / count
-    4.2765382469
-
-In this program we use the variable ``count`` to keep track of the
-number of tokens seen, and ``total`` to store the combined length of
-all words.  This is a low-level style, not far removed from machine
-code, the primitive operations performed by the computer's CPU.
-The two variables are just like a CPU's registers, accumulating values
-at many intermediate stages, values that are almost meaningless. 
-We say that this program is written in a *procedural* style, dictating
-the machine operations step by step.  Now consider the following
-program that computes the same thing:
-
-    >>> total = sum(map(len, tokens))
-    >>> print float(total)/len(tokens)
-    4.2765382469
-
-The first line uses a list comprehension to construct the sequence of
-tokens.  The second line *maps* the ``len`` function to this sequence,
-to create a list of length values, which are summed.  The third line
-computes the average as before.  Notice here that each line of code
-performs a complete, meaningful action.  Moreover, they do not dictate
-how the computer will perform the computations; we state high level
-relationships like "``total`` is the sum of the lengths of the tokens"
-and leave the details to the Python interpreter.  Accordingly, we say
-that this program is written in a *declarative* style.
-
-Here is another example to illustrate the procedural/declarative
-distinction.  Notice again that the procedural version
-involves low-level steps and a variable having meaningless
-intermediate values:
-
-    >>> word_list = []
-    >>> for token in tokens:
-    ...     if token not in word_list:
-    ...         word_list.append(token)
-    >>> word_list.sort()
-
-The declarative version makes use of higher-level built-in functions:
-
-    >>> word_list = list(set(tokens))
-    >>> word_list.sort()
-
-What do these programs compute?  Which version did you find easier to interpret?
-
-Consider one further example, that sorts three-letter words by their
-final letters.  The words come from the widely-used Unix word-list,
-made available as an NLTK corpus called ``words``.  Two words ending
-with the same letter will be sorted according to their second-last
-letters.  The result of this sort method is that many rhyming words will be
-contiguous.  Two programs are given; Which one is more declarative,
-and which is more procedural?
-
-As an aside, for readability we define a function for reversing
-strings that will be used by both programs:
-
-    >>> def reverse(word):
-    ...     return word[::-1]
-
-Here's the first program.  We define a helper function ``reverse_cmp``
-that calls the built-in ``cmp`` comparison function on reversed
-strings.  The ``cmp`` function returns ``-1``, ``0``, or ``1``,
-depending on whether its first argument is less than, equal to, or
-greater than its second argument.  We tell the list sort function to
-use ``reverse_cmp`` instead of ``cmp`` (the default).
-
-    >>> def reverse_cmp(x,y):
-    ...     return cmp(reverse(x), reverse(y))
-    >>> word_list = [w for w in nltk.corpus.words.words('en') if len(w) == 3]
-    >>> word_list.sort(reverse_cmp)
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
-    'Paz', 'Liz']
-
-Here's the second program.  In the first loop it collects up all the
-three-letter words in reversed form.  Next, it sorts the list of
-reversed words.  Then, in the second loop, it iterates over each
-position in the list using the variable ``i``, and replaces each item
-with its reverse.  We have now re-reversed the words, and can print
-them out.
-
-    >>> word_list = []
-    >>> for word in words:
-    ...     if len(word) == 3:
-    ...         word_list.append(reverse(word))
-    >>> word_list.sort()
-    >>> for i in range(len(word_list)):
-    ...     word_list[i] = reverse(word_list[i])
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
-    'Paz', 'Liz']
-
-Choosing between procedural and declarative styles is just that, a
-question of style.  There are no hard boundaries, and it is possible
-to mix the two.  Readers new to programming are encouraged to
-experiment with both styles, and to make the extra effort required to
-master higher-level constructs, such as list comprehensions, and
-built-in functions like ``map`` and ``filter``.
-
-
-
-.. TODO: don't repeat yourself http://c2.com/cgi/wiki?DontRepeatYourself
-.. TODO: duck typing
-.. TODO: shared values between multiple dictionaries
 
 
 naming variables
 
-http://www.python.org/dev/peps/pep-0008/
+
 
 Modules
 
 
 
-Debugging
----------
 
-.. doctest-ignore::
-
-    >>> import pdb
-    >>> import mymodule
-    >>> pdb.run('mymodule.test()')
-
-
-Commands:
-
-list [first [,last]]: list sourcecode for the current file
-
-next: continue execution until the next line in the current function is reached
-
-cont: continue execution until a breakpoint is reached (or the end of the program)
-
-break: list the breakpoints
-
-break n: insert a breakpoint at this line number in the current file
-
-break file.py:n: insert a breakpoint at this line in the specified file
-
-break function: insert a breakpoint at the first executable line of the function
-
-Profiling
----------
-
-Scaling Up
-----------
-
-scalability tricks (e.g. replace each word with an integer).
-Figure strings-to-ints_
-
-.. pylisting:: strings-to-ints
-   :caption: Preprocess tagged corpus data, converting all words and tags to integers
-
-   def preprocess(tagged_corpus):
-       words = set()
-       tags = set()
-       for sent in tagged_corpus:
-           for word, tag in sent:
-               words.add(word)
-               tags.add(tag)
-       wm = dict((w,i) for (i,w) in enumerate(words))
-       tm = dict((t,i) for (i,t) in enumerate(tags))
-       return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
-
-
-* when keeping track of vocabulary items, for the purpose of checking membership,
-  use sets rather than lists, because sets index their elements.
-
-
-
-
-
-.. _T9:
-.. figure:: ../images/T9.png
-   :scale: 20
-
-   T9: Text on 9 Keys
 
 
 -------------------------------
@@ -255,14 +58,6 @@ Python's Standard Library
 CSV
 ---
 
-    >>> import csv
-    >>> file = open("dict.csv", "rb")
-    >>> for row in csv.reader(file):
-    ...     print row
-    ['sleep', 'sli:p', 'v.i', 'a condition of body and mind ...']
-    ['walk', 'wo:k', 'v.intr', 'progress by lifting and setting down each foot ...']
-    ['wake', 'weik', 'intrans', 'cease to sleep']
-
 
 Database Connectivity
 ---------------------
@@ -273,21 +68,6 @@ HTML
 ----
 
 
-
-Web Applications
-----------------
-
-``mod_python``
-
-Jango
-
-
-XML and ElementTree
--------------------
-
-* inspecting and processing XML
-* example: find nodes matching some criterion and add an attribute
-* Shakespeare XML corpus example
 
 
 Chinese and XML
@@ -659,28 +439,11 @@ Further Reading
 Object-Oriented programming
 
 
-[Brent1995]
-
 [Hunt1999PP]_
 
 ---------
 Exercises
 ---------
-
-1. |easy| Write a program to sort words by length.  Define a helper function
-   ``cmp_len`` which uses the ``cmp`` comparison function on word
-   lengths.
-
-2. |soso| Consider the tokenized sentence
-   ``['The', 'dog', 'gave', 'John', 'the', 'newspaper']``.
-   Using the ``map()`` and ``len()`` functions, write a single line
-   program to convert this list of tokens into a list of token
-   lengths: ``[3, 3, 4, 4, 3, 9]``
-
-#. |hard| **Statistically Improbable Phrases:**
-   Design an algorithm to find the statistically improbable
-   phrases of a document collection.
-   http://www.amazon.com/gp/search-inside/sipshelp.html
 
 #. |soso| Consider again the problem of hyphenation across line-breaks.
    Suppose that you have successfully written a tokenizer that

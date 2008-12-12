@@ -25,6 +25,9 @@ General Issues
 Chapter-Specific Issues and Questions
 -------------------------------------
 
+* ch06: the structure of this chapter is still in flux; suggestions for
+  improving the structure and prioritizing the content welcomed
+
 * ch07: we are hoping to get some English named-entity data so that we
   can illustrate how to train a named entity classifier
 

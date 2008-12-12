@@ -19,6 +19,7 @@
 .. TODO: windowdiff from ch05?
 .. TODO: introduce `obj` notation to get string from object; useful for concatenating strings and ints
 .. TODO: for sentence in tagged_corpus: tokens, tags = zip(*sentence)
+.. TODO: discuss duck typing
 
 .. _chap-structured-programming:
 
@@ -604,7 +605,11 @@ it evaluates to true, it tells us not only that the condition is
 satisfied, but also that the condition of the main ``if`` clause was
 *not* satisfied.
 
-.. _sec-visualization:
+Python Coding Style
+-------------------
+
+Discuss key points of ``http://www.python.org/dev/peps/pep-0008/``
+
 
 .. _sec-functions:
 
@@ -612,8 +617,7 @@ satisfied, but also that the condition of the main ``if`` clause was
 Functions
 ---------
 
-Once you have been programming for a while, you will find that you need
-to perform a task that you have done in the past.  In fact, over time,
+Once you have been programming for a while, you will find that
 the number of completely novel things you have to do in creating a program
 decreases significantly.  Half of the work may involve simple tasks that
 you have done before.  Thus it is important for your code to be `re-usable`:em:.
@@ -674,18 +678,134 @@ The program that calls our function also has increased reliability.  The author
 of that program is dealing with a shorter program, and its components behave
 transparently.
 
-* [More: overview of section]
+To summarize, as its name suggests, a function captures functionality.
+It is a segment of code that can be given a meaningful name and which performs
+a well-defined task.  Functions allow us to abstract away from the details,
+to see a bigger picture, and to program more effectively.
 
-Function Arguments
-------------------
+The rest of this section takes a closer look at functions, exploring the
+mechanics and discussing aspects of literate programming.
 
-* multiple arguments
-* named arguments
-* default values
+Function Parameters
+-------------------
 
-Python is a `dynamically typed`:dt: language.  It does not force us to
-declare the type of a variable when we write a program.  This feature
-is often useful, as it permits us to define functions that are flexible
+We pass information to functions using a function's parameters.
+This is the parenthesized list of variables and constants following
+the function's name, e.g.:
+
+    >>> def repeat(msg, num):
+    ...     return msg * num
+    ...
+    >>> monty = 'Monty Python'
+    >>> repeat(monty, 3)
+    'Monty PythonMonty PythonMonty Python'
+
+It is not necessary to have any parameters, as we see in the following example:
+
+    >>> def monty():
+    ...     return "Monty Python"
+    ...
+    >>> monty()
+    "Monty Python"
+
+When there are a lot of parameters it is easy to get confused about the
+correct order.  Instead we can refer to parameters by name, and even assign
+them a default value just in case one was not provided by the calling
+program.  Now the parameters can be specified in any order, and can be omitted.
+
+    >>> def repeat(msg='<empty>', num=1):
+    ...     return msg * num
+    ...
+    >>> repeat(num=3)
+    '<empty><empty><empty>'
+    >>> repeat(msg='Alice')
+    'Alice'
+    >>> repeat(num=5, msg='Alice')
+    'AliceAliceAliceAliceAlice'
+
+These are called keyword arguments.
+If we mix these two kinds of parameters, then we must ensure that the unnamed parameters precede the named ones.
+It has to be this way, since unnamed parameters are defined by position.  We can define a function that takes
+an arbitrary of unnamed and named parameters, and access them via an in-place list of arguments ``*args`` and
+an in-place dictionary of keyword arguments ``*kwargs``.
+
+    >>> def generic(*args, **kwargs):
+    ...     print *args
+    ...     print **kwargs
+    ...
+    >>> generic(1, "African swallow", monty="python")
+    (1, 'African swallow')
+    {'monty': 'python'}
+
+
+Parameter Passing
+-----------------
+
+Back in Section sec-back-to-the-basics_ you saw that assignment works on values,
+but that the value of a structured object is a reference to that object.  The same
+is true for functions.  Python interprets function parameters as values (this is
+known as `call-by-value`:dt:).  Consider Figure call-by-value_.
+Function ``set_up()`` has two parameters,
+both of which are modified inside the function.  We begin by assigning an empty string
+to ``w`` and an empty dictionary to ``p``.  After calling the function, ``w`` is unchanged,
+while ``p`` is changed:
+
+.. pylisting:: call-by-value
+
+   def set_up(word, properties):
+       word = 'cat'
+       properties['pos'] = 'noun'
+
+   >>> w = ''
+   >>> p = {}
+   >>> set_up(w, p)
+   >>> w
+   ''
+   >>> p
+   {'pos': 'noun'}
+
+To understand why ``w`` was not changed, it is necessary to understand call-by-value.
+When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
+a new variable ``word``.  Inside the function, the value of ``word`` was modified.
+However, that had no effect on the external value of ``w``.  This parameter passing is
+identical to the following sequence of assignments:
+
+    >>> w = ''
+    >>> word = w
+    >>> word = 'cat'
+    >>> w
+    ''
+
+In the case of the structured object, matters are quite different.
+When we called ``set_up(w, p)``, the value of ``p`` (an empty
+dictionary) was assigned to a new local variable ``properties``.  Since the
+value of ``p`` is an object reference, both variables now reference the same
+memory location.  Modifying something inside ``properties`` will also
+change ``p``, just as if we had done the following sequence of assignments:
+
+    >>> p = {}
+    >>> properties = p
+    >>> properties['pos'] = 'noun'
+    >>> p
+    {'pos': 'noun'}
+
+Thus, to understand Python's call-by-value parameter passing,
+it is enough to understand Python's assignment operation.
+We will address some closely related issues in our discussion
+of variable scope later in this section.
+
+Scope Rules
+-----------
+
+* local and global variables
+* global variables introduce dependency on context and limits the reusability of a function
+* importance of avoiding side-effects
+
+Checking Parameter Types
+------------------------
+
+Python does not force us to declare the type of a variable when we write a program,
+and this permits us to define functions that are flexible
 about the type of their arguments.  For example, a tagger might expect
 a sequence of words, but it wouldn't care whether this sequence is expressed
 as a list, a tuple, or an iterator.
@@ -747,7 +867,10 @@ A better solution is shown in Figure tag3_.
 
 This produces an error that cannot be ignored, since it halts program execution.
 Additionally, the error message is easy to interpret.  (We will see an even
-better approach, known as "duck typing" in Section [XREF].)
+better approach, known as "duck typing" in Section sec-object-oriented_.)
+
+The Return Statement
+--------------------
 
 Another aspect of defensive programming concerns the return statement of a function.
 In order to be confident that all execution paths through a function lead to a
@@ -793,62 +916,6 @@ its input.
     >>> def my_sort3(l):      # bad: modifies its argument and also returns it
     ...     l.sort()
     ...     return l
-
-An Important Subtlety
----------------------
-
-Back in Section sec-back-to-the-basics_ you saw that in Python, assignment works on values,
-but that the value of a structured object is a reference to that object.  The same
-is true for functions.  Python interprets function parameters as values (this is
-known as `call-by-value`:dt:).  Consider Figure call-by-value_.
-Function ``set_up()`` has two parameters,
-both of which are modified inside the function.  We begin by assigning an empty string
-to ``w`` and an empty dictionary to ``p``.  After calling the function, ``w`` is unchanged,
-while ``p`` is changed:
-
-.. pylisting:: call-by-value
-
-   def set_up(word, properties):
-       word = 'cat'
-       properties['pos'] = 'noun'
-
-   >>> w = ''
-   >>> p = {}
-   >>> set_up(w, p)
-   >>> w
-   ''
-   >>> p
-   {'pos': 'noun'}
-
-To understand why ``w`` was not changed, it is necessary to understand call-by-value.
-When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
-a new variable ``word``.  Inside the function, the value of ``word`` was modified.
-However, that had no effect on the external value of ``w``.  This parameter passing is
-identical to the following sequence of assignments:
-
-    >>> w = ''
-    >>> word = w
-    >>> word = 'cat'
-    >>> w
-    ''
-
-In the case of the structured object, matters are quite different.
-When we called ``set_up(w, p)``, the value of ``p`` (an empty
-dictionary) was assigned to a new local variable ``properties``.  Since the
-value of ``p`` is an object reference, both variables now reference the same
-memory location.  Modifying something inside ``properties`` will also
-change ``p``, just as if we had done the following sequence of assignments:
-
-    >>> p = {}
-    >>> properties = p
-    >>> properties['pos'] = 'noun'
-    >>> p
-    {'pos': 'noun'}
-
-Thus, to understand Python's call-by-value parameter passing,
-it is enough to understand Python's assignment operation.
-We will address some closely related issues in our discussion
-of variable scope later in this section.
 
 Functional Decomposition
 ------------------------
@@ -928,22 +995,15 @@ to the point that we can do its work with three lines of code:
     ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
     'declaration', 'impact', 'freedom', '-', 'making', 'independence']
 
-Modularity
-----------
-
-Variable scope
-
-* local and global variables
-* scope rules
-* global variables introduce dependency on context and limits the reusability of a function
-* importance of avoiding side-effects
-* functions hide implementation details
-
-Documentation (notes)
+Documenting Functions
 ---------------------
 
-* some guidelines for literate programming (e.g. variable and function naming)
-* documenting functions (user-level and developer-level documentation)
+If we have done a good job at decomposing our program into functions, then it should
+be easy to describe the purpose of each function in plain language, and provide
+this in the docstring at the top of the function definition.  This statement
+should not explain how the functionality is implemented; in fact it should be possible
+to re-implement the function using a different method without changing this
+statement.
 
 NLTK's docstrings are (mostly) written using the "epytext" markup
 language.  Using an explicit markup language allows us to generate
@@ -954,14 +1014,11 @@ prettier online documentation, e.g. see:
 [Examples of function-level docstrings with epytext markup.]
 
 
-Functions as Arguments
-----------------------
+Functions as Parameters
+-----------------------
 
-So far the arguments we have passed into functions have been simple objects like
-strings, or structured objects like lists.  These arguments allow us to parameterize
-the behavior of a function.  As a result, functions are very flexible and powerful
-abstractions, permitting us to repeatedly apply the `same operation`:em: on `different data`:em:.
-Python also lets us pass a function as
+So far the parameters we have passed into functions have been simple objects like
+strings, or structured objects like lists.  Python also lets us pass a function as
 an argument to another function.  Now we can abstract out the operation, and apply
 a `different operation`:em: on the `same data`:em:.  As the following examples show,
 we can pass the built-in function ``len()`` or a user-defined function ``last_letter()``
@@ -979,11 +1036,10 @@ as parameters to another function:
     >>> extract_property(last_letter)
     ['e', 'e', 'f', 'e', 'e', ',', 'd', 'e', 's', 'l', 'e', 'e', 'f', 's', '.']    
 
-Surprisingly, ``len`` and ``last_letter`` are objects that can be
+Observe that ``len`` and ``last_letter`` are objects that can be
 passed around like lists and dictionaries.  Notice that parentheses
 are only used after a function name if we are invoking the function;
-when we are simply passing the function around as an object these are
-not used.
+when we are simply treating the function as an object these are not used.
 
 Python provides us with one more way to define functions as arguments
 to other functions, so-called `lambda expressions`:dt:.  Supposing there
@@ -1008,6 +1064,68 @@ length.
     >>> sorted(sent, lambda x, y: cmp(len(y), len(x)))
     ['themselves', 'sounds', 'sense', 'Take', 'care', 'will', 'take', 'care',
     'the', 'and', 'the', 'of', 'of', ',', '.']
+
+Iterators
+---------
+
+[itertools, bigrams vs ibigrams, efficiency, ...]
+
+Accumulative Functions
+----------------------
+
+These functions start by initializing some storage, and iterate over
+input to build it up, before returning some final object (a large structure
+or aggregated result).  The standard way to do this is to initialize an
+empty list, accumulate the material, then return the list, as shown
+in function ``find_nouns1()`` in Listing find-nouns1_.
+
+.. pylisting:: find-nouns1
+   :caption: Accumulating Output into a List
+
+   def find_nouns1(tagged_text):
+       nouns = []
+       for word, tag in tagged_text:
+           if tag[:2] == 'NN':
+               nouns.append(word)
+       return nouns
+
+   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+   >>> find_nouns1(tagged_text)
+   ['cat', 'mat']
+
+A superior way to perform this operation is define the function to
+be a `generator`:dt:, as shown in Listing find-nouns2_.
+The first time this function is called, it gets as far as the ``yield``
+statement and stops.  The calling program gets the first word and does
+any necessary processing.  Once the calling program is ready for another
+word, execution of the function is continued from where it stopped, until
+the next time it encounters a ``yield`` statement.  This approach is
+typically more efficient, as the function only generates the data as it is
+required by the calling program, and does not need to allocate additional
+memory to store the output.
+
+.. pylisting:: find-nouns2
+   :caption: Defining a Generator Function
+   
+   def find_nouns2(tagged_text):
+       for word, tag in tagged_text:
+           if tag[:2] == 'NN':
+               yield word
+
+   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
+   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
+   >>> find_nouns2(tagged_text)
+   <generator object at 0x14b2f30>
+   >>> for noun in find_nouns2(tagged_text):
+   ...     print noun,
+   cat mat
+   >>> list(find_nouns2(tagged_text))
+   ['cat', 'mat']
+
+If we call the function directly we see that it returns a "generator object", which is
+not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
+or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 Higher-Order Functions
 ----------------------
@@ -1121,68 +1239,320 @@ Another common use of optional arguments is to permit a flag, e.g.:
     ...     if trace: print
     ...     return freqdist.keys()[:num]
 
+
+-------------------------------------
+Object-Oriented Programming in Python
+-------------------------------------
+
+Object-Oriented Programming is a programming paradigm in which
+complex structures and processes are decomposed into `classes`:dt:,
+each encapsulating a single data type and the legal operations on
+that type.  In this section we show you how to create simple data
+classes and processing classes by example.  For a systematic
+introduction to Object-Oriented design, please see the Further
+Reading section at the end of this chapter.
+
+Data Classes: Trees in NLTK
+---------------------------
+
+An important data type in language processing is the syntactic tree.
+Here we will review the parts of the NLTK code that defines the ``Tree``
+class.  
+
+The first line of a class definition is the ``class`` keyword followed
+by the class name, in this case ``Tree``.  This class is derived from
+Python's built-in ``list`` class, permitting us to use standard list
+operations to access the children of a tree node.
+
+    >>> class Tree(list):
+
+Next we define the `initializer`:dt: ``__init__()``;
+Python knows to call this function when you ask for a new tree object
+by writing ``t = Tree(node, children)``.  The constructor's first argument
+is special, and is standardly called ``self``, giving us a way to
+refer to the current object from within its definition.  This
+particular constructor calls the list initializer (similar to calling ``self =
+list(children)``), then defines the ``node`` property of a tree.
+
+.. doctest-ignore::
+    ...     def __init__(self, node, children):
+    ...         list.__init__(self, children)
+    ...         self.node = node
+
+Next we define another special function that Python knows to call when
+we index a Tree.  The first case is the simplest, when the index is an
+integer, e.g. ``t[2]``, we just ask for the list item in the obvious
+way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
+
+.. doctest-ignore::
+    ...     def __getitem__(self, index):
+    ...         if isinstance(index, int):
+    ...             return list.__getitem__(self, index)
+    ...         else:
+    ...             if len(index) == 0:
+    ...                 return self
+    ...             elif len(index) == 1:
+    ...                 return self[int(index[0])]
+    ...             else:
+    ...                 return self[int(index[0])][index[1:]]
+    ...     
+
+.. SB: what is the len(index) == 0 case for???
+
+This method was for accessing a child node.  Similar methods are
+provided for setting and deleting a child (using ``__setitem__``)
+and ``__delitem__``).
+
+Two other special member functions are ``__repr__()`` and ``__str__()``.
+The ``__repr__()`` function produces a string representation of the
+object, one that can be executed to re-create the object, and is
+accessed from the interpreter simply by typing the name of the object
+and pressing 'enter'.  The ``__str__()`` function produces a human-readable
+version of the object; here we call a pretty-printing function we have
+defined called ``pp()``.
+
+.. doctest-ignore::
+    ...     def __repr__(self):
+    ...         childstr = ' '.join([repr(c) for c in self])
+    ...         return '(%s: %s)' % (self.node, childstr)
+    ...     def __str__(self):
+    ...         return self.pp()
+
+
+Next we define some member functions that do other standard operations
+on trees.  First, for accessing the leaves:
+
+.. doctest-ignore::
+    ...     def leaves(self):
+    ...         leaves = []
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 leaves.extend(child.leaves())
+    ...             else:
+    ...                 leaves.append(child)
+    ...         return leaves
+
+
+Next, for computing the height:
+
+.. doctest-ignore::
+    ...     def height(self):
+    ...         max_child_height = 0
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 max_child_height = max(max_child_height, child.height())
+    ...             else:
+    ...                 max_child_height = max(max_child_height, 1)
+    ...         return 1 + max_child_height
+
+And finally, for enumerating all the subtrees (optionally filtered):
+
+.. doctest-ignore::
+    ...     def subtrees(self, filter=None):
+    ...         if not filter or filter(self):
+    ...             yield self
+    ...         for child in self:
+    ...             if isinstance(child, Tree):
+    ...                 for subtree in child.subtrees(filter):
+    ...                     yield subtree
+
+
+Processing Classes: N-gram Taggers in NLTK
+------------------------------------------
+
+This section will discuss the ``tag.ngram`` module.
+
+
+-------------------
+Program Development
+-------------------
+
+Programming is a skill that is acquired over several years of
+experience with a variety of programming languages and tasks.  Key
+high-level abilities are *algorithm design* and its manifestation in
+*structured programming*.  Key low-level abilities include familiarity
+with the syntactic constructs of the language, and knowledge of a
+variety of diagnostic methods for trouble-shooting a program which
+does not exhibit the expected behavior.
+
+.. note:: If you are new to programming, you will probably find
+   writing a complete program from scratch quite daunting.  Instead,
+   it is a good idea to begin by looking at many small example
+   programs and understand why they work, then modifying them in small
+   ways to change their behavior.
+
+Procedural vs Declarative Style
+-------------------------------
+
+We have just seen how the same task can be performed in different
+ways, with implications for efficiency.  Another factor influencing
+program development is *programming style*.  Consider the following
+program to compute the average length of words in the Brown Corpus:
+
+    >>> tokens = nltk.corpus.brown.words(categories='news')
+    >>> count = 0
+    >>> total = 0
+    >>> for token in tokens:
+    ...     count += 1
+    ...     total += len(token)
+    >>> print float(total) / count
+    4.2765382469
+
+In this program we use the variable ``count`` to keep track of the
+number of tokens seen, and ``total`` to store the combined length of
+all words.  This is a low-level style, not far removed from machine
+code, the primitive operations performed by the computer's CPU.
+The two variables are just like a CPU's registers, accumulating values
+at many intermediate stages, values that are almost meaningless. 
+We say that this program is written in a *procedural* style, dictating
+the machine operations step by step.  Now consider the following
+program that computes the same thing:
+
+    >>> total = sum(map(len, tokens))
+    >>> print float(total)/len(tokens)
+    4.2765382469
+
+The first line uses a list comprehension to construct the sequence of
+tokens.  The second line *maps* the ``len`` function to this sequence,
+to create a list of length values, which are summed.  The third line
+computes the average as before.  Notice here that each line of code
+performs a complete, meaningful action.  Moreover, they do not dictate
+how the computer will perform the computations; we state high level
+relationships like "``total`` is the sum of the lengths of the tokens"
+and leave the details to the Python interpreter.  Accordingly, we say
+that this program is written in a *declarative* style.
+
+Here is another example to illustrate the procedural/declarative
+distinction.  Notice again that the procedural version
+involves low-level steps and a variable having meaningless
+intermediate values:
+
+    >>> word_list = []
+    >>> for token in tokens:
+    ...     if token not in word_list:
+    ...         word_list.append(token)
+    >>> word_list.sort()
+
+The declarative version makes use of higher-level built-in functions:
+
+    >>> word_list = list(set(tokens))
+    >>> word_list.sort()
+
+What do these programs compute?  Which version did you find easier to interpret?
+
+Consider one further example, that sorts three-letter words by their
+final letters.  The words come from the widely-used Unix word-list,
+made available as an NLTK corpus called ``words``.  Two words ending
+with the same letter will be sorted according to their second-last
+letters.  The result of this sort method is that many rhyming words will be
+contiguous.  Two programs are given; Which one is more declarative,
+and which is more procedural?
+
+As an aside, for readability we define a function for reversing
+strings that will be used by both programs:
+
+    >>> def reverse(word):
+    ...     return word[::-1]
+
+Here's the first program.  We define a helper function ``reverse_cmp``
+that calls the built-in ``cmp`` comparison function on reversed
+strings.  The ``cmp`` function returns ``-1``, ``0``, or ``1``,
+depending on whether its first argument is less than, equal to, or
+greater than its second argument.  We tell the list sort function to
+use ``reverse_cmp`` instead of ``cmp`` (the default).
+
+    >>> def reverse_cmp(x,y):
+    ...     return cmp(reverse(x), reverse(y))
+    >>> word_list = [w for w in nltk.corpus.words.words('en') if len(w) == 3]
+    >>> word_list.sort(reverse_cmp)
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
+    'Paz', 'Liz']
+
+Here's the second program.  In the first loop it collects up all the
+three-letter words in reversed form.  Next, it sorts the list of
+reversed words.  Then, in the second loop, it iterates over each
+position in the list using the variable ``i``, and replaces each item
+with its reverse.  We have now re-reversed the words, and can print
+them out.
+
+    >>> word_list = []
+    >>> for word in words:
+    ...     if len(word) == 3:
+    ...         word_list.append(reverse(word))
+    >>> word_list.sort()
+    >>> for i in range(len(word_list)):
+    ...     word_list[i] = reverse(word_list[i])
+    >>> print word_list[-12:]
+    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
+    'Paz', 'Liz']
+
+Choosing between procedural and declarative styles is just that, a
+question of style.  There are no hard boundaries, and it is possible
+to mix the two.  Readers new to programming are encouraged to
+experiment with both styles, and to make the extra effort required to
+master higher-level constructs, such as list comprehensions, and
+built-in functions like ``map`` and ``filter``.
+
+Debugging
 ---------
-Iterators
+
+.. doctest-ignore::
+
+    >>> import pdb
+    >>> import mymodule
+    >>> pdb.run('mymodule.test()')
+
+
+Commands:
+
+list [first [,last]]: list sourcecode for the current file
+
+next: continue execution until the next line in the current function is reached
+
+cont: continue execution until a breakpoint is reached (or the end of the program)
+
+break: list the breakpoints
+
+break n: insert a breakpoint at this line number in the current file
+
+break file.py:n: insert a breakpoint at this line in the specified file
+
+break function: insert a breakpoint at the first executable line of the function
+
+Profiling
 ---------
 
-[itertools, bigrams vs ibigrams, efficiency, ...]
+[more]
 
-Accumulative Functions
-----------------------
+Scaling Up
+----------
 
-These functions start by initializing some storage, and iterate over
-input to build it up, before returning some final object (a large structure
-or aggregated result).  The standard way to do this is to initialize an
-empty list, accumulate the material, then return the list, as shown
-in function ``find_nouns1()`` in Listing find-nouns1_.
+scalability tricks (e.g. replace each word with an integer); Figure strings-to-ints_
 
-.. pylisting:: find-nouns1
-   :caption: Accumulating Output into a List
+.. pylisting:: strings-to-ints
+   :caption: Preprocess tagged corpus data, converting all words and tags to integers
 
-   def find_nouns1(tagged_text):
-       nouns = []
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               nouns.append(word)
-       return nouns
+   def preprocess(tagged_corpus):
+       words = set()
+       tags = set()
+       for sent in tagged_corpus:
+           for word, tag in sent:
+               words.add(word)
+               tags.add(tag)
+       wm = dict((w,i) for (i,w) in enumerate(words))
+       tm = dict((t,i) for (i,t) in enumerate(tags))
+       return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
 
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns1(tagged_text)
-   ['cat', 'mat']
 
-A superior way to perform this operation is define the function to
-be a `generator`:dt:, as shown in Listing find-nouns2_.
-The first time this function is called, it gets as far as the ``yield``
-statement and stops.  The calling program gets the first word and does
-any necessary processing.  Once the calling program is ready for another
-word, execution of the function is continued from where it stopped, until
-the next time it encounters a ``yield`` statement.  This approach is
-typically more efficient, as the function only generates the data as it is
-required by the calling program, and does not need to allocate additional
-memory to store the output.
+* when keeping track of vocabulary items, for the purpose of checking membership,
+  use sets rather than lists, because sets index their elements.
 
-.. pylisting:: find-nouns2
-   :caption: Defining a Generator Function
-   
-   def find_nouns2(tagged_text):
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               yield word
 
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns2(tagged_text)
-   <generator object at 0x14b2f30>
-   >>> for noun in find_nouns2(tagged_text):
-   ...     print noun,
-   cat mat
-   >>> list(find_nouns2(tagged_text))
-   ['cat', 'mat']
+.. TODO: don't repeat yourself http://c2.com/cgi/wiki?DontRepeatYourself
+.. TODO: duck typing
+.. TODO: shared values between multiple dictionaries
 
-If we call the function directly we see that it returns a "generator object", which is
-not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
-or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 .. _sec-algorithm-design-strategies:
 
@@ -1573,19 +1943,20 @@ or any other putative performance enhancement, using the ``timeit`` module:
 
 [MORE]
 
----------------------------------
-Visualizing Language Data (DRAFT)
----------------------------------
+.. _sec-visualization:
+.. _sec-libraries:
+
+----------------------------
+A Sample of Python Libraries
+----------------------------
+
+The ``pylab`` Package
+---------------------
 
 Python has some libraries that are useful for visualizing language data.
-In this section we will explore two of these, PyLab and NetworkX.
 The PyLab package supports sophisticated
 plotting functions with a MATLAB-style interface, and is available from
-``http://matplotlib.sourceforge.net/``.  The NetworkX package is for
-displaying network diagrams, and is available from ``https://networkx.lanl.gov/``.
-
-PyLab
------
+``http://matplotlib.sourceforge.net/``.
 
 So far we have focused on textual presentation and the use of formatted print
 statements to get output lined up in columns.  It is often very useful to display
@@ -1645,9 +2016,6 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
 From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
 almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
 
-Using PyLab on the Web
-----------------------
-
 We can generate data visualizations on the fly, based on user input via the web...
 To do this we have to specify the ``Agg`` backend for ``matplotlib`` before
 importing ``pylab``, as follows:
@@ -1669,333 +2037,34 @@ HTML markup that directs the web browser to load the file.
     >>> print '<img src="rainfall.png"/>'
     >>> print '</body></html>'
 
-Network Diagrams
-----------------
-
-[Section on networkx and displaying network diagrams; example with WordNet visualization]
-
-
-
-------
-Search
-------
-
-Many NLP tasks can be construed as search problems.
-For example, the task of a parser is to identify one or more
-parse trees for a given sentence.  As we saw in Part II,
-there are several algorithms for parsing.  A `recursive descent parser`:idx:
-performs `backtracking search`:dt:, applying grammar productions in turn
-until a match with the next input word is found, and backtracking when
-there is no match.  As we will see in Section sec-a-problem-of-scale_,
-the space of possible parse trees is very large; a parser can be thought
-of as providing a relatively efficient way to find the right solution(s)
-within a very large space of candidates.
-
-As another example of search, suppose we want to find the most complex
-sentence in a text corpus.  Before we can begin we have to be explicit
-about how the complexity of a sentence is to be measured: word count,
-verb count, character count, parse-tree depth, etc.  In the context
-of learning this is known as the `objective function`:dt:, the property
-of candidate solutions we want to optimize.
-
-In this section we will explore some other search methods that are
-useful in NLP.  For concreteness we will apply them to the problem
-of learning word segmentations in text, following the work of [Brent1995]_.
-Put simply, this is the problem faced by a language learner in dividing
-a continuous speech stream into individual words.  We will consider this
-problem from the perspective of a child hearing utterances from a parent, e.g.
-
-.. _kitty:
-.. ex::
-  .. ex:: doyouseethekitty
-  .. ex:: seethedoggy
-  .. ex:: doyoulikethekitty
-  .. ex:: likethedoggy
-
-Our first challenge is simply to represent the problem: we need to find
-a way to separate the text content from the segmentation.  We will borrow
-an idea from IOB-tagging (Chapter chap-chunk_), by annotating each character
-with a boolean value to indicate whether or not a word-break appears after
-the character.  We will assume that the learner is given the utterance breaks,
-since these often correspond to extended pauses.  Here is a possible representation,
-including the initial and target segmentations:
-
-    >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
-    >>> seg1 = "0000000000000001000000000010000000000000000100000000000"
-    >>> seg2 = "0100100100100001001001000010100100010010000100010010000"
-
-Observe that the segmentation strings consist of zeros and ones.  They
-are one character shorter than the source text, since a text of length
-`n`:math: can only be broken up in `n-1`:math: places.
-
-Now let's check that our chosen representation is effective.  We need to make
-sure we can read segmented text from the representation.  The following function,
-``segment()``, takes a text string and a segmentation string, and returns a list
-of strings.
-
-.. pylisting:: segment
-   :caption: Program to Reconstruct Segmented Text from String Representation
-
-   def segment(text, segs):
-       words = []
-       last = 0
-       for i in range(len(segs)):
-           if segs[i] == '1':
-               words.append(text[last:i+1])
-               last = i+1
-       words.append(text[last:])
-       return words
-    
-   >>> segment(text, seg1)
-   ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   >>> segment(text, seg2)
-   ['do', 'you', 'see', 'the', 'kitty', 'see', 'the', 'doggy', 'do', 'you',
-    'like', 'the', kitty', 'like', 'the', 'doggy']
-
-Now the learning task becomes a search problem: find the bit string that causes
-the text string to be correctly segmented into words.  Our first task is done: we have
-represented the problem in a way that allows us to reconstruct the data, and to
-focus on the information to be learned.
-
-Now that we have effectively represented the problem we need to choose the objective
-function.  We assume the learner is acquiring words and storing them in an internal lexicon.
-Given a suitable lexicon, it is possible to reconstruct the source text as a sequence of
-lexical items.  Following [Brent1995]_, we can use the size of the lexicon and the amount
-of information needed to reconstruct the source text as the basis for an objective function, as shown
-in Figure brent_.
-
-.. _brent:
-.. figure:: ../images/brent.png
-   :scale: 30
-
-   Calculation of Objective Function for Given Segmentation
-
-It is a simple matter to implement this objective function, as shown in Listing
-evaluate_.
-
-.. pylisting:: evaluate
-   :caption: Computing the Cost of Storing the Lexicon and Reconstructing the Source Text
-
-   def evaluate(text, segs):
-       import string
-       words = segment(text, segs)
-       text_size = len(words)
-       lexicon_size = len(' '.join(list(set(words))))
-       return text_size + lexicon_size
-
-   >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
-   >>> seg3 = "0000100100000011001000000110000100010000001100010000001"
-   >>> segment(text, seg3)
-   ['doyou', 'see', 'thekitt', 'y', 'see', 'thedogg', 'y', 'doyou', 'like',
-    'thekitt', 'y', 'like', 'thedogg', 'y']
-   >>> evaluate(text, seg3)
-   47
-
-Exhaustive Search
------------------
-
-* brute-force approach
-* enumerate search space, evaluate at each point
-* this example: search space size is 2\ `55`:superscript: = 36,028,797,018,963,968
-
-For a computer that can do 100,000 evaluations per second, this
-would take over 10,000 years!
-
-Backtracking search -- saw this in the recursive descent parser.
-
-Hill-Climbing Search
---------------------
-
-Starting from a given location in the search space, evaluate nearby locations and move to
-a new location only if it is an improvement on the current location.
-
-.. pylisting:: hill-climb
-   :caption: Hill-Climbing Search
-
-   def flip(segs, pos):
-       return segs[:pos] + `1-int(segs[pos])` + segs[pos+1:]
-   def hill_climb(text, segs, iterations):
-       for i in range(iterations):
-           pos, best = 0, evaluate(text, segs)
-           for i in range(len(segs)):
-               score = evaluate(text, flip(segs, i))
-               if score < best:
-                   pos, best = i, score
-           if pos != 0:
-               segs = flip(segs, pos)
-               print evaluate(text, segs), segment(text, segs)
-       return segs
-
-   >>> print evaluate(text, seg1), segment(text, seg1)
-   63 ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   >>> hill_climb(text, segs1, 20)
-   61 ['doyouseethekittyseethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   59 ['doyouseethekittyseethedoggydoyoulikethekitty', 'likethedoggy']
-   57 ['doyouseethekittyseethedoggydoyoulikethekittylikethedoggy']
-
-Non-Deterministic Search
+The ``networkx`` Package
 ------------------------
 
-* Simulated annealing
+The NetworkX package is for
+displaying network diagrams, and is available from ``https://networkx.lanl.gov/``.
 
-.. pylisting:: anneal
-   :caption: Non-Deterministic Search Using Simulated Annealing
+[Example with WordNet visualization.]
 
-   def flip_n(segs, n):
-       for i in range(n):
-           segs = flip(segs, randint(0,len(segs)-1))
-       return segs
-   def anneal(text, segs, iterations, rate):
-       distance = float(len(segs))
-       while distance > 0.5:
-           best_segs, best = segs, evaluate(text, segs)
-           for i in range(iterations):
-               guess = flip_n(segs, int(round(distance)))
-               score = evaluate(text, guess)
-               if score < best:
-                   best = score
-                   best_segs = guess
-           segs = best_segs
-           score = best
-           distance = distance/rate
-           print evaluate(text, segs),
-       print
-       return segs
-    
-   >>> anneal(text, segs, 5000, 1.2)
-   60 ['doyouseetheki', 'tty', 'see', 'thedoggy', 'doyouliketh', 'ekittylike', 'thedoggy']
-   58 ['doy', 'ouseetheki', 'ttysee', 'thedoggy', 'doy', 'o', 'ulikethekittylike', 'thedoggy']
-   56 ['doyou', 'seetheki', 'ttysee', 'thedoggy', 'doyou', 'liketh', 'ekittylike', 'thedoggy']
-   54 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'likethekittylike', 'thedoggy']
-   53 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   51 ['doyou', 'seethekittysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   42 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
+The ``csv`` Package
+-------------------
+
+[Example accessing lexical data]
+
+    >>> import csv
+    >>> file = open("dict.csv", "rb")
+    >>> for row in csv.reader(file):
+    ...     print row
+    ['sleep', 'sli:p', 'v.i', 'a condition of body and mind ...']
+    ['walk', 'wo:k', 'v.intr', 'progress by lifting and setting down each foot ...']
+    ['wake', 'weik', 'intrans', 'cease to sleep']
 
 
+Database Connectivity
+---------------------
 
-.. _OO:
+[Example storing corpus analysis to a database]
 
--------------------------------------
-Object-Oriented Programming in Python
--------------------------------------
-
-Object-Oriented Programming is a programming paradigm in which
-complex structures and processes are decomposed into `classes`:dt:,
-each encapsulating a single data type and the legal operations on
-that type.  In this section we show you how to create simple data
-classes and processing classes by example.  For a systematic
-introduction to Object-Oriented design, please see the Further
-Reading section at the end of this chapter.
-
-Data Classes: Trees in NLTK
----------------------------
-
-An important data type in language processing is the syntactic tree.
-Here we will review the parts of the NLTK code that defines the ``Tree``
-class.  
-
-The first line of a class definition is the ``class`` keyword followed
-by the class name, in this case ``Tree``.  This class is derived from
-Python's built-in ``list`` class, permitting us to use standard list
-operations to access the children of a tree node.
-
-    >>> class Tree(list):
-
-Next we define the `initializer`:dt: ``__init__()``;
-Python knows to call this function when you ask for a new tree object
-by writing ``t = Tree(node, children)``.  The constructor's first argument
-is special, and is standardly called ``self``, giving us a way to
-refer to the current object from within its definition.  This
-particular constructor calls the list initializer (similar to calling ``self =
-list(children)``), then defines the ``node`` property of a tree.
-
-.. doctest-ignore::
-    ...     def __init__(self, node, children):
-    ...         list.__init__(self, children)
-    ...         self.node = node
-
-Next we define another special function that Python knows to call when
-we index a Tree.  The first case is the simplest, when the index is an
-integer, e.g. ``t[2]``, we just ask for the list item in the obvious
-way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
-
-.. doctest-ignore::
-    ...     def __getitem__(self, index):
-    ...         if isinstance(index, int):
-    ...             return list.__getitem__(self, index)
-    ...         else:
-    ...             if len(index) == 0:
-    ...                 return self
-    ...             elif len(index) == 1:
-    ...                 return self[int(index[0])]
-    ...             else:
-    ...                 return self[int(index[0])][index[1:]]
-    ...     
-
-.. SB: what is the len(index) == 0 case for???
-
-This method was for accessing a child node.  Similar methods are
-provided for setting and deleting a child (using ``__setitem__``)
-and ``__delitem__``).
-
-Two other special member functions are ``__repr__()`` and ``__str__()``.
-The ``__repr__()`` function produces a string representation of the
-object, one that can be executed to re-create the object, and is
-accessed from the interpreter simply by typing the name of the object
-and pressing 'enter'.  The ``__str__()`` function produces a human-readable
-version of the object; here we call a pretty-printing function we have
-defined called ``pp()``.
-
-.. doctest-ignore::
-    ...     def __repr__(self):
-    ...         childstr = ' '.join([repr(c) for c in self])
-    ...         return '(%s: %s)' % (self.node, childstr)
-    ...     def __str__(self):
-    ...         return self.pp()
-
-
-Next we define some member functions that do other standard operations
-on trees.  First, for accessing the leaves:
-
-.. doctest-ignore::
-    ...     def leaves(self):
-    ...         leaves = []
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 leaves.extend(child.leaves())
-    ...             else:
-    ...                 leaves.append(child)
-    ...         return leaves
-
-
-Next, for computing the height:
-
-.. doctest-ignore::
-    ...     def height(self):
-    ...         max_child_height = 0
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 max_child_height = max(max_child_height, child.height())
-    ...             else:
-    ...                 max_child_height = max(max_child_height, 1)
-    ...         return 1 + max_child_height
-
-And finally, for enumerating all the subtrees (optionally filtered):
-
-.. doctest-ignore::
-    ...     def subtrees(self, filter=None):
-    ...         if not filter or filter(self):
-    ...             yield self
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 for subtree in child.subtrees(filter):
-    ...                     yield subtree
-
-
-Processing Classes: N-gram Taggers in NLTK
-------------------------------------------
-
-This section will discuss the ``tag.ngram`` module.
+.. _sec-object-oriented:
 
 ..
    Efficiency topics, e.g.:
@@ -2003,7 +2072,6 @@ This section will discuss the ``tag.ngram`` module.
    also have written ``tag[0] == 'V'``.  However, we think that the former
    choice is preferrable as it is more readable (even though it is slightly
    less efficient).
-
 
 
 ---------------
@@ -2152,6 +2220,10 @@ Exercises
    and use this method to display today's date in two
    different formats.
 
+#. |easy| Write a program to sort words by length.  Define a helper function
+   ``cmp_len`` which uses the ``cmp`` comparison function on word
+   lengths.
+
 #. |soso| Write code to print out an index for a lexicon, allowing someone
    to look up words according to their meanings (or pronunciations; whatever
    properties are contained in lexical entries).
@@ -2265,5 +2337,11 @@ Exercises
    the tagged training and testing data that was described in Chapter
    chap-tag_.  Make sure that the unigram and default backoff taggers
    have access to the full vocabulary.  
+
+#. |hard| **Statistically Improbable Phrases:**
+   Design an algorithm to find the statistically improbable
+   phrases of a document collection.
+   http://www.amazon.com/gp/search-inside/sipshelp.html
+
 
 .. include:: footer.rst
