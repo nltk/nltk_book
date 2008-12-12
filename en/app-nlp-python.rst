@@ -22,7 +22,7 @@ even by non Python programmers::
               print word
 
 
-Like Python, Perl is a scripting language.  However, its syntax is
+Like Python, Perl is an interpreted language.  However, its syntax is
 obscure.  For instance, it is difficult to guess what kind of entities
 are represented by: ``<>``, ``$``, ``my``, and ``split``, in the following
 program::
@@ -166,8 +166,9 @@ earliest NLP systems were implemented in LISP::
   
   (has-suffix "test.txt" "ing")
   
-Ruby is a more recently developed scripting language than Python,
+Ruby is a more recently developed language than Python,
 best known for its convenient web application framework, *Ruby on Rails*.
+It currently lacks the extensive set of libraries that Python enjoys.
 Here are two Ruby programs for finding words ending in `ing`:lx:\ ::
 
   ARGF.each { |line|
