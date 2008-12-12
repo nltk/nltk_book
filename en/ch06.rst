@@ -10,7 +10,6 @@
 .. TODO: introduce diagnostic print statements
 .. TODO: timeit()
 .. TODO: cover yield statement, as promised in words chapter
-.. TODO: exercise based on word squares http://itre.cis.upenn.edu/~myl/languagelog/archives/002679.html
 .. TODO: docstrings, commenting practice
 .. TODO: recipes for flattening a list of lists into a list, and for the reverse grouping a list into a list of lists
 .. TODO: generating all combinations, e.g. map list of words to list of lists of stress patterns; concatenate to make phrase-level stress patterns in all possible ways
@@ -47,6 +46,12 @@ Readers new to programming should work through them carefully
 and consult other introductions to programming if necessary;
 experienced programmers can quickly skim this chapter.
 
+In the other chapters of this book, we have organized the programming
+content as dictated by the needs of |NLP|.  Here we revert to a more
+conventional approach where the sequence of concepts is based on
+the structure of the programming language.  We begin by going right
+back to the basics.
+
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
@@ -60,8 +65,8 @@ Iteration
 ---------
 
 If you've come to Python from another programming language, you may be
-inclined to make heavy use of loop variables, and no use of list comprehensions.
-In this section we'll see how avoiding loop variables can lead to more readable
+inclined to make heavy use of loop counters, and no use of list comprehensions.
+In this section we'll see how avoiding counters can lead to more readable
 code.  We'll also look at the relationship between loops with nested blocks
 vs list comprehensions, and discuss when to use either construct.
 
@@ -215,11 +220,16 @@ for reasons that will be discussed in the next section.
      [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
      [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])]]
 
+Iteration is an important programming device.  It is tempting to import idioms
+from other languages, when Python offers some elegant and highly readable
+alternatives.
+
 Assignment
 ----------
 
-Python's assignment statement operates on `values`:em:.  But what is a value?
-Consider the following code fragment:
+Assignment would seem to be the most elementary programming concept, and not
+worth its own section.  However, there are some surprising subtleties and
+pitfalls here.  Consider the following code fragment:  
 
     >>> foo = 'Monty'
     >>> bar = foo
@@ -227,18 +237,19 @@ Consider the following code fragment:
     >>> bar
     'Monty'
 
-This code shows that when we write ``bar = foo``,
+This behaves exactly as expect.  When we write ``bar = foo``,
 the value of ``foo`` (the string ``'Monty'``) is assigned to ``bar``.
 That is, ``bar`` is a `copy`:dt: of ``foo``, so when we overwrite
 ``foo`` with a new string ``'Python'``, the value
 of ``bar`` is not affected.
 
 However, assignment statements do not always involve making copies in this way.
-An important subtlety of Python is that the "value" of a structured object
-(such as a list) is actually a `reference`:em: to the object.  In the
-following example, we
+Assignment always copies the value of an expression, but a value is not
+always what you might expect it to be.  In particular,
+the "value" of a structured object such as a list is actually just a
+`reference`:em: to the object.  In the following example, we
 assign the reference of ``foo`` to the new variable ``bar``.
-When we modify something inside ``foo``, we can see
+Now when we modify something inside ``foo``, we can see
 that the contents of ``bar`` have also been changed.
 
     >>> foo = ['Monty', 'Python']
@@ -262,11 +273,11 @@ a reference to an object stored at location 3133 (which is
 itself a series of pointers to other locations holding strings).
 When we assign ``sent2 = sent1``, it is just the object reference
 3133 that gets copied.
+This behavior extends to other aspects of the language, such as
+parameter passing (Section sec-functions_).
 
-This behavior extends to other aspects of the Python language.  In
-Section sec-functions_ we will see how it effects the way parameters
-are passed into functions.  Here's an example of how it applies to
-copying:
+Let's experiment some more, by creating a variable ``empty`` holding the
+empty list, then using it three times on the next line.
 
     >>> empty = []
     >>> nested = [empty, empty, empty]
@@ -298,8 +309,8 @@ We began with a list containing three references to a single empty list object. 
 modified that object by appending ``'Python'`` to it, resulting in a list containing
 three references to a single list object ``['Python']``.
 Next, we *overwrote* one of those references with a reference to a new object ``['Monty']``.
-This last step modified the object references, but not the objects themselves.
-The ``['Python']`` object wasn't changed, and is still referenced from two places in
+This last step modified one of the three object references inside the nested list.
+However, the ``['Python']`` object wasn't changed, and is still referenced from two places in
 our nested list of lists.  It is crucial to appreciate this difference between
 modifying an object via an object reference, and overwriting an object reference.
 
@@ -308,6 +319,96 @@ modifying an object via an object reference, and overwriting an object reference
    ``bar = foo[:]``.  This copies the object references inside the list.
    To copy a structure without copying any object references, use ``copy.deepcopy()``.
 
+Equality
+--------
+
+[Implications of the above understanding of object references for
+testing equality.]
+
+Conditionals
+------------
+
+In the condition part of an ``if`` statement, a
+nonempty string or list is evaluated as true, while an empty string or
+list evaluates as false. 
+
+    >>> mixed = ['cat', '', ['dog'], []]
+    >>> for element in mixed:
+    ...     if element: 
+    ...         print element
+    ... 
+    cat
+    ['dog']
+
+That is, we *don't* need to say ``if len(element) > 0:`` in the
+condition.
+
+What's the difference between using ``if...elif`` as opposed to using
+a couple of ``if`` statements in a row? Well, consider the following
+situation:
+
+    >>> animals = ['cat', 'dog']
+    >>> if 'cat' in animals:
+    ...     print 1
+    ... elif 'dog' in animals:
+    ...     print 2
+    ... 
+    1
+    >>>
+
+Since the ``if`` clause of the statement is satisfied, Python never
+tries to evaluate the ``elif`` clause, so we never get to print out
+``2``. By contrast, if we replaced the ``elif`` by an ``if``, then we
+would print out both ``1`` and ``2``. So an ``elif`` clause
+potentially gives us more information than a bare ``if`` clause; when
+it evaluates to true, it tells us not only that the condition is
+satisfied, but also that the condition of the main ``if`` clause was
+*not* satisfied.
+
+Python Coding Style
+-------------------
+
+When writing programs you make many subtle choices about names,
+spacing, comments, and so on.  When you look at code written by
+other people, needless differences in style make it harder to
+to interpret the code.  Therefore, the designers of the Python
+language have published a style guide for Python code, available
+at ``http://www.python.org/dev/peps/pep-0008/``.
+The underlying value presented in the style guide is `consistency`:em:,
+for the purpose of maximizing the readability of code.
+We briefly review some of its key recommendations here, and refer
+readers to the full guide for detailed discussion with examples.
+
+Code layout should use four spaces per indentation level.  You should
+avoid tabs for indentation, since these can be misinterpreted by
+different text editors and the indentation can be messed up.
+Lines should be less than 80 characters long; if necessary you can
+break a line inside parentheses, brackets, or braces, because
+Python is able to detect that the line continues over to the next line, e.g.:
+
+.. doctest-ignore::
+    >>> cv_word_pairs = [(cv, w) for w in rotokas_words
+    ...                          for cv in re.findall('[ptksvr][aeiou]', w)]
+    >>> cfd = nltk.ConditionalFreqDist((g,w)
+    ...                                for g in brown.categories()
+    ...                                for w in brown.words(categories=g))
+    >>> ha_words = ['aaahhhh', 'ah', 'ahah', 'ahahah', 'ahh', 'ahhahahaha',
+    ...             'ahhh', 'ahhhh', 'ahhhhhh', 'ahhhhhhhhhhhhhh', 'ha',
+    ...             'haaa', 'hah', 'haha', 'hahaaa', 'hahah', 'hahaha']
+
+If you need to break a line outside parentheses, brackets, or braces,
+you can often add extra parentheses, and you can always add a backslash at
+the end of the line that is broken:
+
+.. doctest-ignore::
+    >>> if (len(syllables) > 4 and len(syllables[2]) == 3 and
+    ...    syllables[2][2] in [aeiou] and syllables[2][3] == syllables[1][3]):
+    ...     process(syllables)
+    >>> if len(syllables) > 4 and len(syllables[2]) == 3 and \
+    ...    syllables[2][2] in [aeiou] and syllables[2][3] == syllables[1][3]:
+    ...     process(syllables)
+
+---------
 Sequences
 ---------
 
@@ -322,6 +423,9 @@ a length:
     ('t', 'the', 'turned')
     >>> len(text), len(words), len(pair)
     (29, 5, 2)
+
+Operating on Sequence Types
+---------------------------
 
 We can iterate over the items in a sequence ``s`` in a variety of useful ways,
 as shown in Table python-sequence_.
@@ -547,7 +651,7 @@ the function to help you see what it is doing.)
 Lists can be used to represent another important data structure.
 A `queue`:dt: is a container that has a `first-in-first-out`:dt: policy
 for adding and removing items (see Figure stack-queue_).
-Queues are used for scheduling activities or resources.
+We could use a queue of length `n`:math: to create all the n-grams of a text.
 As with stacks, we will seldom have to deal with queues explicitly,
 as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
 and chart parsers (Appendix app-chart_) use queues behind the scenes.
@@ -565,57 +669,12 @@ However, we will take a brief look at how queues are implemented using lists.
     ['sat', 'on', 'the', 'mat']
 
 
-Conditionals
-------------
-
-In the condition part of an ``if`` statement, a
-nonempty string or list is evaluated as true, while an empty string or
-list evaluates as false. 
-
-    >>> mixed = ['cat', '', ['dog'], []]
-    >>> for element in mixed:
-    ...     if element: 
-    ...         print element
-    ... 
-    cat
-    ['dog']
-
-That is, we *don't* need to say ``if len(element) > 0:`` in the
-condition.
-
-What's the difference between using ``if...elif`` as opposed to using
-a couple of ``if`` statements in a row? Well, consider the following
-situation:
-
-    >>> animals = ['cat', 'dog']
-    >>> if 'cat' in animals:
-    ...     print 1
-    ... elif 'dog' in animals:
-    ...     print 2
-    ... 
-    1
-    >>>
-
-Since the ``if`` clause of the statement is satisfied, Python never
-tries to evaluate the ``elif`` clause, so we never get to print out
-``2``. By contrast, if we replaced the ``elif`` by an ``if``, then we
-would print out both ``1`` and ``2``. So an ``elif`` clause
-potentially gives us more information than a bare ``if`` clause; when
-it evaluates to true, it tells us not only that the condition is
-satisfied, but also that the condition of the main ``if`` clause was
-*not* satisfied.
-
-Python Coding Style
--------------------
-
-Discuss key points of ``http://www.python.org/dev/peps/pep-0008/``
-
 
 .. _sec-functions:
 
----------
-Functions
----------
+----------------------------------------------------------
+Functions |mdash| The Foundation of Structured Programming
+----------------------------------------------------------
 
 Once you have been programming for a while, you will find that
 the number of completely novel things you have to do in creating a program
@@ -1013,6 +1072,9 @@ prettier online documentation, e.g. see:
 
 [Examples of function-level docstrings with epytext markup.]
 
+-------------------------
+Doing More with Functions
+-------------------------
 
 Functions as Parameters
 -----------------------
@@ -1239,128 +1301,6 @@ Another common use of optional arguments is to permit a flag, e.g.:
     ...     if trace: print
     ...     return freqdist.keys()[:num]
 
-
--------------------------------------
-Object-Oriented Programming in Python
--------------------------------------
-
-Object-Oriented Programming is a programming paradigm in which
-complex structures and processes are decomposed into `classes`:dt:,
-each encapsulating a single data type and the legal operations on
-that type.  In this section we show you how to create simple data
-classes and processing classes by example.  For a systematic
-introduction to Object-Oriented design, please see the Further
-Reading section at the end of this chapter.
-
-Data Classes: Trees in NLTK
----------------------------
-
-An important data type in language processing is the syntactic tree.
-Here we will review the parts of the NLTK code that defines the ``Tree``
-class.  
-
-The first line of a class definition is the ``class`` keyword followed
-by the class name, in this case ``Tree``.  This class is derived from
-Python's built-in ``list`` class, permitting us to use standard list
-operations to access the children of a tree node.
-
-    >>> class Tree(list):
-
-Next we define the `initializer`:dt: ``__init__()``;
-Python knows to call this function when you ask for a new tree object
-by writing ``t = Tree(node, children)``.  The constructor's first argument
-is special, and is standardly called ``self``, giving us a way to
-refer to the current object from within its definition.  This
-particular constructor calls the list initializer (similar to calling ``self =
-list(children)``), then defines the ``node`` property of a tree.
-
-.. doctest-ignore::
-    ...     def __init__(self, node, children):
-    ...         list.__init__(self, children)
-    ...         self.node = node
-
-Next we define another special function that Python knows to call when
-we index a Tree.  The first case is the simplest, when the index is an
-integer, e.g. ``t[2]``, we just ask for the list item in the obvious
-way.  The other cases are for handling slices, like ``t[1:2]``, or ``t[:]``.
-
-.. doctest-ignore::
-    ...     def __getitem__(self, index):
-    ...         if isinstance(index, int):
-    ...             return list.__getitem__(self, index)
-    ...         else:
-    ...             if len(index) == 0:
-    ...                 return self
-    ...             elif len(index) == 1:
-    ...                 return self[int(index[0])]
-    ...             else:
-    ...                 return self[int(index[0])][index[1:]]
-    ...     
-
-.. SB: what is the len(index) == 0 case for???
-
-This method was for accessing a child node.  Similar methods are
-provided for setting and deleting a child (using ``__setitem__``)
-and ``__delitem__``).
-
-Two other special member functions are ``__repr__()`` and ``__str__()``.
-The ``__repr__()`` function produces a string representation of the
-object, one that can be executed to re-create the object, and is
-accessed from the interpreter simply by typing the name of the object
-and pressing 'enter'.  The ``__str__()`` function produces a human-readable
-version of the object; here we call a pretty-printing function we have
-defined called ``pp()``.
-
-.. doctest-ignore::
-    ...     def __repr__(self):
-    ...         childstr = ' '.join([repr(c) for c in self])
-    ...         return '(%s: %s)' % (self.node, childstr)
-    ...     def __str__(self):
-    ...         return self.pp()
-
-
-Next we define some member functions that do other standard operations
-on trees.  First, for accessing the leaves:
-
-.. doctest-ignore::
-    ...     def leaves(self):
-    ...         leaves = []
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 leaves.extend(child.leaves())
-    ...             else:
-    ...                 leaves.append(child)
-    ...         return leaves
-
-
-Next, for computing the height:
-
-.. doctest-ignore::
-    ...     def height(self):
-    ...         max_child_height = 0
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 max_child_height = max(max_child_height, child.height())
-    ...             else:
-    ...                 max_child_height = max(max_child_height, 1)
-    ...         return 1 + max_child_height
-
-And finally, for enumerating all the subtrees (optionally filtered):
-
-.. doctest-ignore::
-    ...     def subtrees(self, filter=None):
-    ...         if not filter or filter(self):
-    ...             yield self
-    ...         for child in self:
-    ...             if isinstance(child, Tree):
-    ...                 for subtree in child.subtrees(filter):
-    ...                     yield subtree
-
-
-Processing Classes: N-gram Taggers in NLTK
-------------------------------------------
-
-This section will discuss the ``tag.ngram`` module.
 
 
 -------------------
@@ -2342,6 +2282,12 @@ Exercises
    Design an algorithm to find the statistically improbable
    phrases of a document collection.
    http://www.amazon.com/gp/search-inside/sipshelp.html
+
+#. |hard| Write a program to implement a brute-force algorithm for
+   discovering word squares, a kind of `n`:math: |times| `n`:math crossword
+   in which the entry in the `n`:math:\ th row is the same as the entry
+   in the `n`:math:\ th column.  For discussion, see
+   ``http://itre.cis.upenn.edu/~myl/languagelog/archives/002679.html``
 
 
 .. include:: footer.rst

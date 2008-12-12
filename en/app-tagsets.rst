@@ -1246,3 +1246,4 @@ Based on `<http://www.comp.leeds.ac.uk/amalgam/tagsets/upenn.html>`_
      - how however whence whenever where whereby whereever wherein
        whereof why 
 
+.. include:: footer.rst
