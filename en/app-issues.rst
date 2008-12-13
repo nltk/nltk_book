@@ -41,3 +41,26 @@ Chapter-Specific Issues and Questions
 * ch12: the final chapter is incomplete; it will consist of free-standing
   sections on further topics, giving readers a sense of the breadth of
   the field and the interesting challenges still faced
+
+-----------------------------
+Formatting / Rendering Issues
+-----------------------------
+
+Urgent
+------
+
+* Our reviewers will be handicapped if they can't see any visible
+  rendering of `foo`:dt:.
+
+* It would also be good to fix the `np`:gc: issue before going out
+  for review.
+
+Longer term
+-----------
+
+* Definition lists
+  (<http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#definition-lists>)
+  are coming out with the definition term being treated as a variable
+  term in Docbook, and therefore being rendered in fixed-width font.
+
+ 
