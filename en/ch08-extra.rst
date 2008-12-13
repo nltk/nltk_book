@@ -390,3 +390,35 @@ phrases wherever they occur in the sentence. Second, we can use the
 notion of a noun phrase in defining the subject of sentence, which in
 turn is a crucial ingredient in determining the "who does what to
 whom" aspect of meaning.
+
+
+
+As we have seen, there is no principled
+upper-bound on the length of a sentence.  Nevertheless, we would like
+to write (finite) programs that can process well-formed sentences.  It turns
+out that we can characterize what we mean by well-formedness using a
+grammar.  The way that finite grammars are able to describe an
+infinite set uses `recursion`:dt:.  (We already came across this idea
+when we looked at regular expressions: the finite expression ``a+`` is
+able to describe the infinite set ``{a, aa, aaa, aaaa, ...}``).  Apart
+from their compactness, grammars usually capture important structural
+and distributional properties of the language, and can be used to map
+between sequences of words and abstract representations of meaning.
+Even if we were to impose an upper bound on sentence length to ensure
+the language was finite, we would probably still want to come up with
+a compact representation in the form of a grammar.
+
+In our following discussion of grammar, we will use the following terminology.
+The grammar consists of productions, where each production involves a
+single `non-terminal`:dt: (e.g. `s`:gc:, `np`:gc:), an arrow, and one
+or more non-terminals and `terminals`:dt: (e.g. `walked`:lx:).
+The productions are often divided into two main groups.
+The `grammatical productions`:dt: are those without a terminal on
+the right hand side.  The `lexical productions`:dt: are those having
+a terminal on the right hand side.
+A special case of non-terminals are the `pre-terminals`:dt:, which
+appear on the left-hand side of lexical productions.
+We will say that a grammar `licenses`:dt: a tree if each non-terminal
+`x`:gc: with children `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`
+corresponds to a production in the grammar of the form:
+`x`:gc: |rarr| `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`.
