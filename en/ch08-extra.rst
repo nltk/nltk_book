@@ -1,3 +1,27 @@
+
+The following doesn't really fit any more
+Perhaps another kind of syntactic variation, word order, is easier to
+understand.  We know that the two sentences `Kim likes Sandy`:lx: and
+`Sandy likes Kim`:lx: have different meanings, and that `likes Sandy
+Kim`:lx: is simply ungrammatical.  Similarly, we know that the
+following two sentences are equivalent:
+
+.. ex::
+  .. ex:: The farmer *loaded* the cart with sand
+  .. ex:: The farmer *loaded* sand into the cart
+
+However, consider the semantically similar verbs `filled`:lx: and `dumped`:lx:.
+Now the word order cannot be altered (ungrammatical sentences are
+prefixed with an asterisk.)
+
+.. ex::
+  .. ex:: The farmer *filled* the cart with sand
+  .. ex:: \*The farmer *filled* sand into the cart
+  .. ex:: \*The farmer *dumped* the cart with sand
+  .. ex:: The farmer *dumped* sand into the cart
+
+
+
 Old School Grammar
 ------------------
 
