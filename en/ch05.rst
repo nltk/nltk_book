@@ -43,9 +43,60 @@ further readings section for more technical background).
 Before looking at these methods, we first need to appreciate the
 broad scope of this topic.
 
+.. _everything-is-classification:
+
 ----------------------------
 Everything is Classification
 ----------------------------
+
+In Section sec-lexical-resources_ we saw that male and female names have
+some distinctive characteristics.  Names ending in `a`:lx:, `e`:lx: and
+`i`:lx: are likely to be female, while names ending in `k`:lx:, `o`:lx:,
+`r`:lx:, `s`:lx: and `t`:lx: are likely to be male.  Let's set this up
+as a simple classification task.  First we need to prepare the training
+and testing data:
+
+    >>> from nltk.corpus import names
+    >>> import random
+    >>> namelist = ([(name, 'male') for name in names.words('male.txt')] + 
+    ...             [(name, 'female') for name in names.words('female.txt')])
+    >>> random.shuffle(namelist)
+    >>> train_names = namelist[500:]
+    >>> test_names = namelist[:500]
+
+The next step is to define a function to extract the features |mdash|
+the observable properties |mdash| of the input that our classifier will exploit.
+This function creates a dictionary containing features and values, in this
+case a single feature ``last_letter`` whose value is the last letter of the
+name:
+
+    >>> def gender_features(word):
+    ...     return {'last_letter': word[-1]}
+    >>> gender_features('Shrek')
+    {'last_letter': 'k'}
+
+Now we can process the ``namelist`` data, extracting the gender
+features of each name, and use that to train a "naive Bayes" classifier.
+
+    >>> features = [(gender_features(n), g) for (n,g) in namelist]
+    >>> classifier = nltk.NaiveBayesClassifier.train(features[500:])
+
+We will study the naive Bayes classifier later.  For now, let's
+just test it out on some names that did not appear in its training data:
+
+    >>> classifier.classify(gender_features('Neo'))
+    'male'
+    >>> classifier.classify(gender_features('Trinity'))
+    'female'
+
+Observe that these character names from *The Matrix* are correctly
+classified.  Although this science fiction movie is set in 2199,
+it conforms with our expectations about names and genders.
+Finally, we can systematically evaluate the classifier on
+a much larger quantity of unseen data:
+
+    >>> nltk.classify.accuracy(classifier, features[:500])
+    0.774
 
 Tagging as Classification
 -------------------------
@@ -55,9 +106,7 @@ A bigram tagger chooses the tag to assign to a word based on the identity of
 the word and the tag of the previous word.  A regular expression tagger looks
 at the internal make-up of the word.  However, the regular expression tagger had
 to be hand-crafted.  Instead, we can train a classifier to work out which
-suffixes are most informative.  The first step is to define a function to extract
-the features |mdash| the observable properties |mdash| of the input that our
-classifier will exploit.
+suffixes are most informative.  Let's begin by defining a new feature function:
 
     >>> def suffix_features(word, n=3):
     ...     features = {}
@@ -140,15 +189,6 @@ Finally, we can train and evaluate a classifier:
     >>> nltk.classify.accuracy(classifier, test)
     0.985
 
-
-
-
-QC corpus
-
-
-
-
-
 Categorized Corpora
 -------------------
 
@@ -214,8 +254,10 @@ specifically for training and testing text classifiers.
 The Question Classification corpus contains approximately 6,000 questions,
 where each question has been tagged as one of 50 different categories.
 The categories are organized in a two-level hierarchy, so we can
-study broad or fine-grained classification.  Here's the first 10 lines
-of the corpus::
+study broad or fine-grained classification.  The corpus is used for
+training question classifiers, a component of question answering
+systems and dialogue systems.
+Here's the first 10 lines of the corpus::
 
     DESC:manner How did serfdom develop in and then leave Russia ?
     ENTY:cremat What films featured the character Popeye Doyle ?
@@ -228,73 +270,15 @@ of the corpus::
     DESC:def What are liver enzymes ?
     HUM:ind Name the scar-faced bounty hunter of The Old West .
 
+We can access this corpus as shown below.  It is straightforward to
+access the category and process the question to extract word features.
 
+    >>> from nltk.corpus import qc
+    >>> qc.tuples('train.txt')
+    [('DESC:manner', 'How did serfdom develop in and then leave Russia ?'),
+    ('ENTY:cremat', 'What films featured the character Popeye Doyle ?'), ...]
 
-* movie_reviews
-* ppattach
-* names
-
-Searching Automatically Annotated Data
---------------------------------------
-
-In some cases, we may find that the hand-annotated corpora that are
-available are too small to perform the analysis we desire; but that
-unannotated corpora do not contain the information we need to perform
-a search.  One solution in these cases is to build an automatically
-annotated corpus, and then to search that corpus.  
-
-For example, if we wish to search for occurrences of the "way
-construction," such as "pushed his way across the crowded room," we
-could use pattern such as *VERBed PRONOUN way PREP*.  However, we may
-not have a part-of-speech tagged corpus that is sufficiently large to
-find enough instances of this construction.  We could therefore build
-an automatic part-of-speech tagger using an existing corpus, and then
-apply it to a much larger body of text.  Although the automatic
-part-of-speech tagger would make occasional errors, we would still be
-able to find most of the occurrences of the desired pattern.
-
-When using this technique, it is important to consider possible biases
-that might be introduced by the automatic annotation process.  In
-particular, the automatic annotator may systematically make an error
-that would prevent us from finding an important set of instances for
-our pattern.  In order to avoid this problem, you should evaluate the
-automatic system's accuracy, and consider what effect that accuracy
-might have on your search.  It is also advisable to avoid using an
-automatic classifier whose output is closely tied to the type of
-construction we are looking for, because doing so increases the
-likelihood that a deficiency in the automatic annotator will
-systematically block the search process.
-
-Categorizing
-------------
-
-Once we've found examples the constructions of interest, we can then
-categorize them.  
-
-using two sources of information: content and
-context.
-
-Once we've found occurrences of the we're interested in, the next step is
-to categorize them.  In general, we're interested in two things:
-
-  - features of the construction itself
-  - features of the context that we think are relevant to the phenomenon.
-
-
-  
-Counting
---------
-
-Now that we've got our occurrences coded up, we want to look at how
-often different combinations occur.
-
-- we can look for both graded and categorical distictions
-
-  - for categorical distinctions, we don't necessarily require that
-    the counts be zero; every rule has its exception.
-
-Example: what makes a name sound male or female?  Walk through it,
-explain some features, do some counts using python.  
+[Description of the other corpora: movie_reviews, names, ppattach]
 
 
 .. _sec-data-modeling:
@@ -531,29 +515,11 @@ repeated, ideally using a different development/training split.
 Example: Predicting Name Genders
 --------------------------------
 
-In section `Exploratory Data Analysis`_, we looked at some of the
-factors that might influence whether an English name sounds more like
-a male name or a female name.  Now we can build a simple model for
-this classification task.  We'll use the same ``names`` corpus that we
-used for exploratory data analysis, divided into a training set and an
-evaluation set:
-
-    >>> from nltk.corpus import names
-    >>> import random
-    >>>
-    >>> # Construct a list of classified names, using the names corpus.
-    >>> namelist = ([(name, 'male') for name in names.words('male.txt')] + 
-    ...             [(name, 'female') for name in names.words('female.txt')])
-    >>>
-    >>> # Randomly split the names into a test & train set.
-    >>> random.shuffle(namelist)
-    >>> train = namelist[500:]
-    >>> test = namelist[:500]
-
-Next, we'll build a simple feature extractor, using some of the
-features that appeared to be useful in the exploratory data analysis.
-We'll also throw in a number of features that seem like they might be
-useful:
+In Section everything-is-classification_, we constructed a simple
+name classifier, that tried to detect whether a name is more likely
+as a female or male name.  It only used a single feature (the final
+letter) and its performance was only 75%.  Let's use many more features
+and see if we can improve the performance:
 
 .. pylisting:: gender_features
 
@@ -571,19 +537,12 @@ useful:
 
 Now that we have a corpus and a feature extractor, we can train a
 classifier.  We'll use a "Naive Bayes" classifier, which will be
-described in more detail in section `Naive Bayes Classifiers`_.
+described in more detail in section classification-methods_.
 
 .. XX THIS IS CURRENTLY NOT USING THE CONSTRUCTOR
 
     >>> train_featuresets = [(gender_features(n), g) for (n,g) in train]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_featuresets)
-
-Now we can use the classifier to predict the gender for unseen names:
-
-    >>> classifier.classify(gender_features('Blorgy'))
-    'male'
-    >>> classifier.classify(gender_features('Alaphina'))
-    'female'
 
 And using the test corpus, we can check the overall accuracy of the
 classifier across a collection of unseen names with known labels:
@@ -591,6 +550,9 @@ classifier across a collection of unseen names with known labels:
     >>> test_featuresets = [(gender_features(n),g) for (n,g) in test]
     >>> print nltk.classify.accuracy(classifier, test_featuresets)
     0.688
+
+[Discuss why its performance is worse; due to the naive Bayes' assumption
+not holding.]
 
 Example: Predicting Sentiment
 -----------------------------
@@ -1005,6 +967,8 @@ making the wrong decision.  The feature set can then be adjusted
 accordingly, and the error analysis repeated until no more progress is
 made.
 
+.. _classification-methods:
+
 ----------------------
 Classification Methods
 ----------------------
@@ -1023,7 +987,6 @@ And an understanding of the generated models can allow us to extract
 useful information about which features are most informative, and how
 those features relate to one another.
 
---------------
 Decision Trees
 --------------
 
