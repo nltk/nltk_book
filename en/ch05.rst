@@ -95,43 +95,52 @@ and learn something about the data.]
 Segmentation as Classification
 ------------------------------
 
-Encoding this information -- features.  We need to encode this info in
-a concrete way.  Use a feature dictionary for each occurrence, mapping
-feature names (eg 'prevword') to concrete values (eg a string, int).
-Features should have simple values (i.e. not list values).
+Sentence segmentation can be viewed as a punctuation classification task.
+Whenever we encounter a symbol that could possibly end a sentence, such
+as a period or a question mark, we have to decide whether it terminates
+the preceding sentence.
 
-.. pylisting:: segmentation
+The first step is to obtain some data that has already been segmented into
+sentences and convert it into a form that is suitable for extracting features:
 
-   def preprocess(sents):
-       tokens = []
-       boundaries = []
-       for sent in sents:
-           for token in sent:
-               tokens.append(token)
-           boundaries.append(False)
-           boundaries[-1] = True
-       return (tokens, boundaries)
+    >>> sents = nltk.corpus.abc.sents()
+    >>> data = [(sent[i], i+1==len(sent))
+    ...        for sent in sents
+    ...        for i in range(len(sent))]
+    >>> data[1500:1515]
+    [('snakes', False), ('are', False), ('on', False), ('the', False), ('move', False),
+    ('.', True), ('People', False), ('are', False), ('being', False), ('warned', False),
+    ('to', False), ('keep', False), ('their', False), ('eyes', False), ('open', False)]
+    
+Here, each token has been tagged to indicate whether it is a sentence-ending punctuation.
+Next, we need to specify the features of the data that will be used in order to
+decide whether punctuation indicates a sentence-boundary:
 
-   def get_instances(tokens, boundaries):
-       instances = []
-       for i in range(len(tokens)):
-           if tokens[i] in ".?!":
-               try:
-                   instances.append(
-                       (dict( upper = tokens[i+1][0].isupper(),
-                              abbrev = len(tokens[i-1]) == 1 ),
-                        boundaries[i]))
-               except IndexError:
-                   pass
-       return instances     
+    >>> def punct_features(tokens, i):
+    ...     return {'upper': tokens[i+1][0].isupper(),
+    ...             'abbrev': len(tokens[i-1][0]) == 1}
+    ...
+    >>> tokens, boundaries = zip(*data)
+    >>> instances = [(punct_features(tokens, i), boundaries[i])
+    ...             for i in range(1, len(tokens)-1)
+    ...             if tokens[i] in ".?!"]
+    >>> instances[130:140]
+    [({'upper': True, 'abbrev': True}, True), ({'upper': True, 'abbrev': True}, True),
+    ({'upper': False, 'abbrev': True}, True), ({'upper': False, 'abbrev': True}, True),
+    ({'upper': True, 'abbrev': True}, True), ({'upper': False, 'abbrev': True}, True),
+    ({'upper': True, 'abbrev': True}, True), ({'upper': False, 'abbrev': True}, True),
+    ({'upper': False, 'abbrev': True}, True), ({'upper': False, 'abbrev': True}, True)]
 
-   >>> tokens, boundaries = preprocess(nltk.corpus.abc.sents())
-   >>> data = get_instances(tokens, boundaries)
-   >>> train = data[1000:]
-   >>> test = data[:1000]
-   >>> classifier = nltk.NaiveBayesClassifier.train(train)
-   >>> nltk.classify.accuracy(classifier, test)
-   0.9960
+Finally, we can train and evaluate a classifier:
+
+    >>> train = instances[1000:]
+    >>> test = instances[:1000]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train)
+    >>> nltk.classify.accuracy(classifier, test)
+    0.985
+
+
+
 
 QC corpus
 
