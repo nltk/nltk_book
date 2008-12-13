@@ -13,13 +13,18 @@ General Issues
 
 * The further reading sections of each chapter are patchy; some are comprehensive while
   some are minimal.  We intend to make these consistent, providing a representative
-  set of pointers to other materials.
+  set of pointers to other materials.  The pointers to NLTK's "guides" are stale; we're
+  in the process of updating these to create a suite of HOWTOs.
 
 * It is difficult for readers to know which exercises at the end of the chapter
   correspond to which sections of the chapter.
 
 * The diagrams of the book need to be set in grayscale and high-resolution, for the
   hardcopy version.
+
+* NLTK provides a sophisticated framework for working with corpora; perhaps there
+  should be an appendix which explains how this works and how to write new
+  corpus readers.
 
 -------------------------------------
 Chapter-Specific Issues and Questions
