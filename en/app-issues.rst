@@ -26,6 +26,9 @@ General Issues
   should be an appendix which explains how this works and how to write new
   corpus readers.
 
+* The phrase that appears as a subtitle is actually intended to appear as the
+  by-line on the top of the front cover
+
 -------------------------------------
 Chapter-Specific Issues and Questions
 -------------------------------------
