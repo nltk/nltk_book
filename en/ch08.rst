@@ -911,6 +911,10 @@ submitted to a question-answering system to undergo parsing as an initial step.
 In this section we see two simple parsing algorithms,
 a top-down method called recursive descent parsing,
 and a bottom-up method called shift-reduce parsing.
+We also see some more sophisticated algorithms,
+a top-down method with bottom-up filtering called
+left-corner parsing, and a dynamic programming
+technique called chart parsing.
 
 Recursive Descent Parsing 
 -------------------------
@@ -932,29 +936,14 @@ process.  With the initial goal (find an `s`:gc:), the `s`:gc: root node
 is created.  As the above process recursively expands its goals using
 the productions of the grammar, the parse tree is extended downwards
 (hence the name *recursive descent*).  We can see this in action using
-the parser demonstration ``nltk.draw.rdparser.demo()``.
-Six stages of the execution of this parser are shown in Table rdparser_.
+the graphical demonstration ``nltk.draw.rdparser.demo()``.
+Six stages of the execution of this parser are shown in Figure rdparser1-6_.
 
-.. table:: rdparser
-
-   +---------------------------+--------------------------+---------------------------+
-   | |rdparser1|               | |rdparser2|              | |rdparser3|               |
-   |                           |                          |                           |
-   | a. Initial stage          | b. 2nd production        | c. Matching `the`:lx:     |
-   +---------------------------+--------------------------+---------------------------+
-   | |rdparser4|               | |rdparser5|              | |rdparser6|               |
-   |                           |                          |                           |
-   | d. Cannot match `man`:lx: | e. Completed parse       | f. Backtracking           |
-   +---------------------------+--------------------------+---------------------------+
+.. _rdparser1-6:
+.. figure:: ../images/rdparser1-6.png
+   :scale: 50:50:50
 
    Six Stages of a Recursive Descent Parser
-
-.. |rdparser1| image:: ../images/rdparser1.png
-.. |rdparser2| image:: ../images/rdparser2.png
-.. |rdparser3| image:: ../images/rdparser3.png
-.. |rdparser4| image:: ../images/rdparser4.png
-.. |rdparser5| image:: ../images/rdparser5.png
-.. |rdparser6| image:: ../images/rdparser6.png
 
 During this process, the parser is often forced to choose between several
 possible productions.  For example, in going from step 3 to step 4, it
@@ -1015,43 +1004,21 @@ the *n* items on the right hand side of some production,
 then they are all popped off the stack, and the item on the left-hand
 side of the production is pushed on the stack.  This replacement of
 the top *n* items with a single item is the `reduce`:dt: operation.
-(This reduce operation may only be applied to the top of the stack;
+This operation may only be applied to the top of the stack;
 reducing items lower in the stack must be done before later items are
-pushed onto the stack.)  The parser finishes when all the input is
+pushed onto the stack.  The parser finishes when all the input is
 consumed and there is only one item remaining on the stack, a parse
 tree with an `s`:gc: node as its root.
-
 The shift-reduce parser builds a parse tree during the above process.
-If the top of stack holds the word `dog`:lx:, and if the grammar has a
-production `n`:gc: |rarr| `dog`:lx:, then the reduce operation causes the word
-to be replaced with the parse tree for this production.  For
-convenience we will represent this tree as ``N(dog)``.  At a later
-stage, if the top of the stack holds two items ``Det(the) N(dog)`` and
-if the grammar has a production `np`:gc: |rarr| `det n`:gc: then the reduce
-operation causes these two items to be replaced with ``NP(Det(the),
-N(dog))``.  This process continues until a parse tree for the entire
-sentence has been constructed.  We can see this in action using the
-parser demonstration ``nltk.draw.srparser.demo()``.
-Six stages of the execution of this parser are shown in Figure srparser_.
+Each time it pops *n* items off the stack it combines them into
+a partial parse tree, and pushes this back on the stack.
+We can see the shift-reduce parsing algorithm in action using the
+graphical demonstration ``nltk.draw.srparser.demo()``.
+Six stages of the execution of this parser are shown in Figure srparser1-6_.
 
-.. table:: srparser
-
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser1.png | .. image:: ../images/srparser2.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 1. Initial State                   | 2. After one shift                 |
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser3.png | .. image:: ../images/srparser4.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 3. After reduce shift reduce       | 4. After recognizing the second NP |
-   +------------------------------------+------------------------------------+
-   | .. image:: ../images/srparser5.png | .. image:: ../images/srparser6.png |
-   |    :scale: 50                      |    :scale: 50                      |
-   |                                    |                                    |
-   | 5. Complex NP                      | 6. Final Step                      |
-   +------------------------------------+------------------------------------+
+.. _srparser1-6:
+.. figure:: ../images/srparser1-6.png
+   :scale: 50:50:50
 
    Six Stages of a Shift-Reduce Parser
 
@@ -1072,41 +1039,16 @@ parser reports the steps that it takes as it parses a text:
    Run the above parser in tracing mode to see the sequence of shift and reduce
    operations, using ``sr_parse = nltk.ShiftReduceParser(grammar, trace=2)``
 
-Shift-reduce parsers have a number of problems.
-A shift-reduce parser may fail to parse the sentence, even though the
-sentence is well-formed according to the grammar.  In such cases,
-there are no remaining input words to shift, and there is no way to
-reduce the remaining items on the stack, as exemplified in Table conflict_\ 1.
-The parser entered this blind alley at an earlier
-stage shown in Table conflict_\ 2, when it reduced instead of
-shifted.  This situation is called a `shift-reduce conflict`:dt:.  At
-another possible stage of processing shown in Table conflict_\ 3,
-the parser must choose between two possible reductions, both matching
-the top items on the stack: `vp`:gc: |rarr| `vp np pp`:gc: or `np`:gc: |rarr|
-`np pp`:gc:.  This situation is called a `reduce-reduce conflict`:dt:.
-
-.. table:: conflict
-
-   +------------------------------------------+
-   | .. image:: ../images/srparser7.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 1. Dead end                              |
-   +------------------------------------------+
-   | .. image:: ../images/srparser8.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 2. Shift-reduce conflict                 |
-   +------------------------------------------+
-   | .. image:: ../images/srparser9.png       |
-   |    :scale: 50                            |
-   |                                          |
-   | 3. Reduce-reduce conflict                |
-   +------------------------------------------+
-
-   Conflict in Shift-Reduce Parsing
-
-.. To do: diagram showing search tree with success and failure.
+A shift-reduce parser can reach a dead end and fail to find any parse,
+even if the input sentence is well-formed according to the grammar.
+(We leave it as an exercise to fix this problem by adding backtracking to this parser.)
+When this happens, no input remains, and the stack contains items
+which cannot be reduced to an `s`:gc:.  The problem arises because
+there are choices made earlier that cannot be undone by the parser
+(although users of the graphical demonstration can undo their choices).
+There are two kinds of choices to be made by the parser:
+(a) which reduction to do when more than one is possible
+(b) whether to shift or reduce when either action is possible.
 
 Shift-reduce parsers may implement policies for resolving such
 conflicts.  For example, they may address shift-reduce conflicts by
@@ -1485,7 +1427,9 @@ Treebanks
 The ``corpus`` module defines the ``treebank`` corpus reader,
 which contains a 10% sample of the Penn Treebank corpus.
 
-    >>> print nltk.corpus.treebank.parsed_sents('wsj_0001.mrg')[0]
+    >>> from nltk.corpus import treebank
+    >>> t = treebank.parsed_sents('wsj_0001.mrg')[0]
+    >>> print t
     (S
       (NP-SBJ
         (NP (NNP Pierre) (NNP Vinken))
@@ -1647,43 +1591,6 @@ unambiguous, such as `John saw Mary`:lx:, turn out to have other
 readings we would not have anticipated (as Abney explains).  This
 ambiguity is unavoidable, and leads to horrendous inefficiency in
 parsing seemingly innocuous sentences. 
-
-Let's look more closely at this issue of efficiency.
-The top-down recursive-descent parser presented
-in Chapter chap-parse_ can be very inefficient, since it often builds
-and discards the same sub-structure many times over.  We see this
-in Figure parser-problem_, where a phrase `the block`:lx: is identified
-as a noun phrase several times, and where this information is discarded
-each time we backtrack.
-
-.. Note::
-   You should try the recursive-descent parser demo if you haven't
-   already: ``nltk.draw.srparser.demo()``
-
-.. table:: parser-problem
-
-   +-----------------------------------+-----------------------------------+
-   | a. Initial stage                  | b. Backtracking                   |
-   |                                   |                                   |
-   | |findtheblock1|                   | |findtheblock2|                   |
-   +-----------------------------------+-----------------------------------+
-   | c. Failing to match `on`:lx:      | d. Completed parse                |
-   |                                   |                                   |
-   | |findtheblock3|                   | |findtheblock4|                   |
-   +-----------------------------------+-----------------------------------+
-
-   Backtracking and Repeated Parsing of Subtrees
-
-.. |findtheblock1| image:: ../images/findtheblock1.png
-   :scale: 85
-.. |findtheblock2| image:: ../images/findtheblock2.png
-   :scale: 85
-.. |findtheblock3| image:: ../images/findtheblock3.png
-   :scale: 85
-.. |findtheblock4| image:: ../images/findtheblock4.png
-   :scale: 85
-
-
 The solution to these problems is provided by
 `probabilistic parsing`:em:, which allows us to `rank`:em:
 the parses of an ambiguous sentence on the basis of evidence from corpora.
@@ -1946,6 +1853,10 @@ Exercises
    ``grammar.productions(lhs)`` to get the list of productions from the grammar
    that have the specified left-hand side; and ``production.rhs()`` to get
    the right-hand side of a production.)
+
+#. |hard| Implement a version of the shift-reduce parser using backtracking,
+   so that it finds all possible parses for a sentence.
+   ``http://en.wikipedia.org/wiki/Backtracking``
 
 #. |hard| **Lexical Acquisition:**
    As we saw in Chapter chap-chunk_, it is possible 

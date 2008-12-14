@@ -42,7 +42,7 @@ class Writer(writers.Writer):
             {'default': 'article', 
              'metavar': '<name>',
              'type': 'choice', 
-             'choices': ('article', 'book', 'chapter',)
+             'choices': ('article', 'book', 'chapter', 'preface', 'appendix')
             }
          ),
         )
