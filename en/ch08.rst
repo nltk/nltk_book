@@ -5,9 +5,6 @@
 
     >>> import nltk, re, pprint
 
-.. TODO: explain that cfg grammars must not mix lexical and phrasal RHS
-.. TODO: explain why RHS can't have a sequence of terminals
-.. TODO: motivate or omit mathematical notation for formalizing CFGs
 .. TODO: include overview of ContextFreeGrammar and Production in 8.4
 .. TODO: make URLs clickable in the HTML version
 .. TODO: mention Chomsky Normal Form
@@ -359,7 +356,6 @@ grammatical category labels to the words we saw in the earlier figure.
 
    Grammatical categories
 
-
 If we now strip out the words apart from the topmost row, add an
 `s`:gc: node, and flip the figure over, we end up with a standard
 phrase structure tree.
@@ -370,7 +366,6 @@ phrase structure tree.
 
 Beyond Chunking
 ---------------
-
 
 You might be asking what's new about phrasal constituents, since the
 are very similar to the chunks presented in Chapter chap-chunk_. To
@@ -465,8 +460,6 @@ categories, such as `np`:gc:, `vp`:gc: and so on. From now on, we will
 be more casual, and fail to draw the distinction unless the context
 demands it.
 
-
-
 In formal language theory, a `language`:dt: *L* is defined to be a set
 of strings made up from a set *V* of atomic symbols
 (e.g. words). Consider the set of all possible strings
@@ -492,11 +485,13 @@ children must correspond to a production in the grammar.
 A Simple Grammar
 ----------------
 
-Let's start off by looking at a simple context-free grammar.
-By convention, the left-hand-side of the first production is
-the `start-symbol`:dt: of the grammar, and all well-formed trees
-must have this symbol as their root label.
-
+Let's start off by looking at a simple context-free grammar.  By
+convention, the left-hand-side of the first production is the
+`start-symbol`:dt: of the grammar, typically `s`:gc:, and all
+well-formed trees must have this symbol as their root label. In
+|NLTK|, context-free grammars are defined in the ``nltk.grammar``
+module.  In Figure cfg1_ we define a grammar and show how parse a
+simple sentence admitted by the grammar.
 
 .. pylisting:: cfg1
    :caption: A Simple Context-Free Grammar
@@ -508,13 +503,17 @@ must have this symbol as their root label.
      V -> "saw" | "ate" | "walked"
      NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
      Det -> "a" | "an" | "the" | "my"
-     N -> "man" | "dog" | "cat" | "cookie" | "park"
-
+     N -> "man" | "dog" | "cat" | "telescope" | "park"
      P -> "in" | "on" | "by" | "with"
      """)
+   >>> sent = "Mary saw Bob".split()
+   >>> rd_parser = nltk.RecursiveDescentParser(grammar)
+   >>> for tree in rd_parser.nbest_parse(sent):
+   ...      print tree
+   (S (NP Mary) (VP (V saw) (NP Bob)))
 
 
-This grammar contains productions involving various syntactic categories,
+The grammar in Figure cfg1_ contains productions involving various syntactic categories,
 as laid out in Table syncat_.
 
 .. table:: syncat
@@ -526,7 +525,6 @@ as laid out in Table syncat_.
    NP        noun phrase             `a dog`:lx:
    VP        verb phrase             `saw a park`:lx:
    PP        prepositional phrase    `with a telescope`:lx:
-   ...       ...                     ...
    Det       determiner              `the`:lx:
    N         noun                    `dog`:lx:
    V         verb                    `walked`:lx:
@@ -536,10 +534,12 @@ as laid out in Table syncat_.
    Syntactic Categories
 
 
-.. also mention somewhere 
+A production like ``VP -> V NP | V NP PP`` has a disjunction on the
+righthand side, shown by the ``|`` and is an abbreviation for the two productions 
+``VP -> V NP`` and ``VP -> V NP PP``.
 
-In order to get started with developing simple grammars of your own, you
-will probably find it convenient to play with the recursive descent
+In order to develop simple grammars of your own, start off by
+playing with the recursive descent
 parser demo, ``nltk.draw.rdparser.demo()``.
 The demo opens a window that displays a list of grammar productions in the
 left hand pane and the current parse diagram in the central pane:
@@ -547,12 +547,14 @@ left hand pane and the current parse diagram in the central pane:
 .. image:: ../images/parse_rdparsewindow.png
    :scale: 100
 
-The demo comes with a grammar similar to ``grammar1`` already loaded;
-however, you can edit this as you please. We will
-discuss the parsing algorithm in greater detail below, but for the
-time being you can get an idea of how it works by using the *autostep* button.
+The demo comes with already loaded with a sample grammar; however, you
+can edit this as you please. We will discuss the recursive descent
+parsing algorithm in greater detail below, but for the time being you
+can get an idea of how it works by using the *autostep* button.
+
 If we parse the string `The dog saw a man in the park` using
-the grammar in ``grammar1``, we end up with two trees:
+the grammar shown in Figure cfg1_, we end up with two trees, similar to
+those we saw for example elephant_:
 
 .. ex::
   .. ex::
@@ -572,12 +574,46 @@ said to be :dt:`structurally ambiguous`.  The ambiguity in question is called
 a `prepositional phrase attachment ambiguity`:idx:, as we saw earlier in this chapter.
 As you may recall, it is an ambiguity about attachment since the
 `pp`:gc: `in the park`:lx: needs to be attached to one of two places
-in the tree: either as a daughter of `VP`:gc: or else as a daughter of
+in the tree: either as a daughter of `vp`:gc: or else as a daughter of
 `np`:gc:.
-When the `pp`:gc: is attached to `vp`:gc:, the seeing event happened
+When the `pp`:gc: is attached to `vp`:gc:, the intended interpretation
+is that the seeing event happened
 in the park.  However, if the `pp`:gc: is attached to `np`:gc:,
-then the man was in the park, and the agent of the seeing (the dog)
-might have been sitting on the balcony of an apartment overlooking the park.
+then it was the man who was in the park, and the agent of the seeing (the dog)
+might have been sitting on the balcony of an apartment overlooking the
+park.
+
+
+Writing Your Own Grammars
+-------------------------
+
+If you are interested in experiment with writing CFGs, you will almost
+certainly find it helpful to create and edit your grammar in a text
+file, say ``mygrammar.cfg``. You can then load it into |NLTK| and
+parse with it as follows:
+
+    >>> grammar = nltk.data.load('file:mygrammar.cfg')
+    >>> sent = "Mary saw Bob".split()
+    >>> rd_parser = nltk.RecursiveDescentParser(grammar)
+    >>> for tree in rd_parser.nbest_parse(sent):
+    ...      print tree
+
+Make sure that you put a ``.cfg`` suffix on the filename, and that
+there are no spaces in the string ``'file:mygrammar.cfg'``. If the
+command ``print tree`` produces no output, this is probably because
+your sentence ``sent`` is not admitted by your grammar. In this case,
+call the parser with tracing set to be on: ``rd_parser =
+nltk.RecursiveDescentParser(grammar, trace=2)``. You can also check
+what productions are currently in the grammar with the command ``for p
+in grammar.productions(): print p``.
+
+When you write CFGs for parsing in |NLTK|, you cannot combine
+grammatical categories with lexical items on the righthand side of the
+same production. Thus, a production such as ``PP -> 'of' NP`` is disallowed. In
+addition, you are not permitted to place multi-word lexical items on the
+righthand side of a production. So rather than writing ``NP --> 'New
+York'``, you have to resort to something like ``NP --> 'New_York'``
+instead.
 
 
 Recursion in Syntactic Structure
@@ -585,10 +621,11 @@ Recursion in Syntactic Structure
 
 A grammar is said to be :dt:`recursive` if a category occurring on the left hand
 side of a production (such as `s`:gc: in this case) also appears on
-the right hand side of a production. If this dual occurrence takes
+the righthand side of a production. If this dual occurrence takes
 place in *one and the same production*, then we have :dt:`direct
 recursion`; otherwise we have :dt:`indirect recursion`. There is no
-recursion in ``grammar``. However, the grammar in ``grammar2`` illustrates both kinds of
+recursion in the grammar in Figure cfg1_. However, the grammar in
+Figure cfg2_ illustrates both kinds of
 recursive production:
 
 
@@ -597,7 +634,7 @@ recursive production:
 
    grammar2 = nltk.parse_cfg("""
      S  -> NP VP
-     NP -> Det Nom | PropN
+     NP -> Det Nom | PropN 
      Nom -> Adj Nom | N
      VP -> V Adj | V NP | V S
      PropN -> 'Buster_Bear' | 'Chatterer' 
@@ -613,18 +650,18 @@ category of nominals) involves direct recursion on the category
 combination of two productions, namely ``S -> NP VP`` and ``VP -> V S``.
 
 To see how recursion is handled in this grammar, consider the following
-trees.  Example nested-nominals_ involves nested nominal phrases,
-while nested-sentences_ contains nested sentences.
+trees.  Example recnominals_ involves nested nominal phrases,
+while recsentences_ contains nested sentences.
 
 .. ex::
   .. ex::
-    .. _nested-nominals:
+    .. _recnominals:
     .. tree::
      (S (NP (Det the) (Nom (Adj angry)(Nom (N bear))))
          (VP (V chased)
             (NP (Det the) (Nom (Adj frightened)(Nom (Adj little) (N squirrel))))))
   .. ex::
-    .. _nested-sentences:
+    .. _recsentences:
     .. tree::
       (S (NP (PropN Chatterer))
          (VP (V said)
@@ -634,33 +671,13 @@ while nested-sentences_ contains nested sentences.
                              (VP (V was)(Adj tall)))))))
 
 
-If you have experimented with the recursive descent parser, you may
-have noticed that it fails to deal properly with the
-following production: `np`:gc: |rarr| `np pp`:gc:.
-From a linguistic point of view, this production is perfectly respectable,
-and will allow us to derive trees like this:
+Although we have only illustrated two levels of recursion, there is no
+upper limit on the depth, and you should experiment with parsing
+sentences that involve more deeply nested structures. However, be
+aware that the recursive descent parser is unable to handle
+`left-recursive`:dt: productions of the form ``X -> X Y``. We will
+return to this when we discuss parsing in more detail below.
 
-.. ex::
-  .. tree::
-    (S (NP 
-           (NP 
-               (NP (Det the) (N man))
-               (PP (P with) (NP  (Det a) (N dog))))
-            (PP (P in  (NP  (Det the) (N park)))))
-         (VP (V disappeared)))
-
-More schematically, the trees for these compound noun phrases will be
-of the following shape:
-
-.. _leftrec:
-.. ex::
-  .. tree::
-    (NP (NP (NP (NP Det N) PP) PP) PP)
-
-The structure in leftrec_ is called a `left recursive`:dt: structure.
-These occur frequently in analyses of English, and
-the failure of recursive descent parsers to deal adequately with left
-recursion means that we will need to find alternative approaches.
 
 -----------------------------------
 Dependencies and Dependency Grammar
@@ -701,8 +718,8 @@ to capturing the `pp`:gc: attachement ambiguity.
 
 .. _depgraph1:
 .. ex::
-    .. tree:: (shot I (elephant (in pyjamas my)))
-    .. tree:: (shot I elephant (in pyjamas my))
+    .. tree:: (shot I (elephant (in pajamas my)))
+    .. tree:: (shot I elephant (in pajamas my))
 
 Various criteria have been proposed for deciding what is the head *H* and
 what is the dependent *D* in a construction *C*. Some of the most important
@@ -856,31 +873,6 @@ Phrase Structure Grammar (HPSG) LinGO Matrix framework
 (http://www.delph-in.net/matrix/), and the Lexicalized Tree Adjoining
 Grammar XTAG Project (http://www.cis.upenn.edu/~xtag/).
 
-Context Free Grammar in NLTK
-----------------------------
-
-In NLTK, context free grammars are defined in the ``nltk.grammar`` module.
-In Figure cfg_ we define a grammar and use it to parse a simple
-sentence.  You will learn more about parsing in the next section.
-
-.. pylisting:: cfg
-   :caption: Context Free Grammars in NLTK
-
-   grammar = nltk.parse_cfg("""
-     S -> NP VP
-     VP -> V NP | V NP PP
-     V -> "saw" | "ate"
-     NP -> "John" | "Mary" | "Bob" | Det N | Det N PP
-     Det -> "a" | "an" | "the" | "my"
-     N -> "dog" | "cat" | "cookie" | "park"
-     PP -> P NP
-     P -> "in" | "on" | "by" | "with"
-     """)
-   >>> sent = "Mary saw Bob".split()
-   >>> rd_parser = nltk.RecursiveDescentParser(grammar)
-   >>> for p in rd_parser.nbest_parse(sent):
-   ...      print p
-   (S (NP Mary) (VP (V saw) (NP Bob)))
 
 
 .. _sec-parsing:
@@ -1151,7 +1143,7 @@ necessary in order to efficiently arrive at a complete solution.
 This approach to parsing is known as `chart parsing`:dt:.  We introduce
 the main idea in this section and leave the details to Appendix app-chart_.
 
-Dynamic programming allows us to build the `pp`:gc: `in my pyjamas`:lx:
+Dynamic programming allows us to build the `pp`:gc: `in my pajamas`:lx:
 just once.  The first time we build it we save it in a table, then we look it
 up when we need to use it as a subconstituent of either the object `np`:gc: or
 the higher `vp`:gc:. This table is known as a
@@ -1848,7 +1840,7 @@ Exercises
    this function is not `s`:gc:, or it lacks a subject?
 
 #. |hard| Write a function that takes a grammar (such as the one defined in
-   Figure cfg_) and returns a random sentence generated by the grammar.
+   Figure cfg1_) and returns a random sentence generated by the grammar.
    (Use ``grammar.start()`` to find the start symbol of the grammar;
    ``grammar.productions(lhs)`` to get the list of productions from the grammar
    that have the specified left-hand side; and ``production.rhs()`` to get
