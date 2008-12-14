@@ -422,3 +422,139 @@ We will say that a grammar `licenses`:dt: a tree if each non-terminal
 `x`:gc: with children `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`
 corresponds to a production in the grammar of the form:
 `x`:gc: |rarr| `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`.
+
+If you have experimented with the recursive descent parser, you may
+have noticed that it fails to deal properly with the
+following production: `np`:gc: |rarr| `np pp`:gc:.
+From a linguistic point of view, this production is perfectly respectable,
+and will allow us to derive trees like this:
+
+.. ex::
+  .. tree::
+    (S (NP 
+           (NP 
+               (NP (Det the) (N man))
+               (PP (P with) (NP  (Det a) (N dog))))
+            (PP (P in  (NP  (Det the) (N park)))))
+         (VP (V disappeared)))
+
+More schematically, the trees for these compound noun phrases will be
+of the following shape:
+
+.. _leftrec:
+.. ex::
+  .. tree::
+    (NP (NP (NP (NP Det N) PP) PP) PP)
+
+The structure in leftrec_ is called a `left recursive`:dt: structure.
+These occur frequently in analyses of English, and
+the failure of recursive descent parsers to deal adequately with left
+recursion means that we will need to find alternative approaches.
+
+The revised grammar for `vp`:gc: will now look like this:
+
+.. _subcat3:
+.. ex::
+   .. parsed-literal:: 
+
+      `vp`:gc: |rarr| `datv np pp`:gc:
+      `vp`:gc: |rarr| `tv np`:gc:
+      `vp`:gc: |rarr| `sv s`:gc:
+      `vp`:gc: |rarr| `iv`:gc: 
+
+      `datv`:gc: |rarr| 'gave' | 'donated' | 'presented'
+      `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
+      `sv`:gc: |rarr| 'said' | 'knew' | 'alleged'
+      `iv`:gc: |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
+
+Notice that according to subcat3_, a given lexical item can belong to more
+than one subcategory. For example, `sang`:lx: can occur both with and
+without a following `np`:gc: complement.
+
+
+
+------------------
+Dependency Parsing
+------------------
+
+One format for encoding dependency information places each word on a
+line, followed by its part-of-speech tag, the index of its head, and
+the label of the dependency relation (cf. [Nivre2006MP]_). The index
+of a word is implicitly given by the ordering of the lines (with 1 as the
+first index). This is illustrated in the following code snippet:
+
+    >>> from nltk import DependencyGraph
+    >>> dg = DependencyGraph("""Esso    NNP 2   SUB
+    ... said    VBD 0   ROOT
+    ... the     DT  5   NMOD
+    ... Whiting NNP 5   NMOD
+    ... field   NN  6   SUB
+    ... started VBD 2   VMOD
+    ... production  NN  6   OBJ
+    ... Tuesday NNP 6   VMOD""")
+
+As you will see, this format also adopts the convention that the head
+of the sentence is dependent on an empty node, indexed as 0. We can
+use the ``deptree()`` method of a ``DependencyGraph()`` object to build an |NLTK|
+tree like that illustrated earlier in depgraph1_.
+
+    >>> tree = dg.deptree()
+    >>> tree.draw()                                 # doctest: +SKIP
+
+Projective Dependency Parsing
+-----------------------------
+
+    >>> grammar = nltk.parse_dependency_grammar("""
+    ... 'fell' -> 'price' | 'stock'
+    ... 'price' -> 'of' 'the'
+    ... 'of' -> 'stock'
+    ... 'stock' -> 'the'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 5 productions
+      'fell' -> 'price'
+      'fell' -> 'stock'
+      'price' -> 'of' 'the'
+      'of' -> 'stock'
+      'stock' -> 'the'
+    
+    >>> dp = nltk.ProjectiveDependencyParser(grammar)
+    >>> for t in dp.parse(['the', 'price', 'of', 'the', 'stock', 'fell']):
+    ...     print tree
+    (fell (price the of the) stock)
+    (fell (price the of) (stock the))
+    (fell (price the (of (stock the))))
+
+Non-Projective Dependency Parsing
+---------------------------------
+
+    >>> grammar = nltk.parse_dependency_grammar("""
+    ... 'taught' -> 'play' | 'man'
+    ... 'man' -> 'the'
+    ... 'play' -> 'golf' | 'dog' | 'to'
+    ... 'dog' -> 'his'
+    ... """)
+    >>> print grammar
+    Dependency grammar with 7 productions
+      'taught' -> 'play'
+      'taught' -> 'man'
+      'man' -> 'the'
+      'play' -> 'golf'
+      'play' -> 'dog'
+      'play' -> 'to'
+      'dog' -> 'his'
+    
+    >>> dp = nltk.NonprojectiveDependencyParser(grammar)
+    >>> for g in dp.parse(['the', 'man', 'taught', 'his', 'dog', 'to', 'play', 'golf']):
+    ...     print g
+    [{'address': 0, 'deps': 3, 'rel': 'TOP', 'tag': 'TOP', 'word': None},
+     {'address': 1, 'deps': [], 'word': 'the'},
+     {'address': 2, 'deps': [1], 'word': 'man'},
+     {'address': 3, 'deps': [2, 7], 'word': 'taught'},
+     {'address': 4, 'deps': [], 'word': 'his'},
+     {'address': 5, 'deps': [4], 'word': 'dog'},
+     {'address': 6, 'deps': [], 'word': 'to'},
+     {'address': 7, 'deps': [5, 6, 8], 'word': 'play'},
+     {'address': 8, 'deps': [], 'word': 'golf'}]
+
+.. note:: The dependency parser modules also support probabilistic dependency parsing.

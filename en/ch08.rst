@@ -14,6 +14,7 @@
 .. TODO: update images in parser-problem table (NP -> NP PP replaced
          by Nom -> Nom PP
 .. TODO: find a different example of left-recursive rules
+.. TODO: Add discussion of non-projective dependency parsing
 
 .. _chap-parse:
 
@@ -636,12 +637,14 @@ recursive production:
      S  -> NP VP
      NP -> Det Nom | PropN 
      Nom -> Adj Nom | N
-     VP -> V Adj | V NP | V S
-     PropN -> 'Buster_Bear' | 'Chatterer' 
-     Det -> 'the'
-     N -> 'bear' | 'squirrel' | 'tree'
+     VP -> V Adj | V NP | V S | V NP PP
+     PP -> P NP
+     PropN -> 'Buster_Bear' | 'Chatterer' | 'Joe'
+     Det -> 'the' | 'a'
+     N -> 'bear' | 'squirrel' | 'tree' | 'fish' | 'log' 
      Adj  -> 'angry' | 'frightened' |  'little' | 'tall'
-     V ->  'chased'  | 'said' | 'thought' | 'was'
+     V ->  'chased'  | 'saw' | 'said' | 'thought' | 'was' | 'put'
+     P -> 'on'
      """)
 
 Notice that the production ``Nom -> Adj Nom`` (where ``Nom`` is the
@@ -690,12 +693,12 @@ approach, dependency grammar, focusses instead on how words
 holds between a `head`:dt: and its `dependents`:dt. 
 The head of a sentence is usually taken to be the tensed verb, and every other word is
 either dependent on the sentence head, or connects to it through a path of
-dependencies. A dependency representation is a labeled directed graph,
-where the nodes are the lexical items and the labeled arcs represent
-dependency relations from heads to dependents. 
+dependencies. 
 
-Figure depgraph0_ illustrates a dependency graph, where arrows point
-from heads to their dependents.
+A dependency representation is a labeled directed graph, where the
+nodes are the lexical items and the labeled arcs represent dependency
+relations from heads to dependents.  Figure depgraph0_ illustrates a
+dependency graph, where arrows point from heads to their dependents.
 
 .. _depgraph0:
 .. figure:: ../images/depgraph0.png
@@ -703,23 +706,68 @@ from heads to their dependents.
 
    Dependency Structure
 
-The arcs in Figure depgraph0_ are labeled with the
-grammatical function that holds between a dependent and its
-head. For example, `i`:lx: is the ``SBJ`` (subject) of `shot`:lx:
-(which is the head of the whole sentence), and `in`:lx: is
-an ``NMOD`` (noun modifier of  `elephant`:lx:. In contrast to phrase
-structure grammar, therefore, dependency grammars can be used to
-directly express grammatical functions as a type of dependency.
+The arcs in Figure depgraph0_ are labeled with the grammatical
+function that holds between a dependent and its head. For example,
+`i`:lx: is the ``SBJ`` (subject) of `shot`:lx: (which is the head of
+the whole sentence), and `in`:lx: is an ``NMOD`` (noun modifier of
+`elephant`:lx:. In contrast to phrase structure grammar, therefore,
+dependency grammars can be used to directly express grammatical
+functions as a type of dependency.  
+
+
+Here's one way of encoding a
+dependency grammar in |NLTK| |mdash| note that it only captures bare
+dependency information without specifying the type of dependency:
+
+    >>> groucho_dep_grammar = nltk.parse_dependency_grammar("""
+    ... 'shot' -> 'I' | 'elephant' | 'in'
+    ... 'elephant' -> 'an' | 'in'
+    ... 'in' -> 'pajamas'
+    ... 'pajamas' -> 'my'
+    ... """)
+    >>> print groucho_dep_grammar
+    Dependency grammar with 7 productions
+      'shot' -> 'I'
+      'shot' -> 'elephant'
+      'shot' -> 'in'
+      'elephant' -> 'an'
+      'elephant' -> 'in'
+      'in' -> 'pajamas'
+      'pajamas' -> 'my'
+
+A dependency graph is `projective`:dt: if, when all the words are
+written in linear order, the edges can be drawn above the words
+without crossing. This is equivalent to saying that a word and all its
+descendents (dependents and dependents of its dependents, etc) form a
+contiguous substring of the sentence. Figure depgraph0_ is
+projective, and we can parse many sentences in English using a
+projective dependency parser. The next example shows how
+``groucho_dep_grammar`` provides an alternative method for capturing
+the attachment ambiguity that we examined earlier with phrase
+structure grammar. 
+
+    >>> pdp = nltk.ProjectiveDependencyParser(groucho_dep_grammar)
+    >>> sent = 'I shot an elephant in my pajamas'.split() 
+    >>> trees = pdp.parse(sent)
+    >>> for tree in trees:
+    ...     print tree
+    (shot I (elephant an (in (pajamas my))))
+    (shot I (elephant an) (in (pajamas my)))
 
 An alternative method of representing the dependency relationships is
 illustrated in depgraph1_, where dependents are shown as
-daughters of their heads. These trees provide an alternative approach
-to capturing the `pp`:gc: attachement ambiguity.
+daughters of their heads. 
 
 .. _depgraph1:
 .. ex::
     .. tree:: (shot I (elephant (in pajamas my)))
     .. tree:: (shot I elephant (in pajamas my))
+
+In languages with more flexible word order than English,
+non-projective dependencies are more frequent.
+
+.. give example of parsing non-projective example
+.. really needs better technique for visualizing a DependencyGraph
 
 Various criteria have been proposed for deciding what is the head *H* and
 what is the dependent *D* in a construction *C*. Some of the most important
@@ -734,80 +782,91 @@ are the following:
 #. The morphological form of *D* is determined by *H* (e.g. agreement
    or case government).
 
+When we say in a phrase structure grammar that the immediate
+constituents of a `pp`:gc: are `p`:gc: and `np`:gc:, we are implicitly
+appealing to the head / dependent distinction. A prepositional phrase
+is a phrase whose head is a preposition; moreover, the `np`:gc: is a
+dependent of `p`:gc:.  The same distinction carries over to the other
+types of phrase that we have discussed. The key point to note here is
+that although phrase structure grammars seem very different from
+dependency grammars, they implicitly embody a recognition of
+dependency relations. While CFGs are not intended to directly capture
+dependencies, more recent linguistic frameworks have increasingly
+adopted formalisms which combine aspects of both approaches.
 
-A dependency graph is `projective`:dt: if, when all the words are
-written in linear order, the edges can be drawn above the words
-without crossing. This is equivalent to saying that a word and all its
-descendents (dependents and dependents of its dependents, etc) form a
-contiguous substring of the sentence. Figure depgraph0_ is
-projective. In languages with more flexible word order than English,
-non-projective dependencies are more frequent.
 
-.. give example?
+Valency and the Lexicon
+-----------------------
 
-
-
-Valency
--------
-
-Let us take a closer look at verbs.
-The grammar ``grammar2`` correctly generates examples like subcat1_,
-corresponding to the four productions with `vp`:gc: on the left hand side:
+Let us take a closer look at verbs and their dependents.
+The grammar in Figure cfg2_ correctly generates examples like
+subcat1_.
 
 .. _subcat1:
 .. ex::
-   .. ex:: The woman gave the telescope to the dog
-   .. ex:: The woman saw a man
-   .. ex:: A man said that the woman disappeared
-   .. ex:: The dog barked
+   .. ex:: The squirrel was frightened.
+   .. ex:: Chatterer saw the bear.
+   .. ex:: Chatterer thought Buster was angry.
+   .. ex:: Joe put the fish on the log.
 
-That is, `gave`:lx: can occur with a following `np`:gc: and `pp`:gc:; 
-`saw`:lx: can occur with a following `np`:gc:; 
-`said`:lx: can occur with a following `s`:gc:; 
-and `barked`:lx: can occur with no following phrase.
-In these cases, `np`:gc:, `pp`:gc: and `s`:gc: are called :dt:`complements`
-of the respective verbs, and the verbs themselves are called
-:dt:`heads` of the verb phrase.
+These possibilities correspond to the following productions:
 
-However, there are fairly strong constraints on what verbs can occur
-with what complements. Thus, we would like our grammars to mark the
-following examples as ungrammatical:
+.. table:: subcat
+
+    +--------------------+--------------------+
+    | ``VP -> V Adj``    |  `was`:lx:         |
+    +--------------------+--------------------+
+    | ``VP -> V NP``     |  `saw`:lx:         |
+    +--------------------+--------------------+
+    | ``VP -> V S``      | `thought`:lx:      |
+    +--------------------+--------------------+
+    | ``VP -> V NP PP``  |  `put`:lx:         |
+    +--------------------+--------------------+
+
+
+That is, `was`:lx: can occur with a following `Adj`:gc:, `gave`:lx:
+can occur with a following `np`:gc: and `pp`:gc:; `saw`:lx: can occur
+with a following `np`:gc: and `thought`:lx: can occur with a following
+`s`:gc:. The dependents `Adj`:gc:, `np`:gc:, `pp`:gc: and `s`:gc: are
+often called :dt:`complements` of the respective verbs and there are
+strong constraints on what verbs can occur with what
+complements. By contrast with subcat1_, the strings in subcat2_ are ill-formed:
 
 .. _subcat2:
 .. ex:: 
-   .. ex:: \*The woman disappeared the telescope to the dog
-   .. ex:: \*The dog barked a man
-   .. ex:: \*A man gave that the woman disappeared
-   .. ex:: \*A man said
+   .. ex:: \*The squirrel was Buster was angry.
+   .. ex:: \*Chatterer saw frightened.
+   .. ex:: \*Chatterer thought the bear.
+   .. ex:: \*Joe put on the log.
 
-.. note:: It is possible to create examples that involve 'non-standard'
-   but interpretable combinations of verbs and complements. Thus,
-   we can, at a stretch, interpret `the man disappeared the dog`:lx:
-   to mean that the man made the dog disappear. We will ignore such examples here.
+.. note:: With a little imagination, it is possible to
+   invent contexts in which unusual combinations of verbs and
+   complements are interpretable. However, we assume that the above
+   examples are to be interpreted in neutral contexts.
 
-How can we ensure that our grammar correctly excludes the
-ungrammatical examples in subcat2_?  We need some way of constraining
+In the tradition of dependency grammar, the verbs in subcat_ are said
+to have different `valencies`:dt:. Valency restrictions are not just
+applicable to verbs, but also to the other classes of heads.
+
+Within frameworks based on phrase structure grammar, various
+techniques have been proposed for excluding the
+ungrammatical examples in subcat2_. In a CFG, we need some way of constraining
 grammar productions which expand `vp`:gc: so that verbs *only* co-occur
-with their correct complements. We do this by dividing the class of
-verbs into `subcategories`:dt:, each of which is associated with a
+with their correct complements. We can do this by dividing the class of
+verbs into "subcategories", each of which is associated with a
 different set of complements. For example, `transitive verbs`:dt: such
-as `saw`:lx:, `kissed`:lx: and `hit`:lx: require a following `np`:gc:
-object complement. Borrowing from the terminology of chemistry, we
-sometimes refer to the `valency`:dt: of a verb, that is, its capacity
-to combine with a sequence of arguments and thereby compose a verb
-phrase.
+as `chased`:lx: and `saw`:lx: require a following `np`:gc:
+object complement; that is, they are `subcategorized`:dt: for `np`:gc:
+direct objects. If we introduce a new category label for transitive verbs, namely
+`tv`:gc: (for Transitive Verb), then we can use it in the following productions:
 
-Let's introduce a new category label for such verbs, namely
-`tv`:gc: (for Transitive Verb), and use it in the following productions:
+::
 
-.. ex::
-   .. parsed-literal::
+     VP -> TV NP
+     TV -> 'chased' | 'saw'
 
-     `vp`:gc: |rarr| `tv np`:gc:
-     `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit'
-
-Now `*the dog barked the man`:lx: is excluded since we haven't listed
-`barked`:lx: as a `V_tr`:gc:, but `the woman saw a man`:lx: is still allowed.
+Now `*Joe thought the bear`:lx: is excluded since we haven't listed
+`thought`:lx: as a `tv`:gc:, but `Chatterer saw the bear`:lx: is still allowed.
 Table verbcat_ provides more examples of labels for verb subcategories.
 
 .. table:: verbcat
@@ -823,25 +882,28 @@ Table verbcat_ provides more examples of labels for verb subcategories.
 
    Verb Subcategories
 
-The revised grammar for `vp`:gc: will now look like this:
+Valency is a property of lexical items, and we will discuss it further
+in Chapter chap-featgram_.
 
-.. _subcat3:
+Complements are often contrasted with modifiers (or adjuncts),
+although both are kinds of dependent. Prepositional phrases,
+adjectives and adverbs typically function as modifiers. Unlike
+complements, modifiers are optional, can often be iterated, and are
+not selected for by heads in the same way as complements. For
+example, the adverb `really`:lx: can be added as a modifer to all the
+sentence in subcat1_:
+
+.. _subcat1:
 .. ex::
-   .. parsed-literal:: 
+   .. ex:: The squirrel really was frightened.
+   .. ex:: Chatterer really saw the bear.
+   .. ex:: Chatterer really thought Buster was angry.
+   .. ex:: Joe really put the fish on the log.
 
-      `vp`:gc: |rarr| `datv np pp`:gc:
-      `vp`:gc: |rarr| `tv np`:gc:
-      `vp`:gc: |rarr| `sv s`:gc:
-      `vp`:gc: |rarr| `iv`:gc: 
+The structural ambiguity of `pp`:gc: attachment, which we have
+illustrated in both phrase structure and dependency grammars,
+corresponds semantically to an ambiguity in the scope of the modifier.
 
-      `datv`:gc: |rarr| 'gave' | 'donated' | 'presented'
-      `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
-      `sv`:gc: |rarr| 'said' | 'knew' | 'alleged'
-      `iv`:gc: |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
-
-Notice that according to subcat3_, a given lexical item can belong to more
-than one subcategory. For example, `sang`:lx: can occur both with and
-without a following `np`:gc: complement.
 
 Scaling Up
 ----------
@@ -1313,91 +1375,6 @@ algorithms to solve these problems.  Please see Appendix app-chart_
 for details, and try the demonstration system using
 ``nltk.draw.chart.demo()``.
 
-------------------
-Dependency Grammar
-------------------
-
-One format for encoding dependency information places each word on a
-line, followed by its part-of-speech tag, the index of its head, and
-the label of the dependency relation (cf. [Nivre2006MP]_). The index
-of a word is implicitly given by the ordering of the lines (with 1 as the
-first index). This is illustrated in the following code snippet:
-
-    >>> from nltk import DependencyGraph
-    >>> dg = DependencyGraph("""Esso    NNP 2   SUB
-    ... said    VBD 0   ROOT
-    ... the     DT  5   NMOD
-    ... Whiting NNP 5   NMOD
-    ... field   NN  6   SUB
-    ... started VBD 2   VMOD
-    ... production  NN  6   OBJ
-    ... Tuesday NNP 6   VMOD""")
-
-As you will see, this format also adopts the convention that the head
-of the sentence is dependent on an empty node, indexed as 0. We can
-use the ``deptree()`` method of a ``DependencyGraph()`` object to build an |NLTK|
-tree like that illustrated earlier in depgraph1_.
-
-    >>> tree = dg.deptree()
-    >>> tree.draw()                                 # doctest: +SKIP
-
-Projective Dependency Parsing
------------------------------
-
-    >>> grammar = nltk.parse_dependency_grammar("""
-    ... 'fell' -> 'price' | 'stock'
-    ... 'price' -> 'of' 'the'
-    ... 'of' -> 'stock'
-    ... 'stock' -> 'the'
-    ... """)
-    >>> print grammar
-    Dependency grammar with 5 productions
-      'fell' -> 'price'
-      'fell' -> 'stock'
-      'price' -> 'of' 'the'
-      'of' -> 'stock'
-      'stock' -> 'the'
-    
-    >>> dp = nltk.ProjectiveDependencyParser(grammar)
-    >>> for t in dp.parse(['the', 'price', 'of', 'the', 'stock', 'fell']):
-    ...     print tree
-    (fell (price the of the) stock)
-    (fell (price the of) (stock the))
-    (fell (price the (of (stock the))))
-
-Non-Projective Dependency Parsing
----------------------------------
-
-    >>> grammar = nltk.parse_dependency_grammar("""
-    ... 'taught' -> 'play' | 'man'
-    ... 'man' -> 'the'
-    ... 'play' -> 'golf' | 'dog' | 'to'
-    ... 'dog' -> 'his'
-    ... """)
-    >>> print grammar
-    Dependency grammar with 7 productions
-      'taught' -> 'play'
-      'taught' -> 'man'
-      'man' -> 'the'
-      'play' -> 'golf'
-      'play' -> 'dog'
-      'play' -> 'to'
-      'dog' -> 'his'
-    
-    >>> dp = nltk.NonprojectiveDependencyParser(grammar)
-    >>> for g in dp.parse(['the', 'man', 'taught', 'his', 'dog', 'to', 'play', 'golf']):
-    ...     print g
-    [{'address': 0, 'deps': 3, 'rel': 'TOP', 'tag': 'TOP', 'word': None},
-     {'address': 1, 'deps': [], 'word': 'the'},
-     {'address': 2, 'deps': [1], 'word': 'man'},
-     {'address': 3, 'deps': [2, 7], 'word': 'taught'},
-     {'address': 4, 'deps': [], 'word': 'his'},
-     {'address': 5, 'deps': [4], 'word': 'dog'},
-     {'address': 6, 'deps': [], 'word': 'to'},
-     {'address': 7, 'deps': [5, 6, 8], 'word': 'play'},
-     {'address': 8, 'deps': [], 'word': 'golf'}]
-
-.. note:: The dependency parser modules also support probabilistic dependency parsing.
 
 .. _sec-a-problem-of-scale:
 
@@ -1593,7 +1570,7 @@ We return to this topic in Chapter chap-advanced-topics_.
 Summary
 -------
 
-* Sentences have internal organization, or constituent structure,
+* Sentences have internal organization
   that can be represented using a tree; notable features of constituent
   structure are: recursion, heads, complements, modifiers
 
@@ -1601,13 +1578,17 @@ Summary
   we say that a tree is well-formed according to a grammar, or that a grammar licenses a tree.
 
 * A grammar is a formal model for describing whether a given phrase can be
-  assigned a particular constituent structure.
+  assigned a particular constituent or dependency structure.
 
-* Given a set of syntactic categories, a context free grammar
+* Given a set of syntactic categories, a context-free grammar
   uses a set of productions to say how a phrase of some category *A* can
-  be analyzed into a sequence of smaller parts |alpha|\ :sub:`1` ... |alpha|\ :sub:`n`.
+  be analyzed into a sequence of smaller parts |alpha|\ :sub:`1`
+  ... |alpha|\ :sub:`n`.
 
-* Syntactic ambiguity arises when one sentence has more than one syntactic structure
+* A dependency grammar uses productions to specify what the dependents
+  are of a given lexical head.
+
+* Syntactic ambiguity arises when one sentence has more than one syntactic analysis
   (e.g. prepositional phrase attachment ambiguity).
 
 * A parser is a procedure for finding one or more trees corresponding to a grammatically
