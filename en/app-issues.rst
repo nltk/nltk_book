@@ -46,15 +46,16 @@ Chapter-Specific Issues and Questions
   sections on further topics, giving readers a sense of the breadth of
   the field and the interesting challenges still faced
 
+* References: we don't know how to convert these to docbook.
+  The HTML version is at ``http://nltk.googlecode.com/svn/trunk/doc/en/bibliography.html`` and
+  the BibTeX source is at ``http://nltk.googlecode.com/svn/trunk/nltk/doc/refs.bib``
+
 -----------------------------
 Formatting / Rendering Issues
 -----------------------------
 
 Urgent
 ------
-
-* Our reviewers will be handicapped if they can't see any visible
-  rendering of `foo`:dt:.
 
 * It would also be good to fix the `np`:gc: issue before going out
   for review.

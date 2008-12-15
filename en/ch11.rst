@@ -563,6 +563,104 @@ Now we can express this query as shown below:
     ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
     'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
+Special Considerations when Working with Endangered Languages
+-------------------------------------------------------------
+
+The importance of language to science and the arts is matched in
+significance by the cultural treasure embodied in language.
+Each of the world's ~7,000 human languages is rich in unique respects,
+in its oral histories and creation legends, down to its grammatical
+constructions and its very words and their nuances of meaning.
+Threatened remnant cultures have words to distinguish plant subspecies
+according to therapeutic uses that are unknown to science.  Languages
+evolve over time as they come into contact with each other, and each
+one provides a unique window onto human pre-history.  
+In many parts of the world, small linguistic variations
+from one town to the next add up to a completely different language in
+the space of a half-hour drive.  For its breathtaking complexity and
+diversity, human language is as a colorful tapestry stretching
+through time and space.
+
+However, most of the world's languages are threatened with extinction.
+Many linguists are hard at work documenting the languages, constructing
+rich records of this important facet of the world's linguistic heritage.
+What can the field of |NLP| offer to help with this effort?  Developing
+part-of-speech taggers, parsers, named-entity recognizers, and so on,
+is not an early priority, and there is usually insufficient data for
+developing such tools in any case.  Instead, the most frequently voiced need is
+to have better tools for collecting and curating data, with a focus
+on texts and lexicons.
+
+On the face of it, it should be a straightforward matter to start collecting texts
+in an endangered language.  However, this presupposes a transcription
+system, since most languages lack a standard orthography.  If a language
+has no literary tradition, there will not be established spellings for
+words, or conventions for punctuation.  Therefore it is usually necessary
+to create a lexicon in tandem with a text collection, continually updating
+the lexicon as new words appear in the texts.  This work could be done
+using a text processor (for the texts) and a spreadsheet (for the lexicon).
+Better still, SIL's free linguistic software *Toolbox* and *Fieldworks*
+provide sophisticated support for integrated creation of texts and lexicons.
+
+When speakers of the language in question are trained to enter texts themselves,
+a common obstacle is an overriding concern for correct spelling.  Having
+a lexicon greatly helps this process, but it helps to have look-up methods
+that do not assume someone can determine the citation form of an arbitrary
+word.  The problem may be acute for languages having a complex morphology that
+includes prefixes.  In such cases it helps to tag lexical items with
+semantic domains, and to permit lookup by semantic domain or by gloss.
+
+Permitting lookup by pronunciation similarity is also a big help.
+Here's a simple demonstration of how to do this.
+The first step is to identify confusable letter sequences,
+and map complex versions to simpler versions.  We might also notice
+that the relative order of letters within a cluster of consonants
+is a source of spelling errors, and so we normalize the
+order of consonants.
+
+    >>> mappings = [('ph', 'f'), ('ght', 't'), ('^kn', 'n'), ('qu', 'kw'),
+    ...             ('[aeiou]+', 'a'), (r'(.)\1', r'\1')]
+    >>> def signature(word):
+    ...     for patt, repl in mappings:
+    ...         word = re.sub(patt, repl, word)
+    ...     pieces = re.findall('[^aeiou]+', word)
+    ...     return ''.join(char for piece in pieces for char in sorted(piece))[:8]
+    >>> signature('illefent')
+    'lfnt'
+    >>> signature('ebsekwieous')
+    'bskws'
+    >>> signature('nuculerr')
+    'nclr'
+
+Next, we create a mapping from signatures to words, for all the words
+in our lexicon.  We can use this to get candidate corrections for a
+given input word (but we must first compute that word's signature).
+
+    >>> signatures = nltk.Index((signature(w), w) for w in nltk.corpus.words.words())
+    >>> signatures[signature('nuculerr')]
+    ['anicular', 'inocular', 'nucellar', 'nuclear', 'unicolor', 'uniocular', 'unocular']
+
+Finally, we should rank the results in terms of similarity with the original word.
+This is done by the function ``rank()``.  The only remaining function provides a
+simple interface to the user:  
+
+    >>> def rank(word, wordlist):
+    ...     ranked = sorted((nltk.edit_dist(word, w), w) for w in wordlist)
+    ...     return [word for (_, word) in ranked]
+    >>> def spell_check(word):
+    ...     sig = signature(word)
+    ...     if sig in signatures:
+    ...         return rank(word, signatures[sig])
+    ...     else:
+    ...         return []
+    >>> spell_check('illefent')
+    ['olefiant', 'elephant', 'oliphant', 'elephanta']
+    >>> spell_check('ebsekwieous')
+    ['obsequious']
+    >>> spell_check('nucular')
+    ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
+
+
 ----------------
 Working with XML
 ----------------
@@ -1006,38 +1104,6 @@ Exercises
 
 
 
-----------------------------------
-Working with Low-Density Languages
-----------------------------------
-
-The importance of language to science and the arts is matched in
-significance by the cultural treasure embodied in language.
-Each of the world's ~7,000 human languages is rich in unique respects,
-in its oral histories and creation legends, down to its grammatical
-constructions and its very words and their nuances of meaning.
-Threatened remnant cultures have words to distinguish plant subspecies
-according to therapeutic uses that are unknown to science.  Languages
-evolve over time as they come into contact with each other and they
-provide a unique window onto human pre-history.  
-In many parts of the world, small linguistic variations
-from one town to the next add up to a completely different language in
-the space of a half-hour drive.  For its breathtaking complexity and
-diversity, human language is as a colorful tapestry stretching
-through time and space.
-
-Language endangerment and the challenge for computational linguistics
-
-[MORE]
-
-* lack of tools: need to develop them; adapt them from related languages
-* lack of data for applying some of the statistical techniques described here
-* need to clean the data
-* priorities: text collection; lexicon; bilingual text; morph analyzer
-
-
-
-
-
 -------------------------------------------------
 Describing Language Resources using OLAC Metadata
 -------------------------------------------------
@@ -1199,6 +1265,8 @@ Many other software tools support the format.  More examples of our efforts with
 are documented in [Bird1999NELS]_, [Robinson2007Toolbox]_.
 Dozens of other tools for linguistic data management are available, some
 surveyed by [Bird2003Portability]_.
+
+Dictionary development process: http://www.sil.org/computing/ddp/
 
 **Some Major Corpora:**
 The primary sources of linguistic corpora are the *Linguistic Data Consortium* and

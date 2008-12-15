@@ -1809,9 +1809,10 @@ class CustomizedDocBookTranslator(DocBookTranslator):
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):
-        pass
+        self.body.append('<emphasis role="strong">')
+
     def depart_idxterm(self, node):
-        pass
+        self.body.append("</emphasis>")
 
     def visit_line(self, node):
         pass
