@@ -19,19 +19,20 @@ General Issues
 * It is difficult for readers to know which exercises at the end of the chapter
   correspond to which sections of the chapter.
 
-* The diagrams of the book need to be set in grayscale and high-resolution, for the
-  hardcopy version.
-
 * NLTK provides a sophisticated framework for working with corpora; perhaps there
   should be an appendix which explains how this works and how to write new
   corpus readers.
 
-* The phrase that appears as a subtitle is actually intended to appear as the
-  by-line on the top of the front cover
+* The phrase that appears as the book's subtitle is actually
+  intended to appear as the by-line on the top of the front cover,
+  following the pattern of other books in the Animal Series.
 
 -------------------------------------
 Chapter-Specific Issues and Questions
 -------------------------------------
+
+* ch02: the learning curve of ch01 was quite shallow, but it gets much
+  steeper in ch02; is there a way to make it easier for new programmers?
 
 * ch06: the structure of this chapter is still in flux; suggestions for
   improving the structure and prioritizing the content welcomed
@@ -60,6 +61,9 @@ Urgent
 
 Longer term
 -----------
+
+* The diagrams of the book need to be set in grayscale and high-resolution, for the
+  hardcopy version.
 
 * Definition lists
   (<http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#definition-lists>)
