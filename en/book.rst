@@ -46,7 +46,8 @@ Natural Language Processing
 .. include:: app-nlp-python.rst2
 .. include:: app-sets.rst2
 .. include:: app-modules.rst2
-.. include:: app-cheat-sheet.rst2
+.. include:: app-reference.rst2
+.. include:: app-issues.rst2
 
 .. index::
 

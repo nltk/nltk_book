@@ -3,9 +3,9 @@
 
 .. _app-pcfg:
 
----------------------
+=====================
 Probabilistic Parsing
----------------------
+=====================
 
 .. TODO: mention interest in having weights is because they can be learned.
    Without this it is mysterious why we would want to bother.
@@ -19,6 +19,7 @@ the sheer number of possible parses.  Weighted grammars and
 probabilistic parsing algorithms have provided an effective
 solution to these problems.
 
+----------------
 Weighted Grammar
 ----------------
 
@@ -173,6 +174,7 @@ implement a variety of different search strategies.  These algorithms
 are implemented in the ``nltk.parse.viterbi`` and
 ``nltk.parse.pchart`` modules.
 
+---------
 A* Parser
 ---------
 
@@ -327,6 +329,7 @@ likelihood for each constituent.
     (NP (JJ big) (NNS (NNS cats) (CC and) (NNS dogs))) (p=0.000864)
 
 
+-----------------------------
 A Bottom-Up PCFG Chart Parser
 -----------------------------
 
@@ -480,6 +483,7 @@ tree.
    Run the above example using tracing, by calling
    ``inside_parser.trace(3)`` before running the parser.
 
+-----------------
 Grammar Induction
 -----------------
 
