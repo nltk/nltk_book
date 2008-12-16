@@ -6,6 +6,7 @@
     >>> import nltk, re, pprint
 
 .. TO-DO: relational algebra?
+.. TO-DO: say something about interpreting first order lamba abstracts
 
 .. _chap-semantics:
 
@@ -386,7 +387,7 @@ much the specifics of Turing's imitation game, but rather the proposal
 to judge a capacity for natural language understanding in terms of
 observable behaviour on the part of the computer. 
 
-
+.. _sec-proplog:
 
 -------------------
 Propositional Logic
@@ -496,6 +497,8 @@ phrase `to the north of`:lx:, which is an asymmetric
 relation. Informally, we can state the following rule (where `x`:math:
 and `y`:math: are place-holders for noun phrases):
 
+.. _ex-north:
+.. ex:: 
     if `x`:math: is to the north of `y`:math: then `y`:math: is not to the north of
     `x`:math:.
 
@@ -1086,6 +1089,46 @@ results can be seen in the following example.
      >>> print e3.simplify()
      exists z1.see(z1,x)
 
+
+
+First Order Theorem Proving
+---------------------------
+
+We observed, in Section sec-proplog_, that propositional logic is too
+restricted to allow us to represent constraints like ex-north_ on the
+meaning of binary predicates such as `... to the north of
+...`:lx:. However, representing the argument in ex-proplog6_ is
+straightforward within first order logic. We can also use the
+``inference`` module to show the validity of the argument.  The
+general case in theorem proving is to determine whether ``S |- g``
+holds, where ``S`` is a possibly empty set of assumptions, and ``g``
+is a proof goal. We will illustrate this with |NLTK|'s interface the
+third-party theorem prover Prover9 [McCune]_.  A ``Prover9`` instance is
+initialized with a proof goal and, possibly, some assumptions. The
+``prove()`` method attempts to find a proof of the goal, given the
+list of assumptions (which may be empty).
+
+
+    >>> from nltk import inference 
+    >>> P = lp.parse('north_of(s, f)')
+    >>> NotQ = lp.parse('-north_of(f, s)')
+    >>> R = lp.parse('all x. all y. (north_of(x, y) -> -north_of(y, x))')
+    >>> prover = inference.Prover9Command(NotQ, [P, R])
+    >>> prover.prove()
+    True
+    >>> inference.Prover9Command(Q, [P, R]).prove()
+    False
+    >>> inference.Prover9Command(P, [Q, NotQ]).prove()
+    True
+
+As required, we cannot infer ``north_of(f, s)`` from our premises:
+
+    >>> Q = lp.parse('north_of(f, s)')
+    >>> inference.Prover9Command(Q, [P, R]).prove()
+    False
+
+
+
 Summary
 -------
 
@@ -1106,13 +1149,13 @@ of type `t`:mathit:. In this case, we say that `n`:mathit: is the
       `P`:math:\ (`t`:mathit:\ :sub:`1`, ... `t`:mathit:\ :sub:`n`) is
       of type `t`:mathit:.
 
-   ii. If |phi| is of type `t`:mathit:, then so is |neg|\ |phi|.
+   ii. If |phi| is of type `t`:mathit:, then so is ``-``\ |phi|.
 
-   #.  If |phi| and |psi| are of type `t`:mathit:, then so are
-       (|phi| |wedge| |psi|),
-       (|phi| |vee| |psi|),
-       (|phi| |rarr| |psi|) and
-       (|phi| |iff| |psi|).
+   #.  If |phi| and  |psi| are of type `t`:mathit:, then so are
+       (|phi| | ``&`` |psi|),
+       (|phi| ``|`` |psi|),
+       (|phi| ``->`` |psi|) and
+       (|phi| ``<->`` |psi|).
 
    #. If |phi| is of type `t`:mathit:, and `x`:math: is a variable of type `e`:mathit:, then
       |exists|\ `x.`:math:\ |phi| and  |forall|\ `x.`:math:\ |phi| are of
@@ -1121,7 +1164,7 @@ of type `t`:mathit:. In this case, we say that `n`:mathit: is the
    #. If |alpha| is of type |tau|, and `x`:math: is a variable of type e, then
       |lambda|\ `x.`:math:\ |alpha| is of type |langle|\ `e`:mathit:, |tau|\ |rangle|.
 
-Table nltk_logic_ summarizes the logical constants of the ``logic``
+Table nltk_logic_ summarizes the new logical constants of the ``logic``
 module, and two of the methods of ``Expression``\ s.
 
 .. table:: nltk_logic
@@ -1129,16 +1172,6 @@ module, and two of the methods of ``Expression``\ s.
     +---------------+-------------------------------------+
     | Example       |Description                          |
     +===============+=====================================+
-    |     ``-``     |negation                             |
-    +---------------+-------------------------------------+
-    |    ``&``      |conjunction                          |
-    +---------------+-------------------------------------+
-    |    ``|``      |disjunction                          |
-    +---------------+-------------------------------------+
-    |    ``->``     |implication                          |
-    +---------------+-------------------------------------+
-    |    ``<->``    |equivalence                          |
-    +---------------+-------------------------------------+
     |    ``=``      |equality                             |
     +---------------+-------------------------------------+
     |    ``!=``     |inequality                           |
@@ -1158,7 +1191,7 @@ module, and two of the methods of ``Expression``\ s.
 
 
 
-Model-checking
+Truth in Model
 --------------
 
 We have looked at the syntax of |FOL|, and in Section
@@ -1255,10 +1288,12 @@ of the form `P`:math:\ (|tau|\ :sub:`1`,  ... |tau|\ :sub:`n`), where
 tuple of values corresponding to (|tau|\ :sub:`1`,  ... |tau|\
 :sub:`n`) belongs to the set of tuples in the value of  `P`:math:.
 
-    >>> ('c', 'b') in val['see']
+    >>> ('o', 'c') in val['see']
     True
     >>> ('b',) in val['boy']
     True
+
+
 
 Individual Variables and Assignments
 ------------------------------------
@@ -1282,7 +1317,7 @@ uses a notation closer to that often found in logic textbooks:
     g[c/y][o/x]
 
 Let's now look at how we can evaluate an atomic formula of
-|FOL|. First, we create a model, then we use the ``evaluate()`` method
+|FOL|. First, we create a model, then we call the ``evaluate()`` method
 to compute the truth value.
 
     >>> m = nltk.sem.Model(dom, val)
@@ -1323,6 +1358,15 @@ fails to deliver a truth value.
 
     >>> m.evaluate('see(olive, y)', g)
     'Undefined'
+
+Since our models already contain rules for interpreting boolean
+operators, arbitrarily complex formulas can be composed and evaluated.
+
+    >>> m.evaluate('see(bertie, olive) & boy(bertie) & -walk(bertie)', g)
+    False
+
+The general process of determining truth or falsity of a formula in a
+model is called `model checking`:dt:.
 
 
 Quantification and Scope
@@ -1496,8 +1540,93 @@ person, namely Bruce, who is admired by both Julia and Bruce.
    comes out true.
 
 
-.. TO-DO: say something about interpreting first order lamba
-.. abstracts
+
+Model Building
+--------------
+
+We have been assuming that we already had a model, and wanted to check
+the truth of a sentence in the model.  By contrast, model building
+tries to create a new model, given some set of sentences. If it
+succeeds, then we know that the set is consistent, since we have an
+existence proof of the model.
+
+We invoke the Mace$ model builder by calling ``MaceCommand`` in an
+analogous way to calling the Prover9 theorem prover. One method is to
+treat our candidate set of sentences as assumptions, while leaving the
+goal unspecified.  The following interaction shows how both
+``{a, c1}`` and ``{a, c2}`` are consistent sets, since Mace succeeds
+in building a model for each of them, while ``{c1, c2}`` is
+inconsistent.
+
+    >>> a3 = lp.parse('exists x.(man(x) and walks(x))')
+    >>> c1 = lp.parse('mortal(socrates)')
+    >>> c2 = lp.parse('-mortal(socrates)')
+    >>> print MaceCommand(None, [a3, c1]).build_model()
+    True
+    >>> print MaceCommand(None, [a3, c2]).build_model()
+    True
+
+We can also use the model builder as an adjunct to theorem prover.
+Let's suppose we are trying to prove ``S |- g``, i.e. that ``g``
+is logically entailed by assumptions ``S = {s1, s2, ..., sn}``.
+We can this same input to Mace4, and the model builder will try to
+find a counterexample, that is, to show that ``g`` does *not* follow
+from ``S``. So, given this input, Mace4 will try to find a model for
+the set ``S' = {s1, s2, ..., sn, (not g)}``. If ``g`` fails to follow
+from ``S``, then Mace4 may well return with a counterexample faster
+than Prover9 concludes that it cannot find the required proof.
+Conversely, if ``g`` `is`:em: provable from ``S``, Mace4 may take a long
+time unsuccessfully trying to find a counter model, and will eventually give up.
+
+Let's consider a concrete scenario. Our assumptions are: {`There is a
+woman that every man loves`:lx:, `Adam is a man`:lx:, `Eve is a
+woman`:lx:}. Our conclusion is `Adam loves Eve`:lx:. Can Mace4 find a
+model in which the premises are true but the conclusion is false?
+
+    >>> a4 = lp.parse('exists y. (woman(y) & all x. (man(x) -> love(x,y)))')
+    >>> a5 = lp.parse('man(adam)')
+    >>> a6 = lp.parse('woman(eve)')
+    >>> g = lp.parse('love(adam,eve)')
+    >>> print MaceCommand(g, [a4, a5, a6]).build_model()
+    True
+
+So the answer is Yes: Mace4 found a countermodel in which there is some woman other than
+Eve that Adam loves. But let's have a look at Mace4's model,
+converted to the format we use for valuations.
+
+    >>> print mb.convert2val()
+    {'C1': 'b',
+     'adam': 'a',
+     'eve': 'a',
+     'love': set([('a', 'b')]),
+     'man': set([('a',)]),
+     'woman': set([('a',), ('b',)])}
+
+``C1`` is a "skolem constant" that the model builder introduces as a
+representative of the existential quantifier |mdash| so it is some
+unnamed individual ``'b'``. Now, since our premises said nothing about
+the individual constants ``adam`` and ``eve``, the model builder has decided there is no
+reason to treat them as denoting different entities, and they both map
+to ``'a'``. Moreover, we didn't specify that ``man`` and ``woman``
+denote disjoint sets, so the model builder lets their denotations overlap. This
+illustrates quite dramatically the implicit knowledge that we bring to
+bear in interpreting our scenario, but which the model builder knows
+nothing about. So let's add some more background knowledge. The
+resulting model is more in accord with our intuitions about the situation.
+
+    >>> a7 = lp.parse('-(adam = eve)')
+    >>> a8 = lp.parse('all x. (man(x) -> -woman(x))')
+    >>> g = lp.parse('love(adam,eve)')
+    >>> mb = inference.MaceCommand(g, [a4, a5, a6, a7, a8])
+    >>> mb.build_model()
+    True
+    >>> print mb.convert2val()
+    {'C1': 'c',
+     'adam': 'a',
+     'eve': 'b',
+     'love': set([('a', 'c')]),
+     'man': set([('a',)]),
+     'woman': set([('c',), ('b',)])}
 
 
 .. _sec-evaluating-english-sentences:
@@ -1979,55 +2108,6 @@ ambiguity, namely `hole semantics`:dt: as described in
 documentation can be found at [howto REFS].
 
 
----------------
-Inference Tools
----------------
-
-In order to perform inference over semantic representations, |NLTK|
-can call both theorem provers and model builders.
-The library includes a pure Python tableau-based first order theorem prover;
-this is intended to allow students to study 
-tableau methods for theorem proving, and provides an
-opportunity for experimentation.  In addition, |NLTK| provides
-interfaces to a couple of third-party tools, namely the theorem prover Prover9, 
-and the model builder Mace4  [McCune]_.  
-
-The ``get_prover(G, A)`` method by default calls Prover9, and takes as
-parameters a proof goal ``G`` and a list ``A`` of assumptions.
-Here, we verify that if every dog barks, and Rover is a dog,
-then it is true that Rover barks:
-
-    >>> from nltk.inference import inference
-    >>> a = lp.parse('all x.(dog(x) -> bark(x))')
-    >>> b = lp.parse('dog(rover)')
-    >>> c = lp.parse('bark(rover)')
-    >>> prover = inference.get_prover(c, [a,b])
-    >>> prover.prove()
-    True
-
-
-A theorem prover can also be used to check the logical equivalence of
-expressions.  For two expressions *A* and *B*, we can pass (*A* |iff|
-*B*) into a theorem prover and know that the theorem will be proved if
-and only if the expressions are logically equivalent.  |NLTK|\ 's
-standard equality operator for ``Expression``\ s (``==``) is able to
-handle situations where two expressions are identical up to
-|alpha|\ -conversion.  However, it would be impractical for |NLTK| to
-invoke a wider range of logic rules every time we checked for equality
-of two expressions. Consequently, both the ``logic`` and ``drt``
-modules in |NLTK| have a separate method, ``tp_equals``, for checking
-'equality' up to logical equivalence.
-
-    >>> a = lp.parse('all x.walk(x)')
-    >>> b = lp.parse('all y.walk(y)')
-    >>> a == b
-    True
-    >>> c = lp.parse('-(P(x) & Q(x))')
-    >>> d = lp.parse('-P(x) | -Q(x)')
-    >>> c == d
-    False
-    >>> c.tp_equals(d)
-    True
 
 
 -------------------
