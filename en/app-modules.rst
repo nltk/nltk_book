@@ -75,7 +75,7 @@ CoNLL 2000 Chunking Data     Tjong Kim Sang         270k words, tagged and chunk
 CoNLL 2002 Named Entity      Tjong Kim Sang         700k words, pos- and named-entity-tagged (Dutch, Spanish)
 Dependency Treebank          Jason Narad            Dependency parsed version of Penn Treebank sample
 Floresta Treebank            Diana Santos et al     9k sentences (Portuguese)
-Gazetteer Lists              -                      Lists of cities and countries
+Gazetteer Lists              Various                Lists of cities and countries
 Genesis Corpus               Misc web sources       6 texts, 200k words, 6 languages
 Gutenberg (sel)              Hart, Newby, et al     14 texts, 1.7M words
 Inaugural Address Corpus     CSpan                  US Presidential Inaugural Addresses (1789-present)

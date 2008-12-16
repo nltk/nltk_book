@@ -323,9 +323,9 @@ For an agreement of 50%, we would get
 
 .. _windowdiff:
 .. figure:: ../images/windowdiff.png
-   :scale: 30
+   :scale: 30:100:30
 
-   A Reference Segmentation and Two Hypothetical Segmentations
+   Three Segmentations of a Sequence of Characters or Tokens
 
 We can also measure the agreement between two independent segmentations
 of language input, e.g. for tokenization, sentence segmentation,
@@ -357,8 +357,22 @@ window to fine-tune the windowdiff score.
 Curation vs Evolution
 ---------------------
 
-Once a corpus has been disseminated, it may take on a life of its own
-as others adapt it to their needs.  This could involve reformatting a text file
+As large corpora are published, researchers are increasingly
+likely to base their investigations on balanced, focused
+subsets that were derived from corpora produced for entirely
+different reasons.  For instance, the Switchboard database,
+originally collected for speaker identification research,
+has since been used as the basis for published studies in speech recognition,
+word pronunciation, disfluency, syntax, intonation and discourse structure.
+The motivations for recycling linguistic corpora include the
+desire to save time and effort, the desire to work on material
+available to others for replication, and sometimes a desire to study
+more naturalistic forms of linguistic behavior than would be possible
+otherwise. The process of choosing a subset for such a study may
+count as a non-trivial contribution in itself.
+
+In addition to selecting an appropriate subset of a corpus, this
+new work could involve reformatting a text file
 (e.g. converting to XML), renaming files, retokenizing the text,
 selecting a subset of the data to enrich, and so forth.
 Multiple research groups might do this work independently, as illustrated
@@ -563,6 +577,17 @@ Now we can express this query as shown below:
     ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
     'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
+Converting Data Formats
+-----------------------
+
+* structure of the conversion code usually follows that of the
+  input (or the output)
+* if the input and output are isomorphic we usually don't have
+  to store anything
+* sometimes have to build a structure one way, and read it off
+  another way
+
+
 Special Considerations when Working with Endangered Languages
 -------------------------------------------------------------
 
@@ -659,6 +684,65 @@ simple interface to the user:
     ['obsequious']
     >>> spell_check('nucular')
     ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
+
+
+[An extended reworking of the same task, this time for Rotokas.] 
+
+Confusible sets of segments: if two segments are confusible, map them
+to the same integer.
+
+    >>> group = {
+    ...     ' ':0,                     # blank (for short words)
+    ...     'p':1,  'b':1,  'v':1,     # labials
+    ...     't':2,  'd':2,  's':2,     # alveolars
+    ...     'l':3,  'r':3,             # sonorant consonants
+    ...     'i':4,  'e':4,             # high front vowels
+    ...     'u':5,  'o':5,             # high back vowels
+    ...     'a':6                      # low vowels
+    ... }
+
+Soundex: idea of a signature.  Words with the same signature
+considered confusible.  Consider first letter of a word to be so
+cognitively salient that people will not get it wrong.
+
+    >>> def soundex(word):
+    ...     if len(word) == 0: return word  # sanity check
+    ...     word += '    '                  # ensure word long enough
+    ...     c0 = word[0].upper()
+    ...     c1 = group[word[1]]
+    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
+    ...     c2 = group[cons[0]]
+    ...     c3 = group[cons[1]]
+    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
+    >>> print soundex('kalosavi')
+    K632
+    >>> print soundex('ti')
+    T400
+  
+Now we can build a soundex index of the lexicon:
+
+    >>> soundex_idx = nltk.defaultdict(set)
+    >>> for lex in lexemes:
+    ...     code = soundex(lex)
+    ...     soundex_idx[code].add(lex)
+
+We should sort these candidates by proximity with the target word.
+
+    >>> def fuzzy_spell(target):
+    ...     scored_candidates = []
+    ...     code = soundex(target)
+    ...     for word in soundex_idx[code]:
+    ...         dist = nltk.edit_dist(word, target)
+    ...         scored_candidates.append((dist, word))
+    ...     scored_candidates.sort()
+    ...     return [w for (d,w) in scored_candidates[:10]]
+
+Finally, we can look up a word to get approximate matches:
+
+    >>> fuzzy_spell('kokopouto')
+    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
+    >>> fuzzy_spell('kogou')
+    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
 
 
 ----------------
@@ -855,6 +939,7 @@ field:
     'lx'
     >>> lexicon[3][0].text
     'kaa'
+    XML output    
 
 The second way to access the contents of the lexicon object uses
 paths.  The lexicon is a series of ``record`` objects, each containing
@@ -867,6 +952,59 @@ normalizing it to lowercase.
     >>> [lexeme.text.lower() for lexeme in lexicon.findall('record/lx')]
     ['kaa', 'kaa', 'kaa', 'kaakaaro', 'kaakaaviko', 'kaakaavo', 'kaakaoko',
     'kaakasi', 'kaakau', 'kaakauko', 'kaakito', 'kaakuupato', ..., 'kuvuto']
+
+Output to XML:
+
+    >>> import sys
+    >>> from nltk.etree.ElementTree import ElementTree
+    >>> tree = ElementTree(lexicon[3])
+    >>> tree.write(sys.stdout)
+    <record>
+      <lx>kaa</lx>
+      <ps>N</ps>
+      <pt>MASC</pt>
+      <cl>isi</cl>
+      <ge>cooking banana</ge>
+      <tkp>banana bilong kukim</tkp>
+      <pt>itoo</pt>
+      <sf>FLORA</sf>
+      <dt>12/Aug/2005</dt>
+      <ex>Taeavi iria kaa isi kovopaueva kaparapasia.</ex>
+      <xp>Taeavi i bin planim gaden banana bilong kukim tasol long paia.</xp>
+      <xe>Taeavi planted banana in order to cook it.</xe>
+    </record>
+
+Formatting Entries
+------------------
+
+We can use the same idea to generate HTML tables instead of plain text.
+This would be useful for publishing a Toolbox lexicon on the web.
+It produces HTML elements ``<table>``, ``<tr>`` (table row), and
+``<td>`` (table data).
+
+    >>> html = "<table>\n"
+    >>> for entry in lexicon[70:80]:
+    ...     lx = entry.findtext('lx')
+    ...     ps = entry.findtext('ps')
+    ...     ge = entry.findtext('ge')
+    ...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lx, ps, ge)
+    >>> html += "</table>"
+    >>> print html
+    <table>
+      <tr><td>kakae</td><td>???</td><td>small</td></tr>
+      <tr><td>kakae</td><td>CLASS</td><td>child</td></tr>
+      <tr><td>kakaevira</td><td>ADV</td><td>small-like</td></tr>
+      <tr><td>kakapikoa</td><td>???</td><td>small</td></tr>
+      <tr><td>kakapikoto</td><td>N</td><td>newborn baby</td></tr>
+      <tr><td>kakapu</td><td>V</td><td>place in sling for purpose of carrying</td></tr>
+      <tr><td>kakapua</td><td>N</td><td>sling for lifting</td></tr>
+      <tr><td>kakara</td><td>N</td><td>arm band</td></tr>
+      <tr><td>Kakarapaia</td><td>N</td><td>village name</td></tr>
+      <tr><td>kakarau</td><td>N</td><td>frog</td></tr>
+    </table>
+
+
+
 
 It is often convenient to add new fields that are derived automatically from
 existing ones.  Such fields often facilitate search and analysis.
@@ -1012,96 +1150,25 @@ The NLTK corpus collection includes many interlinear text samples
 ``http://www.linguistics-ontology.org/``
 
 
+-------------------
+Standards and Tools
+-------------------
+
+...   The main problem is that adequate tools
+for creation, publication and use of linguistic data are not widely
+available. In most cases, each project must create its own set of
+tools, which hinders publication by researchers who lack the
+expertise, time or resources to make their data accessible to others.
+Furthermore, we do not have adequate, generally accepted standards for
+expressing the structure and content of linguistic databases. Without
+such standards, general-purpose tools are impossible |mdash| though at the
+same time, without available tools, adequate standards are unlikely to
+be developed, used and accepted.  Just as importantly, there must be a
+critical mass of users and published material to motivate maintenance
+of data and access tools over time.
 
 
------------------------
-Converting Data Formats
------------------------
-
-* write our own parser and formatted print
-* use existing libraries, e.g. csv
-
-
-Formatting Entries
-------------------
-
-We can also print a formatted
-version of a lexicon.  It allows us to request specific fields without
-needing to be concerned with their relative ordering in the original file.
-
-    >>> lexicon = toolbox.xml('rotokas.dic')
-    >>> for entry in lexicon[70:80]:
-    ...     lx = entry.findtext('lx')
-    ...     ps = entry.findtext('ps')
-    ...     ge = entry.findtext('ge')
-    ...     print "%s (%s) '%s'" % (lx, ps, ge)
-    kakae (???) 'small'
-    kakae (CLASS) 'child'
-    kakaevira (ADV) 'small-like'
-    kakapikoa (???) 'small'
-    kakapikoto (N) 'newborn baby'
-    kakapu (V) 'place in sling for purpose of carrying'
-    kakapua (N) 'sling for lifting'
-    kakara (N) 'arm band'
-    Kakarapaia (N) 'village name'
-    kakarau (N) 'frog'
-
-We can use the same idea to generate HTML tables instead of plain text.
-This would be useful for publishing a Toolbox lexicon on the web.
-It produces HTML elements ``<table>``, ``<tr>`` (table row), and
-``<td>`` (table data).
-
-    >>> html = "<table>\n"
-    >>> for entry in lexicon[70:80]:
-    ...     lx = entry.findtext('lx')
-    ...     ps = entry.findtext('ps')
-    ...     ge = entry.findtext('ge')
-    ...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lx, ps, ge)
-    >>> html += "</table>"
-    >>> print html
-    <table>
-      <tr><td>kakae</td><td>???</td><td>small</td></tr>
-      <tr><td>kakae</td><td>CLASS</td><td>child</td></tr>
-      <tr><td>kakaevira</td><td>ADV</td><td>small-like</td></tr>
-      <tr><td>kakapikoa</td><td>???</td><td>small</td></tr>
-      <tr><td>kakapikoto</td><td>N</td><td>newborn baby</td></tr>
-      <tr><td>kakapu</td><td>V</td><td>place in sling for purpose of carrying</td></tr>
-      <tr><td>kakapua</td><td>N</td><td>sling for lifting</td></tr>
-      <tr><td>kakara</td><td>N</td><td>arm band</td></tr>
-      <tr><td>Kakarapaia</td><td>N</td><td>village name</td></tr>
-      <tr><td>kakarau</td><td>N</td><td>frog</td></tr>
-    </table>
-
-XML output
-
-    >>> import sys
-    >>> from nltk.etree.ElementTree import ElementTree
-    >>> tree = ElementTree(lexicon[3])
-    >>> tree.write(sys.stdout)
-    <record>
-      <lx>kaa</lx>
-      <ps>N</ps>
-      <pt>MASC</pt>
-      <cl>isi</cl>
-      <ge>cooking banana</ge>
-      <tkp>banana bilong kukim</tkp>
-      <pt>itoo</pt>
-      <sf>FLORA</sf>
-      <dt>12/Aug/2005</dt>
-      <ex>Taeavi iria kaa isi kovopaueva kaparapasia.</ex>
-      <xp>Taeavi i bin planim gaden banana bilong kukim tasol long paia.</xp>
-      <xe>Taeavi planted banana in order to cook it.</xe>
-    </record>
-
-Exercises
----------
-
-* |soso| Create a spreadsheet using office software, containing one lexical entry per
-  row, consisting of a headword, a part of speech, and a gloss.  Save the
-  spreadsheet in CSV format.  Write Python code to read the CSV file and print it in
-  Toolbox format, using ``lx`` for the headword, ``ps`` for the part of speech,
-  and ``gl`` for the gloss.
-
+[text corpus standards, lexicon standards, ontologies, ...]
 
 
 -------------------------------------------------
@@ -1337,6 +1404,12 @@ Exercises
    consecutive fields are most frequent (e.g. ``ps`` is often followed by ``pt``).
    (This might help us to discover some of the structure of a lexical entry.) 
 
+#. |soso| Create a spreadsheet using office software, containing one lexical entry per
+   row, consisting of a headword, a part of speech, and a gloss.  Save the
+   spreadsheet in CSV format.  Write Python code to read the CSV file and print it in
+   Toolbox format, using ``lx`` for the headword, ``ps`` for the part of speech,
+   and ``gl`` for the gloss.
+
 #. |hard| Obtain a comparative wordlist in CSV format, and write a program
    that prints those cognates having an edit-distance of at least three
    from each other.
@@ -1362,101 +1435,4 @@ Exercises
 
 
 .. include:: footer.rst
-
-
-
-
-A linguist's field notes may include extensive examples of many genres
-(proverbs, conversations, narratives, rituals, and so forth), and may
-come to constitute a reference corpus of modest but useful size. There
-are many extinct languages for which such material is all the data we
-will ever have, and many more endangered languages for which such
-documentation is urgently needed. Sociolinguists typically base their
-work on analysis of a set of recorded interviews, which may over time
-grow to create another sort of reference corpus. In some labs, the
-residue of decades of work may comprise literally thousands of hours
-of recordings, many of which have been transcribed and annotated to
-one extent or another.  The `CHILDES`:dt: corpus, comprising
-transcriptions of parent-child interactions in many languages,
-contributed by many individual researchers, has come to constitute a
-widely-used reference corpus for language acquisition
-research. Speech technologists aim to produce training and testing
-material of broad applicability, and wind up creating
-another sort of reference corpus.  To date, linguistic technology
-R\&D has been the primary source of published linguistic databases of
-all sorts (see e.g. ``http://www.ldc.upenn.edu/``).
-
-As large, varied linguistic databases are published, phoneticians or
-psychologists are increasingly likely to base experimental
-investigations on balanced, focused subsets extracted from databases
-produced for entirely different reasons. Their motivations include the
-desire to save time and effort, the desire to work on material
-available to others for replication, and sometimes a desire to study
-more naturalistic forms of linguistic behavior. The process of
-choosing a subset for such a study, and making the measurements
-involved, is usually in itself a non-trivial addition to the
-database. This recycling of linguistic databases for new purposes is a
-normal and expected consequence of publication.  For instance, the
-Switchboard database, originally collected for speaker identification research,
-has since been used as the basis for published studies in speech recognition, word pronunciation,
-disfluency, syntax, intonation and discourse structure.
-
-At present, only a tiny fraction of the linguistic databases that are
-collected are published in any meaningful sense. This is mostly
-because publication of such material was both time-consuming and
-expensive, and because use of such material by other researchers was
-also both expensive and technically difficult. However, general
-improvements in hardware, software and networking have changed this,
-and linguistic databases can now be created, published,
-stored and used without inordinate effort or large expense.
-
-In practice, the implications of these cost-performance changes are
-only beginning to be felt.  The main problem is that adequate tools
-for creation, publication and use of linguistic data are not widely
-available. In most cases, each project must create its own set of
-tools, which hinders publication by researchers who lack the
-expertise, time or resources to make their data accessible to others.
-Furthermore, we do not have adequate, generally accepted standards for
-expressing the structure and content of linguistic databases. Without
-such standards, general-purpose tools are impossible |mdash| though at the
-same time, without available tools, adequate standards are unlikely to
-be developed, used and accepted.  Just as importantly, there must be a
-critical mass of users and published material to motivate maintenance
-of data and access tools over time.
-
-Relative to these needs, the present chapter has modest goals, namely to
-equip readers to take linguistic databases into their own hands by writing
-programs to help create, publish, transform and analyze the data.  In the
-rest of this section we take a close look at the fundamental data types,
-an exemplary speech corpus, and the lifecycle of linguistic data.
-
-
-----
-
-
-
-
-
-This has been made possible by three significant technological developments over the past decade.
-First, inexpensive mass storage technology permits large resources to be stored in 
-digital form, while the Extensible Markup Language (XML) and Unicode provide flexible ways 
-to represent structured data and give it good prospects for long-term survival.
-Second, digital publication has been a practical and efficient means of sharing language 
-resources.  Finally, search engines, mailing lists, and online resource catalogs
-make it possible for people to discover the existence of the resources they may be seeking.
-
-Together with these technological advances have been three other developments that have
-shifted the NLP community in the direction of data-intensive approaches.  First, the
-"shared task method," an initiative of government sponsors, supports
-major sections within the community to identify a common goal for the coming year, and
-provides "gold standard" data on which competing systems can be evaluated.
-Second, data publishers such as the Linguistic Data Consortium have
-negotiated with hundreds of data providers (including newswire services in many countries),
-and created hundreds of annotated corpora stored in well-defined and consistent formats.
-Finally, organizations that purchase NLP systems, or that publish NLP papers,
-now expect the quality of the work to be demonstrated using standard datasets.
-
-
-However, before embarking on this sequence of issues, we start by examining the
-organization of linguistic data.
 

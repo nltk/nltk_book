@@ -125,4 +125,10 @@ Processing Classes: N-gram Taggers in NLTK
 
 This section will discuss the ``tag.ngram`` module.
 
+Duck Typing
+-----------
+
+[to be written]
+
+
 .. include:: footer.rst

@@ -366,14 +366,13 @@ label for *w*. Then the Scanner Rule admits a new complete edge in
 which *P* dominates *w*. More precisely:
 
 .. _scanner-rule:
-.. ex::
-   `Scanner Rule`:dt: For each incomplete edge
-    [*A* |rarr| |alpha| |dot|\ *P*\ |beta|\ , (*i*, *j*)] where
-    *w*\ :subscript:`j` is the *j*\ :sup:`th` word of the input
-    and *P* is a valid part of speech for *w*\ :subscript:`j`,
-    add the new complete edges
-    [*P* |rarr| *w*\ :subscript:`j`\ |dot|\ , (*j*, *j*\ +1)] and
-    [*w*\ :subscript:`j` |rarr| |dot|\ , (*j*, *j*\ +1)]  
+.. ex:: `Scanner Rule`:dt: For each incomplete edge of the form
+   [*A* |rarr| |alpha| |dot|\ *P*\ |beta|\ , (*i*, *j*)] where
+   *w*\ :subscript:`j` is the *j*\ :sup:`th` word of the input
+   and *P* is a valid part of speech for *w*\ :subscript:`j`,
+   add the new complete edges
+   [*P* |rarr| *w*\ :subscript:`j`\ |dot|\ , (*j*, *j*\ +1)] and
+   [*w*\ :subscript:`j` |rarr| |dot|\ , (*j*, *j*\ +1)]  
 
 To illustrate, suppose the input is of the form 
 `I saw ...`:lx:, and the chart already contains the edge 

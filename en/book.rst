@@ -40,6 +40,7 @@ Natural Language Processing
 .. appendix::
 .. include:: app-tagsets.rst2
 .. include:: app-chart.rst2
+.. include:: app-pcfg.rst2
 .. include:: app-oo-programming.rst2
 .. include:: app-unicode.rst2
 .. include:: app-nlp-python.rst2

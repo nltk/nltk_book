@@ -50,11 +50,9 @@ experienced programmers can quickly skim this chapter.
 In the other chapters of this book, we have organized the programming
 content as dictated by the needs of |NLP|.  Here we revert to a more
 conventional approach where the sequence of concepts is based on
-the structure of the programming language.  We begin by going right
-back to the basics.
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
+the structure of the programming language.  There's not room for
+a complete presentation of the language, so we will focus on likely
+pitfalls, and on idioms that are suitable for |NLP|.
 
 .. _sec-back-to-the-basics:
 
@@ -62,174 +60,11 @@ back to the basics.
 Back to the Basics
 ------------------
 
-Iteration
----------
-
-If you've come to Python from another programming language, you may be
-inclined to make heavy use of loop counters, and no use of list comprehensions.
-In this section we'll see how avoiding counters can lead to more readable
-code.  We'll also look at the relationship between loops with nested blocks
-vs list comprehensions, and discuss when to use either construct.
-
-Let's look at a familiar technique for iterating over the members
-of a list by initializing an index ``i`` and then incrementing the
-index each time we pass through the loop:
-
-    >>> sent = ['I', 'am', 'the', 'Walrus']
-    >>> i = 0
-    >>> while i < len(sent):
-    ...     print sent[i].lower(),
-    ...     i += 1
-    ...
-    i am the walrus
-
-Although this does the job, it is not idiomatic Python.  It is almost never a
-good idea to use loop variables in this way.  Observe that
-Python's ``for`` statement allows us to achieve the same
-effect, and that the code is not just more succinct, but more readable:
-
-    >>> for w in sent:
-    ...     print w.lower(),
-    ...
-    i am the walrus
-
-This is much more readable, and ``for`` loops with nested code blocks will be our preferred
-way of producing printed output.  However, the above two programs have the same subtle
-problem: both print a trailing space character.  If we
-meant to include this output with surrounding markup, we would see something like
-``<sent>i am the walrus </sent>``.  Similarly, both programs need an extra ``print``
-statement in order to produce a newline character at the end.
-A third solution using a list comprehension is more compact again
-
-    >>> print ' '.join(w.lower() for w in sent)
-    i am the walrus
-
-This doesn't produce an extra space character, and does produce the required newline.
-However, it is less readable thanks to the use of ``' '.join()``, and we will usually
-prefer to use the second solution above for code that prints output.
-
-Another case where loop variables seem to be necessary is for printing the value of
-a counter with each line of output.  Instead, we can use ``enumerate()``, which
-processes a sequence ``s`` and produces a tuple of the form ``(i, s[i])`` for each
-item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the keys of the
-frequency distribution, and capture the integer-string pair in the variables ``rank``
-and ``word``.  We print ``rank+1`` so that the counting appears to start from ``1``,
-as required when producing a list of ranked items.
-
-    >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
-    >>> cumulative = 0.0
-    >>> for rank, word in enumerate(fd):
-    ...     cumulative += fd[word] * 100.0 / fd.N()
-    ...     print "%3d %6.2f%% %s" % (rank+1, cumulative, word)
-    ...     if cumulative > 25:
-    ...         break
-    ...
-      1   5.40% the
-      2  10.42% ,
-      3  14.67% .
-      4  17.78% of
-      5  20.19% and
-      6  22.40% to
-      7  24.29% a
-      8  25.97% in
-
-Its sometimes tempting to use loop variables to store a maximum or minimum value
-seen so far.  Let's use this method to find the longest word in a text.
-
-    >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt')
-    >>> longest = ''
-    >>> for word in text:
-    ...     if len(word) > len(longest):
-    ...         longest = word
-    >>> longest
-    'unextinguishable'
-
-However, a better solution uses two list comprehensions as shown below.
-We sacrifice some efficiency by having two passes through the data,
-but the result is more transparent.
-
-    >>> maxlen = max(len(word) for word in text)
-    >>> [word for word in text if len(word) == maxlen]
-    ['unextinguishable', 'transubstantiate', 'inextinguishable', 'incomprehensible']
-
-Note that our first solution found the first word having the longest length, while the
-second solution found all of the longest words.  In most cases we actually prefer
-to get all solutions, though its easy to find them all and only report one back to the user.
-In contrast, it is difficult to modify the first program to find all solutions.
-Although there's a theoretical efficiency difference between the two solutions,
-the main overhead is reading the data into main memory; once its there, a second pass
-through the data is very fast.  We also need to balance our concerns about
-program efficiency with programmer efficiency.  A fast but cryptic solution
-will be harder to understand and maintain.
-
-List comprehensions have a surprising range of uses.  Here's an example of
-how they can be used to generate all combinations of some collections of words.
-Here we generate all combinations of two determiners, two adjectives, and two nouns.
-The list comprehension is split across three lines for readability.
-
-    >>> [(det,adj,noun) for det in ('two', 'three')
-    ...                 for adj in ('old', 'blind')
-    ...                 for noun in ('men', 'mice')]
-    [('two', 'old', 'men'), ('two', 'old', 'mice'), ('two', 'blind', 'men'),
-     ('two', 'blind', 'mice'), ('three', 'old', 'men'), ('three', 'old', 'mice'),
-     ('three', 'blind', 'men'), ('three', 'blind', 'mice')]
-
-Our use of list comprehensions has helped us avoid loop variables.  However,
-there are cases where we still want to use loop variables in a list comprehension.
-For example, we need to use a loop variable to extract successive overlapping n-grams
-from a list:
-    
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> n = 3
-    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
-    [['The', 'dog', 'gave'],
-     ['dog', 'gave', 'John'],
-     ['gave', 'John', 'the'],
-     ['John', 'the', 'newspaper']]
-
-It is quite tricky to get the range of the loop variable right.
-Since this is a common operation in |NLP|\ , |NLTK|
-supports it with functions ``bigrams(text)`` and ``trigrams(text)``, and
-a general purpose ``ngrams(text, n)``.
-
-Here's an example of how we can use loop variables in
-building multidimensional structures.
-For example, to build an array with *m* rows and *n* columns,
-where each cell is a set, we could use a nested list comprehension:
-
-    >>> m, n = 3, 7
-    >>> array = [[set() for i in range(n)] for j in range(m)]
-    >>> array[2][5].add('Alice')
-    >>> pprint.pprint(array)
-    [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
-     [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
-     [set([]), set([]), set([]), set([]), set([]), set(['Alice']), set([])]]
-
-Observe that the loop variables ``i`` and ``j`` are not used
-anywhere in the resulting object, they are just needed for a syntactically
-correct ``for`` statement.  As another example of this usage, observe
-that the expression ``['very' for i in range(3)]`` produces a list
-containing three instances of ``'very'``, with no integers in sight.
-
-Note that it would be incorrect to do this work using multiplication,
-for reasons that will be discussed in the next section.
-
-    >>> array = [[set()] * n] * m
-    >>> array[2][5].add(7)
-    >>> pprint.pprint(array)
-    [[set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
-     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
-     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])]]
-
-Iteration is an important programming device.  It is tempting to import idioms
-from other languages, when Python offers some elegant and highly readable
-alternatives.
-
 Assignment
 ----------
 
 Assignment would seem to be the most elementary programming concept, and not
-worth its own section.  However, there are some surprising subtleties and
+worth a separate discussion.  However, there are some surprising subtleties and
 pitfalls here.  Consider the following code fragment:  
 
     >>> foo = 'Monty'
@@ -238,7 +73,7 @@ pitfalls here.  Consider the following code fragment:
     >>> bar
     'Monty'
 
-This behaves exactly as expect.  When we write ``bar = foo``,
+This behaves exactly as expected.  When we write ``bar = foo``,
 the value of ``foo`` (the string ``'Monty'``) is assigned to ``bar``.
 That is, ``bar`` is a `copy`:dt: of ``foo``, so when we overwrite
 ``foo`` with a new string ``'Python'``, the value
@@ -265,14 +100,14 @@ that the contents of ``bar`` have also been changed.
 
    List Assignment and Computer Memory
 
-Thus, the line ``bar = foo`` does not copy the contents of the
+The line ``bar = foo`` does not copy the contents of the
 variable, only its "object reference".
 To understand what is going on here, we need to
 know how lists are stored in the computer's memory.
-In Figure array-memory_, we see that a list ``sent1`` is
+In Figure array-memory_, we see that a list ``foo`` is
 a reference to an object stored at location 3133 (which is
 itself a series of pointers to other locations holding strings).
-When we assign ``sent2 = sent1``, it is just the object reference
+When we assign ``bar = foo``, it is just the object reference
 3133 that gets copied.
 This behavior extends to other aspects of the language, such as
 parameter passing (Section sec-functions_).
@@ -325,13 +160,32 @@ Equality
 
 Python provides two ways to check that a pair of items are the same.
 The ``is`` operator tests for object identity.  We can use it to
-verify the observations made about the nested list above:
+verify our earlier observations about objects.  First we create
+a list containing several copies of the same object, and demonstrate
+that they are not only identical according to ``==``, but also
+that they are one and the same object:
 
+    >>> size = 5
+    >>> python = ['Python']
+    >>> snake_nest = [python] * size
+    >>> snake_nest[0] == snake_nest[1] == snake_nest[2] == snake_nest[3] == snake_nest[4]
+    True
+    >>> snake_nest[0] is snake_nest[1] is snake_nest[2] is snake_nest[3] is snake_nest[4]
+    True
 
+Now let's put a new python in this nest.  We can easily show that the objects are not
+all identical (though its more work to find the interloper):
 
-[Implications of the above understanding of object references for
-testing identity using "is"; distinction with "=="]
-
+    >>> import random
+    >>> position = random.choice(range(size))
+    >>> snake_nest[position] = ['Python']
+    >>> snake_nest
+    [['Python'], ['Python'], ['Python'], ['Python'], ['Python']]
+    >>> snake_nest[0] == snake_nest[1] == snake_nest[2] == snake_nest[3] == snake_nest[4]
+    True
+    >>> snake_nest[0] is snake_nest[1] is snake_nest[2] is snake_nest[3] is snake_nest[4]
+    False
+    
 Conditionals
 ------------
 
@@ -371,6 +225,13 @@ potentially gives us more information than a bare ``if`` clause; when
 it evaluates to true, it tells us not only that the condition is
 satisfied, but also that the condition of the main ``if`` clause was
 *not* satisfied.
+
+We can check that all or any items meet some condition:
+
+    >>> all(len(w) > 4 for w in sent)
+    False
+    >>> any(len(w) > 4 for w in sent)
+    True
 
 Python Coding Style
 -------------------
@@ -415,11 +276,173 @@ the end of the line that is broken:
     ...    syllables[2][2] in [aeiou] and syllables[2][3] == syllables[1][3]:
     ...     process(syllables)
 
+Procedural vs Declarative Style
+-------------------------------
+
+We have just seen how the same task can be performed in different
+ways, with implications for efficiency.  Another factor influencing
+program development is *programming style*.  Consider the following
+program to compute the average length of words in the Brown Corpus:
+
+    >>> tokens = nltk.corpus.brown.words(categories='news')
+    >>> count = 0
+    >>> total = 0
+    >>> for token in tokens:
+    ...     count += 1
+    ...     total += len(token)
+    >>> print float(total) / count
+    4.2765382469
+
+In this program we use the variable ``count`` to keep track of the
+number of tokens seen, and ``total`` to store the combined length of
+all words.  This is a low-level style, not far removed from machine
+code, the primitive operations performed by the computer's CPU.
+The two variables are just like a CPU's registers, accumulating values
+at many intermediate stages, values that are meaningless until the end. 
+We say that this program is written in a *procedural* style, dictating
+the machine operations step by step.  Now consider the following
+program that computes the same thing:
+
+    >>> total = sum(len(t) for t in tokens)
+    >>> print float(total)/len(tokens)
+    4.2765382469
+
+The first line uses a list comprehension to sum the token lengths,
+while the second line computes the average as before.
+Each line of code performs a complete, meaningful task, which
+can be understood in terms of high-level properties like:
+"``total`` is the sum of the lengths of the tokens".
+Implementation details are left to the Python interpreter.
+Accordingly, we say that this program is written in a *declarative* style.
+Let's look at an extreme example:
+
+    >>> word_list = []
+    >>> len_word_list = len(word_list)
+    >>> i = 0
+    >>> while i < len(tokens):
+    ...     j = 0
+    ...     while j < len_word_list and word_list[j] < tokens[i]:
+    ...         j += 1
+    ...     if j == 0 or tokens[i] != word_list[j]:
+    ...         word_list.insert(j, tokens[i])
+    ...         len_word_list += 1
+    ...     i += 1
+
+The equivalent declarative version makes use of higher-level built-in functions,
+and its purpose is instantly recognizable:
+
+    >>> word_list = sorted(set(tokens))
+
+Another case where a loop counter seems to be necessary is for printing
+a counter with each line of output.  Instead, we can use ``enumerate()``, which
+processes a sequence ``s`` and produces a tuple of the form ``(i, s[i])`` for each
+item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the keys of the
+frequency distribution, and capture the integer-string pair in the variables ``rank``
+and ``word``.  We print ``rank+1`` so that the counting appears to start from ``1``,
+as required when producing a list of ranked items.
+
+    >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
+    >>> cumulative = 0.0
+    >>> for rank, word in enumerate(fd):
+    ...     cumulative += fd[word] * 100.0 / fd.N()
+    ...     print "%3d %6.2f%% %s" % (rank+1, cumulative, word)
+    ...     if cumulative > 25:
+    ...         break
+    ...
+      1   5.40% the
+      2  10.42% ,
+      3  14.67% .
+      4  17.78% of
+      5  20.19% and
+      6  22.40% to
+      7  24.29% a
+      8  25.97% in
+
+Its sometimes tempting to use loop variables to store a maximum or minimum value
+seen so far.  Let's use this method to find the longest word in a text.
+
+    >>> text = nltk.corpus.gutenberg.words('milton-paradise.txt')
+    >>> longest = ''
+    >>> for word in text:
+    ...     if len(word) > len(longest):
+    ...         longest = word
+    >>> longest
+    'unextinguishable'
+
+However, a more transparent solution uses two list comprehensions,
+both having forms that should be familiar by now:
+
+    >>> maxlen = max(len(word) for word in text)
+    >>> [word for word in text if len(word) == maxlen]
+    ['unextinguishable', 'transubstantiate', 'inextinguishable', 'incomprehensible']
+
+Note that our first solution found the first word having the longest length, while the
+second solution found *all* of the longest words (which is usually what we would want).
+Although there's a theoretical efficiency difference between the two solutions,
+the main overhead is reading the data into main memory; once its there, a second pass
+through the data is effectively instantaneous.  We also need to balance our concerns about
+program efficiency with programmer efficiency.  A fast but cryptic solution
+will be harder to understand and maintain.
+
+Some Legitimate Uses for Counters
+---------------------------------
+
+There are cases where we still want to use loop variables in a list comprehension.
+For example, we need to use a loop variable to extract successive overlapping n-grams
+from a list:
+    
+    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
+    >>> n = 3
+    >>> [sent[i:i+n] for i in range(len(sent)-n+1)]
+    [['The', 'dog', 'gave'],
+     ['dog', 'gave', 'John'],
+     ['gave', 'John', 'the'],
+     ['John', 'the', 'newspaper']]
+
+It is quite tricky to get the range of the loop variable right.
+Since this is a common operation in |NLP|\ , |NLTK|
+supports it with functions ``bigrams(text)`` and ``trigrams(text)``, and
+a general purpose ``ngrams(text, n)``.
+
+Here's an example of how we can use loop variables in
+building multidimensional structures.
+For example, to build an array with *m* rows and *n* columns,
+where each cell is a set, we could use a nested list comprehension:
+
+    >>> m, n = 3, 7
+    >>> array = [[set() for i in range(n)] for j in range(m)]
+    >>> array[2][5].add('Alice')
+    >>> pprint.pprint(array)
+    [[set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set([]), set([])],
+     [set([]), set([]), set([]), set([]), set([]), set(['Alice']), set([])]]
+
+Observe that the loop variables ``i`` and ``j`` are not used
+anywhere in the resulting object, they are just needed for a syntactically
+correct ``for`` statement.  As another example of this usage, observe
+that the expression ``['very' for i in range(3)]`` produces a list
+containing three instances of ``'very'``, with no integers in sight.
+
+Note that it would be incorrect to do this work using multiplication,
+for reasons that were discussed earlier in this section.
+
+    >>> array = [[set()] * n] * m
+    >>> array[2][5].add(7)
+    >>> pprint.pprint(array)
+    [[set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
+     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])],
+     [set([7]), set([7]), set([7]), set([7]), set([7]), set([7]), set([7])]]
+
+
+Iteration is an important programming device.  It is tempting to import idioms
+from other languages, when Python offers some elegant and highly readable
+alternatives.
+
 ---------
 Sequences
 ---------
 
-We have seen three kinds of sequence object: strings, lists, and tuples.
+So far, we have seen three kinds of sequence object: strings, lists, and tuples.
 As sequences, they have some common properties: they can be indexed and they have
 a length:
 
@@ -430,6 +453,17 @@ a length:
     ('t', 'the', 'turned')
     >>> len(text), len(words), len(pair)
     (29, 5, 2)
+
+Other objects, including dictionaries and sets, behave like sequences
+when they appear in a suitable context:
+
+    >>> fd = {'Monty': 24, 'Python': 80}
+    >>> list(fd)
+    ['Monty', 'Python']
+    >>> for key in fd:
+    ...     print fd[key],
+    ...
+    24 80
 
 Operating on Sequence Types
 ---------------------------
@@ -497,7 +531,7 @@ As we have seen, Python has sequence functions such as ``sorted()`` and ``revers
 that rearrange the items of a sequence.  There are also functions that
 modify the `structure`:em: of a sequence and which can be handy for
 language processing.  Thus, ``zip()`` takes
-the items of two sequences and "zips" them together into a single list of pairs.
+the items of two or more sequences and "zips" them together into a single list of pairs.
 Given a sequence ``s``, ``enumerate(s)`` returns an iterator that
 produces a pair of an index and the item at that index.
 
@@ -516,22 +550,20 @@ Let's combine our knowledge of these three sequence types, together with list
 comprehensions, to perform the task of sorting the words in a string by
 their length.
 
-    >>> words = 'I turned off the spectroroute'.split()     # [_sequence1]
-    >>> wordlens = [(len(word), word) for word in words]    # [_sequence2]
-    >>> wordlens
-    [(1, 'I'), (6, 'turned'), (3, 'off'), (3, 'the'), (12, 'spectroroute')]
-    >>> wordlens.sort()                                     # [_sequence3]
-    >>> ' '.join([word for (count, word) in wordlens])      # [_sequence4]
+    >>> words = 'I turned off the spectroroute'.split()
+    >>> wordlens = [(len(word), word) for word in words]
+    >>> wordlens.sort()
+    >>> ' '.join(w for (_, w) in wordlens)
     'I off the turned spectroroute'
 
 Each of the above lines of code contains a significant feature.
-Line sequence1_ demonstrates that a simple string is actually
-an object with methods defined on it, such as ``split()``.
-Line sequence2_ shows the construction of a list of tuples,
+The first line demonstrates that a simple string is actually
+an object with methods defined on it such as ``split()``.
+The second line shows the construction of a list of tuples,
 where each tuple consists of a number (the word length) and the
-word, e.g. ``(3, 'the')``.  Line sequence3_ sorts the list,
-modifying the list in-place.  Finally, line sequence4_ discards
-the length information then joins the words back into a single string.
+word, e.g. ``(3, 'the')``.  The third line sorts the list in-place.
+Finally, line sequence4_ discards the length
+information then joins the words back into a single string.
 
 We began by talking about the commonalities in these sequence types,
 but the above code illustrates important differences in their
@@ -568,19 +600,22 @@ usage.  However, there is a more fundamental difference: in Python,
 lists are `mutable`:dt:, while tuples are `immutable`:dt:.  In other
 words, lists can be modified, while tuples cannot.  Here are some of
 the operations on lists that do in-place modification of the list.
-None of these operations is permitted on a tuple, a fact you should
-confirm for yourself.
 
     >>> lexicon.sort()
     >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
     >>> del lexicon[0]
 
+.. note:: |TRY|
+   Convert lexicon to a tuple, using ``lexicon = tuple(lexicon)``,
+   then try each of the above operations, to confirm that none of
+   them is permitted on tuples.
+
 Stacks and Queues
 -----------------
 
-Lists are a particularly versatile data type.  We can use lists to
-implement higher-level data types such as stacks and queues.
-A `stack`:dt: is a container that has a `last-in-first-out`:dt: policy
+Lists are a versatile data type.  We can use lists to
+implement so-called `abstract data types`:dt: such as stacks and queues.
+A `stack`:dt: is a container that has a last-in-first-out (or LIFO) policy
 for adding and removing items (see Figure stack-queue_).
 
 .. _stack-queue:
@@ -630,7 +665,7 @@ containing nested structure, as shown in Figure convert-parens_.
 Here we build a (potentially deeply-nested) list of lists.
 Whenever a token other than a parenthesis is encountered,
 we add it to a list at the appropriate level of nesting.
-The stack cleverly keeps track of this level of nesting, exploiting
+The stack keeps track of this level of nesting, exploiting
 the fact that the item at the top of the stack is actually shared with a
 more deeply nested item.  (Hint: add diagnostic print statements to
 the function to help you see what it is doing.)
@@ -656,13 +691,13 @@ the function to help you see what it is doing.)
    [['the', 'cat'], ['sat', ['on', ['the', 'mat']]]]    
 
 Lists can be used to represent another important data structure.
-A `queue`:dt: is a container that has a `first-in-first-out`:dt: policy
+A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
 for adding and removing items (see Figure stack-queue_).
 We could use a queue of length `n`:math: to create all the n-grams of a text.
 As with stacks, we will seldom have to deal with queues explicitly,
 as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
 and chart parsers (Appendix app-chart_) use queues behind the scenes.
-However, we will take a brief look at how queues are implemented using lists.
+Here's how queues can be implemented using lists.
 
     >>> queue = ['the', 'cat', 'sat']
     >>> queue.append('on')
@@ -799,37 +834,47 @@ an in-place dictionary of keyword arguments ``*kwargs``.
     (1, 'African swallow')
     {'monty': 'python'}
 
+When ``*args`` appears as a function parameter, it actually corresponds to all the unnamed parameters of
+the function.  Here's another illustration of this aspect of Python syntax, for the ``zip()`` function which
+operates on a variable number of arguments.
+
+    >>> song = [['four', 'calling', 'birds'],
+    ...         ['three', 'French', 'hens'],
+    ...         ['two', 'turtle', 'doves']]
+    >>> zip(song[0], song[1], song[2])
+    [('four', 'three', 'two'), ('calling', 'French', 'turtle'), ('birds', 'hens', 'doves')]
+    >>> zip(*song)
+    [('four', 'three', 'two'), ('calling', 'French', 'turtle'), ('birds', 'hens', 'doves')]
+
+    
 
 Parameter Passing
 -----------------
 
 Back in Section sec-back-to-the-basics_ you saw that assignment works on values,
-but that the value of a structured object is a reference to that object.  The same
+but that the value of a structured object is a `reference`:em: to that object.  The same
 is true for functions.  Python interprets function parameters as values (this is
-known as `call-by-value`:dt:).  Consider Figure call-by-value_.
-Function ``set_up()`` has two parameters,
+known as `call-by-value`:dt:).  In the following code, ``set_up()`` has two parameters,
 both of which are modified inside the function.  We begin by assigning an empty string
 to ``w`` and an empty dictionary to ``p``.  After calling the function, ``w`` is unchanged,
 while ``p`` is changed:
 
-.. pylisting:: call-by-value
+    >>> def set_up(word, properties):
+    ...     word = 'cat'
+    ...     properties['pos'] = 'noun'
+    ...
+    >>> w = ''
+    >>> p = {}
+    >>> set_up(w, p)
+    >>> w
+    ''
+    >>> p
+    {'pos': 'noun'}
 
-   def set_up(word, properties):
-       word = 'cat'
-       properties['pos'] = 'noun'
-
-   >>> w = ''
-   >>> p = {}
-   >>> set_up(w, p)
-   >>> w
-   ''
-   >>> p
-   {'pos': 'noun'}
-
-To understand why ``w`` was not changed, it is necessary to understand call-by-value.
+Notice that ``w`` was not changed by the function.
 When we called ``set_up(w, p)``, the value of ``w`` (an empty string) was assigned to
 a new variable ``word``.  Inside the function, the value of ``word`` was modified.
-However, that had no effect on the external value of ``w``.  This parameter passing is
+However, that change did not propagate to ``w``.  This parameter passing is
 identical to the following sequence of assignments:
 
     >>> w = ''
@@ -838,12 +883,13 @@ identical to the following sequence of assignments:
     >>> w
     ''
 
-In the case of the structured object, matters are quite different.
-When we called ``set_up(w, p)``, the value of ``p`` (an empty
-dictionary) was assigned to a new local variable ``properties``.  Since the
-value of ``p`` is an object reference, both variables now reference the same
-memory location.  Modifying something inside ``properties`` will also
-change ``p``, just as if we had done the following sequence of assignments:
+Let's look at what happened with the dictionary ``p``.
+When we called ``set_up(w, p)``, the value of ``p`` (a reference to an empty
+dictionary) was assigned to a new local variable ``properties``,
+so now both variables now reference the same memory location.
+The function modifies ``properties``, and this change is also
+reflected in the value of ``p`` as we saw.
+This behavior is just as if we had done the following sequence of assignments:
 
     >>> p = {}
     >>> properties = p
@@ -852,12 +898,10 @@ change ``p``, just as if we had done the following sequence of assignments:
     {'pos': 'noun'}
 
 Thus, to understand Python's call-by-value parameter passing,
-it is enough to understand Python's assignment operation.
-We will address some closely related issues in our discussion
-of variable scope later in this section.
+it is enough to understand how assignment works.
 
-Scope Rules
------------
+Scope Rules (notes)
+-------------------
 
 * local and global variables
 * global variables introduce dependency on context and limits the reusability of a function
@@ -874,62 +918,50 @@ as a list, a tuple, or an iterator.
 
 However, often we want to write programs for later use by others, and want
 to program in a defensive style, providing useful warnings when functions
-have not been invoked correctly.  Observe that the ``tag()``
-function in Figure tag1_ behaves sensibly for string arguments,
+have not been invoked correctly.  Observe that the following ``tag()``
+function behaves sensibly for string arguments,
 but that it does not complain when it is passed a dictionary.
 
-.. pylisting:: tag1
-   :caption: A tagger that tags anything
-
-   def tag(word):
-       if word in ['a', 'the', 'all']:
-           return 'DT'
-       else:
-           return 'NN'
-
-   >>> tag('the')
-   'DT'
-   >>> tag('dog')
-   'NN'
-   >>> tag({'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']})
-   'NN'
+    >>> def tag(word):
+    ...     if word in ['a', 'the', 'all']:
+    ...         return 'DT'
+    ...     else:
+    ...         return 'NN'
+    ...
+    >>> tag('the')
+    'DT'
+    >>> tag('dog')
+    'NN'
+    >>> tag({'lexeme':'turned', 'pos':'VBD', 'pron':['t3:nd', 't3`nd']})
+    'NN'
 
 It would be helpful if the author of this function took some extra steps to
 ensure that the ``word`` parameter of the ``tag()`` function is a string.
-A naive approach would be to check the type of the argument and return
-a diagnostic value, such as Python's special empty value, ``None``,
-as shown in Figure tag2_.
-
-.. pylisting:: tag2
-   :caption: A tagger that only tags strings
-
-   def tag(word):
-       if not type(word) is str:
-           return None
-       if word in ['a', 'the', 'all']:
-           return 'DT'
-       else:
-           return 'NN'
-
+A naive approach would be to check the type of the argument using
+``if not type(word) is str``, and if ``word`` is not a string, to simply
+return Python's special empty value, ``None``.
 However, this approach is dangerous because the calling program
 may not detect the error, and the diagnostic return value may be
-propagated to later parts of the program with unpredictable consequences.
-A better solution is shown in Figure tag3_.
+propagated to other parts of the program with unpredictable consequences.
+Here's a better solution, that uses an assertion:
 
-.. pylisting:: tag3
-   :caption: A tagger that generates an error message when not passed a string
-
-   def tag(word):
-       if not type(word) is str:
-           raise ValueError, "argument to tag() must be a string"
-       if word in ['a', 'the', 'all']:
-           return 'DT'
-       else:
-           return 'NN'
+    >>> def tag(word):
+    ...     assert type(word) is str, "argument to tag() must be a string"
+    ...     if word in ['a', 'the', 'all']:
+    ...         return 'DT'
+    ...     else:
+    ...         return 'NN'
 
 This produces an error that cannot be ignored, since it halts program execution.
-Additionally, the error message is easy to interpret.  (We will see an even
-better approach, known as "duck typing" in Section sec-object-oriented_.)
+Additionally, the error message is easy to interpret.  Adding assertions to
+a program helps you find logical errors, and is a kind of "defensive programming."
+
+.. note::
+   For runtime efficiency you can
+   tell the interpreter to ignore assertions using its optimize flag
+   (``python -O``).
+
+[Further discussion of duck-typing]
 
 The Return Statement
 --------------------
@@ -1140,27 +1172,33 @@ Accumulative Functions
 
 These functions start by initializing some storage, and iterate over
 input to build it up, before returning some final object (a large structure
-or aggregated result).  The standard way to do this is to initialize an
+or aggregated result).  A standard way to do this is to initialize an
 empty list, accumulate the material, then return the list, as shown
-in function ``find_nouns1()`` in Listing find-nouns1_.
+in function ``search1()`` in Figure search-examples_.
 
-.. pylisting:: find-nouns1
+.. pylisting:: search-examples
    :caption: Accumulating Output into a List
+   
+   def search1(substring, words):
+       result = []
+       for word in words:
+           if substring in word:
+               result.append(word)
+       return result
 
-   def find_nouns1(tagged_text):
-       nouns = []
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               nouns.append(word)
-       return nouns
+   def search2(substring, words):
+       for word in words:
+           if substring in word:
+               yield word
 
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns1(tagged_text)
-   ['cat', 'mat']
-
-A superior way to perform this operation is define the function to
-be a `generator`:dt:, as shown in Listing find-nouns2_.
+   print "search1:"
+   for item in search1('zz', nltk.corpus.brown.words()):
+       print item
+   print "search2:"
+   for item in search2('zz', nltk.corpus.brown.words()):
+       print item
+   
+The function ``search2()`` is a generator.
 The first time this function is called, it gets as far as the ``yield``
 statement and stops.  The calling program gets the first word and does
 any necessary processing.  Once the calling program is ready for another
@@ -1170,85 +1208,70 @@ typically more efficient, as the function only generates the data as it is
 required by the calling program, and does not need to allocate additional
 memory to store the output.
 
-.. pylisting:: find-nouns2
-   :caption: Defining a Generator Function
-   
-   def find_nouns2(tagged_text):
-       for word, tag in tagged_text:
-           if tag[:2] == 'NN':
-               yield word
+Here's a more sophisticated example of a generator, which produces
+all permutations of a list of words.  (We could use this method for testing
+a grammar, cf Chapter chap-parse_).
 
-   >>> tagged_text = [('the', 'DT'), ('cat', 'NN'), ('sat', 'VBD'),
-   ...                ('on', 'IN'), ('the', 'DT'), ('mat', 'NN')]
-   >>> find_nouns2(tagged_text)
-   <generator object at 0x14b2f30>
-   >>> for noun in find_nouns2(tagged_text):
-   ...     print noun,
-   cat mat
-   >>> list(find_nouns2(tagged_text))
-   ['cat', 'mat']
+    >>> def perms(seq):
+    ...     if len(seq) <= 1:
+    ...         yield seq
+    ...     else:
+    ...         for perm in perms(seq[1:]):
+    ...             for i in range(len(perm)+1):
+    ...                 yield perm[:i] + seq[0:1] + perm[i:]
+    ...
+    >>> list(perms(['police', 'fish', 'buffalo']))
+    [['police', 'fish', 'buffalo'], ['fish', 'police', 'buffalo'],
+     ['fish', 'buffalo', 'police'], ['police', 'buffalo', 'fish'],
+     ['buffalo', 'police', 'fish'], ['buffalo', 'fish', 'police']]
 
-If we call the function directly we see that it returns a "generator object", which is
-not very useful to us.  Instead, we can iterate over it directly, using ``for noun in find_nouns(tagged_text)``,
-or convert it into a list, using ``list(find_nouns(tagged_text))``.
 
 Higher-Order Functions
 ----------------------
 
-In sec-back-to-the-basics_ we saw an example of filtering out
-some items in a list comprehension, using an ``if`` test.
-Sometimes list comprehensions get cumbersome, since they
-can mention the same variable many times, e.g.:
-``[word for word in sent if property(word)]``.
-We can perform the same task more succinctly as follows:
+Python provides some higher-order functions that are standard
+features of functional programming languages such as Haskell.
+We illustrate them here, alongside the equivalent expression
+using list comprehensions.
 
-    >>> def is_lexical(word):
+Let's start by defining a function ``is_content_word()``
+which checks whether a word is from the open class of content words.
+We use this function as the first parameter of ``filter()``,
+which applies the function to each item in the sequence contained
+in its second parameter, and only retains the items for which
+the function returns ``True``.
+
+    >>> def is_content_word(word):
     ...     return word.lower() not in ['a', 'of', 'the', 'and', 'will', ',', '.']
-    >>> filter(is_lexical, sent)
+    >>> filter(is_content_word, sent)
+    ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
+    >>> [w for w in sent if is_content_word(w)]
     ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
     
-The function ``is_lexical(word)`` returns ``True`` just in case
-``word``, when normalized to lowercase, is not in the given list.
-This function is itself used as an argument to ``filter()``.
-The ``filter()`` function applies its first argument (a function) to each
-item of its second (a sequence), only passing it through if the
-function returns true for that item.  Thus ``filter(f, seq)`` is
-equivalent to ``[item for item in seq if f(item)]``.
-
-Another helpful function, which like ``filter()`` applies a function
-to a sequence, is ``map()``.  Here is a simple
-way to find the average length of a sentence in a section of the Brown Corpus:
+Another higher-order function is ``map()``, which applies a function
+to every item in a sequence.  Here is a simple
+way to find the average length of a sentence in the news
+section of the Brown Corpus:
 
     >>> lengths = map(len, nltk.corpus.brown.sents(categories='news'))
     >>> sum(lengths) / float(len(lengths))
     21.7508111616
+    >>> lengths = [len(w) for w in nltk.corpus.brown.sents(categories='news'))]
+    >>> sum(lengths) / float(len(lengths))
+    21.7508111616
 
-Instead of ``len()``, we could have passed in any other function we liked:
-
-    >>> sent = ['The', 'dog', 'gave', 'John', 'the', 'newspaper']
-    >>> def is_vowel(letter):
-    ...     return letter.lower() in "aeiou"
-    >>> def vowelcount(word):
-    ...     return len(filter(is_vowel, word))
-    >>> map(vowelcount, sent)
-    [1, 1, 2, 1, 1, 3]
-
-Instead of using ``filter()`` to call a named function ``is_vowel``, we can
-define a lambda expression as follows:
+In the above examples we specified a user-defined function ``is_content_word()``
+and a built-in function ``len()``.  We can also provide a lambda expression.
+Here's an example which counts the number of vowels in each word.
 
     >>> map(lambda w: len(filter(lambda c: c.lower() in "aeiou", w)), sent)
-    [1, 1, 2, 1, 1, 3]
-
-We can check that all or any items meet some condition:
-
-    >>> all(len(w) > 4 for w in sent)
-    False
-    >>> any(len(w) > 4 for w in sent)
-    True
-
-The higher order functions like ``map`` and ``filter`` are certainly useful, but
-in general it is better to stick to using list comprehensions since they are
-often more readable.
+    [2, 2, 1, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 3, 0]
+    >>> [len([c for c in w if c.lower() in "aeiou"]) for w in sent]
+    [2, 2, 1, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 3, 0]
+    
+The solutions based on list comprehensions are usually more readable than the
+solutions based on higher-order functions, and we have favored the former
+approach throughout this book.
 
 Named Arguments
 ---------------
@@ -1305,6 +1328,8 @@ Another common use of optional arguments is to permit a flag, e.g.:
     ...     return freqdist.keys()[:num]
 
 
+.. note::
+   The rest of this chapter is incomplete.
 
 -------------------
 Program Development
@@ -1323,119 +1348,6 @@ does not exhibit the expected behavior.
    it is a good idea to begin by looking at many small example
    programs and understand why they work, then modifying them in small
    ways to change their behavior.
-
-Procedural vs Declarative Style
--------------------------------
-
-We have just seen how the same task can be performed in different
-ways, with implications for efficiency.  Another factor influencing
-program development is *programming style*.  Consider the following
-program to compute the average length of words in the Brown Corpus:
-
-    >>> tokens = nltk.corpus.brown.words(categories='news')
-    >>> count = 0
-    >>> total = 0
-    >>> for token in tokens:
-    ...     count += 1
-    ...     total += len(token)
-    >>> print float(total) / count
-    4.2765382469
-
-In this program we use the variable ``count`` to keep track of the
-number of tokens seen, and ``total`` to store the combined length of
-all words.  This is a low-level style, not far removed from machine
-code, the primitive operations performed by the computer's CPU.
-The two variables are just like a CPU's registers, accumulating values
-at many intermediate stages, values that are almost meaningless. 
-We say that this program is written in a *procedural* style, dictating
-the machine operations step by step.  Now consider the following
-program that computes the same thing:
-
-    >>> total = sum(map(len, tokens))
-    >>> print float(total)/len(tokens)
-    4.2765382469
-
-The first line uses a list comprehension to construct the sequence of
-tokens.  The second line *maps* the ``len`` function to this sequence,
-to create a list of length values, which are summed.  The third line
-computes the average as before.  Notice here that each line of code
-performs a complete, meaningful action.  Moreover, they do not dictate
-how the computer will perform the computations; we state high level
-relationships like "``total`` is the sum of the lengths of the tokens"
-and leave the details to the Python interpreter.  Accordingly, we say
-that this program is written in a *declarative* style.
-
-Here is another example to illustrate the procedural/declarative
-distinction.  Notice again that the procedural version
-involves low-level steps and a variable having meaningless
-intermediate values:
-
-    >>> word_list = []
-    >>> for token in tokens:
-    ...     if token not in word_list:
-    ...         word_list.append(token)
-    >>> word_list.sort()
-
-The declarative version makes use of higher-level built-in functions:
-
-    >>> word_list = list(set(tokens))
-    >>> word_list.sort()
-
-What do these programs compute?  Which version did you find easier to interpret?
-
-Consider one further example, that sorts three-letter words by their
-final letters.  The words come from the widely-used Unix word-list,
-made available as an NLTK corpus called ``words``.  Two words ending
-with the same letter will be sorted according to their second-last
-letters.  The result of this sort method is that many rhyming words will be
-contiguous.  Two programs are given; Which one is more declarative,
-and which is more procedural?
-
-As an aside, for readability we define a function for reversing
-strings that will be used by both programs:
-
-    >>> def reverse(word):
-    ...     return word[::-1]
-
-Here's the first program.  We define a helper function ``reverse_cmp``
-that calls the built-in ``cmp`` comparison function on reversed
-strings.  The ``cmp`` function returns ``-1``, ``0``, or ``1``,
-depending on whether its first argument is less than, equal to, or
-greater than its second argument.  We tell the list sort function to
-use ``reverse_cmp`` instead of ``cmp`` (the default).
-
-    >>> def reverse_cmp(x,y):
-    ...     return cmp(reverse(x), reverse(y))
-    >>> word_list = [w for w in nltk.corpus.words.words('en') if len(w) == 3]
-    >>> word_list.sort(reverse_cmp)
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
-    'Paz', 'Liz']
-
-Here's the second program.  In the first loop it collects up all the
-three-letter words in reversed form.  Next, it sorts the list of
-reversed words.  Then, in the second loop, it iterates over each
-position in the list using the variable ``i``, and replaces each item
-with its reverse.  We have now re-reversed the words, and can print
-them out.
-
-    >>> word_list = []
-    >>> for word in words:
-    ...     if len(word) == 3:
-    ...         word_list.append(reverse(word))
-    >>> word_list.sort()
-    >>> for i in range(len(word_list)):
-    ...     word_list[i] = reverse(word_list[i])
-    >>> print word_list[-12:]
-    ['toy', 'spy', 'cry', 'dry', 'fry', 'pry', 'try', 'buy', 'guy', 'ivy',
-    'Paz', 'Liz']
-
-Choosing between procedural and declarative styles is just that, a
-question of style.  There are no hard boundaries, and it is possible
-to mix the two.  Readers new to programming are encouraged to
-experiment with both styles, and to make the extra effort required to
-master higher-level constructs, such as list comprehensions, and
-built-in functions like ``map`` and ``filter``.
 
 Debugging
 ---------
@@ -1511,7 +1423,11 @@ in natural language processing.
 The best known strategy is known as `divide-and-conquer`:dt:.
 We attack a problem of size *n* by dividing it into two problems of size *n/2*,
 solve these problems, and combine their results into a solution of the original problem.
-Figure mergesort_ illustrates this approach for sorting a list of words.
+For example, suppose that we had a pile of cards with a single word written on each card.
+We could sort this pile by splitting it in half and giving it to two other people
+to sort (they could do the same in turn).  Then, when two sorted piles come back, it
+is an easy task to merge them into a single sorted pile.
+See Figure mergesort_ for an illustration of this process.
 
 .. _mergesort:
 .. figure:: ../images/mergesort.png
@@ -1519,37 +1435,17 @@ Figure mergesort_ illustrates this approach for sorting a list of words.
 
    Sorting by Divide-and-Conquer (Mergesort)
 
-Another strategy is `decrease-and-conquer`:dt:.  In this approach, a small amount
-of work on a problem of size *n* permits us to reduce it to a problem of
-size *n/2*.  Figure binary-search_ illustrates this approach for the problem
-of finding the index of an item in a sorted list.
-
-.. _binary-search:
-.. figure:: ../images/binary-search.png
-   :scale: 30
-
-   Searching by Decrease-and-Conquer (Binary Search)
+Another example is the process of looking up a word in a dictionary.  We open
+the book somewhere around the middle and compare our word with the current
+page.  If its earlier in the dictionary we repeat the process on the first
+half; if its later we use the second half (this is sometimes called
+`decrease-and-conquer`:dt: since we actually decreased the size of the problem
+with each step).
 
 A third well-known strategy is `transform-and-conquer`:dt:.  We attack a problem
 by transforming it into an instance of a problem we already know how to solve.
 For example, in order to detect duplicates entries in a list, we can `pre-sort`:dt:
-the list, then look for adjacent identical items, as shown in Figure presorting_.
-
-.. pylisting:: presorting
-   :caption: Presorting a list for duplicate detection
-
-   def duplicates(words):
-       prev = None
-       dup = [None]
-       for word in sorted(words):
-           if word == prev and word != dup[-1]:
-               dup.append(word)
-           else:
-               prev = word
-       return dup[1:]
-
-   >>> duplicates(['cat', 'dog', 'cat', 'pig', 'dog', 'cat', 'ant', 'cat'])
-   ['cat', 'dog']        
+the list, then look for adjacent identical items.
 
 Recursion (notes)
 -----------------
@@ -1575,26 +1471,15 @@ Recursive solution (base case, induction step)
 
 [Simple example of recursion on strings.]
 
-Generating all permutations of words, to check which ones are
-grammatical:
-
-    >>> def perms(seq):
-    ...     if len(seq) <= 1:
-    ...         yield seq
-    ...     else:
-    ...         for perm in perms(seq[1:]):
-    ...             for i in range(len(perm)+1):
-    ...                 yield perm[:i] + seq[0:1] + perm[i:]
-    >>> list(perms(['police', 'fish', 'cream']))
-    [['police', 'fish', 'cream'], ['fish', 'police', 'cream'],
-     ['fish', 'cream', 'police'], ['police', 'cream', 'fish'],
-     ['cream', 'police', 'fish'], ['cream', 'fish', 'police']]
-
-Deeply Nested Objects (notes)
------------------------------
+Building Deeply Nested Objects (notes)
+--------------------------------------
 
 We can use recursive functions to build deeply-nested objects.
-Building a letter trie, Figure trie_.
+For example, a `letter trie`:dt: is a method for indexing
+a lexicon, one letter at a time.  For example, if ``trie``
+held a letter trie, then ``trie['c']`` would be a smaller
+trie which held all words starting with `c`:lx:. 
+Figure trie_ demonstrates the process of building a trie.
 
 .. pylisting:: trie
    :caption: Building a Letter Trie
@@ -1602,15 +1487,14 @@ Building a letter trie, Figure trie_.
    def insert(trie, key, value):
        if key:
            first, rest = key[0], key[1:]
-           if first not in trie:
-               trie[first] = {}
            insert(trie[first], rest, value)
        else:
            trie['value'] = value
 
-   >>> trie = {}
+   >>> trie = defaultdict(dict)
    >>> insert(trie, 'chat', 'cat')
    >>> insert(trie, 'chien', 'dog')
+   >>> trie = dict(trie)               # for nicer printing
    >>> trie['c']['h']
    {'a': {'t': {'value': 'cat'}}, 'i': {'e': {'n': {'value': 'dog'}}}}
    >>> trie['c']['h']['a']['t']['value']
@@ -1703,40 +1587,42 @@ representation to a postscript file (for inclusion in a document).
 Space-Time Tradeoffs
 --------------------
 
-[concept of indexing; using storage to save time...]
+We can sometimes speed up the execution of a program by building some auxiliary data structure
+such as an index [MORE].  Here's an example of a simple text retreival system for the Movie Reviews
+Corpus.  By indexing the document collection it can provide much faster lookup.
 
-Consider the problem of finding reduplicated words in a lexicon.
-In particular, let's find words *w* such that *w+w* is also a word.
-A brute-force solution is to iterate over every word, form its
-reduplicated version, then try to find it by iterating over the
-dictionary.  This approach would do `n`:math:\ `2`:superscript:
-key comparisons, where `n`:math: is the number of lexical entries.
-A much faster method is to convert the lexicon from its original
-list structure into a Python dictionary:
+.. pylisting:: search-documents
 
-    >>> from nltk import Index
-    >>> from nltk.corpus import toolbox
-    >>> def english_glosses(entry):
-    ...     content = Index(entry)
-    ...     return '; '.join(content['ge'])
-    ...
-    >>> lexgloss = dict((lexeme, english_glosses(entry))
-    ...                 for lexeme, entry in toolbox.entries('rotokas.dic'))
-    >>> for lex in sorted(lexgloss)[:10]:
-    ...     if lex+lex in lexgloss:
-    ...         print "%s (%s); %s (%s)" %\
-    ...             (lex, lexgloss[lex], lex+lex, lexgloss[lex+lex])
-    ...
-    kae (blow); kaekae (tempt)
-    kape (unable to meet); kapekape (embrace; grip with arms not meeting)
-    kapi (beak; bill); kapikapi (bow of ship; peak of house)
-    kapo (fasten.cover.strip); kapokapo (fasten.cover.strips)
-    kare (return); karekare (return)
-    kari (rip; tear); karikari (tear; shred)
-    karu (open; unlock; untie; unhook); karukaru (open)
-    kasi (burn); kasikasi (angry)
-    kau (solid; hard); kaukau (sweet potato)
-    kauo (jump); kauokauo (jump up and down)
+   def raw(file):
+       contents = open(file).read()
+       contents = re.sub(r'<.*?>', ' ', contents)
+       contents = re.sub('\s+', ' ', contents)
+       return contents
+
+   def snippet(doc, term): # buggy
+       text = ' '*30 + raw(doc) + ' '*30
+       pos = text.index(term)
+       return text[pos-30:pos+30]
+
+   print "Building Index..."
+   files = nltk.corpus.movie_reviews.abspaths()
+   idx = nltk.Index((w, file) for file in files for w in raw(file).split())
+
+   while True:
+       query = raw_input("query> ")
+       if query in idx:
+           for doc in idx[query]:
+               print snippet(doc, query)
+       else:
+           print "Not found"
+
+
+A more subtle example of a space-time tradeoff involves replacing the tokens of a corpus
+with integer identifiers.  We create a vocabulary for the corpus, a list in which each
+word is stored once, then invert this list so that we can look up any word to find its
+identifier.  Each document is preprocessed, so that a list of words becomes a list of integers.
+Any language models can now work with integers...  [further discussion and performance
+comparison.]
 
 Dynamic Programming
 -------------------
@@ -1773,7 +1659,7 @@ subsets, those starting with *L* and those starting with
         i.e. S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
 
 .. pylisting:: virahanka
-   :caption: Three Ways to Compute Sanskrit Meter
+   :caption: Four Ways to Compute Sanskrit Meter
 
    def virahanka1(n):
        if n == 0:
@@ -1892,8 +1778,8 @@ or any other putative performance enhancement, using the ``timeit`` module:
 A Sample of Python Libraries
 ----------------------------
 
-The ``pylab`` Package
----------------------
+The ``pylab`` Package (notes)
+-----------------------------
 
 Python has some libraries that are useful for visualizing language data.
 The PyLab package supports sophisticated
@@ -1979,16 +1865,16 @@ HTML markup that directs the web browser to load the file.
     >>> print '<img src="rainfall.png"/>'
     >>> print '</body></html>'
 
-The ``networkx`` Package
-------------------------
+The ``networkx`` Package (notes)
+--------------------------------
 
 The NetworkX package is for
 displaying network diagrams, and is available from ``https://networkx.lanl.gov/``.
 
 [Example with WordNet visualization.]
 
-The ``csv`` Package
--------------------
+The ``csv`` Package (notes)
+---------------------------
 
 [Example accessing lexical data]
 
@@ -2001,19 +1887,10 @@ The ``csv`` Package
     ['wake', 'weik', 'intrans', 'cease to sleep']
 
 
-Database Connectivity
----------------------
+Database Connectivity (notes)
+-----------------------------
 
 [Example storing corpus analysis to a database]
-
-.. _sec-object-oriented:
-
-..
-   Efficiency topics, e.g.:
-   We found the relevant part-of-speech tags using ``tag.startswith('V')``.  We could
-   also have written ``tag[0] == 'V'``.  However, we think that the former
-   choice is preferrable as it is more readable (even though it is slightly
-   less efficient).
 
 
 ---------------
@@ -2029,6 +1906,8 @@ Further Reading
 http://docs.python.org/lib/typesseq-strings.html
 
 http://www.jwz.org/doc/worse-is-better.html
+
+Pages on Python pitfalls.
 
 ---------
 Exercises
@@ -2245,22 +2124,6 @@ Exercises
    each word, and discarding the remainder of each word.  How much compression does this
    give?  How readable is the resulting text?
 
-.. #. |hard| Extend the example in Figure compound-keys_ in the following ways:
-
-   a) Define two sets ``verbs`` and ``preps``, and add each verb and preposition
-      as they are encountered.  (Note that you can add an item to a set without
-      bothering to check whether it is already present.)
-
-   b) Create nested loops to display the results, iterating over verbs and
-      prepositions in sorted order.  Generate one line of output per verb,
-      listing prepositions and attachment ratios as follows:
-      ``raised: about 0:3, at 1:0, by 9:0, for 3:6, from 5:0, in 5:5...``
-
-   c) We used a tuple to represent a compound key consisting of two strings.
-      However, we could have simply concatenated the strings, e.g.
-      ``key = verb + ":" + prep``, resulting in a simple string key.
-      Why is it better to use tuples for compound keys?
-
 #. |hard| Develop a simple extractive summarization tool, that prints the
    sentences of a document which contain the highest total word
    frequency.  Use ``FreqDist()`` to count word frequencies, and use
@@ -2287,6 +2150,22 @@ Exercises
    in which the entry in the `n`:math:\ th row is the same as the entry
    in the `n`:math:\ th column.  For discussion, see
    ``http://itre.cis.upenn.edu/~myl/languagelog/archives/002679.html``
+
+.. #. |hard| Extend the example in Figure compound-keys_ in the following ways:
+
+   a) Define two sets ``verbs`` and ``preps``, and add each verb and preposition
+      as they are encountered.  (Note that you can add an item to a set without
+      bothering to check whether it is already present.)
+
+   b) Create nested loops to display the results, iterating over verbs and
+      prepositions in sorted order.  Generate one line of output per verb,
+      listing prepositions and attachment ratios as follows:
+      ``raised: about 0:3, at 1:0, by 9:0, for 3:6, from 5:0, in 5:5...``
+
+   c) We used a tuple to represent a compound key consisting of two strings.
+      However, we could have simply concatenated the strings, e.g.
+      ``key = verb + ":" + prep``, resulting in a simple string key.
+      Why is it better to use tuples for compound keys?
 
 
 .. include:: footer.rst

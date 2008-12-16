@@ -367,62 +367,6 @@ Indexing
 
 Fuzzy Spelling
 
-Confusible sets of segments: if two segments are confusible, map them
-to the same integer.
-
-    >>> group = {
-    ...     ' ':0,                     # blank (for short words)
-    ...     'p':1,  'b':1,  'v':1,     # labials
-    ...     't':2,  'd':2,  's':2,     # alveolars
-    ...     'l':3,  'r':3,             # sonorant consonants
-    ...     'i':4,  'e':4,             # high front vowels
-    ...     'u':5,  'o':5,             # high back vowels
-    ...     'a':6                      # low vowels
-    ... }
-
-Soundex: idea of a signature.  Words with the same signature
-considered confusible.  Consider first letter of a word to be so
-cognitively salient that people will not get it wrong.
-
-    >>> def soundex(word):
-    ...     if len(word) == 0: return word  # sanity check
-    ...     word += '    '                  # ensure word long enough
-    ...     c0 = word[0].upper()
-    ...     c1 = group[word[1]]
-    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
-    ...     c2 = group[cons[0]]
-    ...     c3 = group[cons[1]]
-    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
-    >>> print soundex('kalosavi')
-    K632
-    >>> print soundex('ti')
-    T400
-  
-Now we can build a soundex index of the lexicon:
-
-    >>> soundex_idx = nltk.defaultdict(set)
-    >>> for lex in lexemes:
-    ...     code = soundex(lex)
-    ...     soundex_idx[code].add(lex)
-
-We should sort these candidates by proximity with the target word.
-
-    >>> def fuzzy_spell(target):
-    ...     scored_candidates = []
-    ...     code = soundex(target)
-    ...     for word in soundex_idx[code]:
-    ...         dist = nltk.edit_dist(word, target)
-    ...         scored_candidates.append((dist, word))
-    ...     scored_candidates.sort()
-    ...     return [w for (d,w) in scored_candidates[:10]]
-
-Finally, we can look up a word to get approximate matches:
-
-    >>> fuzzy_spell('kokopouto')
-    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
-    >>> fuzzy_spell('kogou')
-    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
-
 
 
 
