@@ -123,11 +123,48 @@ Principle of Compositionality:
     overall introduction to formal semantics. [Eg., B&B, Gamut, Heim?]
 
 
+
+
+
+    >>> Q = lp.parse('Q')
+    >>> inference.get_prover(Q, [P, R]).prove()
+    False
+    >>> inference.get_prover(P, [Q, NotQ]).prove()
+    True
+
+.. _ex-proplog1:
+.. ex::
+   .. _ex-proplog11:
+   .. ex::
+      [Shanghai is to the north of Guangzhou] and 
+      [the urban population of Shanghai is 15.5 million].
+      
+   .. _ex-proplog12:
+   .. ex::
+      [Klaus chased Evi] and [Evi ran away].
+
+Thus, the set in ex-proplog9_ contains a pair of sentences whose
+logical forms
+are `P`:math: and |neg|\ `P`:math:. But a fundamental assumption of
+classical logic is that a sentence cannot be both true and false in a
+situation. Any set of sentences which contains both `P`:math: and
+|neg|\ `P`:math: is inconsistent. In this way, we can see how reducing
+sentences to their logical forms allows us to determine inconsistency.
+
+
 The language of propositional logic represents certain aspects of
 natural language, but at a high level of abstraction. The only
 structure that is made explicit involves `logical connectives`:dt:\;
 these correspond to 'logically interesting' expressions such as
 `and`:lx: and `not`:lx:. 
+
+Here's one
+choice: a unary operator |neg| (`not`:lx:), and four binary operators
+|wedge| (`and`:lx:), |vee| (`or`:lx:), |rarr| (`if..., then...`:lx:)
+and |iff| (`if and only if`:lx:).  Then the set of `formulas`:dt: of
+propositional logic can be defined as follows:
+
+
 
 The basic expressions of the language are
 `propositional variables`:dt:, usually written `p`:math:, `q`:math:,
@@ -251,6 +288,37 @@ the definition of our version of |fol|.
   |element|  **Term**\ (**Bool**), then |forall|\ `x.`:mathit:\
   |phi|, |exists|\ `x.`:mathit:\ |phi|  |element|  **Term**\ (**Bool**).  
 
+
+.. table:: nltk_logic
+
+    +---------------+-------------------------------------+
+    | Example       |Description                          |
+    +===============+=====================================+
+    |     ``-``     |negation                             |
+    +---------------+-------------------------------------+
+    |    ``&``      |conjunction                          |
+    +---------------+-------------------------------------+
+    |    ``|``      |disjunction                          |
+    +---------------+-------------------------------------+
+    |    ``->``     |implication                          |
+    +---------------+-------------------------------------+
+    |    ``<->``    |equivalence                          |
+    +---------------+-------------------------------------+
+    |    ``=``      |equality                             |
+    +---------------+-------------------------------------+
+    |    ``!=``     |inequality                           |
+    +---------------+-------------------------------------+
+    |    ``exists`` |existential quantifier               |
+    +---------------+-------------------------------------+
+    |    ``all``    |universal quantifier                 |
+    +---------------+-------------------------------------+
+    |     ``\``     |lambda operator                      |
+    +---------------+-------------------------------------+
+    | ``e.free()``  |show free variables of ``e``         |
+    +---------------+-------------------------------------+
+    | ``e.simplify``|carry out |beta|-conversion on ``e`` |
+    +---------------+-------------------------------------+
+                        
 
 Semantically, `see`:mathit: is usually modeled as a
 relation, i.e., a set of pairs, and the proposition is true in a
@@ -431,3 +499,63 @@ model ``model0.py`` which we have imported.
      
 
 
+In this chapter, we presented a standard approach to natural language
+meaning by translating sentences of natural language into |fol|. From
+a computational point of view, a strong argument in favor of |FOL| is
+that it strikes a reasonable balance between expressiveness and
+logical tractability. On the one hand, it is flexible enough to
+represent many aspects of the logical structure of natural
+language. On the other hand, automated theorem proving for |FOL| has
+been well studied, and although inference in |FOL| is not decidable,
+in practice many reasoning problems are efficiently solvable using
+modern theorem provers (cf. [Blackburn2005RIN]_ for discussion).
+
+
+---------------
+Inference Tools
+---------------
+
+In order to perform inference over semantic representations, |NLTK|
+can call both theorem provers and model builders.
+The library includes a pure Python tableau-based first order theorem prover;
+this is intended to allow students to study 
+tableau methods for theorem proving, and provides an
+opportunity for experimentation.  In addition, |NLTK| provides
+interfaces to a couple of third-party tools, namely the theorem prover Prover9, 
+and the model builder Mace4  [McCune]_.  
+
+The ``get_prover(G, A)`` method by default calls Prover9, and takes as
+parameters a proof goal ``G`` and a list ``A`` of assumptions.
+Here, we verify that if every dog barks, and Rover is a dog,
+then it is true that Rover barks:
+
+    >>> from nltk.inference import inference
+    >>> a = lp.parse('all x.(dog(x) -> bark(x))')
+    >>> b = lp.parse('dog(rover)')
+    >>> c = lp.parse('bark(rover)')
+    >>> prover = inference.get_prover(c, [a,b])
+    >>> prover.prove()
+    True
+
+A theorem prover can also be used to check the logical equivalence of
+expressions.  For two expressions *A* and *B*, we can pass (*A* |iff|
+*B*) into a theorem prover and know that the theorem will be proved if
+and only if the expressions are logically equivalent.  |NLTK|\ 's
+standard equality operator for ``Expression``\ s (``==``) is able to
+handle situations where two expressions are identical up to
+|alpha|\ -conversion.  However, it would be impractical for |NLTK| to
+invoke a wider range of logic rules every time we checked for equality
+of two expressions. Consequently, both the ``logic`` and ``drt``
+modules in |NLTK| have a separate method, ``tp_equals``, for checking
+'equality' up to logical equivalence.
+
+    >>> a = lp.parse('all x.walk(x)')
+    >>> b = lp.parse('all y.walk(y)')
+    >>> a == b
+    True
+    >>> c = lp.parse('-(P(x) & Q(x))')
+    >>> d = lp.parse('-P(x) | -Q(x)')
+    >>> c == d
+    False
+    >>> c.tp_equals(d)
+    True
