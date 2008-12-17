@@ -83,7 +83,7 @@ Chapter-Specific Issues
   reasonable quality, off-the-shelf, pure-Python tagger available to users.
 
 * Chapter 5: Most of this chapter was written in late 2008 and has not been
-  tested with readers like the rest of the book.
+  tested with readers like the rest of the book; it needs more exercises.
 
 * Chapter 6: It has been difficult to find a good sequence for presenting the topics
   of this chapter; there are many topics to cover and its a trade-off between breadth
@@ -106,6 +106,8 @@ Chapter-Specific Issues
 
 * Chapter 12: The last two sections planned for this chapter (NLTK Roadmap,
   NLP-Complete Problems) have not been written yet.
+
+* Appendix B: Some images overlap the text (an issue we thought we had previously solved).
 
 * References: we haven't worked out how to convert the references from BibTeX into Docbook.
   The HTML version is at ``http://nltk.googlecode.com/svn/trunk/doc/en/bibliography.html`` and
