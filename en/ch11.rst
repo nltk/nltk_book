@@ -422,28 +422,32 @@ would permit any standoff annotations to be updated easily.
 Acquiring Data
 --------------
 
-Scenarios: fieldwork, web, manual entry using local tool, machine learning with manual post-editing
-
-
-
-Conventional office software is widely used in computer-based language
-documentation work, given its familiarity and ready availability.
-This includes word processors and spreadsheets.
-
 Obtaining Data from the Web
 ---------------------------
 
-Individual files, search engine results, RSS feeds: see method described in Section sec-accessing-text_.
+The Web is a rich source of data for language analysis purposes.  We have already
+discussed methods for accessing individual files, RSS feeds, and search engine
+results (see Section sec-accessing-text_).  However, in some cases we want to
+obtain large quantities of web text.
 
-Capturing the contents of a site, e.g. with ``wget``.
+The simplest approach is to obtain a published corpus of web text [list].
+These have the advantage of being documented and stable.  Any experimentation
+using such a corpus can be reproduced.
 
-Customized web-crawlers, e.g. to have fine-grained control on where to look, which links to
-follow, and where to store the results.  E.g. searching a bilingual news site to produce
-a collection of parallel documents.  Modify an existing Python web crawler.
+If the desired content is localized to a particular website, there are many
+utilities for capturing all the accessible contents of a site [list].
 
-Many pitfalls: convert relative URL found inside an HTML document to an absolute URL
-suitable for fetching; restricting the MIME types; avoiding getting trapped in cycles;
-creating a seed list; ....  
+Finally, for maximal flexibility and control, a web-crawler can be used [list; description].
+These permit fine-grained control over where on where to look, which links to
+follow, and how to organize the results.  For example, if we want to compile
+bilingual text collection having corresponding pairs of documents in each language,
+the crawler needs to detect the structure of the site in order to extract the
+correspondence between the documents, and it needs to organize the downloaded
+pages in such a way that the correspondence is captured.  It might be tempting
+to write your own web-crawler, but there are dozens of pitfalls to do with
+detecting MIME types, converting relative to absolute URLs, avoiding getting
+trapped in cyclic link structures, dealing with network latencies, avoiding
+overloading the site or being banned from accessing the site, and so on. 
 
 Obtaining Data from Word Processor Files
 ----------------------------------------
@@ -539,28 +543,39 @@ in "comma-separated value" (CSV) format:
 Obtaining Data from Spreadsheets and Databases
 ----------------------------------------------
 
-**Spreadsheets.** These are often used for wordlists or paradigms.  A
-comparative wordlist may be stored in a spreadsheet, with a row for
-each cognate set, and a column for each language.  Examples are
-available from ``www.rosettaproject.org``.  Programs such as Excel can
-export spreadsheets in the CSV format, and we can write programs to
-manipulate them, with the help of Python's ``csv`` module.
+Spreadsheets are often used for acquiring wordlists or paradigms.
+For example, a comparative wordlist may be created using a spreadsheet,
+with a row for each cognate set, and a column for each language
+(cf. ``nltk.corpus.swadesh``, and ``www.rosettaproject.org``).
+Most spreadsheet software can export their data in CSV
+"comma-separated value" format.  As we see below, it is easy for
+Python programs to access these using the ``csv`` module.
 
-[csv examples]
-
-**Databases.** Sometimes lexicons are stored in a full-fledged
-relational database.  When properly normalized, these databases can
-implement many well-formedness constraints.  For example, we can
+Sometimes lexicons are stored in a full-fledged relational database.
+When properly normalized, these databases can ensure the validity
+of the data.  For example, we can
 require that all parts-of-speech come from a specified vocabulary by
-declaring that the part-of-speech field is an *enumerated type*.
-However, the relational model is often too restrictive for linguistic
-data, which typically has many optional and repeatable fields (e.g.
-dictionary sense definitions and example sentences).
-Query languages such as SQL cannot express many
-linguistically-motivated queries, e.g. *find all words that appear
+declaring that the part-of-speech field is an *enumerated type*
+or a foreign key that references a separate part-of-speech table.
+However, the relational model requires the structure of the data
+(the schema) be declared in advance, and this runs counter to
+the dominant approach to structuring linguistic data, which is
+highly exploratory.  Fields which were assumed to be obligatory
+and unique often turn out to be optional and repeatable.  A relational
+database can accommodate this when it is fully known in advance, however
+if it is not, or if just about every property turns out to be optional
+or repeatable, the relational approach is unworkable.
+
+Nevertheless, when our goal is simply to extract the contents from a database,
+it is enough to dump out the tables (or SQL query results)
+in CSV format and load them into our program.  Our program might perform
+a linguistically motivated query which cannot be expressed in SQL, e.g.
+*select all words that appear
 in example sentences for which no dictionary entry is provided*.
-Now supposing that the database supports exporting query results to CSV format,
-and that we can save the data to a file ``dict.csv``::
+For this task, we would need to extract enough information from a record
+for it to be uniquely identified, along with the headwords and example
+sentences.  Let's suppose this information was now available in a CSV file
+``dict.csv``:
 
     "sleep","sli:p","v.i","a condition of body and mind ..."
     "walk","wo:k","v.intr","progress by lifting and setting down each foot ..."
@@ -577,8 +592,11 @@ Now we can express this query as shown below:
     ['...', 'a', 'and', 'body', 'by', 'cease', 'condition', 'down', 'each',
     'foot', 'lifting', 'mind', 'of', 'progress', 'setting', 'to']
 
-Converting Data Formats
------------------------
+This information would then guide the ongoing work to enrich the lexicon,
+work that updates the content of the relational database.
+
+Converting Data Formats (notes)
+-------------------------------
 
 * structure of the conversion code usually follows that of the
   input (or the output)
@@ -586,6 +604,9 @@ Converting Data Formats
   to store anything
 * sometimes have to build a structure one way, and read it off
   another way
+* the hard case where no good, general solution is possible:
+  round-tripping the data between two formats where information
+  may be lost. 
 
 
 Special Considerations when Working with Endangered Languages
@@ -1146,29 +1167,51 @@ Interlinear Text
 The NLTK corpus collection includes many interlinear text samples
 (though no suitable corpus reader as yet).
 
-`General Ontology for Linguistic Description`:dt: (GOLD)
-``http://www.linguistics-ontology.org/``
-
 
 -------------------
 Standards and Tools
 -------------------
 
-...   The main problem is that adequate tools
-for creation, publication and use of linguistic data are not widely
-available. In most cases, each project must create its own set of
-tools, which hinders publication by researchers who lack the
-expertise, time or resources to make their data accessible to others.
-Furthermore, we do not have adequate, generally accepted standards for
-expressing the structure and content of linguistic databases. Without
+For a corpus to be widely useful, it needs to be available in a widely
+supported format.  However, the cutting edge of |NLP| research depends
+on new kinds of annotations, which by definition are not widely supported.
+In general, adequate tools for creation, publication and use of
+linguistic data are not widely available.  Most projects must
+create their own set of tools, which hinders those who
+lack the necessary expertise, time or resources to make
+their data accessible to others.
+Furthermore, we do not have adequate, generally-accepted standards for
+expressing the structure and content of corpora. Without
 such standards, general-purpose tools are impossible |mdash| though at the
 same time, without available tools, adequate standards are unlikely to
 be developed, used and accepted.  Just as importantly, there must be a
 critical mass of users and published material to motivate maintenance
 of data and access tools over time.
 
+One response to this situation has been to forge ahead with generic formats
+which are sufficiently expressive to capture a wide variety of
+annotation types [annotation graphs, RDF, XML].  [Three-layer architecture.]
 
-[text corpus standards, lexicon standards, ontologies, ...]
+However, these have problems of their own.
+More expressive formats allow the equivalent information to be expressed in
+multiple ways, and make validation a much more complex process.
+For example, if the annotation task involves creating trees, and the
+underlying notation permits arbitrary directed graphs, then the validation
+process must check rootedness and connectedness properties.
+Developing annotation tools that work with these generic formats is
+also problematic, e.g. a tree annotation tool could only load a subset
+of the data that can be expressed in the format, so must do extra checking
+[explain why XML validation technologies do not suffice here].
+
+Another response has been to write one-off scripts (usually in Perl)
+to manipulate corpus formats.  NLTK's corpus readers are a more systematic
+approach, founded on the premise that the work of parsing a corpus format
+only needs to be done once (per programming language), then it can be shared. 
+
+[existing text corpus standards, lexicon standards, ontologies, ...]
+
+`General Ontology for Linguistic Description`:dt: (GOLD)
+``http://www.linguistics-ontology.org/``
 
 
 -------------------------------------------------
@@ -1315,10 +1358,12 @@ language resources ``http://www.language-archives.org/REC/bpr.html``]
 Summary
 -------
 
-* diverse motivations for corpus collection
-* corpus structure, balance, documentation
-* OLAC
+[to be written]
 
+..
+  * diverse motivations for corpus collection
+  * corpus structure, balance, documentation
+  * OLAC
 
 
 ---------------

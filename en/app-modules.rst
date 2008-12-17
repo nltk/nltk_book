@@ -12,7 +12,7 @@ NLTK is organized into a collection of task-specific packages.  Each
 package is a combination of data structures for representing a
 particular kind of information such as trees, and implementations of
 standard algorithms involving those structures such as parsers.  This
-approach is a standard feature of *object-oriented design*, in which
+approach is a standard feature of object-oriented design, in which
 components encapsulate both the resources and methods needed to
 accomplish a particular task.
     
@@ -33,7 +33,7 @@ parsers and probabilistic parsers.
 Several utility components are provided to facilitate processing and
 visualization.  These include: ``draw``, to visualize NLP structures
 and processes; ``probability``, to count and collate events, and
-perform statistical estimation; and ``corpora``, to access tagged
+perform statistical estimation; and ``corpora``, to access annotated
 linguistic corpora.
     
 .. Finally, several advanced components are provided, mostly
