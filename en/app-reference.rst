@@ -146,7 +146,6 @@ Dictionary-Like Objects
 -----------------------
 
 Frequency Distributions
-~~~~~~~~~~~~~~~~~~~~~~~
 
    ===============================  ==============================================================
    Example                          Description
@@ -166,7 +165,6 @@ Frequency Distributions
    ===============================  ==============================================================
 
 Conditional Frequency Distributions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    =======================================  ================================================================
    Example                                  Description
@@ -181,7 +179,6 @@ Conditional Frequency Distributions
    =======================================  ================================================================
 
 Indexing
-~~~~~~~~
 
 A simple class ``Index`` can be initialized with a list of (key, value) pairs.  It creates a
 dictionary mapping keys to list of values.
@@ -191,7 +188,6 @@ Corpora
 -------
 
 Corpus Readers
-~~~~~~~~~~~~~~
 
   =====================================  ===================================================
   Corpus Reader Name                     Corpus Type
@@ -218,9 +214,7 @@ Corpus Readers
   ``XMLCorpusReader``                    Text collections with XML markup
   =====================================  ===================================================
 
-
 Corpus Methods
-~~~~~~~~~~~~~~
 
   =========================  ==================================================
   Method Name                Function
@@ -234,7 +228,6 @@ Corpus Methods
   =========================  ==================================================
   
 Text Corpus Methods
-~~~~~~~~~~~~~~~~~~~
 
 Unless otherwise specified,
 the following methods permit a file or list of files to be specified,
@@ -254,7 +247,6 @@ one or more categories can be specified, e.g. ``words(categories='news')``,
   =========================  ============================================================
 
 Tagged Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~
 
 The following methods all permit files (sometimes categories) to be specified.
 Most tagged corpora have a simplified tagset, used if a named paramter
@@ -269,24 +261,20 @@ Most tagged corpora have a simplified tagset, used if a named paramter
   =========================  ============================================================
 
 Chunked Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~~
 
 Chunked corpora support the ``chunked_sents()`` method.
 
 Parsed Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~
 
 These support the ``words()``, ``sents()``, ``tagged_words()`` and
 ``tagged_sents()`` methods.  An additional method is
 ``parsed_sents()``, which permits the usual parameters.
 
 Dialogue Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~~~
 
 [Todo: chat and switchboard interfaces]
 
 Lexical Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~~
 
 These all support the ``words()`` method.  Some have an additional ``entries()``
 method which iterates over all entries.  Some have an additional ``dict()``
@@ -294,7 +282,6 @@ method which provides dictionary-style access.  For more specialized corpora,
 such as PropBank, Senseval, Verbnet, consult the interactive help.
 
 WordNet Corpus Methods
-~~~~~~~~~~~~~~~~~~~~~~
 
 [table of methods]
 
@@ -302,7 +289,6 @@ Word-Level Processing
 ---------------------
 
 Tokenizers
-~~~~~~~~~~
 
 All tokenizers split a string into a list of strings.
 
@@ -319,12 +305,10 @@ All tokenizers split a string into a list of strings.
 [sentence tokenization with Punkt]
 
 Stemmers and Lemmatizers
-~~~~~~~~~~~~~~~~~~~~~~~~
 
 [to do]
 
 Taggers
-~~~~~~~
 
 [to do]
 
