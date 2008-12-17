@@ -187,6 +187,7 @@
   .. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
   .. |PYTHON-URL| replace:: `http://python.org/ <http://python.org/>`__
   .. |NLTK-URL| replace:: `http://www.nltk.org/ <http://www.nltk.org/>`__
+  .. |NLTK-HOWTO-URL| replace:: `http://www.nltk.org/howto <http://www.nltk.org/howto>`__
   
   .. Python example - a snippet of code in running text
   .. role:: py

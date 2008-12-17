@@ -8,7 +8,7 @@ Appendix: Chart Parsing
 =======================
 
 Chart Parsing is a parsing algorithm that uses dynamic programming,
-a technique described in Section sec-algorithm-design-strategies_.
+a technique described in Section sec-algorithm-design_.
 It extends the method of well-formed substring tables from
 Section sec-parsing_.
 

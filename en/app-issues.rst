@@ -11,10 +11,11 @@ Appendix: Known Issues with this Book
 General Issues
 --------------
 
+* use NLTK version 0.9.7
+
 * The further reading sections of each chapter are patchy; some are comprehensive while
   some are minimal.  We intend to make these consistent, providing a representative
-  set of pointers to other materials.  The pointers to NLTK's "guides" are stale; we're
-  in the process of updating these to create a suite of HOWTOs.
+  set of pointers to other materials.
 
 * It is difficult for readers to know which exercises at the end of the chapter
   correspond to which sections of the chapter.
@@ -31,22 +32,26 @@ General Issues
 Chapter-Specific Issues and Questions
 -------------------------------------
 
-* ch02: the learning curve of ch01 was quite shallow, but it gets much
-  steeper in ch02; is there a way to make it easier for new programmers?
+* Chapter 2: the learning curve of Chapter 1 was quite shallow, but it gets much
+  steeper in this chapter; is there a way to make it easier for new programmers?
 
-* ch06: the structure of this chapter is still in flux; suggestions for
+* Chapter 6: the structure of this chapter is still in flux; suggestions for
   improving the structure and prioritizing the content welcomed
 
-* ch07: we are hoping to get some English named-entity data so that we
+* Chapter 7: we are hoping to get some English named-entity data so that we
   can illustrate how to train a named entity classifier
 
-* ch10: we don't have permission to use this photograph
+* Chapter 8: the final section on scaling up grammars is incomplete
 
-* ch12: the final chapter is incomplete; it will consist of free-standing
-  sections on further topics, giving readers a sense of the breadth of
-  the field and the interesting challenges still faced
+* Chapter 9: the opening has not been updated to follow the model of the
+  other chapters, identifying questions that are answered in this chapter 
 
-* References: we don't know how to convert these to docbook.
+* Chapter 10: we don't have permission to use the photograph
+
+* Chapter 12: the last two sections planned for this chapter (NLTK Roadmap,
+  NLP-Complete Problems) have not been written yet
+
+* References: we haven't worked out how to convert the references from BibTeX into Docbook.
   The HTML version is at ``http://nltk.googlecode.com/svn/trunk/doc/en/bibliography.html`` and
   the BibTeX source is at ``http://nltk.googlecode.com/svn/trunk/nltk/doc/refs.bib``
 

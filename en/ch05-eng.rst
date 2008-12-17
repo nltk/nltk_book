@@ -390,8 +390,6 @@ Conclusions
 Further Reading
 ---------------
 
-``http://nltk.org/doc/guides/classify.html``
-
 * probability, estimation (Manning and Schutze, ch 2, 6)
 
 .. Sekine -- 140 types of NE.
