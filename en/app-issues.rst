@@ -43,9 +43,6 @@ Visual Formatting Issues
   a goal of language analysis is to arrive at the so-called "deep structures"
   that represent meaning.
 
-* Our docutils to docbook conversion process does not correctly handle grammatical categories,
-  which are rendered in italics instead of small caps.
-
 * The diagrams of the book need to be set in grayscale and high-resolution, for the
   hardcopy version.
 
