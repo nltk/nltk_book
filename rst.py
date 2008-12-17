@@ -1785,7 +1785,10 @@ class CustomizedDocBookTranslator(DocBookTranslator):
         raise docutils.nodes.SkipNode
 
     def visit_inline(self, node):
-        self.body.append("<emphasis>")
+        if 'category' in node.get('classes', ()):
+            self.body.append('<emphasis role="smallcaps">')
+        else:
+            self.body.append("<emphasis>")
     def depart_inline(self, node):
         self.body.append("</emphasis>")
 
