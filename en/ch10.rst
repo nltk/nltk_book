@@ -5,6 +5,11 @@
 
     >>> import nltk, re, pprint
 
+.. try not to increment the variable indices
+
+    >>> from nltk.sem import logic
+    >>> logic._counter._value = 0
+
 .. TO-DO: relational algebra?
 .. TO-DO: say something about interpreting first order lamba abstracts
 
@@ -426,7 +431,6 @@ exploring logic within |NLTK|, we will stick to the following ASCII
 versions of the operators:
 
 .. doctest ignore::
-
     >>> from nltk.sem import logic
     >>> logic.boolean_ops()
     negation            -    # 'not'   
@@ -1595,7 +1599,8 @@ model in which the premises are true but the conclusion is false?
     >>> a5 = lp.parse('man(adam)')
     >>> a6 = lp.parse('woman(eve)')
     >>> g = lp.parse('love(adam,eve)')
-    >>> print inference.MaceCommand(g, [a4, a5, a6]).build_model()
+    >>> mb = inference.MaceCommand(g, [a4, a5, a6])
+    >>> print mb.build_model()
     True
 
 So the answer is Yes: Mace4 found a countermodel in which there is some woman other than
@@ -1838,8 +1843,7 @@ equivalent to sem99_, which is what we wanted all along:
     >>> print vp
     (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
     >>> print vp.simplify()
-    \x.exists z1.(dog(z1) & chase(x,z1))
-
+    \x.exists z2.(dog(z2) & chase(x,z2))
 
 In order to build a semantic representation for a sentence, we also
 need to combine in the semantics of the subject `np`:gc:. If the
@@ -1866,6 +1870,9 @@ and allows us to flip functors with arguments. That is, type raising
 means that we can replace a Boolean-valued application such as 
 `f(a`:mathit:) with an equivalent application 
 |lambda|\ `P.P(a)(f)`:mathit:.
+
+..
+    >>> logic._counter._value = 0
 
 The grammar ``sem2.fcfg`` contains a small set of rules for parsing
 and translating simple examples of the kind that we have been looking
@@ -1899,10 +1906,10 @@ in the list.
         (PropN[-loc, num='sg', sem=<\P.P(irene)>] Irene))
       (VP[num='sg', sem=<\x.walk(x)>]
         (IV[num='sg', sem=<\x.walk(x)>, tns='pres'] walks)))
-    (S[sem=<exists z3.(ankle(z3) & bite(cyril,z3))>]
+    (S[sem=<exists z1.(ankle(z1) & bite(cyril,z1))>]
       (NP[-loc, num='sg', sem=<\P.P(cyril)>]
         (PropN[-loc, num='sg', sem=<\P.P(cyril)>] Cyril))
-      (VP[num='sg', sem=<\x.exists z3.(ankle(z3) & bite(x,z3))>]
+      (VP[num='sg', sem=<\x.exists z1.(ankle(z1) & bite(x,z1))>]
         (TV[num='sg', sem=<\X x.X(\y.bite(x,y))>, tns='pres'] bites)
         (NP[num='sg', sem=<\Q.exists x.(ankle(x) & Q(x))>]
           (Det[num='sg', sem=<\P Q.exists x.(P(x) & Q(x))>] an)
@@ -1918,12 +1925,13 @@ variable assignment as parameters. The output is a triple  (*synrep*,
 *semrep*, *value*) where *synrep*,
 *semrep* are as before, and *value* is a truth value.
 
+    >>> g = nltk.sem.Assignment(val.domain)
     >>> sent = 'Cyril sees every boy'
     >>> results = nltk.sem.text_evaluate([sent], 'grammars/book_grammars/sem2.fcfg', m, g)
     >>> for (syntree, semrel, value) in results[sent]:
     ...     print semrep
     ...     print value
-    exists z3.(ankle(z3) & bite(cyril,z3))
+    exists z1.(ankle(z1) & bite(cyril,z1))
     True
 
 A more extensive example of evaluating English sentences in a model
@@ -2063,7 +2071,7 @@ storage style ``sem`` value is, after parsing with grammar
 
 ::
 
-    core  = <chase(z3,z4)>                                                          
+    core  = <chase(z2,z3)>                                                          
     store = (bo(\P.all x.(girl(x) -> P(x)),z3), bo(\P.exists x.(dog(x) & P(x)),z4)) 
 
 It should be clearer now why the address variables are an important
@@ -2088,34 +2096,32 @@ forms. First, we construct a ``CooperStore`` instance, and inspect its
     >>> semrep = trees[0].node['sem']
     >>> cs_semrep = cs.CooperStore(semrep)
     >>> print cs_semrep.core
-    chase(z3,z4)
+    chase(z2,z3)
     >>> for bo in cs_semrep.store:
     ...     print bo
-    bo(\P.all x.(girl(x) -> P(x)),z3)
-    bo(\P.exists x.(dog(x) & P(x)),z4)
+    bo(\P.all x.(girl(x) -> P(x)),z2)
+    bo(\P.exists x.(dog(x) & P(x)),z3)
 
 Finally we call ``s_retrieve()`` and check the readings.
 
     >>> cs_semrep.s_retrieve(trace=True)
     Permutation 1
-       (\P.all x.(girl(x) -> P(x)))(\z3.chase(z3,z4))
-       (\P.exists x.(dog(x) & P(x)))(\z4.all x.(girl(x) -> chase(x,z4)))
+       (\P.all x.(girl(x) -> P(x)))(\z2.chase(z2,z3))
+       (\P.exists x.(dog(x) & P(x)))(\z3.all x.(girl(x) -> chase(x,z3)))
     Permutation 2
-       (\P.exists x.(dog(x) & P(x)))(\z4.chase(z3,z4))
-       (\P.all x.(girl(x) -> P(x)))(\z3.exists x.(dog(x) & chase(z3,x)))
+       (\P.exists x.(dog(x) & P(x)))(\z3.chase(z2,z3))
+       (\P.all x.(girl(x) -> P(x)))(\z2.exists x.(dog(x) & chase(z2,x)))
 
     >>> for reading in cs_semrep.readings:
     ...     print reading
-    exists x.(dog(x) & all z5.(girl(z5) -> chase(z5,x)))
-    all x.(girl(x) -> exists z6.(dog(z6) & chase(x,z6)))
+    exists x.(dog(x) & all z4.(girl(z4) -> chase(z4,x)))
+    all x.(girl(x) -> exists z5.(dog(z5) & chase(x,z5)))
 
 |NLTK| contains implementations of two other approaches to scope
 ambiguity, namely `hole semantics`:dt: as described in
 [Blackburn2005RIN]_ and `Glue semantics`:dt: as described in
 [Dalrymple:1999:RRB]_. We do not have space to discuss these here, but
 documentation can be found at [howto REFS].
-
-
 
 
 -------------------
@@ -2318,7 +2324,7 @@ parsed using ``drt.DrtParser`` in place of the default ``LogicParser``.
     >>> parser = load_earley('grammars/book_grammars/drt.fcfg', trace=0, logic_parser=drt.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
     >>> print trees[0].node['sem'].simplify()
-    ([x,z2],[Angus(x), dog(z2), own(x,z2)])
+    ([x,z7],[Angus(x), dog(z7), own(x,z7)])
 
 
 
