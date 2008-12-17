@@ -89,9 +89,15 @@ training corpora containing the correct label for each input.
    feature extractor is used to convert unseen inputs to feature sets.
    These feature sets are then fed into the model, which generates
    predicted labels.
+
+- in the rest of this section, we will look at how classifiers can be
+  used to solve a wide variety of tasks.
+- not meant to be exhaustive; instead meant to give you a flavor of
+  the type of tasks that can be done with classifiers.
+
    
-Feature Extraction
-------------------
+Gender Identification
+---------------------
 
 In Section sec-lexical-resources_ we saw that male and female names
 have some distinctive characteristics.  Names ending in `a`:lx:,
@@ -302,19 +308,18 @@ To check how reliable the resulting classifier is, we compute its
 accuracy on the training data:
 
 >>> nltk.classify.accuracy(classifier, test_set)
-(number)
 
 Once again, we can use ``show_most_informative_features`` to find out
 which features the classifier found to be especially useful:
 
 >>> classifier.show_most_informative_features(5)
-Most Informative Features
-(etc.)
 
+.. add word frequencies, with binning??  FreqDist(document), then for
+   each word not in the stoplist, list the document frequency ..  not
+   enough training data for this??
 
-
-Tagging as Classification
--------------------------
+Part-of-Speech Tagging
+----------------------
 
 In Chapter chap-tag_ we built a regular expression tagger that chooses
 a part-of-speech tag for a word by looking at the internal make-up of
@@ -389,10 +394,15 @@ Making Use of Context
 By augmenting the feature extraction function, we could modify this
 part-of-speech tagger to make use of a variety of other word-internal
 features, such as the length of the word, the number of syllables it
-contains, or its prefix.  However, we have no way to add features that
-depend on the *context* that the word appears in.
+contains, or its prefix.  However, as long as the feature extractor
+just looks at the target word, we have no way to add features that
+depend on the *context* that the word appears in.  But contextual
+features often provide powerful clues about the correct tag -- for
+example, when tagging the word "fly," knowing that the previous word
+is "a" will allow us to determine that it is being used as a noun, not
+a verb.
 
-In order to accomodate features that depend on a words context, we
+In order to accomodate features that depend on a word's context, we
 must revise the pattern that we used define our feature extractor.
 Instead of just passing in the word to be tagged, we will pass in a
 complete (untagged) sentence, along with the index of the target word:
@@ -402,9 +412,9 @@ complete (untagged) sentence, along with the index of the target word:
 ...                 "suffix(2)": sentence[i][-2:],
 ...                 "suffix(3)": sentence[i][-3:]}
 ...     if i == 0:
-...         features["prev-word"]="<START>"
+...         features["prev-word"] = "<START>"
 ...     else:
-...         features["prev-word"]=sentence[i-1]
+...         features["prev-word"] = sentence[i-1]
 ...     return features
 >>> pos_features(nltk.corpus.brown.sents()[0], 8)
 {'suffix(3)': 'ion', 'prev-word': 'an', 'suffix(2)': 'on', 'suffix(1)': 'n'}
@@ -419,17 +429,148 @@ a chosen corpus:
 ...     for i, (word, tag) in enumerate(tagged_sent):
 ...         featuresets.append( (pos_features(untagged_sent, i), tag) )
 
-Finally, we can use the corpus to train and test a classifier:
+Finally, we can use the list of tagged featuresets to train and test a
+classifier:
 
 >>> size = int(len(featuresets) * 0.1)
 >>> train_set, test_set = featuresets[size:], featuresets[:size]
 
 >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
 >>> nltk.classify.accuracy(classifier, test_set)
-(add number)
 
-Segmentation as Classification
-------------------------------
+.. It would be nice to actually show this (using 
+   show_most_informative_features or something):
+
+Clearly, making use of contextual features improves the performance
+for our part-of-speech tagger.  For example, the classifier learns
+that a word is likely to be a noun if it comes immediately after the
+word "large" or the word "gubernatorial".  However, it is unable to
+learn the generalization that a word is probably a noun if it follows
+an adjective, because it doesn't have access to the previous word's
+part-of-speech tag.  In general, simple classifiers always treat each
+input as independent from all other inputs.  In many contexts, this
+makes perfect sense.  For example, decisions about whether names tend
+to be male or female can be made on a case-by-case basis.  However,
+there are often cases, such as part-of-speech tagging, where we are
+interested in solving classification problems that are closely related
+to one another.  
+
+.. _joint-classification:
+   
+Sequence Classification
+-----------------------
+
+In order to capture the dependencies between related classification
+tasks, we can use `joint classifier`:dt: models, which chose an
+appropriate labeling for a collection of related inputs.  In the case
+of part-of-speech tagging, a variety of different `sequence
+classifier`:dt: models can be used to jointly choose part-of-speech
+tags for all the words in a given sentence.
+
+.. note that consecutive classification isn't a widely-used term,
+   but it seems reasaonably good to me.
+
+One sequence classification strategy, known as `consecutive
+classification`:dt:, is to find the most likely class label for one of
+the related inputs; and then using that answer to help find the best
+label for the next input.  The process can then be repeated until all
+of the inputs have been labeled.  This is the approach that was taken
+by the bigram tagger from Section sec-n-gram-tagging_, which began by
+choosing a part-of-speech tag for the first word in the sentence, and
+then chose the tag for each subsequent word based on the word itself
+and the predicted tag for the previous word.
+
+In order to use this strategy with general classifiers models, we must
+first augment our feature extractor function to take a ``history``
+argument, which provides a list of the tags that we've predicted for
+the sentence so far:
+
+>>> def pos_features(sentence, i, history):
+...     features = {"suffix(1)": sentence[i][-1:],
+...                 "suffix(2)": sentence[i][-2:],
+...                 "suffix(3)": sentence[i][-3:]}
+...     if i == 0:
+...         features["prev-word"] = "<START>"
+...         features["prev-tag"] = "<START>"
+...     else:
+...         features["prev-word"] = sentence[i-1]
+...         features["prev-tag"] = history[i-1]
+...     return features
+
+Each tag in ``history`` corresponds with a word in ``sentence``.  But
+note that ``history`` will only contain tags for words we've already
+classified.  Thus, while it is possible to look at words to the right
+of the target word, it is not possible to look at the tags for those
+words (since we haven't generated them yet).
+
+Having defined a feature extractor, we can proceed to train our
+sequence classifier.  During training, we use the annotated tags to
+provide the appropriate history to the feature extractor; but when
+tagging new sentences, we generate the history list based on the
+output of the tagger itself.
+
+.. pylisting:: consecutive-pos-tagger
+
+   class ConsecutivePosTagger(nltk.TaggerI):
+
+       def __init__(self, train_sents):
+           train_set = []
+           for tagged_sent in train_sents:
+               untagged_sent = nltk.tag.untag(tagged_sent)
+               history = []
+               for i, (word, tag) in enumerate(tagged_sent):
+                   featureset = pos_features(untagged_sent, i, history)
+                   train_set.append( (featureset, tag) )
+                   history.append(tag)
+           self.classifier = nltk.NaiveBayesClassifier.train(train_set)
+       
+       def tag(self, sentence):
+           history = []
+           for i, word in enumerate(sentence):
+               featureset = pos_features(sentence, i, history)
+               tag = self.classifier.classify(featureset)
+               history.append(tag)
+           return zip(sentence, history)
+    
+   >>> tagged_sents = nltk.corpus.brown.tagged_sents(categories='news')
+   >>> train_sents, test_sents = tagged_sents[size:], tagged_sents[:size]
+   >>> tagger = SimplePosTagger(train_sents)
+   >>> print nltk.tag.accuracy(tagger, test_sents)
+
+One shortcoming of this approach is that we commit to every decision
+that we make.  For example, if we decide to label a word as a noun,
+but later find evidence that it should have been a verb, there's no
+way to go back and fix our mistake.  One solution to this problem is
+to use a transformational strategy instead.  Transformational joint
+classifiers work by creating an initial assignment of labels for the
+inputs, and then iteratively refining that assignment in an attmpt to
+repair inconsistencies between related inputs.  The Brill tagger,
+described in Chapter chap-tag_, is a good example of this strategy.
+
+Another solution is to assign scores to all of the possible sequences
+of part-of-speech tags, and to choose the sequence whose overall score
+is highest.  This is the approach taken by `Hidden Markov Models`:dt:,
+`Maximum Entropy Markov Models`:dt:, and `Linear-Chain CRFs`:dt:,
+which are all similar to consecutive classifiers in that they look at
+both the inputs and the history of predicted tags.  However, rather
+than simply finding the single best tag for a given word, they
+generate a probability distribution over tags.  These probabilities
+are then combined to calculate probability scores for tag sequences;
+and the tag sequence with the highest probability is chosen.
+Unfortunately, the number of possible tag sequences is quite large --
+given a tag set with 30 tags, there are about 600 trillion (30\
+`10`:sup:) ways to label a 10 word sentence.  In order to avoid
+considering all these possible sequences seperately, these models all
+require that the feature extractor only look at the most recent tag
+(or the most recent `n`:math: tags, where `n`:math: is fairly small).
+Given that restriction, it is possible to use a programming technique
+known as `dynamic programming`:dt: to efficiently find the most likely
+tag sequence. In particular, for each consecutive word index
+`i`:math:, a score is computed for each possible current and previous
+tag.  
+
+Sentence Segmentation
+---------------------
 
 Sentence segmentation can be viewed as a classification task for
 punctuation: whenever we encounter a symbol that could possibly end a
@@ -493,6 +634,58 @@ classification-based-segmenter_ shows how this can be done.
                start = i+1
        if start < len(words):
            sents.append(words[start:])
+
+Identifying Dialog Acts Types
+-----------------------------
+
+When processing conversational dialog, it can be useful to think of
+utterances as a type of *action* performed by the speaker.  This
+interpretation is most streight-forward for performative statements
+such as "I forgive you" or "I bet you can't climb that hill."  But
+greetings, questions, answers, assertions, and clarifications can all
+be thought of as types of speech-based actions.  Recognizing these
+`dialog acts`:dt: underlying the utterances in a dialog can be an
+important first step in understanding the conversation.
+
+The ``nps_chat`` corpus, which was demonstrated in Section
+sec-extracting-text-from-corpora_, consists of over 10,000 posts from
+instant messaging sessions.  These posts have all been labeled with
+one of 15 dialog act types, such as "Statement," "Emotion,"
+"ynQuestion", and "Continuer."  We can therefore use this data to
+build a classifier that can identify the dialog act types for new
+instant messaging posts.  The first step is to extract the basic
+messaging data.  We will use ``xml_posts()`` to get a data structure
+representing the XML annotation for each post:
+
+>>> posts = nps_chat.xml_posts()[:10000]
+
+Next, we'll define a simple feature extractor that checks what words
+the post contains:
+
+>>> def dialog_act_features(post):
+...     features = {}
+...     for word in nltk.wordpunct_tokenize(post):
+...         features['contains(%s)' % word.lower()] = True
+...     return features
+
+Finally, we construct the training and testing data by applying the
+feature extractor to each post (using ``post.get('class')`` to get
+a post's dialog act type), and create a new classifier:
+
+>>> featuresets = [(dialog_act_features(post.text), post.get('class'))
+...                for post in posts]
+>>> size = int(len(featuresets) * 0.1)
+>>> train_set, test_set = featuresets[size:], featuresets[:size]
+>>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+>>> print nltk.classify.accuracy(classifier, test_set)
+0.61
+
+.. note:: Author's note:
+   *I plan to extend this example by showing how a sequence
+   classifier can be used to take advantage of the fact that 
+   some sequences (eg ynquestion->yanswer) are more likely than
+   others.*
+
 
 Recognizing Textual Entailment
 ------------------------------
@@ -589,6 +782,32 @@ is comparable with that achieved by systems submitted for RTE
 Challenge 1.
 
 .. check the official challenge results
+
+Scaling Up to Large Data Sets
+-----------------------------
+
+Python provides an excellent environment for performing basic text
+processing and feature extraction.  However, it is not able to perform
+the numerically intensive calculations required by machine learning
+methods nearly as quickly as lower-level languages such as C.  Thus,
+if you attempt to use the pure-Python machine learning implementations
+(such as ``nltk.NaiveBayesClassifier``) on large data sets, you may
+find that the learning algorithm takes an unreasonable amount of time
+and memory to complete.
+
+If you plan to train classifiers with large amounts of training data
+or a large number of features, we recommend that you make use of
+NLTK's facilities for interfacing with external machine learning
+packages.  Once these packages have been installed, NLTK can
+transparently make use of them (via system calls) to train classifier
+models signifcantly faster than the pure-Python classifier
+implementations.  See the NLTK webpage or a list of recommended
+machine learning packages that are supported by NLTK.
+
+.. SB: I think numpy and other numerical libraries do their work in C, and
+       are probably quite efficient.  Not clear about support for sparse arrays.
+.. EL: Yes, but even with numpy etc, python is *slow* for this stuff.
+       I speak from experience. :)
 
 ----------
 Evaluation
@@ -850,9 +1069,8 @@ making the wrong decision.  The feature set can then be adjusted
 accordingly, and the error analysis repeated until no more progress is
 made.
 
-.. note:: *I plan to add an explicit example of error analysis here,
-    based on one of the classifiers we've introduced in the first
-    section of the chapter.*
+.. note:: Author's note: *I plan to add an explicit example of error
+    analysis here, based on the part-of-speech tagging classifier.*
 
 .. _classification-methods:
 
@@ -904,6 +1122,11 @@ the name gender task.
    diagrams are conventially drawn "upside down," with the root at the
    top, and the leaves at the bottom.
 
+..   XXX add yes/no labels to this figure
+
+.. XXX show: train decision tree, then print it as pseudocode & as more
+   compact tree.
+
 Once we have a decision tree, it is thus fairly streight forward to
 use it to assign labels to new input values.  What's less streight
 forward is how we can build a decision tree that models a given
@@ -922,6 +1145,9 @@ we've picked a feature, we can build the decision stump by assigning a
 label to each leaf based on the most frequent label for the selected
 examples in the training corpus (i.e., the examples where the selected
 feature has that value).
+
+.. XX show building a decision stump
+.. XX show refining a decision stump's leaf
 
 Given the algorithm for choosing decision stumps, the algorithm for
 growing larger decision trees is straightforward.  We
@@ -988,6 +1214,8 @@ frequency, where neither :math:`P(l)` nor :math:`log`\ :sub:`2`\
     0.811278124459
     >>> entropy(['female', 'female', 'female', 'female'])
     0.0
+
+.. XX show: print entropy of decision stump etc
 
 Once we have calculated the entropy of the original set of input
 values' labels, we can figure out how much more organized the labels
@@ -1508,7 +1736,6 @@ in the training corpus.  It then searches for the distribution which
 maximizes entropy, while still predicting the correct frequency for
 each joint-feature.  
 
--------------------------------------
 Generative vs Conditional Classifiers
 -------------------------------------
 
@@ -1565,93 +1792,6 @@ an accurate topological map than it is to generate an accurate skyline.
   be labeled as (output value), the up/down axis of each should be
   labeled as (probability), and the forward/back axis of the topo map
   should be (input value).
-
-.. _joint-classification:
-   
---------------------
-Joint Classification
---------------------
-
-Each of the classifier models that we have discussed so classification
-assigns a label to each input independently of the other inputs.  In
-er words, there is no interaction between the classification of
-different input values.  In many contexts, this makes perfect sense.
-For example, decisions about whether names tend to be male or female
-can be made on a case-by-case basis.  However, there are often cases
-where we are interested in performing solving classification problems
-that are closely related to one another.  For example, if we are
-classifying words according to which word sense they use, then we
-expect words will usually be used with a single sense within any given
-document.  But we can not make use of this information if we treat the
-classification task for each occurance of a word in the document as
-independent of the others.  Similarly, when performing part of speech
-tagging, it is possible to produce a sequence of part of speech tags
-that are individually reasonable, but that are incompatible with one
-another, making them very unlikely when considered as a complete
-sequence.
-
-In these cases, it is appropriate to use `joint classification`:dt:
-models, which find an appropriate labeleing for a set of related
-problems, taking into account the constraints and dependencies between
-those problems.  There are a very wide variety of joint classification
-models and strategies, which can be used to model many different
-problem domains.
-
-The n-gram part-of-speech taggers we constructed in Chapter chap-tag_
-are an example of a "greedy" joint classification strategy.
-`Greedy`:dt: strategies work by first finding the most likely answer
-for one of the related problems; and then using that answer to help
-find the best answer to the next problem.  The n-gram part-of-speech
-taggers started by guessing the tag for the first word; and then
-relied on that guess to find the most likely tag for the next word.
-This process continues until all the problems have been answered.
-Although greedy joint classifiers are very simple and easy to
-implement, they can be succeptible to `cascading errors`:dt:, where
-the classifier makes mistake on one problem, but commits to that
-incorrect answer, and as a result it generates incorrect answers for
-subsequent problems as well.
-
-.. commented out:
-   pylisting:: tagging
-
-   def features(word):
-       return dict( len = len(word),
-                    last1 = word[-1:],
-                    last2 = word[-2:],
-                    last3 = word[-3:])
-
-   >>> data = [(features(word), tag) for (word, tag) in nltk.corpus.brown.tagged_words('news')]
-   >>> train = data[1000:]
-   >>> test = data[:1000]
-   >>> classifier = nltk.NaiveBayesClassifier.train(train)
-   >>> nltk.classify.accuracy(classifier, test)
-   0.8110
-
-The transformation-based Brill tagger described in Chapter chap-tag_
-represent another possible strategy.  Transformational joint
-classifiers work by creating an initial assignment of labels for the
-problems, and then iteratively refining that assignment in an
-attmpt to repair inconsistencies between related problems.
-
-A third type of joint classification model is exemplified by Hidden
-Markov Model (HMM) taggers.  An HMM begins by constructing two
-probability distributions: one distribution,
-`P(tag[i]|tag[i-1])`:math:, indicates how likely it is for different
-tags to follow one another, and is used to capture the dependencies
-between adjacent problems.  The other distribution,
-`P(word[i]|tag[i])`:math:, is used to capture the dependencies between
-words and tags.  Using these two distributions, a Hidden Markov Model
-tagger can use `dynamic programming`:dt: methods to find the sequence
-of tags that maximizes the product of all the
-`P(tag[i]|tag[i-1])`:math: and `P(word[i]|tag[i])`:math: scores.
-Thus, this type of model differs from the greedy models in that it
-considers *all* possible sequences of labels.  As a result, it is less
-likely to have cascading errors.
-
-All three of these general techniques (greedy, transformational, and
-dynamic programming) can be applied to other joint classification
-problems, such as performing word sense disambiguation within a
-document or generating the syntactic structure for a given sentence.
 
 ----------------------------
 Modeling Linguistic Patterns
@@ -1720,32 +1860,6 @@ part of a language processing system), then we can use the model to
 make predictions about new data, without worrying about the precise
 nature of the underlying causal relationships.
 
---------------------------
-Machine Learning in Python
---------------------------
-
-Python provides an excellent environment for performing basic text
-processing and feature extraction.  However, it is not able to perform
-the numerically intensive calculations required by machine learning
-methods nearly as quickly as lower-level languages such as C.  Thus,
-if you attempt to use the pure-Python machine learning implementations
-(such as ``nltk.NaiveBayesClassifier``) on large data sets, you may
-find that the learning algorithm takes an unreasonable amount of time
-and memory to complete.
-
-If you plan to train classifiers with large amounts of training data
-or a large number of features, we recommend that you make use of
-NLTK's facilities for interfacing with external machine learning
-packages.  Once these packages have been installed, NLTK can
-transparently make use of them (via system calls) to train classifier
-models signifcantly faster than the pure-Python classifier
-implementations.  See the NLTK webpage or a list of recommended
-machine learning packages that are supported by NLTK.
-
-.. SB: I think numpy and other numerical libraries do their work in C, and
-       are probably quite efficient.  Not clear about support for sparse arrays.
-.. EL: Yes, but even with numpy etc, python is *slow* for this stuff.
-       I speak from experience. :)
 
 ..       
   ------------
@@ -1809,9 +1923,11 @@ Exercises
    Find out what type and quantity of annotated data is required for developing such systems.
    Why do you think a large amount of data is required?
 
+#. |easy| word sense disambiguation.
+
 #. |easy|
    Exercise: compare the performance of different machine learning
-   methods.  (they're still black boxes at this point)
+   methods.
    
 #. |easy|
    The synonyms `strong`:lx: and `powerful`:lx: pattern
