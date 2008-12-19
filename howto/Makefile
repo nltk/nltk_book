@@ -25,9 +25,7 @@ PYTHON = python
 DOCTEST = $(PYTHON) ../../nltk/test/doctest_driver.py
 DOCTEST_FLAGS = --udiff
 
-# Uploading to sourceforge:
-WEB = $(USER)@shell.sourceforge.net:/home/groups/n/nl/nltk/htdocs
-RSYNC_OPTS = -rltgoDvz -e ssh --relative --cvs-exclude
+PUBLISH = ../../../doc
 
 .PHONY: all html coverage
 
@@ -82,3 +80,8 @@ clean:
 
 clean_up:
 	true # nothing to do.
+
+publish:
+	cp *.html *.errs *.coverage $(PUBLISH)/howto/
+	svn add $(PUBLISH)/howto/*
+	python ../../tools/svnmime.py $(PUBLISH)/howto/*
