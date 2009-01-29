@@ -76,7 +76,8 @@ rsync: html errs coverage index.html
 	rsync $(RSYNC_OPTS) . $(WEB)/doc/guides/
 
 clean:
-	rm *.errs *.html
+	rm -f `find . -name '*.html'`
+	rm -f `find . -name '*.errs'`
 
 clean_up:
 	true # nothing to do.
