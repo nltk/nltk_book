@@ -1807,8 +1807,23 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     def visit_pylisting(self, node):
         self.visit_figure(node)
 
+    def visit_pylisting(self, node):
+        atts = {}
+        if 'ids' in node.attributes and node.attributes['ids']:
+            atts['id'] = node.attributes['ids'][0]
+        try:
+            last_child = node.children[-1]
+            if isinstance(last_child, nodes.caption) and \
+                    last_child.children != []:
+                # Move the caption to the first element.
+                node.children = [last_child] + node.children[0:-1]
+        except IndexError:
+            pass
+                
+        self.body.append(self.starttag(node, 'example', **atts))
+
     def depart_pylisting(self, node):
-        self.depart_figure(node)
+        self.body.append('</example>\n')
 
     # idxterm nodes have no special formatting.
     def visit_idxterm(self, node):
