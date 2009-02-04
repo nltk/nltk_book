@@ -1813,7 +1813,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             atts['id'] = node.attributes['ids'][0]
         try:
             last_child = node.children[-1]
-            if isinstance(last_child, nodes.caption) and \
+            if isinstance(last_child, docutils.nodes.caption) and \
                     last_child.children != []:
                 # Move the caption to the first element.
                 node.children = [last_child] + node.children[0:-1]
