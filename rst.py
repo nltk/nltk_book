@@ -46,6 +46,7 @@ from docutils.transforms import Transform
 import docutils.writers.html4css1
 from doctest import DocTestParser
 import docutils.statemachine
+from collections import defaultdict
 
 LATEX_VALIGN_IS_BROKEN = True
 """Set to true to compensate for a bug in the latex writer.  I've
@@ -236,12 +237,12 @@ def avm_directive(name, arguments, options, content, lineno,
             return [docutils.nodes.paragraph('','',
                        docutils.nodes.raw('', latex_avm, format='latex'))]
         elif OUTPUT_FORMAT == 'html':
-            return [parse_avm(textwrap.dedent(text)).as_table()]
+            return [parse_avm(textwrap.dedent(text)).as_html_table()]
         elif OUTPUT_FORMAT == 'ref':
             return [docutils.nodes.paragraph()]
         # pass through for now
         elif OUTPUT_FORMAT == 'docbook':
-            return [docutils.nodes.literal_block('', textwrap.dedent(text))]
+            return [parse_avm(textwrap.dedent(text)).as_docbook_table()]
     except ValueError, e:
         if isinstance(e.args[0], int):
             warning('Error parsing avm on line %s' % (lineno+e.args[0]))
@@ -1215,6 +1216,64 @@ def expand_reference_text(node):
 #{ Feature Structures (AVMs)
 ######################################################################
 
+class StringFromUnicodeMixin(object):
+    "A mixin to define __str__ in terms of __unicode__"
+
+    def __str__(self):
+        return self.__unicode__()
+
+class DocbookAVMCell(StringFromUnicodeMixin):
+
+    datatype_none = 0
+    datatype_key = 1
+    datatype_value = 2
+    datatype_eq = 3
+    datatype_arrow = 4
+    
+    border_none = 0
+    border_right = 1
+    border_below = 2
+    border_right_and_below = 3
+
+    def __str__(self):
+        self.data = u""
+        self.data_type = datatype_none
+        self.border = border_none
+
+    def set_data(self, data, data_type):
+        self.data = data
+        self.data_type = data_type
+
+    def set_border(self, border):
+        if (border == border_right and self.border == border_below) \
+            or (border == border_below and self.border == border_right):
+            border = border_right_and_below
+        
+        self.border = border
+
+    def __unicode__(self):
+        # TODO: customise formatting.
+        if self.data_type == datatype_key:
+            return self.data
+        if self.data_type == datatype_value:
+            return self.data
+        if self.data_type == datatype_eq:
+            return u'='
+        if self.data_type == datatype_arrow:
+            return u"\u2192"
+
+class DocbookAVMColspec(StringFromUnicodeMixin):
+    "A docbook colspec"
+    
+    def __init__(self, width):
+        self.width=width
+    
+    def __unicode__(self):
+        if self.width:
+            return u'<colspec colwidth="%dpt"/>\n' % self.width
+        else:
+            return u'<colspec/>\n'
+
 class AVM:
     def __init__(self, ident):
         self.ident = ident
@@ -1258,7 +1317,73 @@ class AVM:
         return docutils.nodes.paragraph('', '', 
                     docutils.nodes.inline(ident, ident,
                                           classes=['avm-pointer']))
-    def as_table(self):
+
+    def as_docbook_table(self):
+        if not self.keys:
+            raise ValueError("Cannot built Docbook AVM, 'self.keys is false'")
+
+        # XXX: This is under development and will slowly be implemented.
+        # Currently it doesn't handle recursive cases, doesn't set the
+        # borders, and doesn't use the DocbookAVMCell class above to
+        # print out cell data.  xmllint problems need to be fixed with
+        # chapter 10 first.
+        # This code is also not-yet enabled.
+        def build_docbook_avm_cells(cells, avm, orig_x, orig_y):
+            depth = 1
+            width = 5
+            x = orig_x
+            y = orig_y
+            for key in self.keys:
+                depth += 1
+                
+                val = self.vals[key]
+                cells[(x+1, y+depth)].set_data(key, DocbookAVMCell.datatype_key)
+                if isinstance(val, AVMPointer):
+                    cells[(x+2, y+depth)].set_data(None, DocbookAVMCell.datatype_arrow)
+                    cells[(x+3, y+depth)].set_data(val, DocbookAVMCell.datatype_value)
+                elif isinstance(val, AVM):
+                    cells[(x+2, y+depth)].set_data(None, DocbookAVMCell.datatype_eq)
+                    #new_depth = depth + 1 + build_docbook_avm_cells(cells, val, x+3, y+depth)
+                else:
+                    value = ('%s' % val.val).replace(' ', u'\u00a0') # =nbsp
+                    cells[(x+2, y+depth)].set_data(None, DocbookAVMCell.datatype_eq)
+                    cells[(x+3, y+depth)].set_data(value, DocbookAVMCell.datatype_value)
+
+#                # Add left/right bracket nodes:
+#                if len(self.keys)==1: vpos = 'topbot'
+#                elif key == self.keys[0]: vpos = 'top'
+#                elif key == self.keys[-1]: vpos = 'bot'
+#                else: vpos = ''
+#                rows[-1].insert(0, self._entry(u'\u00a0', 'avm-%sleft' % vpos))
+#                rows[-1].append(self._entry(u'\u00a0', 'avm-%sright' % vpos))
+#
+#                # Add id:
+#                if key == self.keys[0] and self.ident:
+#                    rows[-1].append(self._entry(self._pointer(self.ident),
+#                                                'avm-ident'))
+#                else:
+#                    rows[-1].append(self._entry(u'\u00a0', 'avm-ident'))
+
+                x += 1
+                y += 1
+
+            return (width, depth)
+
+        cells = defaultdict(DocbookAVMCell)
+        (width, depth) = build_docbook_avm_cells(cells, self, 0, 0)
+
+        # XXX: Make this a docutils table.
+        docbook_avm = u"<informaltable><tbody>\n"
+        for y in range(depth):
+            docbook_avm += u"<row>\n"
+            for x in range(width):
+                docbook_avm += u"<entry/>"
+            docbook_avm += u"</row>\n"
+
+        docbook_avm += u"</tbody></informaltable>\n"
+        return docutils.nodes.paragraph('' '[]', docbook_avm)
+
+    def as_html_table(self):
         if not self.keys:
             return docutils.nodes.paragraph('', '[]',
                                             classes=['avm-empty'])
@@ -1272,7 +1397,7 @@ class AVM:
                 val_node = self._entry(self._pointer(val.ident), 'avm-val')
             elif isinstance(val, AVM):
                 eq_node = self._entry('=', 'avm-eq')
-                val_node = self._entry(val.as_table(), 'avm-val')
+                val_node = self._entry(val.as_html_table(), 'avm-val')
             else:
                 value = ('%s' % val.val).replace(' ', u'\u00a0') # =nbsp
                 eq_node = self._entry('=', 'avm-eq')
