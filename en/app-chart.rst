@@ -243,7 +243,7 @@ bottom-up-strategy_.
 
 .. note:: |TRY|
    |NLTK| provides a useful interactive tool for visualizing the operation of a
-   chart parser: ``nltk.draw.chart.demo()``.
+   chart parser: ``nltk.app.chart.demo()``.
    The tool comes with a pre-defined input string and grammar, but both
    of these can be readily modified with options inside the *Edit* menu.
 
@@ -392,7 +392,7 @@ Earley algorithm proceeds strictly left-to-right through the input,
 applying all applicable rules at that point in the chart, and never backtracking.
 
 .. note:: |TRY|
-   The |NLTK| chart parser demo, ``nltk.draw.chart.demo()``, allows the option of
+   The |NLTK| chart parser demo, ``nltk.app.chart.demo()``, allows the option of
    parsing according to the Earley algorithm.
 
 ---------------------
