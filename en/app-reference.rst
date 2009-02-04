@@ -1,4 +1,4 @@
-Pyth.. -*- mode: rst -*-
+.. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
 .. _app-reference:

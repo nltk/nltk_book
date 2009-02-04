@@ -281,6 +281,7 @@ Note that since ``ViterbiParse`` only finds the single most likely
 parse, that ``nbest_parse()`` will never return more than one parse.
 
 .. pylisting:: viterbi-parse
+   :caption: Example of a Viterbi Parser
 
    grammar = nltk.parse_pcfg('''
      NP  -> NNS [0.5] | JJ NNS [0.3] | NP CC NP [0.2]
@@ -457,6 +458,7 @@ The code in Figure bottom-up-chart-parsers_ demonstrates how
 we define and use these probabilistic chart parsers in |NLTK|.
 
 .. pylisting:: bottom-up-chart-parsers
+   :caption: Examples of Bottom-Up Chart Parsers
 
    inside_parser = nltk.InsideChartParser(grammar)
    longest_parser = nltk.LongestChartParser(grammar)
