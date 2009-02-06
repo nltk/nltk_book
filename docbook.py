@@ -562,8 +562,8 @@ class DocBookTranslator(nodes.NodeVisitor):
 
         def create_anchors(text, callouts):
             for name, line in callouts.items():
-                text = re.sub(u"\[_%s\]" % name, 
-                              u"<anchor id=\"%s\"/>Line %d" % (name, line), 
+                text = re.sub(u"# *\[_%s\]" % name, 
+                              u"<co id=\"ref-%s\"/>" % name, 
                               text)
             return text
 

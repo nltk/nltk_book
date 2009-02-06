@@ -1884,7 +1884,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             DocBookTranslator.visit_image(self, node)
 
     def visit_callout_marker(self, node):
-        self.body.append('<xref linkend="%d"/>' % node['number'])
+        self.body.append('<xref linkend="%s"/>' % node['name'])
 
     def depart_callout_marker(self, node):
         pass
