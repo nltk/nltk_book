@@ -406,7 +406,7 @@ def callout_directive(name, arguments, options, content, lineno,
     if not (len(node.children) == 1 and
             isinstance(node[0], docutils.nodes.field_list)):
         return [state_machine.reporter.error(
-            'Error in "%s" directive: may contain a single defintion '
+            'Error in "%s" directive: may contain a single definition '
             'list only.' % (name), line=lineno)]
 
     node[0]['classes'] = ['callouts']
@@ -1884,7 +1884,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             DocBookTranslator.visit_image(self, node)
 
     def visit_callout_marker(self, node):
-        self.body.append(str(node['number']))
+        self.body.append('<xref linkend="%d"/>' % node['number'])
 
     def depart_callout_marker(self, node):
         pass
