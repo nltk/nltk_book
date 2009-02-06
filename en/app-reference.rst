@@ -298,8 +298,7 @@ All tokenizers split a string into a list of strings.
   ``blankline_tokenize(s)``        Split at every blank line
   ``line_tokenize(s)``             Split on newline
   ``regexp_tokenize(s, pattern)``  Split into pieces matching pattern (use ``gaps=True`` to match gaps)
-  ``word_tokenize(s)``             Split into alphanumeric sequences discarding everything else
-  ``wordpunct_tokenize(s)``        Split into words and punctuation
+  ``word_tokenize(s)``             Use NLTK's recommended word-level tokenizer
   ===============================  ====================================================================
 
 [sentence tokenization with Punkt]
