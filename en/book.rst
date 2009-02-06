@@ -43,7 +43,6 @@ Natural Language Processing
 .. include:: app-pcfg.rst2
 .. include:: app-oo-programming.rst2
 .. include:: app-unicode.rst2
-.. include:: app-nlp-python.rst2
 .. include:: app-sets.rst2
 .. include:: app-modules.rst2
 .. include:: app-reference.rst2
