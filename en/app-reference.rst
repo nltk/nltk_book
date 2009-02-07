@@ -142,6 +142,10 @@ Regular Expressions
 NLTK Reference
 --------------
 
+This section gives a high-level summary of |NLTK| functionality.  Please see also
+the |NLTK| API documentation, HOWTO documents, and source code, accessible
+via |NLTK-URL|.
+
 Dictionary-Like Objects
 -----------------------
 

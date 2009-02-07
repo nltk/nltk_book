@@ -669,16 +669,23 @@ entries to it, specifying the part-of-speech of some words.  We add
 entries to a dictionary using the familiar square bracket notation:
 
     >>> pos = {}
-    >>> pos['colorless'] = 'ADJ'
+    >>> pos
+    {}
+    >>> pos['colorless'] = 'ADJ'     # [_pos-colorless]
+    >>> pos
+    {'colorless': 'ADJ'}
     >>> pos['ideas'] = 'N'
     >>> pos['sleep'] = 'V'
     >>> pos['furiously'] = 'ADV'
+    >>> pos                          # [_pos-inspect]
+    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
 
-So, for example, ``pos['colorless'] = 'ADJ'`` says that
+So, for example, pos-colorless_ says that
 the part-of-speech of `colorless`:lx: is adjective, or more
 specifically, that the `key`:dt: ``'colorless'``
-is assigned the `value`:dt: ``'ADJ'``  in dictionary ``pos``.  Once we
-have populated the dictionary 
+is assigned the `value`:dt: ``'ADJ'``  in dictionary ``pos``.
+When we inspect the value of ``pos`` pos-inspect_ we see
+a set of key-value pairs.  Once we have populated the dictionary 
 in this way, we can employ the keys to retrieve values:
 
     >>> pos['ideas']
@@ -697,27 +704,23 @@ This raises an important question.  Unlike lists and strings, where we
 can use ``len()`` to work out which integers will be legal indices,
 how do we work out the legal keys for a dictionary? If the dictionary
 is not too big, we can simply inspect its contents by evaluating the
-variable ``pos``.
-
-    >>> pos
-    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
-
-Here, the contents of the dictionary are shown as `key-value
-pairs`:dt:, separated by a colon.  The order of the
-key-value pairs is different from the order in which they were
-originally entered;  this is because dictionaries are not sequences
+variable ``pos``.  As we saw above (line pos-inspect_), this gives
+us the key-value pairs.  Notice that they are not in the same order they
+were originally entered; this is because dictionaries are not sequences
 but mappings (cf. Figure fig-maps02_), and the keys are not inherently
 ordered.  
 
 Alternatively, to just find the keys, we can convert the
-dictionary to a list |mdash| or use the dictionary in a context where
-a list is expected, as the parameter of ``sorted()`` or in a ``for`` loop:
+dictionary to a list dict-to-list_ |mdash| or use
+the dictionary in a context where a list is expected,
+as the parameter of ``sorted()`` dict-sorted_,
+or in a ``for`` loop dict-for-loop_.
 
-    >>> list(pos)
+    >>> list(pos)                                  # [_dict-to-list]
     ['ideas', 'furiously', 'colorless', 'sleep']
-    >>> sorted(pos)
+    >>> sorted(pos)                                # [_dict-sorted]
     ['colorless', 'furiously', 'ideas', 'sleep']
-    >>> [w for w in pos if w.endswith('s')]
+    >>> [w for w in pos if w.endswith('s')]        # [_dict-for-loop]
     ['colorless', 'ideas']
 
 .. note::
@@ -1057,7 +1060,7 @@ Note that we'll be working with sentences from now on [say why?].
 
     >>> from nltk.corpus import brown
     >>> brown_news_tagged = brown.tagged_words(categories='news')
-    >>> brown_news = brown.words(categories='news')
+    >>> brown_news_text = brown.words(categories='news')
 
 The Default Tagger
 ------------------
@@ -1085,7 +1088,7 @@ Now we can create a tagger that tags everything as ``NN``.
 Unsurprisingly, this method performs rather poorly.
 On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
-    >>> nltk.tag.accuracy(default_tagger, brown_news_tagged)
+    >>> default_tagger.evaluate(brown_news_tagged)
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
@@ -1118,13 +1121,14 @@ Note that these are processed in order, and the first one that matches is applie
 Now we can set up a tagger and use it to tag a sentence.
 
     >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> regexp_tagger.tag(brown_news_text[3:4])
-    [('``', 'NN'), ('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'),
-    ('handful', 'NN'), ('of', 'NN'), ('such', 'NN'), ('reports', 'NNS'), 
-    ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'), (',', 'NN'),
-    ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
-    ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ..., ('.', 'NN')]
-    >>> nltk.tag.accuracy(regexp_tagger, brown_news_tagged)
+    >>> sent = brown.sents(categories='news')[3]
+    >>> regexp_tagger.tag(sent)
+    [('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'), ('handful', 'NN'), ('of', 'NN'),
+    ('such', 'NN'), ('reports', 'NNS'), ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'),
+    (',', 'NN'), ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
+    ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ('interest', 'NN'),
+    ('in', 'NN'), ('the', 'NN'), ('election', 'NN')]
+    >>> regexp_tagger.evaluate(brown_news_tagged)
     0.20326391789486245
 
 The final regular expression |l|\ ``.*``\ |r| is a catch-all that tags everything as a noun.
@@ -1146,7 +1150,7 @@ We can then use this information as the model for a "lookup tagger".
     >>> most_freq_words = fd.keys()[:100]
     >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
-    >>> nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
+    >>> baseline_tagger.evaluate(brown_news_tagged)
     0.45578495136941344
 
 It should come as no surprise by now that simply
@@ -1154,7 +1158,8 @@ knowing the tags for the 100 most frequent
 words enables us to tag nearly half of all words correctly.  Let's see
 what it does on some untagged input text:
 
-    >>> baseline_tagger.tag(brown_news_text[3])
+    >>> sent = brown.sents(categories='news')[3]
+    >>> baseline_tagger.tag(sent)
     [('``', '``'), ('Only', None), ('a', 'AT'), ('relative', None),
     ('handful', None), ('of', 'IN'), ('such', None), ('reports', None), 
     ('was', 'BEDZ'), ('received', None), ("''", "''"), (',', ','),
@@ -1180,7 +1185,7 @@ lookup tagger.  The lookup tagger will invoke the default tagger when
 it can't assign a tag itself.
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> nltk.tag.accuracy(baseline_tagger, brown_news_tagged)
+    >>> baseline_tagger.evaluate(brown_news_tagged)
     0.58177695566561249
 
 We can put all this together to write a simple (but slow) program to create and
@@ -1195,7 +1200,7 @@ pairs for words other than nouns.
    def performance(cfd, wordlist):
        lt = dict((word, cfd[word].max()) for word in wordlist)
        baseline_tagger = nltk.UnigramTagger(model=lt, backoff=nltk.DefaultTagger('NN'))
-       return nltk.tag.accuracy(baseline_tagger, brown.tagged_sents(categories='news'))
+       return baseline_tagger.evaluate(brown.tagged_sents(categories='news'))
 
    def display():
        import pylab
@@ -1278,7 +1283,6 @@ except there is a more convenient technique for setting it up,
 called `training`:dt:\ .  In the following code sample,
 we train a unigram tagger, use it to tag a sentence, then evaluate:
 
-    >>> brown_news_tagged = brown.tagged_sents(categories='news')
     >>> unigram_tagger = nltk.UnigramTagger(brown_news_tagged)
     >>> sent = brown.sents(categories='news')[2007]
     >>> unigram_tagger.tag(sent)
@@ -1286,7 +1290,7 @@ we train a unigram tagger, use it to tag a sentence, then evaluate:
     ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','),
     ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'),
     ('so', 'QL'), ('that', 'CS'), ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
-    >>> nltk.tag.accuracy(unigram_tagger, brown_news_tagged)
+    >>> unigram_tagger.evaluate(brown_news_tagged)
     0.8550331165343994
 
 We `train`:dt: a ``UnigramTagger`` by specifying tagged sentence data as
@@ -1307,7 +1311,7 @@ testing on the remaining 10%:
     >>> brown_news_train = brown_news_tagged[:size]
     >>> brown_news_test = brown_news_tagged[size:]
     >>> unigram_tagger = nltk.UnigramTagger(brown_news_train)
-    >>> nltk.tag.accuracy(unigram_tagger, brown_news_test)
+    >>> unigram_tagger.evaluate(brown_news_test)
     0.77294926741752212
 
 Although the score is worse, we now have a better picture of the usefulness of
@@ -1372,7 +1376,7 @@ training, but does badly on an unseen sentence.  As soon as it encounters a new 
 saw it during training with a ``None`` tag on the previous word.  Consequently, the
 tagger fails to tag the rest of the sentence.  Its overall accuracy score is very low: 
 
-    >>> nltk.tag.accuracy(bigram_tagger, brown_news_test)
+    >>> bigram_tagger.evaluate(brown_news_test)
     0.10276088906608193
 
 .. expand the following discussion if possible:
@@ -1411,7 +1415,7 @@ The backoff-tagger may itself have a backoff tagger:
     >>> t0 = nltk.DefaultTagger('NN')
     >>> t1 = nltk.UnigramTagger(brown_news_train, backoff=t0)
     >>> t2 = nltk.BigramTagger(brown_news_train, backoff=t1)
-    >>> nltk.tag.accuracy(t2, brown_news_test)
+    >>> t2.evaluate(brown_news_test)
     0.81281770158477029
 
 .. Note:: We specify the backoff tagger when the tagger is
@@ -1549,6 +1553,39 @@ to solve one small part of the language understanding problem, namely
 part-of-speech disambiguation, without reference to deeper sources of
 linguistic knowledge.  Can this idea be pushed further?  In Chapter chap-chunk_,
 on chunk parsing, we shall see that it can.
+
+Tagging Across Sentence Boundaries
+----------------------------------
+
+An n-gram tagger uses recent tags to guide the choice of tag for
+the current word.  When tagging the first word of a sentence,
+a trigram tagger will be using the part-of-speech tag of the
+previous two tokens, which will normally be the last word of
+the previous sentence and the sentence-ending punctuation.
+However, the lexical category that closed the previous sentence
+has no bearing on the one that begins the next sentence.
+
+To deal with this situation, we can train, run, and evaluate
+taggers using lists of tagged sentences, as shown in Figure
+sentence-tagging_.
+
+.. pylisting:: sentence-tagging
+   :caption: NGram Tagging at the Sentence Level
+
+    brown_news_tagged_sents = brown.tagged_sents(categories='news')
+    brown_news_sents = brown.sents(categories='news')
+
+    size = int(len(brown_news_tagged_sents) * 0.9)
+    brown_news_train_sents = brown_news_tagged_sents[:size]
+    brown_news_test_sents = brown_news_tagged_sents[size:]
+
+    t0 = nltk.DefaultTagger('NN')
+    t1 = nltk.UnigramTagger(train_sents=brown_news_train_sents, backoff=t0)
+    t2 = nltk.BigramTagger(train_sents=brown_news_train_sents, backoff=t1)
+
+    >>> t2.evaluate(brown_news_test)
+    0.81281770158477029
+
 
 ----------------------------
 Transformation-Based Tagging
@@ -2052,18 +2089,21 @@ Exercises
    #)  What percentage of word *occurrences* in the Brown Corpus involve
        these ambiguous words?
 
-#. |soso| Above we gave an example of the ``nltk.tag.accuracy()`` function.  It has two
-   arguments, a tagger and some tagged text, and it works out how accurately
+#. |soso| The ``evaluate()`` method works out how accurately
    the tagger performs on this text.  For example, if the supplied tagged text
    was ``[('the', 'DT'), ('dog', 'NN')]`` and the tagger produced the output
-   ``[('the', 'NN'), ('dog', 'NN')]``, then the accuracy score would be ``0.5``.
-   Can you figure out how the ``nltk.tag.accuracy()`` function works?
+   ``[('the', 'NN'), ('dog', 'NN')]``, then the score would be ``0.5``.
+   Let's try to figure out how the evaluation method works:
 
-   a) A tagger takes a list of words as input, and produces a list of tagged words
-      as output.  However, ``nltk.tag.accuracy()`` is given correctly tagged text as its input.
-      What must the ``nltk.tag.accuracy()`` function do with this input before performing the tagging?
-   b) Once the supplied tagger has created newly tagged text, how would ``nltk.tag.accuracy()``
+   a) A tagger ``t`` takes a list of words as input, and produces a list of tagged words
+      as output.  However, ``t.evaluate()`` is given correctly tagged text as its only parameter.
+      What must it do with this input before performing the tagging?
+   b) Once the tagger has created newly tagged text, how might the ``evaluate()`` method
       go about comparing it with the original tagged text and computing the accuracy score?
+   c) Now examine the source code to see how the method is implemented.  Inspect
+      ``nltk.tag.api.__file__`` to discover the location of the source code,
+      and open this file using an editor (be sure to use the ``api.py`` file and
+      not the compiled ``api.pyc`` binary file).
 
 #. |soso| Write code to search the Brown Corpus for particular words and phrases
    according to tags, to answer the following questions:
