@@ -1054,13 +1054,15 @@ Table tab-dict_ lists the most important dictionary methods you should know.
 Automatic Tagging
 -----------------
 
-In this and the following sections we will explore various ways to automatically
-add part-of-speech tags to some text.  We'll begin by loading the data we will be using.
-Note that we'll be working with sentences from now on [say why?].
+In the rest of this chapter we will explore various ways to automatically
+add part-of-speech tags to text.  We will see that the tag of a word depends
+on the word and its context within a sentence.  For this reason, we will
+be working with data at the level of (tagged) sentences rather than words.
+We'll begin by loading the data we will be using.
 
     >>> from nltk.corpus import brown
-    >>> brown_news_tagged = brown.tagged_words(categories='news')
-    >>> brown_news_text = brown.words(categories='news')
+    >>> brown_tagged_sents = brown.tagged_sents(categories='news')
+    >>> brown_sents = brown.sents(categories='news')
 
 The Default Tagger
 ------------------
@@ -1071,7 +1073,8 @@ baseline for tagger performance.  In order to get the best result, we
 tag each word with the most likely tag.  Let's find out which tag is
 most likely (now using the unsimplified tagset):
 
-    >>> nltk.FreqDist(tag for (word, tag) in brown_news_tagged).max()
+    >>> tags = [tag for (word, tag) in brown.tagged_words(categories='news')]
+    >>> nltk.FreqDist(tags).max()
     'NN'
 
 Now we can create a tagger that tags everything as ``NN``.
@@ -1088,7 +1091,7 @@ Now we can create a tagger that tags everything as ``NN``.
 Unsurprisingly, this method performs rather poorly.
 On a typical corpus, it will tag only about an eighth of the tokens correctly:
 
-    >>> default_tagger.evaluate(brown_news_tagged)
+    >>> default_tagger.evaluate(brown_tagged_sents)
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
@@ -1121,14 +1124,13 @@ Note that these are processed in order, and the first one that matches is applie
 Now we can set up a tagger and use it to tag a sentence.
 
     >>> regexp_tagger = nltk.RegexpTagger(patterns)
-    >>> sent = brown.sents(categories='news')[3]
-    >>> regexp_tagger.tag(sent)
+    >>> regexp_tagger.tag(brown_sents[3])
     [('Only', 'NN'), ('a', 'NN'), ('relative', 'NN'), ('handful', 'NN'), ('of', 'NN'),
     ('such', 'NN'), ('reports', 'NNS'), ('was', 'NNS'), ('received', 'VBD'), ("''", 'NN'),
     (',', 'NN'), ('the', 'NN'), ('jury', 'NN'), ('said', 'NN'), (',', 'NN'), ('``', 'NN'),
     ('considering', 'VBG'), ('the', 'NN'), ('widespread', 'NN'), ('interest', 'NN'),
     ('in', 'NN'), ('the', 'NN'), ('election', 'NN')]
-    >>> regexp_tagger.evaluate(brown_news_tagged)
+    >>> regexp_tagger.evaluate(brown_tagged_sents)
     0.20326391789486245
 
 The final regular expression |l|\ ``.*``\ |r| is a catch-all that tags everything as a noun.
@@ -1141,22 +1143,21 @@ The Lookup Tagger
 -----------------
 
 A lot of high-frequency words do not have the ``NN`` tag.
-Let's find some of these words and their tags.  Let's find the
-hundred most frequent words and store their most likely tag.
+Let's find the hundred most frequent words and store their most likely tag.
 We can then use this information as the model for a "lookup tagger". 
 
-    >>> fd = nltk.FreqDist(brown_news_text)
-    >>> cfd = nltk.ConditionalFreqDist(brown_news_tagged)
+    >>> fd = nltk.FreqDist(brown.words(categories='news'))
+    >>> cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
     >>> most_freq_words = fd.keys()[:100]
     >>> likely_tags = dict((word, cfd[word].max()) for word in most_freq_words)
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags)
-    >>> baseline_tagger.evaluate(brown_news_tagged)
+    >>> baseline_tagger.evaluate(brown_tagged_words)
     0.45578495136941344
 
 It should come as no surprise by now that simply
-knowing the tags for the 100 most frequent
-words enables us to tag nearly half of all words correctly.  Let's see
-what it does on some untagged input text:
+knowing the tags for the 100 most frequent words enables us to tag a large fraction of
+tokens correctly (nearly half in fact). 
+Let's see what it does on some untagged input text:
 
     >>> sent = brown.sents(categories='news')[3]
     >>> baseline_tagger.tag(sent)
@@ -1185,7 +1186,7 @@ lookup tagger.  The lookup tagger will invoke the default tagger when
 it can't assign a tag itself.
 
     >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> baseline_tagger.evaluate(brown_news_tagged)
+    >>> baseline_tagger.evaluate(brown_tagged_sents)
     0.58177695566561249
 
 We can put all this together to write a simple (but slow) program to create and
@@ -1283,14 +1284,13 @@ except there is a more convenient technique for setting it up,
 called `training`:dt:\ .  In the following code sample,
 we train a unigram tagger, use it to tag a sentence, then evaluate:
 
-    >>> unigram_tagger = nltk.UnigramTagger(brown_news_tagged)
-    >>> sent = brown.sents(categories='news')[2007]
-    >>> unigram_tagger.tag(sent)
+    >>> unigram_tagger = nltk.UnigramTagger(brown_tagged_sents)
+    >>> unigram_tagger.tag(brown_sents[2007])
     [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'), ('are', 'BER'),
     ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'), ('type', 'NN'), (',', ','), ('being', 'BEG'),
     ('on', 'IN'), ('the', 'AT'), ('ground', 'NN'), ('floor', 'NN'), ('so', 'QL'), ('that', 'CS'),
     ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
-    >>> unigram_tagger.evaluate(brown_news_tagged)
+    >>> unigram_tagger.evaluate(brown_tagged_sents)
     0.9349006503968017
 
 We `train`:dt: a ``UnigramTagger`` by specifying tagged sentence data as
@@ -1307,11 +1307,11 @@ and made no attempt to construct a general model would get a perfect score, but 
 be useless for tagging new text.  Instead, we should split the data, training on 90% and
 testing on the remaining 10%:
 
-    >>> size = int(len(brown_news_tagged) * 0.9)
-    >>> brown_news_train = brown_news_tagged[:size]
-    >>> brown_news_test = brown_news_tagged[size:]
-    >>> unigram_tagger = nltk.UnigramTagger(brown_news_train)
-    >>> unigram_tagger.evaluate(brown_news_test)
+    >>> size = int(len(brown_tagged_sents) * 0.9)
+    >>> train_sents = brown_tagged_sents[:size]
+    >>> test_sents = brown_tagged_sents[size:]
+    >>> unigram_tagger = nltk.UnigramTagger(train_sents)
+    >>> unigram_tagger.evaluate(test_sents)
     0.81185361972951475
 
 Although the score is worse, we now have a better picture of the usefulness of
@@ -1353,14 +1353,14 @@ part-of-speech tag is most likely for each context.  Here we see
 a special case of an n-gram tagger, namely a bigram tagger.
 First we train it, then use it to tag untagged sentences:
 
-    >>> bigram_tagger = nltk.BigramTagger(brown_news_train)
-    >>> bigram_tagger.tag(sent)
+    >>> bigram_tagger = nltk.BigramTagger(train_sents)
+    >>> bigram_tagger.tag(brown_sents[2007])
     [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'),
     ('are', 'BER'), ('of', 'IN'), ('the', 'AT'), ('terrace', 'NN'),
     ('type', 'NN'), (',', ','), ('being', 'BEG'), ('on', 'IN'), ('the', 'AT'),
     ('ground', 'NN'), ('floor', 'NN'), ('so', 'CS'), ('that', 'CS'),
     ('entrance', 'NN'), ('is', 'BEZ'), ('direct', 'JJ'), ('.', '.')]
-    >>> unseen_sent = brown.sents(categories='news')[4203]
+    >>> unseen_sent = brown_sents[4203]
     >>> bigram_tagger.tag(unseen_sent)
     [('The', 'AT'), ('population', 'NN'), ('of', 'IN'), ('the', 'AT'), ('Congo', 'NP'),
     ('is', 'BEZ'), ('13.5', None), ('million', None), (',', None), ('divided', None),
@@ -1376,7 +1376,7 @@ training, but does badly on an unseen sentence.  As soon as it encounters a new 
 saw it during training with a ``None`` tag on the previous word.  Consequently, the
 tagger fails to tag the rest of the sentence.  Its overall accuracy score is very low: 
 
-    >>> bigram_tagger.evaluate(brown_news_test)
+    >>> bigram_tagger.evaluate(tag_test)
     0.10276088906608193
 
 .. expand the following discussion if possible:
@@ -1413,9 +1413,9 @@ Most NLTK taggers permit a backoff-tagger to be specified.
 The backoff-tagger may itself have a backoff tagger:
 
     >>> t0 = nltk.DefaultTagger('NN')
-    >>> t1 = nltk.UnigramTagger(brown_news_train, backoff=t0)
-    >>> t2 = nltk.BigramTagger(brown_news_train, backoff=t1)
-    >>> t2.evaluate(brown_news_test)
+    >>> t1 = nltk.UnigramTagger(train_sents, backoff=t0)
+    >>> t2 = nltk.BigramTagger(train_sents, backoff=t1)
+    >>> t2.evaluate(test_sents)
     0.81281770158477029
 
 .. Note:: We specify the backoff tagger when the tagger is
@@ -1490,7 +1490,7 @@ encounter?  We can determine the answer to this question empirically:
 
     >>> cfd = nltk.ConditionalFreqDist(
     ...            ((x[1], y[1], z[0]), z[1])
-    ...            for sent in brown.tagged_sents(categories='news')
+    ...            for sent in brown_tagged_sents
     ...            for x, y, z in nltk.trigrams(sent))
     >>> ambiguous_contexts = [c for c in cfd.conditions() if len(cfd[c]) > 1]
     >>> sum(cfd[c].N() for c in ambiguous_contexts) / float(cfd.N())
@@ -1572,18 +1572,18 @@ sentence-tagging_.
 .. pylisting:: sentence-tagging
    :caption: NGram Tagging at the Sentence Level
 
-    brown_news_tagged_sents = brown.tagged_sents(categories='news')
-    brown_news_sents = brown.sents(categories='news')
+    brown_tagged_sents = brown.tagged_sents(categories='news')
+    brown_sents = brown.sents(categories='news')
 
-    size = int(len(brown_news_tagged_sents) * 0.9)
-    brown_news_train_sents = brown_news_tagged_sents[:size]
-    brown_news_test_sents = brown_news_tagged_sents[size:]
+    size = int(len(brown_tagged_sents) * 0.9)
+    train_sents = brown_tagged_sents[:size]
+    test_sents = brown_tagged_sents[size:]
 
     t0 = nltk.DefaultTagger('NN')
-    t1 = nltk.UnigramTagger(train_sents=brown_news_train_sents, backoff=t0)
-    t2 = nltk.BigramTagger(train_sents=brown_news_train_sents, backoff=t1)
+    t1 = nltk.UnigramTagger(train_sents, backoff=t0)
+    t2 = nltk.BigramTagger(train_sents, backoff=t1)
 
-    >>> t2.evaluate(brown_news_test)
+    >>> t2.evaluate(test_sents)
     0.81281770158477029
 
 
