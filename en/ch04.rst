@@ -44,47 +44,73 @@ answer the following questions:
 Along the way, we'll cover some fundamental techniques in NLP, including
 sequence labeling, n-gram models, backoff, and evaluation.  These techniques
 are useful in many areas, and tagging gives us a simple context in which
-to present them.
+to present them.  We will also see how tagging is the second step in the typical
+|NLP| pipeline, following tokenization.
 
-The process of classifying words into their parts-of-speech and
+The process of classifying words into their `parts of speech`:dt: and
 labeling them accordingly is known as `part-of-speech tagging`:dt:,
-`POS-tagging`:dt:, or simply `tagging`:dt:.  The collection of tags
+`POS-tagging`:dt:, or simply `tagging`:dt:.  Parts of speech
+are also known as `word classes`:dt: or `lexical categories`:dt:.
+The collection of tags
 used for a particular task is known as a `tagset`:dt:.  Our emphasis
 in this chapter is on exploiting tags, and tagging text automatically.
 
-.. _sec-applications-of-tagging:
+.. _sec-using-a-tagger:
 
------------------------
-Applications of Tagging
------------------------
+--------------
+Using a Tagger
+--------------
 
-Automatic tagging has several applications.  We have already
-seen an example of how to exploit tags in corpus analysis |mdash| we
-get a clear understanding of the distribution of `often`:lx: by
-looking at the tags of adjacent words.  Automatic tagging
-also helps predict the behavior of previously unseen words.
-For example, if we encounter the word
-`scrobbling`:lx: we can probably infer that it is a verb, with
-the root `scrobble`:lx:, and likely to occur after forms of the auxiliary
-``to be`` (e.g. `he was scrobbling`:lx:).  Parts-of-speech are also used
-in speech synthesis.  For example, ``wind/NN``, as in
-`the wind blew`:lx:, is pronounced with a short vowel, whereas
-``wind/VB``, as in `to wind the clock`:lx:, is pronounced with a long
-vowel.  Other examples can be found where the stress pattern differs
-depending on whether the word is a noun or a verb, e.g. `contest`:lx:,
-`insult`:lx:, `present`:lx:, `protest`:lx:, `rebel`:lx:, `suspect`:lx:.
-Without knowing the part-of-speech we cannot be sure of pronouncing
-the word correctly. Finally, there are many applications where
-automatic part-of-speech tagging is a vital step that feeds into later
-processing. We will look at many examples of this in later chapters.
+A part-of-speech tagger, or `POS-tagger`:dt:, processes a sequence of words, and attaches a
+part of speech tag to each word (don't forget to ``import nltk``):
 
-Evidence for Lexical Categories: Distributional Similarity
-----------------------------------------------------------
+    >>> text = nltk.word_tokenize("And now for something completely different")
+    >>> nltk.pos_tag(text)
+    [('And', 'CC'), ('now', 'RB'), ('for', 'IN'), ('something', 'NN'),
+    ('completely', 'RB'), ('different', 'JJ')]
 
-Before we go further, let's look for words based on similar distribution
-in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
-`over`:lx: (a preposition), and `the`:lx: (a determiner), using
-|NLTK|\ 's ``Text.similar()`` function:
+Here we see that `and`:lx: is ``CC``, a coordinating conjunction;
+`now`:lx: and `completely`:lx: are ``RB``, or adverbs;
+`for`:lx: is ``IN``, a preposition;
+`something`:lx: is ``NN``, a noun; and
+`different`:lx: is ``JJ``, an adjective.
+Perhaps we could have got that information by looking up a dictionary.
+However, a tagger is smart enough to detect when a given word is
+being used differently:
+
+    >>> text = nltk.word_tokenize("They refuse to permit us to obtain the refuse permit")
+    >>> nltk.pos_tag(text)
+    [('They', 'PRP'), ('refuse', 'VBP'), ('to', 'TO'), ('permit', 'VB'), ('us', 'PRP'), ('to', 'TO'),
+    ('obtain', 'VB'), ('the', 'DT'), ('refuse', 'NN'), ('permit', 'NN')]
+
+Notice that `refuse`:lx: and `permit`:lx: appear as both ``VBP``, a present tense verb,
+and ``NN``, a noun.  Notice that each of these words is pronounced differently, depending
+on its part of speech, e.g. `refUSE`:lx: is a verb meaning "deny," while `REFuse`:lx: is
+a noun meaning "trash."  Evidently, for correct pronunciation of certain words, we need to know
+the part of speech.  Try saying the above sentence with these words pronounced the wrong way,
+to see just how incomprehensible the sentence becomes.  For this reason,
+text-to-speech systems must perform POS-tagging in order to pronounce words correctly. 
+
+.. note:: |TRY|
+   Many words, like `ski`:lx: and `race`:lx:, can be used as nouns
+   or verbs with no difference in pronunciation.  Can you think of
+   others?  Hint: think of a commonplace object and try to put
+   the word `to`:lx: before it to see if it can also be a verb, or
+   think of an action and try to put `the`:lx: before it to see if
+   it can also be a noun.  Now make up a sentence with both uses
+   of this word, and run the POS-tagger on this sentence.  
+
+Lexical categories like "noun" and part-of-speech tags like ``NN`` seem to have
+their uses, but the details often seem obscure.  You might wonder what
+justification there is for introducing this extra level of information.
+Many of these categories arise from superficial analysis the distribution
+of words in text.  Consider the following analysis involving
+`woman`:lx: (a noun), `bought`:lx: (a verb),
+`over`:lx: (a preposition), and `the`:lx: (a determiner).
+The ``text.similar()`` method takes a word `w`:math:, finds all contexts
+`w`:math:\ `1`:subscript:\ `w`:math: `w`:math:\ `2`:subscript:,
+then finds all words `w'`:math: that appear in the same context,
+i.e. `w`:math:\ `1`:subscript:\ `w'`:math:\ `w`:math:\ `2`:subscript:.
 
     >>> text = nltk.Text(word.lower() for word in nltk.corpus.brown.words())
     >>> text.similar('woman')
@@ -101,51 +127,20 @@ in a text.  We will look up `woman`:lx: (a noun), `bought`:lx: (a verb),
     a his this their its her an that our any all one these my in your no
     some other and
 
-This function takes a word `w`:math:, finds all contexts
-`w`:math:\ `1`:subscript:\ `w`:math: `w`:math:\ `2`:subscript:,
-then finds all words `w'`:math: that appear in the same context,
-i.e. `w`:math:\ `1`:subscript:\ `w'`:math:\ `w`:math:\ `2`:subscript:.
-(You can find the implementation online at ``http://nltk.org/nltk/text.py``)    
-
 Observe that searching for `woman`:lx: finds *nouns*;
-searching for `bought`:lx: finds *verbs*;
+searching for `bought`:lx: mostly finds *verbs*;
 searching for `over`:lx: generally finds *prepositions*;
 searching for `the`:lx: finds several *determiners*.
+A tagger can correctly identify the tags on these words
+in the context of a sentence, e.g. `The woman bought over $150,000
+worth of clothes`:lx:.
 
-These groups of words are so important that they have several names,
-all in common use: `word classes`:dt:, `lexical categories`:dt:, and `parts of speech`:dt:.
-We'll use these names interchangeably.
+A tagger can also model our knowledge of unknown words,
+e.g. we can guess that `scrobbling`:lx: is probably a verb,
+with the root `scrobble`:lx:,
+and likely to occur in contexts like `he was scrobbling`:lx:. 
 
-Exploring a Tagged Corpus
--------------------------
-
-.. SB: fix this up...
-
-For example, if we are
-interested in searching for occurrences of the pattern ``"<Verb> to
-<Verb>"`` in the Brown corpus, we could use the following program:
-
-    >>> from nltk.corpus import brown
-    >>> for sent in brown.tagged_sents():
-    ...     # Look at each 3-word window in the sentence.
-    ...     for triple in nltk.trigrams(sent):
-    ...         # Get the part-of-speech tags for this 3-word window.
-    ...         tags = [t for (w,t) in triple]
-    ...         # Check if they match our pattern.
-    ...         if ( tags[0].startswith('V') and tags[1]=='TO' and
-    ...              tags[2].startswith('V') ):
-    ...             print triple
-    (('combined', 'VBN'), ('to', 'TO'), ('achieve', 'VB'))
-    (('continue', 'VB'), ('to', 'TO'), ('place', 'VB'))
-    (('serve', 'VB'), ('to', 'TO'), ('protect', 'VB'))
-    (('wanted', 'VBD'), ('to', 'TO'), ('wait', 'VB'))
-    (('allowed', 'VBN'), ('to', 'TO'), ('place', 'VB'))
-    (('expected', 'VBN'), ('to', 'TO'), ('become', 'VB'))
-    ...
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
-
+.. _tagged-corpora:
 
 --------------
 Tagged Corpora
@@ -523,11 +518,11 @@ for words in headlines and ``-TL`` for titles.
 When we come to constructing part-of-speech taggers later in this chapter,
 we will use the unsimplified tags.
 
-Exploring Tagged Corpora (NOTES)
---------------------------------
+Exploring Tagged Corpora
+------------------------
 
-We can continue the kinds of exploration of corpora we saw in previous chapters,
-but exploiting the tags...
+Let's briefly return to the kinds of exploration of corpora we saw in previous chapters,
+this time exploiting POS tags.
 
 Suppose we're studying the word `often`:lx: and want to see how it is used
 in text.  We could ask to see the words that follow `often`:lx:
@@ -542,15 +537,42 @@ method to look at the part-of-speech tag of the following words:
 
     >>> brown_learned_tagged = brown.tagged_words(categories='learned', simplify_tags=True)
     >>> tags = [b[1] for (a, b) in nltk.ibigrams(brown_learned_tagged) if a[0] == 'often']
-    >>> list(nltk.FreqDist(tags))
-    ['VN', 'V', 'VD', 'DET', 'ADJ', 'ADV', 'P', 'CNJ', ',', 'TO', 'VG', 'WH', 'VBZ', '.']
+    >>> fd = nltk.FreqDist(tags)
+    >>> fd.tabulate()
+      VN    V   VD  DET  ADJ  ADV    P  CNJ    ,   TO   VG   WH  VBZ    .
+      15   12    8    5    5    4    4    3    3    1    1    1    1    1
 
 Notice that the most high-frequency parts of speech following `often`:lx: are verbs.
 Nouns never appear in this position (in this particular corpus).
 
-As another example of how we might explore tagged corpora, let's find words that
-are highly ambiguous as to their part of speech tag.  Understanding why such words
-are tagged as they are in each context can help us clarify the distinctions between
+Next, let's look at some larger context, and find words involving
+particular sequences of tags and words (in this case ``"<Verb> to <Verb>"``).
+We consider each three-word window in the sentence three-word_,
+and check if they meet our criterion verb-to-verb_.  If the tags
+match, we print the corresponding words print-words_:
+
+.. pylisting:: three-word-phrase
+   :caption: Searching for Three-Word Phrases Using POS Tags
+
+    from nltk.corpus import brown
+    def process(sentence):
+        for (w1,t1), (w2,t2), (w3,t3) in nltk.trigrams(sentence) # [_three-word]
+        if (t1.startswith('V') and t2 == 'TO' and t3.startswith('V')): # [_verb-to-verb]
+            print w1, w2, w3 # [_print-words]
+    
+    >>> for tagged_sent in brown.tagged_sents():
+    ...     process(tagged_sent)
+    ...
+    combined to achieve
+    continue to place
+    serve to protect
+    wanted to wait
+    allowed to place
+    expected to become
+    ...
+
+Finally, let's look for words that are highly ambiguous as to their part of speech tag.
+Understanding why such words are tagged as they are in each context can help us clarify the distinctions between
 the tags.
 
     >>> brown_news_tagged = brown.tagged_words(categories='news', simplify_tags=True)
@@ -580,6 +602,12 @@ the tags.
     set VN V VD N -
     that CNJ V WH DET
 
+.. note:: |TRY|
+   Open the POS concordance tool ``nltk.app.concordance()`` and load the complete
+   Brown Corpus (simplified tagset).  Now pick some of the above words and see how the tag
+   of the word correlates with the context of the word.
+   E.g. search for ``near`` to see all forms mixed together, ``near/ADJ`` to see it used
+   as an adjective, ``near N`` to see just those cases where a noun follows, and so forth.
 
 .. _sec-dictionaries:
 
@@ -1893,6 +1921,11 @@ Summary
 * The process of automatically assigning parts of speech to words in text
   is called part-of-speech tagging, POS tagging, or just tagging.
 
+* Automatic tagging is an important step in the |NLP| pipeline,
+  and is useful in a variety of situations including:
+  predicting the behavior of previously unseen words,
+  analyzing word usage in corpora, and text-to-speech systems.
+
 * Some linguistic corpora, such as the Brown Corpus, have been POS tagged.
 
 * A variety of tagging methods are possible, e.g.
@@ -1996,7 +2029,8 @@ NLTK's HMM tagger, ``nltk.HiddenMarkovModelTagger``
 
 [Abney1996PST]_
 
-.. Acknowledgments
+http://en.wikipedia.org/wiki/Part-of-speech_tagging
+
 
 .. Dutch example: http://www.askoxford.com/pressroom/archive/odelaunch/
 
@@ -2016,6 +2050,11 @@ Exercises
    either a noun or a verb (e.g. `contest`:lx:); the opponent has to
    predict which one is likely to be the most frequent in the Brown corpus; check the
    opponent's prediction, and tally the score over several turns.
+
+#. |easy|
+   Tokenize and tag the following sentence:
+   `They wind back the clock, while we chase after the wind`:lx:.
+   What different pronunciations and parts of speech are involved?
 
 #. |easy| Review the mappings in Table linguistic-objects_.  Discuss any other
    examples of mappings you can think of.  What type of information do they map
