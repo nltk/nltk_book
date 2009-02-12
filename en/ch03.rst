@@ -50,7 +50,7 @@ The goal of this chapter is to answer the following questions:
    needed to do this?
 
 In order to address these questions, we will be covering
-key concepts in NLP, including tokenization and stemming.
+key concepts in |NLP|, including tokenization and stemming.
 Along the way you will consolidate your Python knowledge and
 learn about strings, files, and regular expressions.  Since
 so much text on the web is in |HTML| format, we will also
@@ -100,10 +100,14 @@ and we can access it as follows:
    
 The variable ``raw`` contains a string with 1,176,831 characters.  This is the raw
 content of the book, including many details we are not interested in such as
-whitespace, line breaks and blank lines.  Instead, we want to break it up into
+whitespace, line breaks and blank lines.  Notice the ``\r`` and ``\n``
+in the opening line of the file, which is how Python displays the
+special carriage return and line feed characters (the file must
+have been created on a Windows machine).  For our language
+processing, we want to break up the string into
 words and punctuation, as we saw in Chapter chap-introduction_.  This step is
 called `tokenization`:dt:, and it produces our familiar structure, a list of words
-and punctuation.  From now on we will call these `tokens`:dt:.
+and punctuation.
 
     >>> tokens = nltk.word_tokenize(raw)
     >>> type(tokens)
@@ -113,6 +117,8 @@ and punctuation.  From now on we will call these `tokens`:dt:.
     >>> tokens[:10]
     ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
 
+Notice that |NLTK| was needed for tokenization, but not for any of the
+earlier tasks of opening a |URL| and reading it into a string.
 If we now take the further step of creating an |NLTK| text from this
 list, we can carry out all of the other linguistic processing we saw
 in Chapter chap-introduction_, along with the regular list operations
@@ -146,12 +152,15 @@ and the end, before trimming ``raw`` to be just the content and nothing else:
     5303
     >>> raw.rfind("End of Project Gutenberg's Crime")
     1157681
-    >>> raw = raw[5303:1157681]
+    >>> raw = raw[5303:1157681] # [_raw-slice]
+    >>> raw.find("PART I")
+    0
 
 The ``find()`` and ``rfind()`` ("reverse find") functions help us get
-the right index values.  Now the raw text begins with "PART I", and
-goes up to (but not including) the phrase that marks the end of the
-content.
+the right index values to use for slicing the string raw-slice_.
+We overwrite ``raw`` with this slice, so now it begins
+with "PART I" and goes up to (but not including)
+the phrase that marks the end of the content.
 
 This was our first brush with reality: texts found on the web may contain
 unwanted material, and there may not be an automatic way to remove it.
@@ -481,25 +490,29 @@ in detail, and show the connection between strings, words, texts and files.
 Basic Operations with Strings
 -----------------------------
 
-Strings are specified using single or double quotes, as shown below.
+Strings are specified using single quotes single-quotes_
+or double quotes double-quotes_, as shown below.
 If a string contains a single quote, we must backslash-escape
-the quote so Python knows a literal quote character is intended,
-or else put the string in double quotes.
+the quote backslash-escape_ so Python knows a literal quote character is intended,
+or else put the string in double quotes double-quotes_.
+Otherwise, the quote inside the string unescaped-quote_
+will be interpreted as a close quote, and the Python interpreter
+will report a syntax error:
 
 .. doctest-ignore::
-    >>> monty = 'Monty Python'
+    >>> monty = 'Monty Python' # [_single-quotes]
     >>> monty
     'Monty Python'
-    >>> circus = 'Monty Python's Flying Circus'
+    >>> circus = "Monty Python's Flying Circus" # [_double-quotes]
+    >>> circus
+    "Monty Python's Flying Circus"
+    >>> circus = 'Monty Python\'s Flying Circus' # [_backslash-escape]
+    "Monty Python's Flying Circus"
+    >>> circus = 'Monty Python's Flying Circus' # [_unescaped-quote]
       File "<stdin>", line 1
         circus = 'Monty Python's Flying Circus'
                                ^
     SyntaxError: invalid syntax
-    >>> circus = 'Monty Python\'s Flying Circus'
-    "Monty Python's Flying Circus"
-    >>> circus = "Monty Python's Flying Circus"
-    >>> circus
-    "Monty Python's Flying Circus"
      
 The ``+`` operation can be used with strings, and is known as `concatenation`:dt:.
 It produces a new string that is a copy of the
@@ -847,7 +860,8 @@ e.g. `me`:lx:, `min`:lx:, and `mmmmm`:lx:.
 Note that the "``+``" and "``*``" symbols are sometimes referred to as `Kleene closures`:dt:,
 or simply `closures`:dt:. 
 
-The "``^``" operator has another function when it appears inside square brackets.  For
+The "``^``" operator has another function when it appears as the first
+character inside square brackets.  For
 example |l|\ ``[^aeiouAEIOU]``\ |r| matches any character other than a vowel.
 We can search the Chat corpus for words that are made up entirely of non-vowel
 characters using |l|\ ``^[^aeiouAEIOU]+$``\ |r| to find items like these:
@@ -896,11 +910,27 @@ The meta-characters we have seen are summarized in Table regexp-meta-characters1
    ``+``            One or more of previous item, e.g. ``a+``, ``[a-z]+``
    ``?``            Zero or one of the previous item (i.e. optional), e.g. ``a?``, ``[a-z]?``
    ``{n}``          Exactly `n`:math: repeats where n is a non-negative integer
-   ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats (`m`:math:, `n`:math: optional)
+   ``{n,}``         At least `n`:math: repeats
+   ``{,n}``         No more than `n`:math: repeats
+   ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats
    ``(ab|c)+``      Parentheses that indicate the scope of the operators
    ===============  =======================================================================================
 
    Basic Regular Expression Meta-Characters, Including Wildcards, Ranges and Closures
+
+To the Python interpreter, a regular expression is just like any other string.
+If the string contains a backslash followed by particular characters, it will
+interpret these specially.  For example ``"\b"`` would be interpreted as the
+backspace character.  In general, when using regular expressions containing
+backslash, we should instruct the interpreter not to look inside the string
+at all, but simply to pass it directly to the ``re`` library for processing.
+We do this by prefixing the string with the letter ``r``, to indicate that
+it is a `raw string`:dt:.  For example, the raw string ``r'\band\b'``
+contains two ``\b`` symbols that are interpreted by the ``re`` library
+as matching word boundaries instead of backspace characters.
+If you get into the habit of using ``r'...'`` for regular expressions
+|mdash| as we will do from now on, you will avoid having to think about
+these complications. 
 
 .. _sec-useful-applications-of-regular-expressions:
 
@@ -922,9 +952,9 @@ matches of the given regular expression.  Let's find all the vowels in
 a word, then count them:
 
     >>> word = 'supercalifragilisticexpialidocious'
-    >>> re.findall('[aeiou]', word)
+    >>> re.findall(r'[aeiou]', word)
     ['u', 'e', 'a', 'i', 'a', 'i', 'i', 'i', 'e', 'i', 'a', 'i', 'o', 'i', 'o', 'u']
-    >>> len(re.findall('[aeiou]', word))
+    >>> len(re.findall(r'[aeiou]', word))
     16
 
 Let's look for all sequences of two or more vowels in some text,
@@ -932,7 +962,7 @@ and determine their relative frequency:
 
     >>> wsj = sorted(set(nltk.corpus.treebank.words()))
     >>> fd = nltk.FreqDist(vs for word in wsj
-    ...                       for vs in re.findall('[aeiou]{2,}', word))
+    ...                       for vs in re.findall(r'[aeiou]{2,}', word))
     >>> fd.items()
     [('io', 549), ('ea', 476), ('ie', 331), ('ou', 329), ('ai', 261), ('ia', 253),
     ('ee', 217), ('oo', 174), ('ua', 109), ('au', 106), ('ue', 105), ('ui', 95),
@@ -962,7 +992,7 @@ everything else is ignored.  We use ``re.findall()`` to extract all the matching
 pieces, and ``''.join()`` to join them together (see Section sec-formatting_ for
 more about the join operation). 
 
-    >>> regexp = '^[AEIOUaeiou]+|[AEIOUaeiou]+$|[^AEIOUaeiou]'
+    >>> regexp = r'^[AEIOUaeiou]+|[AEIOUaeiou]+$|[^AEIOUaeiou]'
     >>> def compress(word):
     ...     pieces = re.findall(regexp, word)
     ...     return ''.join(pieces)
@@ -982,7 +1012,7 @@ these is a pair, it can be used to initialize a conditional frequency
 distribution.  We then tabulate the frequency of each pair:
 
     >>> rotokas_words = nltk.corpus.toolbox.words('rotokas.dic')
-    >>> cvs = [cv for w in rotokas_words for cv in re.findall('[ptksvr][aeiou]', w)]
+    >>> cvs = [cv for w in rotokas_words for cv in re.findall(r'[ptksvr][aeiou]', w)]
     >>> cfd = nltk.ConditionalFreqDist(cvs)
     >>> cfd.tabulate()
          a    e    i    o    u
@@ -1007,7 +1037,7 @@ that contains a given consonant-vowel pair, e.g. ``cv_index['su']`` should give 
 all words containing `su`:lx:.  Here's how we can do this:
 
     >>> cv_word_pairs = [(cv, w) for w in rotokas_words
-    ...                          for cv in re.findall('[ptksvr][aeiou]', w)]
+    ...                          for cv in re.findall(r'[ptksvr][aeiou]', w)]
     >>> cv_index = nltk.Index(cv_word_pairs)
     >>> cv_index['su']
     ['kasuari']
@@ -1047,7 +1077,7 @@ to see how we can use regular expressions for this task.  Our first step is
 to build up a disjunction of all the suffixes.  We need to enclose it in parentheses
 in order to limit the scope of the disjunction.
 
-    >>> re.findall('^.*(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
+    >>> re.findall(r'^.*(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     ['ing']
 
 Here, ``re.findall()`` just gave us the suffix even though the regular expression
@@ -1058,19 +1088,19 @@ we have to add ``?:``,
 which is just one of many arcane subtleties of regular expressions.
 Here's the revised version.
 
-    >>> re.findall('^.*(?:ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
+    >>> re.findall(r'^.*(?:ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     ['processing']
 
 However, we'd actually like to split the word into stem and suffix.
 Instead, we should just parenthesize both parts of the regular expression:
 
-    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
+    >>> re.findall(r'^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processing')
     [('process', 'ing')]
 
 This looks promising, but still has a problem.  Let's look at a different
 word, `processes`:lx:\ :
 
-    >>> re.findall('^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
+    >>> re.findall(r'^(.*)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
     [('processe', 's')]
 
 The regular expression incorrectly found an `-s`:lx: suffix instead of
@@ -1079,20 +1109,20 @@ is "greedy" and the ``.*`` part of the expression tries to consume as much of th
 as possible.  If we use the "non-greedy" version of the star operator, written ``*?``,
 we get what we want:
  
-    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
+    >>> re.findall(r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)$', 'processes')
     [('process', 'es')]
 
 This works even when we allow an empty suffix, by making the content of the
 second parentheses optional:
 
-    >>> re.findall('^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$', 'language')
+    >>> re.findall(r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$', 'language')
     [('language', '')]
 
 This approach still has many problems (can you spot them?) but we will move
 on to define a stemming function and apply it to a whole text:
 
     >>> def stem(word):
-    ...     regexp = '^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
+    ...     regexp = r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
     ...     stem, suffix = re.findall(regexp, word)[0]
     ...     return stem
     ...
@@ -1114,19 +1144,21 @@ Searching Tokenized Text
 ------------------------
 
 You can use a special kind of regular expression for searching across multiple words
-in a text (where a text is a list of tokens).
+in a text (where a text is a list of tokens).  For example, ``"<a> <man>"`` finds all
+instances of `a man`:lx: in the text.  The angle brackets are used to mark token boundaries,
+and any whitespace between the angle brackets is ignored.
 
     >>> from nltk.corpus import gutenberg, nps_chat
     >>> moby = nltk.Text(gutenberg.words('melville-moby_dick.txt'))
-    >>> moby.findall("<a>(<.*>)<man>")
+    >>> moby.findall(r"<a> (<.*>) <man>")
     monied; nervous; dangerous; white; white; white; pious; queer; good;
     mature; white; Cape; great; wise; wise; butterless; white; fiendish;
     pale; furious; better; certain; complete; dismasted; younger; brave;
     brave; brave; brave
     >>> chat = nltk.Text(nps_chat.words())
-    >>> chat.findall("<.*><.*><bro>")
+    >>> chat.findall(r"<.*> <.*> <bro>")
     you rule bro; telling you bro; u twizted bro
-    >>> chat.findall("<l.*>{3,}")
+    >>> chat.findall(r"<l.*>{3,}")
     lol lol lol; lmao lol lol; lol lol lol; la la la la la; la la la; la
     la la; lovely lol lol love; lol lol lol.; la la la; la la la
 
@@ -1146,7 +1178,7 @@ expressions of the form `x and other ys`:lx: allows us to discover
 examples of instances and their corresponding types:
 
     >>> hobbies_learned = nltk.Text(brown.words(categories=['hobbies', 'learned']))
-    >>> hobbies_learned.findall("<\w*> <and> <other> <\w*s>")
+    >>> hobbies_learned.findall(r"<\w*> <and> <other> <\w*s>")
     speed and other activities; water and other liquids; tomb and other
     landmarks; Statues and other monuments; pearls and other jewels;
     charts and other items; roads and other features; figures and other
@@ -1313,15 +1345,21 @@ Simple Approaches to Tokenization
 The very simplest method for tokenizing text is to split on whitespace.
 Consider the following text from *Alice's Adventures in Wonderland*:
 
-    >>> raw = """'When I'M a Duchess,' she said to herself, (not in a very hopeful tone                                                  
-    ... though), 'I won't have any pepper in my kitchen AT ALL. Soup does very                                                           
+    >>> raw = """'When I'M a Duchess,' she said to herself, (not in a very hopeful tone
+    ... though), 'I won't have any pepper in my kitchen AT ALL. Soup does very
     ... well without--Maybe it's always pepper that makes people hot-tempered,'..."""
 
 We could split this raw text on whitespace using ``raw.split()``.
-To do the same using a regular expression, we need to match any number
-of spaces, tabs, or newlines.
+To do the same using a regular expression, it is not enough to match
+any space characters in the string split-space_; instead we need
+to match any number of spaces, tabs, or newlines split-whitespace_:
 
-    >>> re.split(r'[ \t\n]+', raw)
+    >>> re.split(r' ', raw) # [_split-space]
+    ["'When", "I'M", 'a', "Duchess,'", 'she', 'said', 'to', 'herself,', '(not', 'in', 'a',
+    'very', 'hopeful', 'tone\nthough),', "'I", "won't", 'have', 'any', 'pepper', 'in',
+    'my', 'kitchen', 'AT', 'ALL.', 'Soup', 'does', 'very\nwell', 'without--Maybe',
+    "it's", 'always', 'pepper', 'that', 'makes', 'people', "hot-tempered,'..."]
+    >>> re.split(r'[ \t\n]+', raw) # [_split-whitespace]
     ["'When", "I'M", 'a', "Duchess,'", 'she', 'said', 'to', 'herself,', '(not', 'in', 'a',
     'very', 'hopeful', 'tone', 'though),', "'I", "won't", 'have', 'any', 'pepper', 'in',
     'my', 'kitchen', 'AT', 'ALL.', 'Soup', 'does', 'very', 'well', 'without--Maybe',
@@ -1334,9 +1372,10 @@ form-feed should really be included too.  Instead, we will use a built-in
 statement can be rewritten as ``re.split(r'\s+', raw)``.
 
 .. note::
-   When using regular expressions that contain the backslash character, you should
-   prefix the string with the letter ``r`` (meaning "raw"), which instructs the Python
-   interpreter to treat them as literal backslashes.
+   Remember to prefix regular expressions with the letter ``r``
+   (meaning "raw"), which instructs the Python
+   interpreter to treat the string literally, rather than
+   processing any backslashed characters it contains.
 
 Splitting on whitespace gives us tokens like ``'(not'`` and ``'herself,'``.
 An alternative is to use the fact that Python provides us with a character class ``\w``
@@ -1398,7 +1437,7 @@ seen in this section.
    ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
    ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
    ``\t``       The tab character
-   ``\n``       The newline character
+   ``\n```<       The newline character
    ===========  ===================================================================
 
    Regular Expression Symbols
@@ -1763,6 +1802,13 @@ output to the file.
     >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
     >>> for word in sorted(words):
     ...     output_file.write(word + "\n")
+    >>> output_file.close()
+
+.. note:: |TRY|
+   What is the effect of appending ``\n`` to each string before
+   we write it to the file?  If you're using a Windows machine
+   you may want to use ``word + "\r\n"`` instead.  
+   What happens if we do ``output_file.write(word)``?
 
 When we write non-text data to a file we must convert it to a string first.
 We can do this conversion using formatting strings, as we saw above.
@@ -1772,11 +1818,10 @@ file, before closing it.
 
     >>> len(words)
     2789
-    >>> `len(words)`
+    >>> str(len(words))
     '2789'
-    >>> file.write(`len(words)` + "\n")
+    >>> file.write(str(len(words)) + "\n")
     >>> file.close()
-
 
 
 ----------
@@ -1834,6 +1879,10 @@ Summary
 -----------------------
 Further Reading (NOTES)
 -----------------------
+
+Importance of reading Python library reference.
+
+Universal newline support.
 
 To learn about Unicode, see app-unicode_.
 

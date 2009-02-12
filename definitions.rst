@@ -23,6 +23,7 @@
   .. |NE|  replace:: NE
   .. |NLP|  replace:: NLP
   .. |NLTK| replace:: NLTK
+  .. |URL| replace:: URL
   .. |WFST| replace:: WFST
   .. |XML| replace:: XML
   
