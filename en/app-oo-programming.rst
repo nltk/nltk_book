@@ -12,8 +12,8 @@ complex structures and processes are decomposed into `classes`:dt:,
 each encapsulating a single data type and the legal operations on
 that type.  In this section we show you how to create simple data
 classes and processing classes by example.  For a systematic
-introduction to Object-Oriented design, please see the Further
-Reading section at the end of this chapter.
+introduction to Object-Oriented design, please consult the large
+literature of books on this topic.
 
 Data Classes: Trees in NLTK
 ---------------------------
