@@ -21,13 +21,13 @@ RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude --omit-dir-times
 
 .SUFFIXES: .txt .html
 
-.PHONY: en pt-br slides api rsync .api.done howto rsync-api
+.PHONY: book pt-br slides api rsync .api.done howto rsync-api
 
-all: en slides api howto
+all: book slides api howto
 
 clean:	clean_up
 	rm -rf api
-	$(MAKE) -C en clean
+	$(MAKE) -C book clean
 	$(MAKE) -C howto clean
 	$(MAKE) -C slides clean
 
@@ -35,15 +35,15 @@ clean_up:
 	TEXFILES=`find . -maxdepth 1 -name '*.tex' \
 			 -and -not -name 'xelatexsymbols.tex'`; \
 	    rm -f *.log *.aux $$TEXFILES *.out *.errs *~
-	$(MAKE) -C en clean_up
+	$(MAKE) -C book clean_up
 	$(MAKE) -C howto clean_up
 	$(MAKE) -C slides clean_up
 
 .txt.html:
 	$(RST2HTML) --stylesheet-path=$(STYLESHEET_PATH) $< > $@
 
-en:
-	$(MAKE) -C en all
+book:
+	$(MAKE) -C book all
 
 slides:
 	$(MAKE) -C slides
@@ -55,11 +55,11 @@ api:	.api.done
 	epydoc $(EPYDOC_OPTS) -o api ../nltk
 	touch .api.done
 
-publish: publish-en publish-howto publish-api
+publish: publish-book publish-howto publish-api
 	svn commit $(PUBLISH)
 
-publish-en:
-	$(MAKE) -C en publish
+publish-book:
+	$(MAKE) -C book publish
 	cp default.css $(PUBLISH)
 	cp images/*.png $(PUBLISH)/images/
 	svn add $(PUBLISH)/default.css $(PUBLISH)/images/*
