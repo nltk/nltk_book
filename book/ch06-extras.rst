@@ -19,9 +19,9 @@
 
 .. _chap-applied-programming:
 
-======================================
-Extras: 6. Writing Structured Programs
-======================================
+=======================================
+6. Writing Structured Programs (Extras)
+=======================================
 
 This chapter introduces concepts in algorithms, data structures,
 program design, and applied Python programming. It also contains
@@ -30,45 +30,7 @@ function, and illustrates them in terms of Python data structures.
 It contains many working program fragments that you should try yourself.
 
 
-
-
-naming variables
-
-
-
-Modules
-
-
-
-
-
-
--------------------------------
-Connecting to the Outside World
--------------------------------
-
-
-Python's Standard Library
--------------------------
-
-* accessing file system, network, maths, graphics
-
-
-CSV
----
-
-
-Database Connectivity
----------------------
-
-
-
-HTML
-----
-
-
-
-
+---------------
 Chinese and XML
 ---------------
 
@@ -108,12 +70,6 @@ writing, there seems to be a problem reading GB2312-encoded files in
     >>> uni_text = text.encode('utf8')
     >>> print repr(uni_text.splitlines()[1])
     '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
-
-
-
-
-
-
 
 
 

@@ -1,12 +1,12 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
-===============
-Extras: Preface
-===============
+================
+Preface (Extras)
+================
 
 
-
+--------------------------------------------
 NLP in Python vs other Programming Languages
 --------------------------------------------
 
