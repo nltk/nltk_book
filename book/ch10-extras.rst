@@ -1,13 +1,16 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
-.. _app-sets:
+==============================================
+Extras: 10. Analyzing the Meaning of Sentences
+==============================================
 
-=========================================
-Appendix: Sets and Mathematical Functions
-=========================================
 
-----
+-------------------------------
+Sets and Mathematical Functions
+-------------------------------
+
+
 Sets
 ----
 
@@ -215,7 +218,6 @@ whose members are also sets; the latter have to be defined as
 We also need to be careful to distinguish between the empty set |empty| and
 the set whose only member is the empty set: {|empty|}.
 
-------
 Tuples
 ------
 
@@ -262,7 +264,6 @@ have to be distinct.
 
 .. mention S |sup|`n` ?
 
------------------------
 Relations and Functions
 -----------------------
 
@@ -396,7 +397,6 @@ instance, let's slightly modify the definition of ``doubles``:
 for ``2`` and ``4`` but  `undefined`:dt: for the other elements in
 ``evens``.
 
----------
 Exercises
 ---------
 
@@ -458,11 +458,7 @@ Exercises
 #. |soso| Write a Python function that, for any set of pairs `R`:math:,
    returns ``True`` if and only if `R`:math: is a function.
 
----------------
-Further Reading
----------------
-
-[Partee et al, ...]
 
 
-.. include:: footer.rst
+
+.. include:: ../book/footer.rst
