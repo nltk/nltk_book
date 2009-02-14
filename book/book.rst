@@ -39,10 +39,7 @@ Natural Language Processing
 
 .. appendix::
 .. include:: app-tagsets.rst2
-.. include:: app-chart.rst2
 .. include:: app-pcfg.rst2
-.. include:: app-oo-programming.rst2
-.. include:: app-sets.rst2
 .. include:: app-modules.rst2
 
 .. index::
