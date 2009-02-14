@@ -59,82 +59,9 @@ Data Types
 
 * Tuples |mdash| type ``tuple`` |mdash| ``()`` (empty tuple), ``('Python',)``, ``('the', 9)``
 
-String Operations
------------------
-
-   ====================   =====================================================
-   Function               Meaning
-   ====================   =====================================================
-   ``s.startswith(t)``    ``s`` starts with ``t``
-   ``s.endswith(t)``      ``s`` ends with ``t``
-   ``t in s``             ``t`` is contained inside ``s``
-   ``s.islower()``        all cased characters in ``s`` are lowercase
-   ``s.isupper()``        all cased characters in ``s`` are uppercase
-   ``s.isalpha()``        all characters in ``s`` are alphabetic
-   ``s.isalnum()``        all characters in ``s`` are alphanumeric
-   ``s.isdigit()``        all characters in ``s`` are digits
-   ``s.istitle()``        ``s`` is titlecased (all words have initial capital)
-   ====================   =====================================================
-
-Sequence Operations (including strings)
----------------------------------------
-
-indexing, slicing, type conversions, ...
-
-   ======================================  ===============================================
-   Python Expression                       Comment                                        
-   ======================================  ===============================================
-   ``for item in s``                       iterate over the items of ``s``
-   ``for item in sorted(s)``               iterate over the items of ``s`` in order
-   ``for item in set(s)``                  iterate over unique elements of ``s``
-   ``for item in reversed(s)``             iterate over elements of ``s`` in reverse
-   ``for item in set(s).difference(t)``    iterate over elements of ``s`` not in ``t``
-   ``for item in random.shuffle(s)``       iterate over elements of ``s`` in random order
-   ======================================  ===============================================
 
 
-Sets and Dictionaries
----------------------
-
-
-   ==================================  ==========================================================
-   Example                             Description
-   ==================================  ==========================================================
-   ``d = {}``                          create an empty dictionary and assign it to ``d``
-   ``d[key] = value``                  assign a value to a given dictionary key
-   ``list(d)``, ``d.keys()``           the list of keys of the dictionary
-   ``sorted(d)``                       the keys of the dictionary, sorted
-   ``key in d``                        test whether a particular key is in the dictionary
-   ``for key in d``                    iterate over the keys of the dictionary
-   ``d.values()``                      the list of values in the dictionary
-   ``dict([(k1,v1), (k2,v2), ...])``   create a dictionary from a list of key-value pairs
-   ``d1.update(d2)``                   add all items from ``d2`` to ``d1``
-   ``defaultdict(int)``                a dictionary whose default value is zero
-   ==================================  ==========================================================
-
-
-
-Regular Expressions
--------------------
-
-``re`` methods: ``re.findall()``, ...
-
-   ===============  =======================================================================================
-   Operator         Behavior
-   ===============  =======================================================================================
-   ``.``            Wildcard, matches any character
-   ``^abc``         Matches some pattern `abc`:math: at the start of a string
-   ``abc$``         Matches some pattern `abc`:math: at the end of a string
-   ``[abc]``        Matches a set of characters
-   ``[A-Z0-9]``     Matches a range of characters
-   ``ed|ing|s``     Matches one of the specified strings (disjunction)
-   ``*``            Zero or more of previous item, e.g. ``a*``, ``[a-z]*`` (also known as *Kleene Closure*)
-   ``+``            One or more of previous item, e.g. ``a+``, ``[a-z]+``
-   ``?``            Zero or one of the previous item (i.e. optional), e.g. ``a?``, ``[a-z]?``
-   ``{n}``          Exactly `n`:math: repeats where n is a non-negative integer
-   ``{m,n}``        At least `m`:math: and no more than `n`:math: repeats (`m`:math:, `n`:math: optional)
-   ``(ab|c)+``      Parentheses that indicate the scope of the operators
-   ===============  =======================================================================================
+=================================================================================
 
 
 
@@ -146,48 +73,8 @@ This section gives a high-level summary of |NLTK| functionality.  Please see als
 the |NLTK| API documentation, HOWTO documents, and source code, accessible
 via |NLTK-URL|.
 
-Dictionary-Like Objects
------------------------
 
-Frequency Distributions
 
-   ===============================  ==============================================================
-   Example                          Description
-   ===============================  ==============================================================
-   ``fdist = FreqDist(samples)``    create a frequency distribution containing the given samples
-   ``fdist.inc(sample)``            increment the count for this sample
-   ``fdist['monstrous']``           count of the number of times a given sample occurred
-   ``fdist.freq('monstrous')``      frequency of a given sample
-   ``fdist.N()``                    total number of samples
-   ``fdist.keys()``                 the samples sorted in order of decreasing frequency
-   ``for sample in fdist:``         iterate over the samples, in order of decreasing frequency
-   ``fdist.max()``                  sample with the greatest count
-   ``fdist.tabulate()``             tabulate the frequency distribution
-   ``fdist.plot()``                 graphical plot of the frequency distribution
-   ``fdist.plot(cumulative=True)``  cumulative plot of the frequency distribution
-   ``fdist1 < fdist2``              samples in ``fdist1`` occur less frequently than in ``fdist2``
-   ===============================  ==============================================================
-
-Conditional Frequency Distributions
-
-   =======================================  ================================================================
-   Example                                  Description
-   =======================================  ================================================================
-   ``cfdist = ConditionalFreqDist(pairs)``  create a conditional frequency distribution
-   ``cfdist.conditions()``                  alphabetically sorted list of conditions
-   ``cfdist[condition]``                    the frequency distribution for this condition
-   ``cfdist[condition][sample]``            frequency for the given sample for this condition
-   ``cfdist.tabulate()``                    tabulate the conditional frequency distribution
-   ``cfdist.plot()``                        graphical plot of the conditional frequency distribution
-   ``cfdist1 < cfdist2``                    samples in ``cfdist1`` occur less frequently than in ``cfdist2``
-   =======================================  ================================================================
-
-Indexing
-
-A simple class ``Index`` can be initialized with a list of (key, value) pairs.  It creates a
-dictionary mapping keys to list of values.
-
-   
 Corpora
 -------
 
@@ -218,19 +105,7 @@ Corpus Readers
   ``XMLCorpusReader``                    Text collections with XML markup
   =====================================  ===================================================
 
-Corpus Methods
 
-  =========================  ==================================================
-  Method Name                Function
-  =========================  ==================================================
-  ``abspath(file)``          Absolute path to locally installed file  
-  ``abspaths([files])``      Absolute paths to files (default: all files)
-  ``encoding(file)``         The encoding of the file (if known)          
-  ``files([categories])``    Filenames in the corpus (default: all categories)
-  ``open(file)``             Open a stream for reading the given corpus file
-  ``root()``                 The path to the root of locally installed corpus
-  =========================  ==================================================
-  
 Text Corpus Methods
 
 Unless otherwise specified,
@@ -243,7 +118,7 @@ one or more categories can be specified, e.g. ``words(categories='news')``,
   =========================  ============================================================
   Method Name                Function
   =========================  ============================================================
-  ``categories([files])``    The categories for a given list of files
+  ``categories([fileids])``  The categories for a given list of files
   ``raw()``                  A string containing the content of the files or categories
   ``words()``                A list of words and punctuation tokens
   ``sents()``                A list of the sentences of the corpus (not always available)
@@ -253,7 +128,7 @@ one or more categories can be specified, e.g. ``words(categories='news')``,
 Tagged Corpus Methods
 
 The following methods all permit files (sometimes categories) to be specified.
-Most tagged corpora have a simplified tagset, used if a named paramter
+Most tagged corpora have a simplified tagset, used if a named parameter
 ``simplify_tags=True`` is passed to the method.
 
   =========================  ============================================================
@@ -315,16 +190,6 @@ Taggers
 
 [to do]
 
-
-Phrase-Level Processing
------------------------
-
-[chunkers, grammars, parsers, trees, feature structures, semantic interpretation]
-
-Statistical Modeling
---------------------
-
-[smoothing and estimation, clustering, classification]
 
 Interfaces to Third-Party Libraries
 -----------------------------------
