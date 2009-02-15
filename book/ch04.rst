@@ -28,6 +28,7 @@
          http://www.aclweb.org/anthology/W04-3253
 .. TODO: explain function vs method
 .. TODO: say more about performance tuning of a Python program
+.. TODO: add exercises on string formatting
 
 .. _chap-structured-programming:
 
@@ -241,6 +242,476 @@ We can check that all or any items meet some condition:
     >>> any(len(w) > 4 for w in sent)
     True
 
+
+---------
+Sequences
+---------
+
+So far, we have seen three kinds of sequence object: strings, lists, and tuples.
+As sequences, they have some common properties: they can be indexed and they have
+a length:
+
+    >>> text = 'I turned off the spectroroute'
+    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
+    >>> pair = (6, 'turned')
+    >>> text[2], words[3], pair[1]
+    ('t', 'the', 'turned')
+    >>> len(text), len(words), len(pair)
+    (29, 5, 2)
+
+Other objects, including dictionaries and sets, behave like sequences
+when they appear in a suitable context:
+
+    >>> fd = {'Monty': 24, 'Python': 80}
+    >>> list(fd)
+    ['Monty', 'Python']
+    >>> for key in fd:
+    ...     print fd[key],
+    ...
+    24 80
+
+Operating on Sequence Types
+---------------------------
+
+We can iterate over the items in a sequence ``s`` in a variety of useful ways,
+as shown in Table python-sequence_.
+
+.. table:: python-sequence
+
+   ======================================  ===============================================
+   Python Expression                       Comment                                        
+   ======================================  ===============================================
+   ``for item in s``                       iterate over the items of ``s``
+   ``for item in sorted(s)``               iterate over the items of ``s`` in order
+   ``for item in set(s)``                  iterate over unique elements of ``s``
+   ``for item in reversed(s)``             iterate over elements of ``s`` in reverse
+   ``for item in set(s).difference(t)``    iterate over elements of ``s`` not in ``t``
+   ``for item in random.shuffle(s)``       iterate over elements of ``s`` in random order
+   ======================================  ===============================================
+
+   Various ways to iterate over sequences
+
+
+The sequence functions illustrated in Table python-sequence_ can be combined
+in various ways; for example, to get unique elements of ``s`` sorted
+in reverse, use ``reversed(sorted(set(s)))``.
+
+We can convert between these sequence types.  For example,
+``tuple(s)`` converts any kind of sequence into a tuple, and
+``list(s)`` converts any kind of sequence into a list.
+We can convert a list of strings to a single string using the
+``join()`` function, e.g. ``':'.join(words)``.
+
+Notice in the above code sample that we computed multiple values on a
+single line, separated by commas.  These comma-separated expressions
+are actually just tuples |mdash| Python allows us to omit the
+parentheses around tuples if there is no ambiguity. When we print a
+tuple, the parentheses are always displayed. By using tuples in this
+way, we are implicitly aggregating items together.
+
+In the next example, we use tuples to re-arrange the
+contents of our list.  (We can omit the parentheses
+because the comma has higher precedence than assignment.)
+
+    >>> words[2], words[3], words[4] = words[3], words[4], words[2]
+    >>> words    
+    ['I', 'turned', 'the', 'spectroroute', 'off']
+
+This is an idiomatic and readable way to move items inside a list.
+It is equivalent to the following traditional way of doing such
+tasks that does not use tuples (notice that this method needs a
+temporary variable ``tmp``).
+
+    >>> tmp = words[2]
+    >>> words[2] = words[3]
+    >>> words[3] = words[4]
+    >>> words[4] = tmp
+
+As we have seen, Python has sequence functions such as ``sorted()`` and ``reversed()``
+that rearrange the items of a sequence.  There are also functions that
+modify the `structure`:em: of a sequence and which can be handy for
+language processing.  Thus, ``zip()`` takes
+the items of two or more sequences and "zips" them together into a single list of pairs.
+Given a sequence ``s``, ``enumerate(s)`` returns an iterator that
+produces a pair of an index and the item at that index.
+
+    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
+    >>> tags = ['NNP', 'VBD', 'IN', 'DT', 'NN']
+    >>> zip(words, tags)
+    [('I', 'NNP'), ('turned', 'VBD'), ('off', 'IN'),
+    ('the', 'DT'), ('spectroroute', 'NN')]
+    >>> list(enumerate(words))
+    [(0, 'I'), (1, 'turned'), (2, 'off'), (3, 'the'), (4, 'spectroroute')]
+
+Combining Different Sequence Types
+----------------------------------
+
+Let's combine our knowledge of these three sequence types, together with list
+comprehensions, to perform the task of sorting the words in a string by
+their length.
+
+    >>> words = 'I turned off the spectroroute'.split()
+    >>> wordlens = [(len(word), word) for word in words]
+    >>> wordlens.sort()
+    >>> ' '.join(w for (_, w) in wordlens)
+    'I off the turned spectroroute'
+
+Each of the above lines of code contains a significant feature.
+The first line demonstrates that a simple string is actually
+an object with methods defined on it such as ``split()``.
+The second line shows the construction of a list of tuples,
+where each tuple consists of a number (the word length) and the
+word, e.g. ``(3, 'the')``.  The third line sorts the list in-place.
+The last line discards the length
+information then joins the words back into a single string.
+
+We began by talking about the commonalities in these sequence types,
+but the above code illustrates important differences in their
+roles.  First, strings appear at the beginning and the end: this is
+typical in the context where our program is reading in some text and
+producing output for us to read.  Lists and tuples are used in the
+middle, but for different purposes.  A list is typically a sequence of
+objects all having the `same type`:em:, of `arbitrary length`:em:.  We often
+use lists to hold sequences of words.  In contrast,
+a tuple is typically a collection of objects of `different types`:em:, of
+`fixed length`:em:.  We often use a tuple to hold a `record`:dt:,
+a collection of different `fields`:dt: relating to some entity.
+This distinction between the use of lists and tuples takes some
+getting used to,
+so here is another example:
+
+    >>> lexicon = [
+    ...     ('the', 'DT', ['Di:', 'D@']),
+    ...     ('off', 'IN', ['Qf', 'O:f'])
+    ... ]
+
+Here, a lexicon is represented as a list because it is a
+collection of objects of a single type |mdash| lexical entries |mdash|
+of no predetermined length.  An individual entry is represented as a
+tuple because it is a collection of objects with different
+interpretations, such as the orthographic form, the part of speech,
+and the pronunciations represented in the
+`SAMPA <http://www.phon.ucl.ac.uk/home/sampa/index.html>`_ computer
+readable phonetic alphabet.  Note that these pronunciations are stored
+using a list. (Why?)
+
+The distinction between lists and tuples has been described in terms of
+usage.  However, there is a more fundamental difference: in Python,
+lists are `mutable`:dt:, while tuples are `immutable`:dt:.  In other
+words, lists can be modified, while tuples cannot.  Here are some of
+the operations on lists that do in-place modification of the list.
+
+    >>> lexicon.sort()
+    >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
+    >>> del lexicon[0]
+
+.. note:: |TRY|
+   Convert lexicon to a tuple, using ``lexicon = tuple(lexicon)``,
+   then try each of the above operations, to confirm that none of
+   them is permitted on tuples.
+
+
+.. _sec-formatting:
+
+---------------------------------
+Formatting: From Lists to Strings
+---------------------------------
+
+Often we write a program to report a single data item, such as a particular element
+in a corpus that meets some complicated criterion, or a single summary statistic
+such as a word-count or the performance of a tagger.  More often, we write a program
+to produce a structured result, such as a tabulation of numbers or linguistic forms,
+or a reformatting of the original data.  When the results to be presented are linguistic,
+textual output is usually the most natural choice.  However, when the results are numerical,
+it may be preferable to produce graphical output.  In this section you will learn about
+a variety of ways to present program output.
+
+Converting Between Strings and Lists (notes)
+--------------------------------------------
+
+We specify the string to be used as the "glue", followed by a
+period, followed by the ``join()`` function.
+
+    >>> silly = ['We', 'called', 'him', 'Tortoise', 'because', 'he', 'taught', 'us', '.']
+    >>> ' '.join(silly)
+    'We called him Tortoise because he taught us .'
+    >>> ';'.join(silly)
+    'We;called;him;Tortoise;because;he;taught;us;.'
+
+So ``' '.join(silly)`` means: take all the items in ``silly`` and
+concatenate them as one big string, using ``' '`` as a spacer between
+the items.  (Many people find the notation for ``join()`` rather unintuitive.)
+
+Notice that ``join()`` only works on a list of strings (what we have been calling a text).
+
+.. (Thus we could say this type is privileged in Python.)
+
+Formatting Output
+-----------------
+
+The output of a program is usually structured to make the information
+easily digestible by a reader.  Instead of running some code and then
+manually inspecting the contents of a variable, we would like the code
+to tabulate some output.
+There are many ways we might want to format the output of a program.  For
+instance, we might want to place the length value in parentheses `after`:em: the
+word, and print all the output on a single line:
+
+    >>> saying = ['After', 'all', 'is', 'said', 'and', 'done', ',',
+    ...           'more', 'is', 'said', 'than', 'done', '.']
+    >>> for word in saying:
+    ...     print word, '(' + str(len(word)) + '),',
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),
+
+However, this approach has some problems.  First, the ``print``
+statement intermingles variables and punctuation, making it a little
+difficult to read.  Second, the output has spaces around every item
+that was printed.  Third, we have to convert the length of the word to
+a string so that we can surround it with parentheses.  A cleaner way to produce structured output uses
+Python's `string formatting expressions`:dt:. Before diving into
+clever formatting tricks, however, let's look at a really simple example. We
+are going to use a special symbol, ``%s``, as a placeholder in
+strings. Once we have a string containing this placeholder, we follow
+it with a single ``%``
+and then a value ``v``. Python then returns a new string where
+``v`` has been slotted in to replace ``%s``:
+
+    >>> "I want a %s right now" % "coffee"
+    'I want a coffee right now'
+
+In fact, we can have a number of placeholders, but following the ``%`` operator
+we need to specify a tuple with exactly the same number of values.
+
+    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
+    'Lee wants a sandwich for lunch'
+    >>>
+
+We can also provide the values for the placeholders indirectly. Here's
+an example using a ``for`` loop:
+
+    >>> menu = ['sandwich', 'spam fritter', 'pancake']
+    >>> for snack in menu:
+    ...     "Lee wants a %s right now" % snack
+    ... 
+    'Lee wants a sandwich right now'
+    'Lee wants a spam fritter right now'
+    'Lee wants a pancake right now'
+    >>>
+
+We oversimplified things when we said that placeholders were
+of the form ``%s``; in fact, this is a complex object, called a
+`conversion specifier`:dt:. This has to start with the ``%``
+character, and ends with conversion character such as ``s`` or ``d``. The ``%s``
+specifier tells Python that the corresponding variable is a string (or
+should be converted into a string), while the ``%d`` specifier
+indicates that the corresponding variable should be converted into a
+decimal integer representation. The string containing conversion specifiers is
+called a `format string`:dt:.
+
+Picking up on the ``print`` example that we opened this section with,
+here's how we can use two different kinds of conversion specifier:
+
+    >>> for word in saying:
+    ...     print "%s (%d)," % (word, len(word)),
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),'
+
+To summarize, string formatting is accomplished with
+the syntax: `format`:ph: ``%`` `values`:ph:.  The
+`format`:ph: section is a string containing format specifiers
+such as ``%s`` and ``%d`` that Python will replace with the supplied
+values.  The `values`:ph: section of a formatting string is a parenthesized
+list containing exactly as many items as there are format specifiers in the
+`format`:ph: section.  In the case that there is just one item, the
+parentheses can be left out.
+
+In the above example, we used a trailing comma to suppress the
+printing of a newline. Suppose, on the other hand, that we want to
+introduce some additional newlines in our output. We can accomplish
+this by inserting the "special" character ``\n`` into the ``print`` string:
+
+    >>> for i, word in enumerate(saying[:6]):
+    ...    print "Word = %s\nIndex = %s" % (word, i)
+    ...
+    Word = After
+    Index = 0
+    Word = all
+    Index = 1
+    Word = is
+    Index = 2
+    Word = said
+    Index = 3
+    Word = and
+    Index = 4
+    Word = done
+    Index = 5
+
+
+Strings and Formats
+-------------------
+
+We have seen that there are two ways to display the contents of an object:
+
+    >>> word = 'cat'
+    >>> sentence = """hello
+    ... world"""
+    >>> print word
+    cat
+    >>> print sentence
+    hello
+    world
+    >>> word
+    'cat'
+    >>> sentence
+    'hello\nworld'
+
+The ``print`` command yields Python's attempt to produce the most human-readable form of an object.
+The second method |mdash| naming the variable at a prompt |mdash| shows us a string
+that can be used to recreate this object.  It is important to keep in mind that both of
+these are just strings, displayed for the benefit of you, the user.  They do not give
+us any clue as to the actual internal representation of the object.
+
+There are many other useful ways to display an object as a string of
+characters.  This may be for the benefit of a human reader, or because
+we want to `export`:dt: our data to a particular file format for use
+in an external program.
+
+Formatted output typically contains a combination of variables and
+pre-specified strings, e.g. given a dictionary ``wordcount``
+consisting of words and their frequencies we could do:
+
+    >>> wordcount = {'cat':3, 'dog':4, 'snake':1}
+    >>> for word in sorted(wordcount):
+    ...     print word, '->', wordcount[word], ';',
+    cat -> 3 ; dog -> 4 ; snake -> 1 ;
+
+Apart from the problem of unwanted whitespace, print statements
+that contain alternating variables and constants can be difficult to read and
+maintain.  A better solution is to use formatting strings:
+
+    >>> for word in sorted(wordcount):
+    ...    print '%s->%d;' % (word, wordcount[word]),
+    cat->3; dog->4; snake->1;
+
+.. TODO: describe textwrap package
+
+Lining Things Up
+----------------
+
+So far our formatting strings generated output of arbitrary width
+on the page (or screen), such as ``%s`` and ``%d``.  We can specify
+a width as well, such as ``%6s``, producing a string that is
+padded to width 6.  It is right-justified by default right-justified_,
+but we can include a minus sign to make it left-justified left-justified_.
+In case we don't know in advance how wide a displayed value should be,
+the width value can be replaced with a star in the formatting string,
+then specified using a variable width-variable_.
+
+    >>> '%6s' % 'dog'            # [_right-justified]
+    '   dog'
+    >>> '%-6s' % 'dog'           # [_left-justified]
+    'dog   '
+    >>> width = 6
+    >>> '%-*s' % (width, 'dog')  # [_width-variable]
+    'dog   '
+
+Other control characters are used for decimal integers and floating point numbers.
+Since the percent character ``%`` has a special interpretation in formatting strings,
+we have to precede it with another ``%`` to get it in the output.  We also have
+to do something special to ensure that ``count/total`` does not use integer division
+and give a result of zero (try replacing ``100.0`` with ``100`` to see what happens).
+
+    >>> count, total = 3205, 9375 
+    >>> "accuracy for %d words: %2.4f%%" % (total, 100.0 * count / total)
+    'accuracy for 9375 words: 34.1867%'
+
+An important use of formatting strings is for tabulating data.
+Recall that in section sec-extracting-text-from-corpora_ we saw
+data being tabulated from a conditional frequency distribution.
+Let's perform the tabulation ourselves, exercising full control
+of headings and column widths.
+Note the clear separation between the language processing work,
+and the tabulation of results.
+
+.. pylisting:: modal-tabulate
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+    def tabulate(cfdist, words, categories):
+        print '%-16s' % 'Category',
+        for word in words:                                  # column headings
+            print '%6s' % word,
+        print
+        for category in categories:
+            print '%-16s' % category,                       # row heading
+            for word in words:                              # for each word
+                print '%6d' % cfdist[category][word],       # print table cell
+            print                                           # end the row
+
+    >>> from nltk.corpus import brown
+    >>> cfd = nltk.ConditionalFreqDist(
+    ...           (genre, word)
+    ...           for genre in brown.categories()
+    ...           for word in brown.words(categories=genre))
+    >>> genres = ['news', 'religion', 'hobbies', 'science_fiction', 'romance', 'humor']
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> tabulate(cfd, modals, genres)
+    Category            can  could    may  might   must   will
+    news                 93     86     66     38     50    389
+    religion             82     59     78     12     54     71
+    hobbies             268     58    131     22     83    264
+    science_fiction      16     49      4     12      8     16
+    romance              74    193     11     51     45     43
+    humor                16     30      8      8      9     13
+
+Recall from the listing in Figure stemmer-indexing_ that we used a formatting string
+``"%*s"``.  This allows us to specify the width of a field using a variable.
+
+    >>> '%*s' % (15, "Monty Python")
+    '   Monty Python'
+
+We could use this to automatically customise the column to be
+just wide enough to accommodate all the words, using
+``width = max(len(w) for w in words)``.  Remember that the comma at the end
+of print statements adds an extra space, and this is sufficient to prevent
+the column headings from running into each other.
+
+Writing Results to a File
+-------------------------
+
+We have seen how to read text from files (Section sec-accessing-text_).
+It is often useful to write output to files as well.  The following
+code opens a file ``output.txt`` for writing, and saves the program
+output to the file.
+
+    >>> output_file = open('output.txt', 'w')
+    >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
+    >>> for word in sorted(words):
+    ...     output_file.write(word + "\n")
+    >>> output_file.close()
+
+.. note:: |TRY|
+   What is the effect of appending ``\n`` to each string before
+   we write it to the file?  If you're using a Windows machine
+   you may want to use ``word + "\r\n"`` instead.  
+   What happens if we do ``output_file.write(word)``?
+
+When we write non-text data to a file we must convert it to a string first.
+We can do this conversion using formatting strings, as we saw above.
+We can also do it using Python's backquote notation, which converts any
+object into a string.  Let's write the total number of words to our
+file, before closing it.
+
+    >>> len(words)
+    2789
+    >>> str(len(words))
+    '2789'
+    >>> file.write(str(len(words)) + "\n")
+    >>> file.close()
+
+
+------------------
+Questions of Style
+------------------
+
 Python Coding Style
 -------------------
 
@@ -446,354 +917,6 @@ for reasons that were discussed earlier in this section.
 Iteration is an important programming device.  It is tempting to import idioms
 from other languages, when Python offers some elegant and highly readable
 alternatives.
-
----------
-Sequences
----------
-
-So far, we have seen three kinds of sequence object: strings, lists, and tuples.
-As sequences, they have some common properties: they can be indexed and they have
-a length:
-
-    >>> text = 'I turned off the spectroroute'
-    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
-    >>> pair = (6, 'turned')
-    >>> text[2], words[3], pair[1]
-    ('t', 'the', 'turned')
-    >>> len(text), len(words), len(pair)
-    (29, 5, 2)
-
-Other objects, including dictionaries and sets, behave like sequences
-when they appear in a suitable context:
-
-    >>> fd = {'Monty': 24, 'Python': 80}
-    >>> list(fd)
-    ['Monty', 'Python']
-    >>> for key in fd:
-    ...     print fd[key],
-    ...
-    24 80
-
-Operating on Sequence Types
----------------------------
-
-We can iterate over the items in a sequence ``s`` in a variety of useful ways,
-as shown in Table python-sequence_.
-
-.. table:: python-sequence
-
-   ======================================  ===============================================
-   Python Expression                       Comment                                        
-   ======================================  ===============================================
-   ``for item in s``                       iterate over the items of ``s``
-   ``for item in sorted(s)``               iterate over the items of ``s`` in order
-   ``for item in set(s)``                  iterate over unique elements of ``s``
-   ``for item in reversed(s)``             iterate over elements of ``s`` in reverse
-   ``for item in set(s).difference(t)``    iterate over elements of ``s`` not in ``t``
-   ``for item in random.shuffle(s)``       iterate over elements of ``s`` in random order
-   ======================================  ===============================================
-
-   Various ways to iterate over sequences
-
-
-The sequence functions illustrated in Table python-sequence_ can be combined
-in various ways; for example, to get unique elements of ``s`` sorted
-in reverse, use ``reversed(sorted(set(s)))``.
-
-We can convert between these sequence types.  For example,
-``tuple(s)`` converts any kind of sequence into a tuple, and
-``list(s)`` converts any kind of sequence into a list.
-We can convert a list of strings to a single string using the
-``join()`` function, e.g. ``':'.join(words)``.
-
-Notice in the above code sample that we computed multiple values on a
-single line, separated by commas.  These comma-separated expressions
-are actually just tuples |mdash| Python allows us to omit the
-parentheses around tuples if there is no ambiguity. When we print a
-tuple, the parentheses are always displayed. By using tuples in this
-way, we are implicitly aggregating items together.
-
-In the next example, we use tuples to re-arrange the
-contents of our list.  (We can omit the parentheses
-because the comma has higher precedence than assignment.)
-
-    >>> words[2], words[3], words[4] = words[3], words[4], words[2]
-    >>> words    
-    ['I', 'turned', 'the', 'spectroroute', 'off']
-
-This is an idiomatic and readable way to move items inside a list.
-It is equivalent to the following traditional way of doing such
-tasks that does not use tuples (notice that this method needs a
-temporary variable ``tmp``).
-
-    >>> tmp = words[2]
-    >>> words[2] = words[3]
-    >>> words[3] = words[4]
-    >>> words[4] = tmp
-
-As we have seen, Python has sequence functions such as ``sorted()`` and ``reversed()``
-that rearrange the items of a sequence.  There are also functions that
-modify the `structure`:em: of a sequence and which can be handy for
-language processing.  Thus, ``zip()`` takes
-the items of two or more sequences and "zips" them together into a single list of pairs.
-Given a sequence ``s``, ``enumerate(s)`` returns an iterator that
-produces a pair of an index and the item at that index.
-
-    >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
-    >>> tags = ['NNP', 'VBD', 'IN', 'DT', 'NN']
-    >>> zip(words, tags)
-    [('I', 'NNP'), ('turned', 'VBD'), ('off', 'IN'),
-    ('the', 'DT'), ('spectroroute', 'NN')]
-    >>> list(enumerate(words))
-    [(0, 'I'), (1, 'turned'), (2, 'off'), (3, 'the'), (4, 'spectroroute')]
-
-Combining Different Sequence Types
-----------------------------------
-
-Let's combine our knowledge of these three sequence types, together with list
-comprehensions, to perform the task of sorting the words in a string by
-their length.
-
-    >>> words = 'I turned off the spectroroute'.split()
-    >>> wordlens = [(len(word), word) for word in words]
-    >>> wordlens.sort()
-    >>> ' '.join(w for (_, w) in wordlens)
-    'I off the turned spectroroute'
-
-Each of the above lines of code contains a significant feature.
-The first line demonstrates that a simple string is actually
-an object with methods defined on it such as ``split()``.
-The second line shows the construction of a list of tuples,
-where each tuple consists of a number (the word length) and the
-word, e.g. ``(3, 'the')``.  The third line sorts the list in-place.
-The last line discards the length
-information then joins the words back into a single string.
-
-We began by talking about the commonalities in these sequence types,
-but the above code illustrates important differences in their
-roles.  First, strings appear at the beginning and the end: this is
-typical in the context where our program is reading in some text and
-producing output for us to read.  Lists and tuples are used in the
-middle, but for different purposes.  A list is typically a sequence of
-objects all having the `same type`:em:, of `arbitrary length`:em:.  We often
-use lists to hold sequences of words.  In contrast,
-a tuple is typically a collection of objects of `different types`:em:, of
-`fixed length`:em:.  We often use a tuple to hold a `record`:dt:,
-a collection of different `fields`:dt: relating to some entity.
-This distinction between the use of lists and tuples takes some
-getting used to,
-so here is another example:
-
-    >>> lexicon = [
-    ...     ('the', 'DT', ['Di:', 'D@']),
-    ...     ('off', 'IN', ['Qf', 'O:f'])
-    ... ]
-
-Here, a lexicon is represented as a list because it is a
-collection of objects of a single type |mdash| lexical entries |mdash|
-of no predetermined length.  An individual entry is represented as a
-tuple because it is a collection of objects with different
-interpretations, such as the orthographic form, the part of speech,
-and the pronunciations represented in the
-`SAMPA <http://www.phon.ucl.ac.uk/home/sampa/index.html>`_ computer
-readable phonetic alphabet.  Note that these pronunciations are stored
-using a list. (Why?)
-
-The distinction between lists and tuples has been described in terms of
-usage.  However, there is a more fundamental difference: in Python,
-lists are `mutable`:dt:, while tuples are `immutable`:dt:.  In other
-words, lists can be modified, while tuples cannot.  Here are some of
-the operations on lists that do in-place modification of the list.
-
-    >>> lexicon.sort()
-    >>> lexicon[1] = ('turned', 'VBD', ['t3:nd', 't3`nd'])
-    >>> del lexicon[0]
-
-.. note:: |TRY|
-   Convert lexicon to a tuple, using ``lexicon = tuple(lexicon)``,
-   then try each of the above operations, to confirm that none of
-   them is permitted on tuples.
-
-Stacks and Queues
------------------
-
-Lists are a versatile data type.  We can use lists to
-implement so-called `abstract data types`:dt: such as stacks and queues.
-A `stack`:dt: is a container that has a last-in-first-out (or LIFO) policy
-for adding and removing items (see Figure stack-queue_).
-
-.. _stack-queue:
-.. figure:: ../images/stack-queue.png
-   :scale: 25:30:30
-
-   Stacks and Queues
-
-Stacks are used to keep track of the current context in
-computer processing of natural languages (and programming languages too).
-We will seldom have to deal with stacks explicitly, as the implementation
-of |NLTK| parsers, treebank corpus readers, (and even Python functions),
-all use stacks behind the scenes.
-However, it is important to understand what stacks are and how they work.
-
-.. pylisting:: check-parens
-   :caption: Check parentheses are balanced
-
-   def check_parens(tokens):
-       stack = []
-       for token in tokens:
-           if token == '(':     # push
-               stack.append(token)
-           elif token == ')':   # pop
-               stack.pop()
-       return stack
-
-   >>> phrase = "( the cat ) ( sat ( on ( the mat )"
-   >>> print check_parens(phrase.split())
-   ['(', '(']
-
-In Python, we can treat a list as a stack by limiting ourselves to the three
-operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
-``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
-item on the top of the stack.  The program in Figure check-parens_ processes a sentence with
-phrase markers, and checks that the parentheses are balanced.
-The loop pushes material onto the stack when it gets an open parenthesis,
-and pops the stack when it gets a close parenthesis.
-We see that two are left on the stack at the end;
-i.e. the parentheses are not balanced.
-
-Although the program in Figure check-parens_ is a useful illustration of stacks,
-it is overkill because we could have done a direct count:
-``phrase.count('(') == phrase.count(')')``.  However, we
-can use stacks for more sophisticated processing of strings
-containing nested structure, as shown in Figure convert-parens_.
-Here we build a (potentially deeply-nested) list of lists.
-Whenever a token other than a parenthesis is encountered,
-we add it to a list at the appropriate level of nesting.
-The stack keeps track of this level of nesting, exploiting
-the fact that the item at the top of the stack is actually shared with a
-more deeply nested item.  (Hint: add diagnostic print statements to
-the function to help you see what it is doing.)
-
-.. pylisting:: convert-parens
-   :caption: Convert a nested phrase into a nested list using a stack
-
-   def convert_parens(tokens):
-       stack = [[]]
-       for token in tokens:
-           if token == '(':     # push
-               sublist = []
-               stack[-1].append(sublist)
-               stack.append(sublist)
-           elif token == ')':   # pop
-               stack.pop()
-           else:                # update top of stack
-               stack[-1].append(token)
-       return stack[0]
-
-   >>> phrase = "( the cat ) ( sat ( on ( the mat ) ) )"
-   >>> print convert_parens(phrase.split())
-   [['the', 'cat'], ['sat', ['on', ['the', 'branch']]]]    
-
-Lists can be used to represent another important data structure.
-A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
-for adding and removing items (see Figure stack-queue_).
-We could use a queue of length `n`:math: to create all the n-grams of a text.
-As with stacks, we will seldom have to deal with queues explicitly,
-as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
-and chart parsers (Appendix app-chart_) use queues behind the scenes.
-Here's how queues can be implemented using lists.
-
-    >>> queue = ['the', 'cat', 'sat']
-    >>> queue.append('on')
-    >>> queue.append('the')
-    >>> queue.append('branch')
-    >>> queue.pop(0)
-    'the'
-    >>> queue.pop(0)
-    'cat'
-    >>> queue
-    ['sat', 'on', 'the', 'branch']
-
-
-Trees
------
-
-We have just seen how nested sequences can be used to represent
-the phrase structure of a sentence::
-
-    [['the', 'cat'], ['sat', ['on', ['the', 'branch']]]]
-
-This is such a fundamental part of |NLP| that a special
-data type is defined.
-A `tree`:dt: is a set of connected labeled nodes, each reachable
-by a unique path from a distinguished root node.  Here's an
-example of a tree (note that they are standardly drawn upside-down): 
-
-.. ex::
-  .. tree:: (S (NP Allic) (VP (V chased) (NP the rabbit)))
-
-We use a 'family' metaphor to talk about the
-relationships of nodes in a tree: for example, `s`:gc: is the
-`parent`:dt: of `vp`:gc:; conversely `vp`:gc: is a `daughter`:dt: (or
-`child`:dt:) of `s`:gc:.  Also, since `np`:gc: and `vp`:gc: are both
-daughters of `s`:gc:, they are also `sisters`:dt:.
-For convenience, there is also a text format for specifying
-trees: 
-
-.. doctest-ignore::
-      (S 
-         (NP Alice)
-         (VP 
-            (V chased)
-            (NP 
-               (Det the)
-               (N rabbit))))
-
-Although we will focus on syntactic trees, trees can be used to encode
-`any`:em: homogeneous hierarchical structure that spans a sequence
-of linguistic forms (e.g. morphological structure, discourse structure).
-In the general case, leaves and node values do not have to be strings.
-
-In |NLTK|, we create a tree by giving a node label and a list of children:
-
-    >>> tree1 = nltk.Tree('NP', ['Alice'])
-    >>> print tree1
-    (NP Alice)
-    >>> tree2 = nltk.Tree('NP', ['the', 'rabbit'])
-    >>> print tree2
-    (NP the rabbit)
-
-|nopar|
-We can incorporate these into successively larger trees as follows:
-
-    >>> tree3 = nltk.Tree('VP', ['chased', tree2])
-    >>> tree4 = nltk.Tree('S', [tree1, tree3])
-    >>> print tree4
-    (S (NP Alice) (VP chased (NP the rabbit)))
-
-|nopar|
-Here are some of the methods available for tree objects:
-
-    >>> print tree4[1]
-    (VP chased (NP the rabbit))
-    >>> tree4[1].node
-    'VP'
-    >>> tree4.leaves()
-    ['Alice', 'chased', 'the', 'rabbit']
-    >>> tree4[1][1][1]
-    'rabbit'
-
-The bracketed representation for complex trees can be difficult to read.
-In these cases, the ``draw`` method can be very useful. 
-It opens a new window, containing a graphical representation
-of the tree.  The tree display window allows you to zoom in and out;
-to collapse and expand subtrees; and to print the graphical
-representation to a postscript file (for inclusion in a document).
-
-    >>> tree3.draw()                           # doctest: +SKIP
-
-.. image:: ../images/parse_draw.png
-   :scale: 70
 
 
 .. _sec-functions:
@@ -1503,35 +1626,13 @@ word, there's just one ordering.  We can code this up as follows:
     ...     if n == 1:
     ...         return 1
     ...     else:
-    ...         return n * factorial(n-1)
+    ...         return n * factorial2(n-1)
 
 These two algorithms solve the same problem.  One uses iteration
 while the other uses recursion.
 
-It is standard to use a recursive function to traverse a tree.
-The listing in Figure traverse_ demonstrates this.  Note that
-we have used "duck typing" to detect that ``t`` is a tree (i.e.
-``t.node`` is defined).
-
-.. pylisting:: traverse
-   :caption: A Recursive Function to Traverse a Tree
-   
-   def traverse(t):
-       try:
-           t.node
-           print '(', t.node,
-           for child in t:
-               traverse(child)
-           print ')',
-       except AttributeError:
-           print t,
-
-    >>> t = nltk.Tree('(S (NP Alice) (VP chased (NP the rabbit)))')
-    >>> traverse(t)
-    ( S ( NP Alice ) ( VP chased ( NP the rabbit ) ) )
-
-As our last example, let's use recursion to build a deeply-nested
-object.  A `letter trie`:dt: is a data structure that can be used
+Let's use recursion to build a deeply-nested object.
+A `letter trie`:dt: is a data structure that can be used
 for indexing a lexicon, one letter at a time.  For example, if ``trie``
 contained a letter trie, then the sub-trie ``trie['c']`` would be a smaller
 trie which held all words starting with `c`:lx:. 
@@ -1971,6 +2072,12 @@ Lucene
 ------
 
 [Python-Lucene interface]
+
+-------
+Summary
+-------
+
+* [Summary of string formatting.]
 
 ---------------
 Further Reading

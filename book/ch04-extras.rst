@@ -29,6 +29,111 @@ review of the basic mathematical notions of set, relation, and
 function, and illustrates them in terms of Python data structures.
 It contains many working program fragments that you should try yourself.
 
+-------------------
+Abstract Data Types
+-------------------
+
+Stacks and Queues
+-----------------
+
+Lists are a versatile data type.  We can use lists to
+implement so-called `abstract data types`:dt: such as stacks and queues.
+A `stack`:dt: is a container that has a last-in-first-out (or LIFO) policy
+for adding and removing items (see Figure stack-queue_).
+
+.. _stack-queue:
+.. figure:: ../images/stack-queue.png
+   :scale: 25:30:30
+
+   Stacks and Queues
+
+Stacks are used to keep track of the current context in
+computer processing of natural languages (and programming languages too).
+We will seldom have to deal with stacks explicitly, as the implementation
+of |NLTK| parsers, treebank corpus readers, (and even Python functions),
+all use stacks behind the scenes.
+However, it is important to understand what stacks are and how they work.
+
+.. pylisting:: check-parens
+   :caption: Check parentheses are balanced
+
+   def check_parens(tokens):
+       stack = []
+       for token in tokens:
+           if token == '(':     # push
+               stack.append(token)
+           elif token == ')':   # pop
+               stack.pop()
+       return stack
+
+   >>> phrase = "( the cat ) ( sat ( on ( the mat )"
+   >>> print check_parens(phrase.split())
+   ['(', '(']
+
+In Python, we can treat a list as a stack by limiting ourselves to the three
+operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
+``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
+item on the top of the stack.  The program in Figure check-parens_ processes a sentence with
+phrase markers, and checks that the parentheses are balanced.
+The loop pushes material onto the stack when it gets an open parenthesis,
+and pops the stack when it gets a close parenthesis.
+We see that two are left on the stack at the end;
+i.e. the parentheses are not balanced.
+
+Although the program in Figure check-parens_ is a useful illustration of stacks,
+it is overkill because we could have done a direct count:
+``phrase.count('(') == phrase.count(')')``.  However, we
+can use stacks for more sophisticated processing of strings
+containing nested structure, as shown in Figure convert-parens_.
+Here we build a (potentially deeply-nested) list of lists.
+Whenever a token other than a parenthesis is encountered,
+we add it to a list at the appropriate level of nesting.
+The stack keeps track of this level of nesting, exploiting
+the fact that the item at the top of the stack is actually shared with a
+more deeply nested item.  (Hint: add diagnostic print statements to
+the function to help you see what it is doing.)
+
+.. pylisting:: convert-parens
+   :caption: Convert a nested phrase into a nested list using a stack
+
+   def convert_parens(tokens):
+       stack = [[]]
+       for token in tokens:
+           if token == '(':     # push
+               sublist = []
+               stack[-1].append(sublist)
+               stack.append(sublist)
+           elif token == ')':   # pop
+               stack.pop()
+           else:                # update top of stack
+               stack[-1].append(token)
+       return stack[0]
+
+   >>> phrase = "( the cat ) ( sat ( on ( the mat ) ) )"
+   >>> print convert_parens(phrase.split())
+   [['the', 'cat'], ['sat', ['on', ['the', 'branch']]]]    
+
+Lists can be used to represent another important data structure.
+A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
+for adding and removing items (see Figure stack-queue_).
+We could use a queue of length `n`:math: to create all the n-grams of a text.
+As with stacks, we will seldom have to deal with queues explicitly,
+as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
+and chart parsers (Appendix app-chart_) use queues behind the scenes.
+Here's how queues can be implemented using lists.
+
+    >>> queue = ['the', 'cat', 'sat']
+    >>> queue.append('on')
+    >>> queue.append('the')
+    >>> queue.append('branch')
+    >>> queue.pop(0)
+    'the'
+    >>> queue.pop(0)
+    'cat'
+    >>> queue
+    ['sat', 'on', 'the', 'branch']
+
+
 
 ---------------
 Chinese and XML
