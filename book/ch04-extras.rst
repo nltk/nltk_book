@@ -20,7 +20,7 @@
 .. _chap-applied-programming:
 
 =======================================
-6. Writing Structured Programs (Extras)
+4. Writing Structured Programs (Extras)
 =======================================
 
 This chapter introduces concepts in algorithms, data structures,

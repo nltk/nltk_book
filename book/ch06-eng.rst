@@ -8,7 +8,7 @@
 .. _chap-engineering:
 
 ===============================
-5. Language Engineering (Draft)
+6. Language Engineering (Draft)
 ===============================
 
 ------------
