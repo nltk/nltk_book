@@ -12,14 +12,13 @@ Extract the code samples from a file in restructured text format
 """
 
 import sys
-import warnings
 
 from epydoc.markup.doctest import DoctestColorizer
 PROMPT_RE = DoctestColorizer.PROMPT_RE        
 
-for file in sys.argv[1:]:
+for filename in sys.argv[1:]:
     in_code = False
-    for line in open(file).readlines():
+    for line in open(filename).readlines():
         if PROMPT_RE.match(line):
             in_code = True
             print PROMPT_RE.sub('', line),

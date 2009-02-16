@@ -35,6 +35,8 @@ PYTHON = python
 PDFLATEX = TEXINPUTS=".:..:ucs:" pdflatex -halt-on-error
 EXAMPLES = ../examples.py
 LATEXHACKS = ../latexhacks.py
+DOCTEST_SPLIT = ../doctest_split.py 
+
 RST = ../rst.py
 RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
@@ -155,7 +157,8 @@ bibliography.html: $(BIBTEX_FILE) bib_template.html
 book.pdf: book.bbl book.tex
 
 .rst.errs:
-	$(DOCTEST) $< --ellipsis --normalize_whitespace --udiff &> $@
+	$(PYTHON) $(DOCTEST_SPLIT) $<
+	$(DOCTEST) `basename $< .rst`*.doctest --ellipsis --normalize_whitespace --udiff &> $@
 
 .rst.py:
 	$(PYTHON) $(EXAMPLES) $< > $@
