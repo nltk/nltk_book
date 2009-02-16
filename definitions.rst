@@ -34,6 +34,7 @@
   .. PTB removed since it must be indexed
   .. WN removed since it must be indexed
   .. |TRY| replace:: **Your Turn:**
+  .. |IMPORTANT| replace:: **Important:**
   
   .. misc & punctuation
   .. cdots was unicode U+22EF but not working
