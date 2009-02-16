@@ -359,6 +359,23 @@ produces a pair of an index and the item at that index.
     >>> list(enumerate(words))
     [(0, 'I'), (1, 'turned'), (2, 'off'), (3, 'the'), (4, 'spectroroute')]
 
+For some |NLP| tasks it is necessary to cut up a sequence into two or more parts.
+For instance, we might want to "train" a system on 90% of the data and test it
+on the remaining 10%.  To do this we decide the location where we want to
+cut the data cut-location_, then cut the sequence at that location cut-sequence_.  
+
+    >>> text = nltk.corpus.nps_chat.words()
+    >>> cut = int(0.9 * len(text)) # [_cut-location]
+    >>> training_data, test_data = text[:cut], text[cut:] # [_cut-sequence]
+    >>> text == training_data + test_data # [_cut-preserve]
+    True
+    >>> len(training_data) / len(test_data) # [_cut-ratio]
+    9
+
+We can verify that none of the original data is lost during this process, nor is it duplicated
+cut-preserve_.  We can also verify that the ratio of the sizes of the two pieces is what
+we intended cut-ratio_.
+
 Combining Different Sequence Types
 ----------------------------------
 
@@ -457,6 +474,8 @@ period, followed by the ``join()`` function.
     'We called him Tortoise because he taught us .'
     >>> ';'.join(silly)
     'We;called;him;Tortoise;because;he;taught;us;.'
+    >>> ''.join(silly)
+    'WecalledhimTortoisebecausehetaughtus.'
 
 So ``' '.join(silly)`` means: take all the items in ``silly`` and
 concatenate them as one big string, using ``' '`` as a spacer between
@@ -636,12 +655,10 @@ then specified using a variable width-variable_.
 
 Other control characters are used for decimal integers and floating point numbers.
 Since the percent character ``%`` has a special interpretation in formatting strings,
-we have to precede it with another ``%`` to get it in the output.  We also have
-to do something special to ensure that ``count/total`` does not use integer division
-and give a result of zero (try replacing ``100.0`` with ``100`` to see what happens).
+we have to precede it with another ``%`` to get it in the output.
 
     >>> count, total = 3205, 9375 
-    >>> "accuracy for %d words: %2.4f%%" % (total, 100.0 * count / total)
+    >>> "accuracy for %d words: %2.4f%%" % (total, 100 * count / total)
     'accuracy for 9375 words: 34.1867%'
 
 An important use of formatting strings is for tabulating data.
@@ -790,7 +807,7 @@ program to compute the average length of words in the Brown Corpus:
     >>> for token in tokens:
     ...     count += 1
     ...     total += len(token)
-    >>> print float(total) / count
+    >>> print total / count
     4.2765382469
 
 In this program we use the variable ``count`` to keep track of the
@@ -804,7 +821,7 @@ the machine operations step by step.  Now consider the following
 program that computes the same thing:
 
     >>> total = sum(len(t) for t in tokens)
-    >>> print float(total)/len(tokens)
+    >>> print total / len(tokens)
     4.2765382469
 
 The first line uses a list comprehension to sum the token lengths,
@@ -844,7 +861,7 @@ as required when producing a list of ranked items.
     >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
     >>> cumulative = 0.0
     >>> for rank, word in enumerate(fd):
-    ...     cumulative += fd[word] * 100.0 / fd.N()
+    ...     cumulative += fd[word] * 100 / fd.N()
     ...     print "%3d %6.2f%% %s" % (rank+1, cumulative, word)
     ...     if cumulative > 25:
     ...         break
@@ -1484,10 +1501,10 @@ way to find the average length of a sentence in the news
 section of the Brown Corpus:
 
     >>> lengths = map(len, nltk.corpus.brown.sents(categories='news'))
-    >>> sum(lengths) / float(len(lengths))
+    >>> sum(lengths) / len(lengths)
     21.7508111616
     >>> lengths = [len(w) for w in nltk.corpus.brown.sents(categories='news'))]
-    >>> sum(lengths) / float(len(lengths))
+    >>> sum(lengths) / len(lengths)
     21.7508111616
 
 In the above examples we specified a user-defined function ``is_content_word()``
@@ -2063,7 +2080,7 @@ Non-Deterministic Search
            segs = flip(segs, randint(0,len(segs)-1))
        return segs
    def anneal(text, segs, iterations, rate):
-       distance = float(len(segs))
+       distance = len(segs)
        while distance > 0.5:
            best_segs, best = segs, evaluate(text, segs)
            for i in range(iterations):
@@ -2074,7 +2091,7 @@ Non-Deterministic Search
                    best_segs = guess
            segs = best_segs
            score = best
-           distance = distance/rate
+           distance = distance / rate
            print evaluate(text, segs),
        print
        return segs
@@ -2163,6 +2180,13 @@ Profiling
 [more]
 
 
+Efficiency
+----------
+
+[Building a big list out of smaller lists: linear vs n-squared solutions; e.g. accumulating lines
+of a long file into a list.]
+
+
 
 .. _sec-visualization:
 .. _sec-libraries:
@@ -2195,7 +2219,7 @@ format.  The output is shown in Figure modal-genre_ (a color figure in the onlin
        "Plot a bar chart showing counts for each word by category"
        import pylab
        ind = pylab.arange(len(words))
-       width = 1.0 / (len(categories) + 1)
+       width = 1 / (len(categories) + 1)
        bar_groups = []
        for c in range(len(categories)):
            bars = pylab.bar(ind+c*width, counts[categories[c]], width, color=colors[c % len(colors)])
