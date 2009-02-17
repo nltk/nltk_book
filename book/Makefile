@@ -104,9 +104,7 @@ clean_up:
 	    sed -e "s/chapter>/preface>/" -i "" $*.xml;\
 	    sed -e "s/DOCTYPE chapter/DOCTYPE preface/" -i "" $*.xml;\
 	fi)
-#	$(PYTHON) ../xmlpp.py $@ > tmp.xml
-#	mv tmp.xml $@
-	$(XMLLINT) $@
+#	$(XMLLINT) $@
 
 %.tex: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=latex $<

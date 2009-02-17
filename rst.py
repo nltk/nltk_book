@@ -202,7 +202,7 @@ def tree_directive(name, arguments, options, content, lineno,
     elif OUTPUT_FORMAT == 'ref':
         return []
     elif OUTPUT_FORMAT == 'docbook':
-        warning('TREE DIRECTIVE -- CHECK THIS')
+#        warning('TREE DIRECTIVE -- CHECK THIS')
         scale = options.get('scale', 50)
         density = 300 * scale / 100
         filename = '%s-tree-%s.png' % (OUTPUT_BASENAME, _treenum)
@@ -1863,6 +1863,8 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             if len(self.example_tag_stack) == 0:
                 self.stack_push(self.example_tag_stack, "example")
                 atts["role"] = "linguistic"
+                if "id" in node.attributes:
+                    atts["id"] = node.attributes["id"]
                 self.body.append(self.starttag(node, "example", **atts))
                 self.body.append("<title/>")
             else:
