@@ -159,6 +159,7 @@ book.pdf: book.bbl book.tex
 .rst.errs:
 	$(PYTHON) $(DOCTEST_SPLIT) $<
 	$(DOCTEST) `basename $< .rst`*.doctest --ellipsis --normalize_whitespace --udiff &> $@
+	rm -f `basename $< .rst`*.doctest
 
 .rst.py:
 	$(PYTHON) $(EXAMPLES) $< > $@
