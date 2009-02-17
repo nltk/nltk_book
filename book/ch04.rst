@@ -30,6 +30,7 @@
 .. TODO: explain function vs method
 .. TODO: say more about performance tuning of a Python program
 .. TODO: add exercises on string formatting
+.. TODO: this chapter presumes knowledge of dictionaries, not defined until ch05
 
 .. _chap-structured-programming:
 
@@ -273,12 +274,21 @@ of members.  Like lists and strings, tuples can be indexed index-tuple_
 and sliced slice-tuple_, and have a length length-tuple_.
 
 .. doctest-ignore::
-   >>> t = ('walk', 'fem', 3) # [_create-tuple]
+   >>> t = 'walk', 'fem', 3 # [_create-tuple]
+   >>> t
+   ('walk', 'fem', 3)
    >>> t[0] # [_index-tuple]
    'walk'
    >>> t[1:] # [_slice-tuple]
    ('fem', 3)
    >>> len(t) # [_length-tuple]
+
+.. caution::
+   Tuples are constructed using the comma operator.  Parentheses are a more
+   general feature of Python syntax, designed for grouping.
+   A tuple containing the single element ``'snark'`` is defined by adding a
+   trailing comma, like this: "``'snark',``".  The empty tuple is a special
+   case, and is defined using empty parentheses ``()``. 
 
 Let's compare strings, lists and tuples directly, and do the indexing, slice, and length
 operation on each type:
@@ -366,8 +376,8 @@ that rearrange the items of a sequence.  There are also functions that
 modify the `structure`:em: of a sequence and which can be handy for
 language processing.  Thus, ``zip()`` takes
 the items of two or more sequences and "zips" them together into a single list of pairs.
-Given a sequence ``s``, ``enumerate(s)`` returns an iterator that
-produces a pair of an index and the item at that index.
+Given a sequence ``s``, ``enumerate(s)`` returns pairs consisting of
+an index and the item at that index.
 
     >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
     >>> tags = ['NNP', 'VBD', 'IN', 'DT', 'NN']
@@ -825,6 +835,13 @@ the end of the line that is broken:
     ...    syllables[2][2] in [aeiou] and syllables[2][3] == syllables[1][3]:
     ...     process(syllables)
 
+.. note::
+   Typing spaces instead of tabs soon becomes a chore.  Many programming
+   editors have built-in support for Python, and can automatically indent
+   code and highlight any syntax errors (including indentation errors).
+   For a list of Python-aware editors, please see
+   ``http://wiki.python.org/moin/PythonEditors``.
+
 Procedural vs Declarative Style
 -------------------------------
 
@@ -1038,7 +1055,7 @@ interpretation" |mdash| it helps a reader of our program to see what the program
 Notice that the above function definition contains a string.  The first string inside
 a function definition is called a `docstring`:dt:.  Not only does it document the
 purpose of the function to someone reading the code, it is accessible to a programmer
-who has loaded the code from a file:
+who has loaded the code from a file::
 
     >>> help(get_text)
     Help on function get_text:
@@ -1101,7 +1118,7 @@ These are called keyword arguments.
 If we mix these two kinds of parameters, then we must ensure that the unnamed parameters precede the named ones.
 It has to be this way, since unnamed parameters are defined by position.  We can define a function that takes
 an arbitrary of unnamed and named parameters, and access them via an in-place list of arguments ``*args`` and
-an in-place dictionary of keyword arguments ``*kwargs``.
+an in-place dictionary of keyword arguments ``**kwargs``.
 
     >>> def generic(*args, **kwargs):
     ...     print *args
@@ -1113,7 +1130,8 @@ an in-place dictionary of keyword arguments ``*kwargs``.
 
 When ``*args`` appears as a function parameter, it actually corresponds to all the unnamed parameters of
 the function.  Here's another illustration of this aspect of Python syntax, for the ``zip()`` function which
-operates on a variable number of arguments.
+operates on a variable number of arguments.  We'll use the variable name ``*song`` to demonstrate that
+there's nothing special about the name ``*args``.
 
     >>> song = [['four', 'calling', 'birds'],
     ...         ['three', 'French', 'hens'],
@@ -1123,7 +1141,8 @@ operates on a variable number of arguments.
     >>> zip(*song)
     [('four', 'three', 'two'), ('calling', 'French', 'turtle'), ('birds', 'hens', 'doves')]
 
-    
+It should be clear from the above example that typing ``*song`` is just a convenient
+shorthand, and equivalent to typing out ``song[0], song[1], song[2]``.
 
 Parameter Passing
 -----------------
@@ -1139,6 +1158,7 @@ while ``p`` is changed:
     >>> def set_up(word, properties):
     ...     word = 'cat'
     ...     properties['pos'] = 'noun'
+    ...     properties = 5
     ...
     >>> w = ''
     >>> p = {}
@@ -1165,12 +1185,16 @@ When we called ``set_up(w, p)``, the value of ``p`` (a reference to an empty
 dictionary) was assigned to a new local variable ``properties``,
 so now both variables now reference the same memory location.
 The function modifies ``properties``, and this change is also
-reflected in the value of ``p`` as we saw.
+reflected in the value of ``p`` as we saw.  The function also
+assigned a new value to properties (the number ``5``); this
+did not modify the contents at that memory location, but
+created a new local variable.
 This behavior is just as if we had done the following sequence of assignments:
 
     >>> p = {}
     >>> properties = p
     >>> properties['pos'] = 'noun'
+    >>> properties = 5
     >>> p
     {'pos': 'noun'}
 
@@ -1191,7 +1215,7 @@ Python does not force us to declare the type of a variable when we write a progr
 and this permits us to define functions that are flexible
 about the type of their arguments.  For example, a tagger might expect
 a sequence of words, but it wouldn't care whether this sequence is expressed
-as a list, a tuple, or an iterator.
+as a list, a tuple, or an iterator (a new sequence type that we'll discuss below).
 
 However, often we want to write programs for later use by others, and want
 to program in a defensive style, providing useful warnings when functions
@@ -1220,10 +1244,13 @@ return Python's special empty value, ``None``.
 However, this approach is dangerous because the calling program
 may not detect the error, and the diagnostic return value may be
 propagated to other parts of the program with unpredictable consequences.
-Here's a better solution, that uses an assertion:
+This approach also fails if the word is a Unicode string, which has
+type ``unicode``, not ``str``.
+Here's a better solution, that uses an assertion and Python's ``basestring``
+type that generalizes over both ``unicode`` and ``str``.
 
     >>> def tag(word):
-    ...     assert type(word) is str, "argument to tag() must be a string"
+    ...     assert isinstance(word, basestring), "argument to tag() must be a string"
     ...     if word in ['a', 'the', 'all']:
     ...         return 'DT'
     ...     else:
@@ -1238,7 +1265,7 @@ a program helps you find logical errors, and is a kind of "defensive programming
    tell the interpreter to ignore assertions using its optimize flag
    (``python -O``).
 
-[Further discussion of duck-typing]
+[Further discussion of duck-typing, including exceptions.]
 
 The Return Statement
 --------------------
@@ -1386,6 +1413,10 @@ prettier online documentation, e.g. see:
 
 [Examples of function-level docstrings with epytext markup.]
 
+[The importance of documenting the types of arguments expected by the function.]
+
+.. _sec-doing-more-with-functions:
+
 -------------------------
 Doing More with Functions
 -------------------------
@@ -1528,8 +1559,9 @@ the function returns ``True``.
     ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
     
 Another higher-order function is ``map()``, which applies a function
-to every item in a sequence.  Here is a simple
-way to find the average length of a sentence in the news
+to every item in a sequence.  It is a general version of the
+``extract_property()`` function we saw in sec-doing-more-with-functions_.  
+Here is a simple way to find the average length of a sentence in the news
 section of the Brown Corpus:
 
     >>> lengths = map(len, nltk.corpus.brown.sents(categories='news'))
@@ -1923,7 +1955,8 @@ previously stored the result.  If not, it computes the result
 recursively and stores it in the table.  The last step is to return
 the stored result.  The final method is to use a Python `decorator`:dt:
 called ``memoize``, which takes care of the housekeeping work done
-by ``virahanka3()`` without cluttering up the program.
+by ``virahanka3()`` without cluttering up the program, using a
+programming technique that falls outside the scope of this book.
 
 This concludes our brief introduction to dynamic programming.
 We will encounter it again in Section sec-parsing_.
@@ -2411,6 +2444,8 @@ http://docs.python.org/lib/typesseq-strings.html
 http://www.jwz.org/doc/worse-is-better.html
 
 http://c2.com/cgi/wiki?DontRepeatYourself
+
+http://effbot.org/zone/python-objects.htm
 
 Pages on Python pitfalls.
 

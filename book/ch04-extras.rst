@@ -133,7 +133,10 @@ Here's how queues can be implemented using lists.
     >>> queue
     ['sat', 'on', 'the', 'branch']
 
-
+.. note::
+   The list-based implementation of queues is inefficient for large queues.
+   In such cases, it is better to use Python's built-in support for
+   "double-ended queues", ``collections.deque``.
 
 ---------------
 Chinese and XML
