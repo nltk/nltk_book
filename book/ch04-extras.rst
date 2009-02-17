@@ -39,9 +39,9 @@ Stacks and Queues
 Lists are a versatile data type.  We can use lists to
 implement so-called `abstract data types`:dt: such as stacks and queues.
 A `stack`:dt: is a container that has a last-in-first-out (or LIFO) policy
-for adding and removing items (see Figure stack-queue_).
+for adding and removing items (see Figure fig-stack-queue_).
 
-.. _stack-queue:
+.. _fig-stack-queue:
 .. figure:: ../images/stack-queue.png
    :scale: 25:30:30
 
@@ -115,7 +115,7 @@ the function to help you see what it is doing.)
 
 Lists can be used to represent another important data structure.
 A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
-for adding and removing items (see Figure stack-queue_).
+for adding and removing items (see Figure fit-stack-queue_).
 We could use a queue of length `n`:math: to create all the n-grams of a text.
 As with stacks, we will seldom have to deal with queues explicitly,
 as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)

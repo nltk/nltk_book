@@ -1,8 +1,6 @@
 .. -*- mode: rst -*-
 .. include:: ../definitions.rst
 
-.. _app-chart:
-
 ========================================
 8. Analyzing Sentence Structure (Extras)
 ========================================
@@ -20,17 +18,17 @@ Active Charts
 -------------
 
 The content of a WFST can be represented in a directed acyclic graph,
-as shown in chartinita_ for the initialized WFST and
-chartinitb_ for the completed WFST.
+as shown in ex-chartinita_ for the initialized WFST and
+ex-chartinitb_ for the completed WFST.
 
 .. ex::
 
-  .. _chartinita:
+  .. _ex-chartinita:
   .. ex::
       .. image:: ../images/chart_wfst1.png
          :scale: 25:75:25
 
-  .. _chartinitb:
+  .. _ex-chartinitb:
   .. ex::
      .. image:: ../images/chart_wfst2.png
         :scale: 25:75:25
@@ -55,10 +53,10 @@ We can do this by adding a `dot`:dt: to the edge's right hand side.
 Material to the left of the dot records what has been found so far;
 material to the right of the dot specifies what still needs to be found in order
 to complete the constituent.  For example, the edge in
-dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
+ex-dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
 `likes`:lx:, but still needs an `np`:gc: to become complete":
 
-.. _dottededge:
+.. _ex-dottededge:
 .. ex::
    .. image:: ../images/chart_intro_dottededge.png
       :scale: 30:75:75
@@ -73,34 +71,34 @@ Let's take stock.
 An edge [`VP`:gc: |rarr| |dot| `V`:gc: `NP`:gc: `PP`:gc:, (*i*, *i*)]
 records the hypothesis that a `VP`:gc: begins at location *i*, and that we anticipate
 finding a sequence `V NP PP`:gc: starting here.  This is known as a
-`self-loop edge`:dt:; see chart-intro-selfloop_.
+`self-loop edge`:dt:; see ex-chart-intro-selfloop_.
 An edge [`VP`:gc: |rarr| `V`:gc: |dot| `NP`:gc: `PP`:gc:, (*i*, *j*)]
 records the fact that we have discovered a `V`:gc: spanning (*i*, *j*),
 and hypothesize a following `NP PP`:gc: sequence to complete a `VP`:gc:
 beginning at *i*.  This is known as an `incomplete edge`:dt:;
-see chart-intro-incomplete_.
+see ex-chart-intro-incomplete_.
 An edge [`VP`:gc: |rarr| `V`:gc: `NP`:gc: `PP`:gc: |dot| , (*i*, *k*)]
 records the discovery that a `VP`:gc: consisting of the sequence
 `V NP PP`:gc: has been discovered for the span (*i*, *j*).  This is known
-as a `complete edge`:dt:; see chart-intro-parseedge_.
+as a `complete edge`:dt:; see ex-chart-intro-parseedge_.
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
 edge`:dt:, and it encodes one or more parse trees for the sentence;
-see chart-intro-parseedge_.
+see ex-chart-intro-parseedge_.
 
 .. ex::
 
-   .. _chart-intro-selfloop:
+   .. _ex-chart-intro-selfloop:
    .. ex::
       .. image:: ../images/chart_intro_selfloop.png
          :scale: 25
 
-   .. _chart-intro-incomplete:
+   .. _ex-chart-intro-incomplete:
    .. ex::
       .. image:: ../images/chart_intro_incomplete.png
          :scale: 25:25:75
 
-   .. _chart-intro-parseedge:
+   .. _ex-chart-intro-parseedge:
    .. ex::
       .. image:: ../images/chart_intro_parseedge.png
          :scale: 25
@@ -137,11 +135,11 @@ The Fundamental Rule
 One rule is particularly important, since it is used by every chart
 parser: the `Fundamental Rule`:dt:.  This rule is used to combine an
 incomplete edge that's expecting a nonterminal *B* with a following, complete
-edge whose left hand side is *B*.  The rule is defined and illustrated in fundamental-rule_.
+edge whose left hand side is *B*.  The rule is defined and illustrated in ex-fundamental-rule_.
 We will use |alpha|, |beta|, and |gamma| to denote (possibly empty) sequences
 of terminals or non-terminals.
 
-.. _fundamental-rule:
+.. _ex-fundamental-rule:
 .. ex:: `Fundamental Rule`:dt: If the chart contains the edges
    [*A* |rarr| |alpha|\ |dot|\ *B*\ |beta|\ , (*i*, *j*\ )] and
    [*B* |rarr| |gamma|\ |dot|\ , (*j*, *k*\ )] then add a new edge
@@ -190,7 +188,7 @@ Rule`:dt:.
 The Bottom-Up Initialization Rule says to add all edges licensed by
 the input.
 
-.. _bottom-up-initialization-rule:
+.. _ex-bottom-up-initialization-rule:
 .. ex:: `Bottom-Up Initialization Rule`:dt: For every word w\ :subscript:`i` add the edge
    [`w`:subscript:`i` |rarr|  |dot| , (*i*, *i*\ +1)]
 
@@ -205,7 +203,7 @@ parser to add a self-loop edge at the left boundary of *e*
 for each grammar production whose right hand side begins with category
 *A*.
 
-.. _bottom-up-predict-rule:
+.. _ex-bottom-up-predict-rule:
 .. ex:: `Bottom-Up Predict Rule`:dt: For each complete edge
    [*A* |rarr| |alpha|\ |dot|\ , (*i*, *j*\ )] and each production
    *B* |rarr| *A*\ |beta|\ , add the self-loop edge
@@ -225,9 +223,9 @@ After this, we will now be able to add new self-loop edges such as
 build more complete edges.
 
 Using these three rules, we can parse a sentence as shown in
-bottom-up-strategy_.
+ex-bottom-up-strategy_.
 
-.. _bottom-up-strategy:
+.. _ex-bottom-up-strategy:
 .. ex::
    `Bottom-Up Strategy`:dt:
 
@@ -256,11 +254,11 @@ This goal is broken down into the subgoals of trying to find constituents such a
 To create a top-down chart parser, we use the Fundamental Rule as before plus
 three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
 Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
-The Top-Down Initialization Rule in td-init-rule_
+The Top-Down Initialization Rule in ex-td-init-rule_
 captures the fact that the root of any
 parse must be the start symbol `s`:gc:\.
 
-.. _td-init-rule:
+.. _ex-td-init-rule:
 .. ex:: `Top-Down Initialization Rule`:dt: For each production `s`:gc: |rarr| |alpha|
    add the self-loop edge [`s`:gc: |rarr| |dot|\ |alpha|\ , (0, 0)]
 
@@ -273,13 +271,13 @@ In our running example, we are predicting that we will be able to find an `np`:g
 `vp`:gc: starting at 0, but have not yet satisfied these subgoals.
 In order to find an  `np`:gc: we need to
 invoke a production that has `np`:gc: on its left hand side. This work
-is done by the Top-Down Expand Rule td-expand-rule_.
+is done by the Top-Down Expand Rule ex-td-expand-rule_.
 This tells us that if our chart contains an incomplete
 edge whose dot is followed by a nonterminal *B*, then the parser
 should add any self-loop edges licensed by the grammar whose left-hand
 side is *B*.
 
-.. _td-expand-rule:
+.. _ex-td-expand-rule:
 .. ex:: `Top-Down Expand Rule`:dt: For each incomplete edge
    [*A* |rarr| |alpha|\ |dot|\ *B*\ |beta|\ , (*i*, *j*)] and
    for each grammar production *B* |rarr| |gamma|, add the edge
@@ -295,7 +293,7 @@ matched against the input string. Thus, if the chart contains an incomplete
 edge whose dot is followed by a terminal *w*, then the parser should
 add an edge if the terminal corresponds to the current input symbol.
 
-.. _top-down-match-rule:
+.. _ex-top-down-match-rule:
 .. ex:: `Top-Down Match Rule`:dt: For each incomplete edge
    [*A* |rarr| |alpha|\ |dot|\ w\ :subscript:`j` |beta|\ , (*i*, *j*\ )], 
    where w\ :subscript:`j` is the *j* :sup:`th` word of the input,
@@ -311,9 +309,9 @@ After this, we can apply the fundamental rule to
 add the edge [`np`:gc: |rarr| Lee |dot| , (0, 1)].
 
 Using these four rules, we can parse a sentence top-down as shown in
-top-down-strategy_.
+ex-top-down-strategy_.
 
-.. _top-down-strategy:
+.. _ex-top-down-strategy:
 .. ex::
    `Top-Down Strategy`:dt:
 
@@ -337,11 +335,11 @@ The Earley Algorithm
 
 The Earley algorithm [Earley1970ECF]_ is a parsing strategy that
 resembles the Top-Down Strategy, but deals more efficiently with
-matching against the input string. Table earley-terminology_ shows the
+matching against the input string. Table tab-earley-terminology_ shows the
 correspondence between the parsing rules introduced above and the
 rules used by the Earley algorithm.
 
-.. table:: earley-terminology
+.. table:: tab-earley-terminology
 
     +-------------------------------+------------------------------+
     |**Top-Down**\ /**Bottom-Up**   |   **Earley**                 |
@@ -541,7 +539,7 @@ In NLTK, we create Viterbi parsers using ``ViterbiParse()``.
 Note that since ``ViterbiParse`` only finds the single most likely
 parse, that ``nbest_parse()`` will never return more than one parse.
 
-.. pylisting:: viterbi-parse
+.. pylisting:: code-viterbi-parse
    :caption: Example of a Viterbi Parser
 
    grammar = nltk.parse_pcfg('''
@@ -714,10 +712,10 @@ the best parse first.  In fact, since it might prune a necessary edge,
 beam search is not `complete`:idx:\ : it won't find every parse,
 and it is not even guaranteed to return a parse if one exists.
 
-The code in Figure bottom-up-chart-parsers_ demonstrates how
+The code in Example code-bottom-up-chart-parsers_ demonstrates how
 we define and use these probabilistic chart parsers in |NLTK|.
 
-.. pylisting:: bottom-up-chart-parsers
+.. pylisting:: code-bottom-up-chart-parsers
    :caption: Examples of Bottom-Up Chart Parsers
 
    inside_parser = nltk.InsideChartParser(grammar)
@@ -822,9 +820,9 @@ Markov order-N smoothing, and unary collapsing:
         (PP (IN of) (NP (DT the) (NNS students))))
       (VP+VBD passed))
 
-These trees are shown in treetransforms_.
+These trees are shown in ex-treetransforms_.
 
-.. _treetransforms:
+.. _ex-treetransforms:
 .. ex:: 
    .. ex::
       .. tree:: (S (NP-SBJ (NP (QP (IN at) (JJS least) (CD nine) (NNS tenths))) (PP (IN of) (NP (DT the) (NNS students)))) (VP (VBD passed)))

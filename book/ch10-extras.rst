@@ -10,7 +10,6 @@
 Sets and Mathematical Functions
 -------------------------------
 
-
 Sets
 ----
 
@@ -105,20 +104,20 @@ new sets out of those basic ones. All the basic sets have been
 specified by listing all their members. Often we want to specify set
 membership more succinctly:
 
-.. _set1:
+.. _ex-set1:
 .. ex:: the set of positive integers less than 10
 
-.. _set2:
+.. _ex_set2:
 .. ex:: the set of people in Melbourne with red hair
 
 |nopar| 
 We can informally write these sets using the
 following `predicate notation`:dt:\ :
 
-.. _set3:
+.. _ex-set3:
 .. ex:: {`x`:math: | `x`:math: is a positive integer less than 10}
 
-.. _set4:
+.. _ex-set4:
 .. ex:: {`x`:math: | `x`:math: is a person in Melbourne with red hair}
 
 In axiomatic set theory, the axiom schema of comprehension states that
@@ -126,20 +125,20 @@ given a one-place predicate `P`:math:, there is set `A`:math: such
 that for all `x`:math:, `x`:math: belongs to `A`:math: if and only if
 (written |iff|) `P(x)`:math: is true:
 
-.. _compax:
+.. _ex-compax:
 .. ex:: |exists|\ `A`:math:\ |forall|\ `x`:math:.(`x`:math: |element|
         `A`:math: |iff| `P(x)`:math:\ )
 
 |nopar| 
-From a computational point of view, compax_ is
+From a computational point of view, ex-compax_ is
 problematic: we have to treat sets as finite objects in the computer,
 but there is nothing to stop us defining infinite sets using
-comprehension. Now, there is a variant of compax_, called the axiom of
+comprehension. Now, there is a variant of ex-compax_, called the axiom of
 restricted comprehension, that allows us to specify a set `A`:math:
 with a predicate `P`:math: so long as we only consider `x`:math:\ s
 which belong to some `already defined set`:em: `B`:math:\:
 
-.. _comprax:
+.. _ex-comprax:
 .. ex:: |forall|\ `B`:math: |exists|\ `A`:math:\ |forall|\ `x`:math:.
         (`x`:math: |element| `A`:math: |iff| `x`:math: |element|
         `B`:math: |wedge|  `P(x)`:math:\ )
@@ -152,13 +151,13 @@ This is equivalent to the following set in predicate notation:
 .. ex:: {`x`:math: | `x`:math: |element| `B`:math: |wedge| `P(x)`:math:\ )
 
 |nopar|
-comprax_ corresponds pretty much to what we get with list
+ex-comprax_ corresponds pretty much to what we get with list
 comprehension in Python: if you already have a list, then you can
 define a new list in terms of the old one, using an ``if``
-condition. In other words, listcomp_ is the Python counterpart of
-comprax_.
+condition. In other words, ex-listcomp_ is the Python counterpart of
+ex-comprax_.
 
-.. _listcomp:
+.. _ex-listcomp:
 .. ex:: ``set([x for x in B if P(x)])``
 
 To illustrate this further, the following list comprehension relies on
@@ -301,13 +300,13 @@ member of a pair in `R`:math: is called the `range`:dt: of `R`:math:,
 written `ran(R)`:math:.
  
 We can visually represent the relation ``mod`` by drawing arrows to
-indicate elements that stand in the relation, as shown in Figure modrel_.
+indicate elements that stand in the relation, as shown in Figure fig-modrel_.
 
-.. _modrel:
+.. _fig-modrel:
 .. figure:: ../images/mod_relation.png
    :scale: 30
 
-   Visual Representation of a relation
+   Visual Representation of a Relation
 
 
 |nopar| The domain and range of the relation are shown as shaded areas
