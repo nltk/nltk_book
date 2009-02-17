@@ -21,18 +21,17 @@
 ======================================
 
 We have seen how useful it is to harness the power of a computer to
-process text on a large scale.  However, there are some significant
-challenges at the other end of the spectrum.  Now that we have the
-machinery of parsers and feature based grammars, we are ready to
-apply these to analyze the meaning of sentences.
+process text on a large scale.  However, now that we have the
+machinery of parsers and feature based grammars, can we do anything
+similarly useful by analyzing the meaning of sentences?
 The goal of this chapter is to answer the following questions:
 
 #. How can we represent natural language meaning so that a computer
-   can do useful things with these representations?
+   can process these representations?
 #. How can we associate meaning representations with an
    unlimited set of sentences?
-#. How can we use programs that process meaning representations to
-   query and update stores of knowledge?
+#. How can we use programs that connect the meaning representations of sentences to
+   stores of knowledge?
 
 Along the way we will learn some formal techniques in the field of logical semantics,
 and see how these can be used for interrogating databases that store facts
@@ -48,7 +47,7 @@ Querying a Database
 -------------------
 
 There are a variety of tasks that a computer could perform which appear
-to require some degree of natural language understanding.  For instance,
+to require a method for representing natural language meaning.  For instance,
 suppose we type in a question and the computer responds with a suitable
 answer:
 
@@ -61,8 +60,8 @@ answer:
 
 
 Building software that allows this task to be carried out in a general
-way is extremely hard, but solving it for a particular subdomain is
-easy. We start off by assuming that we have data about cities and
+way is hard, but solving it for a particular subdomain is
+relatively straightforward. We start off by assuming that we have data about cities and
 countries in a structured form. To be concrete, we will use a database
 table whose first few rows are shown in Table tab-cities_.
 
@@ -101,7 +100,7 @@ For example, executing the query ex-dbq1_ will pull out the value ``'greece'``:
   
 .. _ex-dbq1:
 .. ex::
-   SELECT Country FROM city_table WHERE City = 'athens'
+   ``SELECT Country FROM city_table WHERE City = 'athens'``
 
 This specifies a result set consisting of all values for the column
 ``Country`` in data rows where the value of the ``City`` column is
@@ -161,11 +160,11 @@ retrieve some results.
     >>> for r in rows: print "%s" % r,
     canton chungking dairen harbin kowloon mukden peking shanghai sian tientsin
 
-To summarize, we have constructed a task that involves the computer returning useful data
+To summarize, we have defined a task where the computer returns useful data
 in response to a natural language query, and we implemented this
 by translating a small subset of English into SQL. We can say that
-that our software already "understands" SQL, in the sense of being
-able to execute SQL queries against a database, and as a result it also undertands
+that our |NLTK| code already "understands" SQL, given that Python is
+able to execute SQL queries against a database, and by extension it also "understands"
 queries such as `What cities are located in China`:lx:. This parallels
 being able to translate from German into English as an example of
 natural language understanding.
@@ -200,15 +199,13 @@ her of your ability to understand German. We will return to this issue shortly.
 The grammar ``sql0.fcfg``, together with the NLTK Earley parser, is
 instrumental in carrying out the translation from English to SQL. How adequate is this
 grammar? You saw that the SQL translation for the whole sentence was
-built up from the translations of the parts. However, it is not clear
-what to make of these parts. Although we could break down the
-procedure of querying a database into a sequence of steps, there is no 
-apparent correspondence between these steps and the fragments of SQL
-that are associated with the syntactic components of the
-sentence. Similarly, if we look at the way the structure of the
-phrase `Which cities`:lx:, the determiner and noun correspond
-respectively to ``SELECT`` and ``City FROM city_table``, neither of
-which have a well-defined meaning in isolation from the other.
+built up from the translations of the components. However, there does
+not seem to be a lot of justification for these component meaning
+representations. For example, if we look at the analysis of the
+noun phrase `Which cities`:lx:, the determiner and noun correspond
+respectively to the SQL fragments ``SELECT`` and ``City FROM
+city_table``. But neither of
+these have a well-defined meaning in isolation from the other.
 
 There is another criticism we can level at the grammar: we have
 "hard-wired" an embarrassing amount of detail about the database into
@@ -231,8 +228,8 @@ and its translation:
    .. _ex-dbq21:
    .. ex:: What cities are in China and have populations above 1,000,000?
    .. _ex-dbq22:
-   .. ex:: SELECT City FROM city_table WHERE Country = 'china' AND
-           Population > 1000
+   .. ex:: ``SELECT City FROM city_table WHERE Country = 'china' AND
+           Population > 1000``
 
 .. note:: |TRY|
    Extend the grammar ``sql0.fcfg`` so that it will translate
@@ -252,17 +249,21 @@ together: the value of the ``Country`` column is ``'china'`` and the
 value of the ``Population`` column is greater than 1000.
 
 This interpretation for `and`:lx: involves a new idea: it talks about
-`what is true in some particular situation`:em:. Although  we
-haven't exhausted the meaning of `and`:lx: in English, we have given
-it a meaning which is independent of any query language. In fact, we
-have given it the standard interpretation from classical logic. In the
-following sections, we will explore an approach in which sentences of
-natural language are translated into logic instead of an executable
-query language. One advantage is that logical formalisms are more
-abstract and therefore more generic. If we wanted to, once we had our
-translation into logic, we could then translate it further into a
-task-specific query language. In fact, most serious attempts to query
-databases via natural language have adopted this methodology;
+`what is true in some particular situation`:em:, and tells us that
+``Cond1 AND Cond2`` is true in situation *s* just in case that
+condition ``Cond1`` is true in *s* and condition ``Cond2`` is true in
+*s*. Although this certainly doesn't completely account for the
+meaning of `and`:lx: in English, it has the nice property that it is
+independent of any query language. In fact, we have given it the
+standard interpretation from classical logic. In the following
+sections, we will explore an approach in which sentences of natural
+language are translated into logic instead of an executable query
+language such as SQL. One advantage of logical formalisms is that they
+are more abstract
+and therefore more generic. If we wanted to, once we had our
+translation into logic, we could then translate it into various other
+special-purpose languages. In fact, most serious attempts to query
+databases via natural language have adopted this methodology.
 
 
 Natural Language, Semantics and Logic
@@ -286,9 +287,9 @@ the meaning of ex-sem1_, then you know that it is true in situation
 refers to Agfa Isola Serial No. KX7750, `Stefan`:lx: refers to Stefan,
 and `gefällt`:lx: refers to the *please* relation. You
 also know that the entity designated by the grammatical subject of
-`gefällt`:lx: is the stimulus of *please*, while the
+`gefällt`:lx: is the "stimulus" of *please*, while the
 entity corresponding to the grammatical object plays the role of the
-experiencer.
+"experiencer".
 
 We have introduced two
 fundamental notions in semantics. The
@@ -301,6 +302,9 @@ here illustrated in in Figure fig-stefan-and-camera_.
 .. _fig-stefan-and-camera:
 .. figure:: ../images/stefan_and_camera_with_arrows.png
    :scale: 20:100:20
+
+   Depiction of situation in which Stefan likes camera Agfa Isola
+   Serial No. KX7750.
 
 Once we have adopted the notion of truth in a situation, we have a
 powerful tool for reasoning.  In particular, we can look at 
@@ -333,9 +337,9 @@ ex-cons1_ are `consistent`:dt:, while those in ex-cons2_ and ex-cons3_ are
 
 We have chosen sentences about fictional countries (featured in the
 Marx Brothers' 1933 movie *Duck Soup*) to emphasize that your ability
-to reason about these examples does `not`:em: depend on what is true
-or false in the actual world. If you know the meaning of `no`:lx:, and
-that the capital of a country is a city in that country, then you
+to reason about these examples does not depend on what is true
+or false in the actual world. If you know the meaning of the word `no`:lx:, and
+also know that the capital of a country is a city in that country, then you
 should be able to conclude that the two sentences in ex-cons2_ are
 inconsistent, regardless of where Freedonia is or what the population
 of its capital is. That is, there's no possible situation in which
@@ -367,15 +371,17 @@ rendering of the model.
 
 .. _fig-model-kids:
 .. figure:: ../images/model_kids.png
-   :scale: 10
+   :scale: 20:100:20
 
-   A picture of a model
+   Diagram of a model containing a domain *D* and subsets of *D*
+   corresponding to the predicates `boy`:math:, `girl`:math: and `is
+   running`:math:.
 
 .. SB: I found this transition slightly abrupt.
 
 Let's try to put this discussion into a broader perspective. Can a
 computer understand the meaning of a sentence? And how could we tell
-if it did?  This is similar to asking 'Can a computer think?' Alan
+if it did?  This is similar to asking "Can a computer think?" Alan
 Turing [Turing1950CMI]_ famously proposed to answer this by examining
 the ability of a computer to hold sensible conversations with a
 human. Suppose you are having a chat session with a person and a
@@ -383,16 +389,16 @@ computer, but you are not told at the outset which is which. If you
 cannot identify which of your partners is the computer after chatting
 to each of them, then the computer has successfully imitated a
 human. If a computer succeeds in passing itself off as human in this
-'imitation game', then according to Turing, we should be prepared to
-say that the computer `can`:em: think and can be said to be
-intelligent. So Turing sidestepped the question of somehow examining
-the internal states of a computer by instead using its `behaviour`:em:
-as evidence of intelligence. By the same reasoning, we have assumed 
-that in order to say that a computer understands English, it just
-needs to behave as though it did.  What is important here is not so
-much the specifics of Turing's imitation game, but rather the proposal
-to judge a capacity for natural language understanding in terms of
-observable behaviour on the part of the computer. 
+"imitation game" (or "Turing Test" as it is popularly known), then
+according to Turing, we should be prepared to say that the computer
+`can`:em: think and can be said to be intelligent. So Turing
+sidestepped the question of somehow examining the internal states of a
+computer by instead using its `behaviour`:em: as evidence of
+intelligence. By the same reasoning, we have assumed that in order to
+say that a computer understands English, it just needs to behave as
+though it did.  What is important here is not so much the specifics of
+Turing's imitation game, but rather the proposal to judge a capacity
+for natural language understanding in terms of observable behaviour.
 
 .. _sec-proplog:
 
