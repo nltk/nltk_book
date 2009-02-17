@@ -1180,6 +1180,8 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
             label = self.reference_labels[node_id]
             node.clear()
             node.append(docutils.nodes.Text(label))
+            if OUTPUT_FORMAT == 'docbook':
+                node.append(callout_marker(number=label, name=node_id))
             expand_reference_text(node)
         elif node_id in self.callout_labels:
             label = self.callout_labels[node_id]

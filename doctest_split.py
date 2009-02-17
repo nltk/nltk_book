@@ -25,6 +25,6 @@ for filename in sys.argv[1:]:
     for count, section in enumerate(re.split(SEC, contents)):
         chunk_name = "%s-%d.%s" % (basename, count+1, EXT)
         chunk_file = open(chunk_name, "w")
-        chunk_file.write(HDR)
+        chunk_file.write(HDR + "\n")
         chunk_file.write(section)
         chunk_file.close()
