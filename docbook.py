@@ -1121,6 +1121,8 @@ class DocBookTranslator(nodes.NodeVisitor):
             node.children = item_to_front(node.children, title_child_idx)
         else:
             table_tag = "informaltable"
+            if "id" in atts: # informal tables don't have identifiers
+                del atts["id"]
             if 'gloss' in node['classes']:
                  atts['tabstyle'] = "orm:glossed-text-padding"
 
