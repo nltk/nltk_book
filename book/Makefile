@@ -71,6 +71,9 @@ all: html pdf examples clean_up
 html: $(HTML) bibliography.html 
 pdf: $(PDF)
 xml: $(XML)
+	$(PYTHON) ../xincluder.py book.xml
+	$(XMLLINT) book-flat.xml
+
 examples: $(PY)
 book: book.pdf book.html
 book.rst: $(CHAPTERS) $(REF)
