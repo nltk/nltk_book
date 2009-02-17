@@ -1179,7 +1179,8 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
         if node_id in self.reference_labels:
             label = self.reference_labels[node_id]
             node.clear()
-            if OUTPUT_FORMAT == 'docbook': # use xref label for docbook output, else xref value
+            # use xref label for docbook output, except for linguistic examples
+            if OUTPUT_FORMAT == 'docbook' and not node_id.startswith('ex-'):
                 node.append(callout_marker(number=label, name=node_id))
             else:
                 node.append(docutils.nodes.Text(label))
