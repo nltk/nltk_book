@@ -284,9 +284,9 @@ entities, which we will call the *please* relation. If you understand
 the meaning of ex-sem1_, then you know that it is true in situation
 *s*. In part, you know this because you know that `Die Kamera`:lx:
 refers to Agfa Isola Serial No. KX7750, `Stefan`:lx: refers to Stefan,
-and `gefÃ¤llt`:lx: refers to the *please* relation. You
+and `gefällt`:lx: refers to the *please* relation. You
 also know that the entity designated by the grammatical subject of
-`gefÃ¤llt`:lx: is the stimulus of *please*, while the
+`gefällt`:lx: is the stimulus of *please*, while the
 entity corresponding to the grammatical object plays the role of the
 experiencer.
 
@@ -542,16 +542,16 @@ This would give rise to the following set of sentences:
    | [Freedonia is to the north of Sylvania]
 
 Arguments can be tested for validity using |NLTK|\ s ``inference``
-module. The inputs to the inference mechanism have to be parsed into
-logical expressions along the lines ilustrated above.
+module. The inputs to the inference mechanism first have to be parsed into
+logical expressions along the lines ilustrated above. (We say more
+about the ``Prover9()`` theorem prover below.)
 
-    >>> from nltk.sem import logic
-    >>> lp = logic.LogicParser()
-    >>> from nltk import inference 
+    >>> lp = nltk.LogicParser()
     >>> P = lp.parse('P')
     >>> NotQ = lp.parse('-Q')
     >>> R = lp.parse('P -> -Q')
-    >>> inference.get_prover(NotQ, [P, R]).prove()
+    >>> prover = nltk.Prover9()
+    >>> prover.prove(NotQ, [P, R])
     True
 
 Why is this argument valid? *P* |rarr| |neg|\ *Q* is semantically
@@ -1071,9 +1071,9 @@ by the existential quantifier in the functor expression of ex-alpha2a_.
 In fact, given any variable-binding expression (involving |forall|,
 |exists| or |lambda|), the particular name chosen for the bound
 variable is completely arbitrary. For example, ``exists x.P(x)`` and
-``exists y.P(y)`` are equivalent; they are called `Î± equivalents`:dt:
+``exists y.P(y)`` are equivalent; they are called `α equivalents`:dt:
 (or `alphabetic variants`:dt:). The process of relabeling bound
-variables is known as `Î±-conversion`:dt:. When we test for equality of
+variables is known as `α-conversion`:dt:. When we test for equality of
 ``VariableBinderExpression``\s in the ``logic`` module (i.e., using
 ``==``), we are in fact testing for |alpha|-equivalence:
 
@@ -1116,7 +1116,7 @@ meaning of binary predicates such as `... to the north of
 straightforward within first order logic. We can also use the
 ``inference`` module to show the validity of the argument.  The
 general case in theorem proving is to determine whether a formula that we
-want to prove (a `proof goal`:dt:) can be derived by a sequence of
+want to prove (a `proof goal`:dt:) can be derived by a finite sequence of
 inference steps from a
 set of assumed formulas. We write this as
 `S`:mathit: ⊢ `g`:mathit:, where ``S`` is a (possibly empty) set of assumptions, and ``g``
@@ -1126,19 +1126,17 @@ initialized with a proof goal and, possibly, some assumptions. The
 ``prove()`` method attempts to find a proof of the goal, given the
 list of assumptions (which may be empty).
 
-
-    >>> from nltk import inference 
     >>> P = lp.parse('north_of(s, f)')
     >>> NotQ = lp.parse('-north_of(f, s)')
     >>> R = lp.parse('all x. all y. (north_of(x, y) -> -north_of(y, x))')
-    >>> prover = inference.Prover9Command(NotQ, [P, R])
-    >>> prover.prove()
+    >>> prover = nltk.Prover9()
+    >>> prover.prove((NotQ, [P, R])
     True
 
 As required, we cannot infer ``north_of(f, s)`` from our premises:
 
     >>> Q = lp.parse('north_of(f, s)')
-    >>> inference.Prover9Command(Q, [P, R]).prove()
+    >>> prover.prove(Q, [P, R])
     False
 
 
@@ -1183,25 +1181,27 @@ module, and two of the methods of ``Expression``\ s.
 
 .. table:: tab-nltk-logic
 
-    +---------------+-------------------------------------+
-    | Example       |Description                          |
-    +===============+=====================================+
-    |    ``=``      |equality                             |
-    +---------------+-------------------------------------+
-    |    ``!=``     |inequality                           |
-    +---------------+-------------------------------------+
-    |    ``exists`` |existential quantifier               |
-    +---------------+-------------------------------------+
-    |    ``all``    |universal quantifier                 |
-    +---------------+-------------------------------------+
-    |     ``\``     |lambda operator                      |
-    +---------------+-------------------------------------+
-    | ``e.free()``  |show free variables of ``e``         |
-    +---------------+-------------------------------------+
-    | ``e.simplify``|carry out |beta|-conversion on ``e`` |
-    +---------------+-------------------------------------+
+    +-------------------+----------------------------------------+
+    | Example           |Description                             |
+    +===================+========================================+
+    |    ``=``          |equality                                |
+    +-------------------+----------------------------------------+
+    |      ``!=``       |inequality                              |
+    +-------------------+----------------------------------------+
+    |    ``exists``     |existential quantifier                  |
+    +-------------------+----------------------------------------+
+    |      ``all``      |universal quantifier                    |
+    +-------------------+----------------------------------------+
+    |       ``\``       |lambda operator                         |
+    +-------------------+----------------------------------------+
+    |   ``e.free()``    |show free variables of ``e``            |
+    +-------------------+----------------------------------------+
+    | ``e.simplify()``  |carry out |beta|\ -conversion on ``e``  |
+    +-------------------+----------------------------------------+
                         
-    Missing Caption
+    Summary of new logical relations and operators required for First
+    Order Logic, together with two useful methods of the
+    ``Expression`` class.
 
 
 
@@ -1233,7 +1233,7 @@ from `D`:math: to expressions of `L`:math: as follows:
 
     #. For every predicate symbol `P`:math: of arity `n`:math: |geq| 0,
        `Val(P)`:math: is a function from  `D`:math:\ :sup:`n` to
-       {`True`:mathit:, `False`:mathit:}. (If the rank of  `P`:math:
+       {`True`:mathit:, `False`:mathit:}. (If the arity of  `P`:math:
        is 0, then `Val(P)`:math: is simply a truth value, the
        `P`:math: is regarded as a propositional symbol.)
 
@@ -1537,7 +1537,6 @@ satisfiers for the variable ``y``.
     >>> fmla5 = lp.parse('(person(y) & all x.(person(x) -> admire(x, y)))')
     >>> m2.satisfiers(fmla5, 'y', g2)
     set([])
-    >>> 
 
 That is, there is no person that is admired by everybody. Taking a
 different open formula, ``fmla6``, we can verify that there is a
@@ -1562,33 +1561,40 @@ tries to create a new model, given some set of sentences. If it
 succeeds, then we know that the set is consistent, since we have an
 existence proof of the model.
 
-We invoke the Mace4 model builder by calling ``MaceCommand`` in an
-analogous way to calling the Prover9 theorem prover. One method is to
+We invoke the Mace4 model builder by creating an instance of
+``Mace()`` and calling its ``build_model()``  method, in an
+analogous way to calling the Prover9 theorem prover. One option is to
 treat our candidate set of sentences as assumptions, while leaving the
 goal unspecified.  The following interaction shows how both
 ``{a, c1}`` and ``{a, c2}`` are consistent sets, since Mace succeeds
 in building a model for each of them, while ``{c1, c2}`` is
 inconsistent.
 
-    >>> a3 = lp.parse('exists x.(man(x) and walks(x))')
+    >>> a3 = lp.parse('exists x.(man(x) & walks(x))')
     >>> c1 = lp.parse('mortal(socrates)')
     >>> c2 = lp.parse('-mortal(socrates)')
-    >>> print inference.MaceCommand(None, [a3, c1]).build_model()
+    >>> mb = nltk.Mace()
+    >>> print mb.build_model(None, [a3, c1])
     True
-    >>> print inference.MaceCommand(None, [a3, c2]).build_model()
+    >>> print mb.build_model(None, [a3, c2])
     True
+    >>> print mb.build_model(None, [c1, c2])
+    False
+
 
 We can also use the model builder as an adjunct to theorem prover.
-Let's suppose we are trying to prove ``S |- g``, i.e. that ``g``
-is logically entailed by assumptions ``S = {s1, s2, ..., sn}``.
-We can this same input to Mace4, and the model builder will try to
-find a counterexample, that is, to show that ``g`` does *not* follow
-from ``S``. So, given this input, Mace4 will try to find a model for
-the set ``S' = {s1, s2, ..., sn, (not g)}``. If ``g`` fails to follow
-from ``S``, then Mace4 may well return with a counterexample faster
-than Prover9 concludes that it cannot find the required proof.
-Conversely, if ``g`` `is`:em: provable from ``S``, Mace4 may take a long
-time unsuccessfully trying to find a counter model, and will eventually give up.
+Let's suppose we are trying to prove ``S`` ⊢ ``g``, i.e. that ``g`` is
+logically derivable from assumptions ``S = {s1, s2, ..., sn}``.  We
+can this same input to Mace4, and the model builder will try to find a
+counterexample, that is, to show that ``g`` does *not* follow from
+``S``. So, given this input, Mace4 will try to find a model for the
+set ``S`` together with the negation of ``g``, namely the set ``S' =
+{s1, s2, ..., sn, -g}``. If ``g`` fails to follow from ``S``, then
+Mace4 may well return with a counterexample faster than Prover9
+concludes that it cannot find the required proof.  Conversely, if
+``g`` `is`:em: provable from ``S``, Mace4 may take a long time
+unsuccessfully trying to find a countermodel, and will eventually
+give up.
 
 Let's consider a concrete scenario. Our assumptions are: {`There is a
 woman that every man loves`:lx:, `Adam is a man`:lx:, `Eve is a
@@ -1599,15 +1605,14 @@ model in which the premises are true but the conclusion is false?
     >>> a5 = lp.parse('man(adam)')
     >>> a6 = lp.parse('woman(eve)')
     >>> g = lp.parse('love(adam,eve)')
-    >>> mb = inference.MaceCommand(g, [a4, a5, a6])
-    >>> print mb.build_model()
+    >>> print mb.build_model(g, [a4, a5, a6])
     True
 
 So the answer is Yes: Mace4 found a countermodel in which there is some woman other than
-Eve that Adam loves. But let's have a look at Mace4's model,
+Eve that Adam loves. But let's have a closer look at Mace4's model,
 converted to the format we use for valuations.
 
-    >>> print mb.convert2val()
+    >>> print mb.valuation
     {'C1': 'b',
      'adam': 'a',
      'eve': 'a',
@@ -1630,10 +1635,9 @@ resulting model is more in accord with our intuitions about the situation.
     >>> a7 = lp.parse('-(adam = eve)')
     >>> a8 = lp.parse('all x. (man(x) -> -woman(x))')
     >>> g = lp.parse('love(adam,eve)')
-    >>> mb = inference.MaceCommand(g, [a4, a5, a6, a7, a8])
-    >>> mb.build_model()
+    >>> mb.build_model(g, [a4, a5, a6, a7, a8])
     True
-    >>> print mb.convert2val()
+    >>> print mb.valuation
     {'C1': 'c',
      'adam': 'a',
      'eve': 'b',
@@ -1683,7 +1687,7 @@ ex-sem4_. (Observe that in the case where the value of ``sem`` is a
 variable, we omit the angle brackets.)
 
 .. _ex-sem4:
-.. ex:: ``S[sem = <?vp(?np)>] -> NP[sem=?subj] VP[sem=?vp]``
+.. ex:: ``S[sem=<?vp(?np)>] -> NP[sem=?subj] VP[sem=?vp]``
 
 ex-sem4_ tells us that given some ``sem`` value ``?subj`` for the subject
 `np`:gc: and some ``sem`` value ``?vp`` for the `vp`:gc:, the ``sem``
@@ -1700,7 +1704,7 @@ rules shown below.
 
      VP[sem=?v] -> IV[sem=?v]
      NP[sem=<cyril>] -> 'Cyril'
-     IV[sem=<bark>] -> 'barks'
+     IV[sem=<\x.bark(x)>] -> 'barks'
 
 The `vp`:gc: rule says that the mother's semantics is the same as the
 head daughter's. The two lexical rules just introduce non-logical
@@ -1733,7 +1737,7 @@ it can be combined with ``'bark'`` to give the result
 in ex-sem5b_? As a first step, let's make the subject's ``sem`` value
 act as the functor rather than the argument. (This is sometimes called
 `type-raising`:dt:.) Now we are
-looking for way of instantiating ``?np`` so that ``[sem=<?np(bark)>]``
+looking for way of instantiating ``?np`` so that ``[sem=<?np(\x.bark(x))>]``
 is equivalent
 to ``[sem=<exists x.(dog(x) & bark(x))>]``.
 Doesn't this look a bit reminiscent of carrying out |beta|-reduction
@@ -1768,7 +1772,8 @@ semantics of the determiner `a`:lx: namely ex-sem8_ with the semantics of
 
 Applying ex-sem8_ as a functor to ``'dog'`` yields ex-sem7_, and applying
 that to ``'bark'`` gives us 
-``\P.exists x.(dog(x) & P(x))(bark)``. Finally, carrying out |beta|\-reduction 
+``\P.exists x.(dog(x) & P(x))(\x.bark(x))``. Finally, carrying out
+|beta|\ -reduction 
 yields just what we wanted, namely ex-sem5b_.
 
 
@@ -1865,11 +1870,11 @@ functors, like quantified `np`:gc:\ s. Here is the required
 
 ex-sem13_ denotes the characteristic function corresponding to the set of
 all properties which are true of Angus. Converting from an individual
-constant to an expression like ex-sem12_ is known as `type raising`:dt:,
-and allows us to flip functors with arguments. That is, type raising
-means that we can replace a Boolean-valued application such as 
-`f(a`:mathit:) with an equivalent application 
-|lambda|\ `P.P(a)(f)`:mathit:.
+constant ``angus`` to ``\P.P(angus)`` is another example of
+type-raising, briefly mentioned earlier, and allows us to replace a
+Boolean-valued application such as ``\x.walk(x)(angus)`` with an
+equivalent function application ``\P.P(angus)(\x.walk(x))``. By
+|beta|\ - conversion, both expressions reduce to ``walk(angus)``.
 
 ..
     >>> logic._counter._value = 0
@@ -1956,7 +1961,7 @@ be translated as ex-scope12a_, not ex-scope12b_.
    .. ex:: ``all x.(girl(x) -> exists y.(dog(y) & chase(x,y)))``
 
    .. _ex-scope12b:
-   .. ex:: ``exists y.dog(y) & all x.(girl(x) -> chase(x,y))``
+   .. ex:: ``exists y.(dog(y) & all x.(girl(x) -> chase(x,y)))``
 
 There are numerous approaches to dealing with scope ambiguity, and we
 will look very briefly at one of the simplest. To start with, let's
@@ -2187,13 +2192,12 @@ that all the conditions true in `s`:mathit: ; that is, **a** is named
 `Irene`:lx: and **c** bit **i**.
 
 In order to process |DRS|\ s computationally, we need to convert them
-into a linear format. The ``nltk.sem.drt`` module uses
-a ``DRS()`` constructor which takes lists of discourse referents
-and conditions as initialization parameters. 
+into a linear format. We adopt a standard approach that represents the general form
+of a |DRS| as follows:
 
 ::
 
-    DRS([x,y],[Angus(x),dog(y),own(x,y)])
+    DRS([x, y], [angus(x), dog(y), own(x ,y)])
 
 The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
 string representation. Once we have done this, we can use the
@@ -2202,9 +2206,9 @@ string representation. Once we have done this, we can use the
 .. doctest-ignore::
     >>> from nltk.sem import drt
     >>> dp = drt.DrtParser()
-    >>> drs1 = dp.parse('([x,y],[Angus(x),dog(y),own(x, y)])')
+    >>> drs1 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])')
     >>> print drs1
-    ([x,y],[Angus(x), dog(y), own(x,y)])
+    ([x,y],[angus(x), dog(y), own(x,y)])
     >>> drs1.draw()
 
 .. _fig-drs-screenshot:
@@ -2220,14 +2224,8 @@ interpreted as though they are conjoined. In fact, every |DRS| can be
 translated into a formula of |FOL|, and the ``toFol()`` method
 implements this translation.
 
-    >>> from nltk.sem import drt
-    >>> dp = drt.DrtParser()
-    >>> drs1 = dp.parse('([x,y],[Angus(x),dog(y),own(x, y)])')
-    >>> print drs1
-    ([x,y],[Angus(x), dog(y), own(x,y)])
     >>> print drs1.toFol()
-    exists x y.(Angus(x) & (dog(y) & own(x,y)))
-
+    exists x y.(angus(x) & (dog(y) & own(x,y)))
 
 In addition to the functionality available for |FOL|
 expressions, |DRT| ``Expression``\ s have a |DRS|\ -concatenation operator,
@@ -2238,7 +2236,7 @@ conditions from both arguments.  |DRS|\ -concatenation automatically
 ``+`` symbol is overloaded so that |DRT| expressions can be added
 together easily. 
 
-    >>> drs2 = dp.parse('([x],[walk(x)]) + ([y],[run(y)])')
+    >>> drs2 = dp.parse('([x], [walk(x)]) + ([y], [run(y)])')
     >>> print drs2
     (([x],[walk(x)]) + ([y],[run(y)]))
     >>> print drs2.simplify()
@@ -2248,10 +2246,10 @@ While all the conditions see so far have been atomic, it is possible
 to embed one |DRS| within another, and this is how universal
 quantification is handled. In ``drs3``, there are no top-level
 discourse referents, and the sole condition is made up of two
-sub-\|DRS|\ s, connected by an implication. Again, we can use
+sub-\ |DRS|\ s, connected by an implication. Again, we can use
 ``toFol()`` to get a handle on the truth conditions.
 
-    >>> drs3 = dp.parse('([],[(([x],[dog(x)]) -> ([y],[ankle(y),bite(x, y)]))])')
+    >>> drs3 = dp.parse('([], [(([x], [dog(x)]) -> ([y],[ankle(y), bite(x, y)]))])')
     >>> print drs3.toFol()
     all x.(dog(x) -> exists y.(ankle(y) & bite(x,y)))
 
@@ -2272,13 +2270,13 @@ condition of the form ``x = [...]``, where ``[...]`` is a list of
 possible antecedents.
 
 
-    >>> drs4 = dp.parse('([x,y],[Angus(x),dog(y),own(x, y)])')
-    >>> drs5 = dp.parse('([u,z],[PRO(u),Irene(z),bite(u,z)])')
+    >>> drs4 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])')
+    >>> drs5 = dp.parse('([u, z], [PRO(u), irene(z) ,bite(u, z)])')
     >>> drs6 = drs4 + drs5
     >>> print drs6.simplify()
-    ([x,y,u,z],[Angus(x), dog(y), own(x,y), PRO(u), Irene(z), bite(u,z)])
+    ([x,y,u,z],[angus(x), dog(y), own(x,y), PRO(u), irene(z), bite(u,z)])
     >>> print drs6.simplify().resolve_anaphora()
-    ([x,y,u,z],[Angus(x), dog(y), own(x,y), (u = [x,y,z]), Irene(z), bite(u,z)])
+    ([x,y,u,z],[angus(x), dog(y), own(x,y), (u = [x,y,z]), irene(z), bite(u,z)])
 
 
 Since the algorithm for anaphora resolution has been separated into
@@ -2297,7 +2295,7 @@ we have added the parallel rule for indefinites from from
 
 ::
 
-    Det[num=sg,sem=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a'
+    Det[num=sg,sem=<\P Q.(DRS([x],[]) + P(x) + Q(x))>] -> 'a'
     Det[num=sg,sem=<\P Q. exists x.(P(x) & Q(x))>] -> 'a'
 
 
@@ -2312,9 +2310,9 @@ for the `np`:gc: `a dog`:lx:.
             (N[num='sg', sem=<\x.([],[dog(x)])>] dog)))))
 
 The |lambda| abstract for the indefinite is applied as a functor to
-``\x.([],[dog(x)])`` which leads to ``\Q.((([x],[]) + ([],[dog(x)])) +
+``\x.([],[dog(x)])`` which leads to ``\Q.(([x],[]) + ([],[dog(x)]) +
 Q(x))``; after simplification, we get ``\Q.(([x],[dog(x)]) + Q(x))``
-as the representation for the `np`:gc:  as a whole.
+as the representation for the `np`:gc: as a whole.
 
 In order to parse with grammar ``drt.fcfg``, we specify in the call to
 ``load_earley()`` that ``sem`` values in feature structures are to
@@ -2324,7 +2322,7 @@ parsed using ``drt.DrtParser`` in place of the default ``LogicParser``.
     >>> parser = load_earley('grammars/book_grammars/drt.fcfg', trace=0, logic_parser=drt.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
     >>> print trees[0].node['sem'].simplify()
-    ([x,z7],[Angus(x), dog(z7), own(x,z7)])
+    ([x,z7],[angus(x), dog(z7), own(x,z7)])
 
 
 
@@ -2419,14 +2417,10 @@ Inadmissable readings are filtered out by passing the parameter
     d0: ['s0-r0', 's1-r0'] : INVALID: AnaphoraResolutionException
     d1: ['s0-r1', 's1-r0'] : ([z20,z24],[boy(z20), (([x],[dog(x)]) -> 
     ([],[chase(x,z20)])), (z24 = z20), run(z24)])
-    >>> dt.readings(filter=True, show_thread_readings=True)
+    >>> dt.readings(show_thread_readings=True, filter=True)
     d1: ['s0-r1', 's1-r0'] : ([z26,z29],[boy(z26), (([x],[dog(x)]) -> 
     ([],[chase(x,z26)])), (z29 = z26), run(z29)])
 
-    >>> dt.readings(show_thread_readings=True)
-    d0: ['s0-r0', 's1-r0'] : INVALID: AnaphoraResolutionException
-    d1: ['s0-r1', 's1-r0'] : ([z20,z24],[boy(z20), (([x],[dog(x)]) -> 
-    ([],[chase(x,z20)])), (z24 = z20), run(z24)])
 
 
 
@@ -2454,14 +2448,9 @@ Summary
   the expression that provides the argument in the function
   application.
 
-* If two |lambda|-abstracts differ only in the label of the variable
-  bound by |lambda|, they are said to be |alpha|
-  equivalents. Relabeling a variable bound by a |lambda| is called
-  |alpha|-conversion.
-
 * A key part of constructing a model lies in building a valuation
   which assigns interpretations to non-logical constants. These are
-  interpreted as either n-ary predicates or as
+  interpreted as either *n*-ary predicates or as
   individual constants. 
 
 * An open expression is an expression containing one or more free
@@ -2478,6 +2467,12 @@ Summary
 * A closed expression is one that has no free variables; that is, the
   variables are all bound. A closed sentence is true or
   false with respect to all variable assignments.
+
+* If two formulas differ only in the label of the variable bound by
+  binding operator (i.e, |lambda| or a quantifier) , they are said to
+  be |alpha| equivalents. The result of relabeling a bound variable in
+  a formula is 
+  called |alpha|\ -conversion.
 
 * Given a formula with two nested quantifiers *Q*\ :sub:`1` and *Q*\
   :sub:`2`, the outermost quantifier *Q*\ :sub:`1` is said to have wide
@@ -2574,21 +2569,27 @@ Exercises
    #) be loved or detested by everyone
    #) be loved by everyone and detested by no-one
 
-#. |easy| Construct a |lambda| abstract and bind it to the variable
-   ``e1`` so that if ``e2`` is ``lp.parse('kim')``, then the results
-   of ``ApplicationExpression(e1, e2)`` are alphabetic variants of the
-   various expressions ``e3`` shown below. In addition, provide an
-   informal English translation of ``e3.simplify()`` in each case.
+#. |easy| Consider the following statements:
 
 .. doctest-ignore::
     >>> from nltk.sem import LogicParser, ApplicationExpression
     >>> lp = LogicParser()
     >>> e2 = lp.parse('pat')
     >>> e3 = ApplicationExpression(e1, e2)
-
-.. doctest-ignore::
     >>> print e3.simplify()
-    exists y.love(pat,y)
+    exists y.love(pat, y)
+
+    Clearly something is missing here, namely a declaration of the
+    value of ``e1``. In order for ``ApplicationExpression(e1, e2)``
+    to be |beta|\ -convertible to ``exists y.love(pat, y)``, ``e1``
+    must be a |lambda|\ -abstract which can take ``pat`` as an
+    argument. Your task is to construct such an abstract, bind it to
+    ``e1``, and satisfy yourself that the statements above are all
+    satisfied (up to alphabetic variance). In addition, provide an
+    informal English translation of ``e3.simplify()``. 
+
+    Now carry on doing this same task for the further cases of
+    ``e3.simplify()`` shown below.
 
 .. doctest-ignore::
     >>> print e3.simplify()
@@ -2645,7 +2646,7 @@ Exercises
     all x.(dog(x) -> bark(x))
 
 #. |soso| Develop a method for translating English sentences into
-   formulas with monadic `generalized quantifiers`:dt:. In such an
+   formulas with binary `generalized quantifiers`:dt:. In such an
    approach, given a generalized quantifier ``Q``, a quantified
    formula is of the form ``Q(A, B)``, where both ``A`` and ``B`` are
    expressions of type |langle|\ *e*, *t*\ |rangle|. Then, for example,
@@ -2668,7 +2669,7 @@ Exercises
    model which will allow those translations to be checked for truth
    or falsity. 
 
-#. |hard| Carry out the preceding exercise, but use DRT as the meaning representation.
+#. |hard| Carry out the preceding exercise, but use |DRT| as the meaning representation.
 
 #. |hard| Taking [WarrenPereira1982] as a starting point, develop a technique
    for converting a natural language query into a form that can be
