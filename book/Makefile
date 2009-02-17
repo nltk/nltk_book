@@ -47,6 +47,8 @@ BIBTEX = bibtex -terse
 #get from environment
 #DOCBOOKDTD = /sw/share/xml/dtd/docbookx/4.4.0/docbookx.dtd
 #DOCBOOKDTD = /opt/local/share/xml/docbook/4.4/docbookx.dtd
+XMLLINT = xmllint --noout --dtdvalid $(DOCBOOKDTD)
+
 
 # <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
 BIB2XHTML = bib2xhtml -s named
@@ -104,7 +106,7 @@ clean_up:
 	fi)
 #	$(PYTHON) ../xmlpp.py $@ > tmp.xml
 #	mv tmp.xml $@
-	xmllint --noout --dtdvalid $(DOCBOOKDTD) $@
+	$(XMLLINT) $@
 
 %.tex: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=latex $<

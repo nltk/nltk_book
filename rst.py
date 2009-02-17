@@ -1179,10 +1179,11 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
         if node_id in self.reference_labels:
             label = self.reference_labels[node_id]
             node.clear()
-            node.append(docutils.nodes.Text(label))
-            if OUTPUT_FORMAT == 'docbook':
+            if OUTPUT_FORMAT == 'docbook': # use xref label for docbook output, else xref value
                 node.append(callout_marker(number=label, name=node_id))
-            expand_reference_text(node)
+            else:
+                node.append(docutils.nodes.Text(label))
+                expand_reference_text(node)
         elif node_id in self.callout_labels:
             label = self.callout_labels[node_id]
             node.clear()
