@@ -1179,8 +1179,8 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
         if node_id in self.reference_labels:
             label = self.reference_labels[node_id]
             node.clear()
-            # use xref label for docbook output, except for linguistic examples
-            if OUTPUT_FORMAT == 'docbook' and not node_id.startswith('ex-'):
+            # use xref label for docbook output
+            if OUTPUT_FORMAT == 'docbook': # and not node_id.startswith('ex-'):
                 node.append(callout_marker(number=label, name=node_id))
             else:
                 node.append(docutils.nodes.Text(label))
@@ -1852,6 +1852,9 @@ class CustomizedDocBookTranslator(DocBookTranslator):
 #        if 'ids' in node.attributes and node.attributes['ids']:
 #            atts['id'] = node.attributes['ids'][-1]
             
+        if "id" in node.attributes:
+            atts["id"] = node.attributes["id"]
+
         # example with a title
         if title_child and title_child.children != []:
             self.stack_push(self.example_tag_stack, "example")
@@ -1864,8 +1867,6 @@ class CustomizedDocBookTranslator(DocBookTranslator):
             if len(self.example_tag_stack) == 0:
                 self.stack_push(self.example_tag_stack, "example")
                 atts["role"] = "linguistic"
-                if "id" in node.attributes:
-                    atts["id"] = node.attributes["id"]
                 self.body.append(self.starttag(node, "example", **atts))
                 self.body.append("<title/>")
             else:

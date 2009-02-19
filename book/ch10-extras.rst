@@ -310,7 +310,7 @@ indicate elements that stand in the relation, as shown in Figure fig-modrel_.
 
 
 |nopar| The domain and range of the relation are shown as shaded areas
-in Figure modrel_.
+in Figure fig-modrel_.
 
 .. 
    For sets `A`:math: and `B`:math:, a (set-theoretic) `function`:dt:

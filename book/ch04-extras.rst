@@ -115,11 +115,11 @@ the function to help you see what it is doing.)
 
 Lists can be used to represent another important data structure.
 A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
-for adding and removing items (see Figure fit-stack-queue_).
+for adding and removing items (see Figure fig-stack-queue_).
 We could use a queue of length `n`:math: to create all the n-grams of a text.
 As with stacks, we will seldom have to deal with queues explicitly,
 as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
-and chart parsers (Appendix app-chart_) use queues behind the scenes.
+and chart parsers use queues behind the scenes.
 Here's how queues can be implemented using lists.
 
     >>> queue = ['the', 'cat', 'sat']

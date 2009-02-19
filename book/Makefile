@@ -67,7 +67,7 @@ usage:
 	@echo "    make errs        -- Run doctest to generate .errs files"
 	@echo "    make clean       -- Remove all built files"
 
-all: html pdf examples clean_up
+all: html examples clean_up  # pdf
 html: $(HTML) bibliography.html 
 pdf: $(PDF)
 xml: $(XML)
@@ -168,8 +168,8 @@ book.pdf: book.bbl book.tex
 	$(PYTHON) $(EXAMPLES) $< > $@
 
 publish:
-	find . \( -name '*.html' -or -name '*.pdf' -or -name '*.py' -or -name '*.png' \) -print |\
-	        cpio -padu $(PUBLISH)/en/
-	python ../../tools/svnmime.py $(PUBLISH)/en/* $(PUBLISH)/en/*/*
-	svn add $(PUBLISH)/en/*
-	echo Note that "make -C en publish" omits images and stylesheets
+	find . \( -name '*.html' -or -name '*.py' -or -name '*.png' \) -print |\
+	        cpio -padu $(PUBLISH)/book/
+	python ../../tools/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
+	svn add $(PUBLISH)/book/*
+	echo Note that "make -C book publish" omits images and stylesheets
