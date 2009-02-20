@@ -585,7 +585,7 @@ class Citations(Transform):
         for key in bibliography:
             if bibliography[key][0] is None: warning('no author found:', key)
             if bibliography[key][1] is None: warning('no year found:', key)
-            bibliography[key] = '[%s, %s]' % tuple(bibliography[key])
+            bibliography[key] = '(%s, %s)' % tuple(bibliography[key])
             #debug('%20s %s' % (key, `bibliography[key]`))
         return bibliography
 
@@ -926,6 +926,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         num = '%s.%s' % (self.format_section_num(1), self.figure_num)
         self.label_node(node, 'Figure %s (%s)' % (num, pyfile),
                       PYLISTING_DIR + pyfile)
+
         self.callout_labels.update(node['callouts'])
         
 #        self.listing_num += 1
