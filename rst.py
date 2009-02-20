@@ -203,7 +203,7 @@ def tree_directive(name, arguments, options, content, lineno,
         return []
     elif OUTPUT_FORMAT == 'docbook':
 #        warning('TREE DIRECTIVE -- CHECK THIS')
-        scale = options.get('scale', 50)
+        scale = options.get('scale', 75)
         density = 300 * scale / 100
         filename = '%s-tree-%s.png' % (OUTPUT_BASENAME, _treenum)
         align = 'top'
@@ -2682,7 +2682,7 @@ def main():
         # For .tex and .html files:
         else:
             global DOCBOOK_ROOT_NODE
-            if in_file == "ch00.rst":
+            if in_file == "ch00.rst" or in_file == "ch12.rst":
                 DOCBOOK_ROOT_NODE="preface"
             if in_file.startswith("app"):
                 DOCBOOK_ROOT_NODE="appendix"
