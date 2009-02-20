@@ -21,7 +21,6 @@ Natural Language Processing
 .. include:: ch00.rst2
 
 .. body::
-
 .. include:: ch01.rst2
 .. include:: ch02.rst2
 .. include:: ch03.rst2
@@ -33,14 +32,7 @@ Natural Language Processing
 .. include:: ch09.rst2
 .. include:: ch10.rst2
 .. include:: ch11.rst2
-.. .. include:: ch12.rst2
-
-:raw-latex:`\part{APPENDICES}`
-
-.. appendix::
-.. include:: app-tagsets.rst2
-.. include:: app-pcfg.rst2
-.. include:: app-modules.rst2
+.. include:: ch12.rst2
 
 .. index::
 
