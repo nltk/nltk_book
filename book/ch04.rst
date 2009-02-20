@@ -1683,7 +1683,7 @@ half; if its later we use the second half.  This search method is called
 
 In another approach to algorithm design, we attack a problem
 by transforming it into an instance of a problem we already know how to solve.
-For example, in order to detect duplicates entries in a list, we can `pre-sort`:dt:
+For example, in order to detect duplicate entries in a list, we can `pre-sort`:dt:
 the list, then scan through it once to check if any adjacent pairs of elements
 are identical.
 
@@ -1733,7 +1733,46 @@ word, there's just one ordering.  We can code this up as follows:
 These two algorithms solve the same problem.  One uses iteration
 while the other uses recursion.
 
-Let's use recursion to build a deeply-nested object.
+We can use recursion to navigate a deeply-nested object, such as the
+WordNet hypernym hierarchy.  Let's count the size of the hypernym
+hierarchy rooted at a given synset `s`:math:.  We'll do this by finding the
+size of each hyponym of `s`:math:, then adding these together
+(we will also add ``1`` for the synset itself).  The following
+function ``size1()`` does this work; notice that the body of
+the function includes a recursive call to ``size1()``:
+
+    >>> def size1(s):
+    ...     return 1 + sum(size1(child) for child in s.hyponyms())
+
+We can also design an iterative solution to this problem which processes
+the hierarchy in layers.  The first layer is the synset itself first-layer_,
+then all the hyponyms of the synset, then all the hyponyms of the
+hyponyms.  Each time through the loop it computes the next layer
+by finding the hyponyms of everything in the last layer update-layer_.
+It also maintains a total of the number of synsets encountered so far update-total_.
+
+    >>> def size2(s):
+    ...     layer = [s] # [_first-layer]
+    ...     total = 0
+    ...     while layer:
+    ...         total += len(layer) # [_update-total]
+    ...         layer = [h for c in layer for h in c.hyponyms()] # [_update-layer]
+    ...     return total
+
+Not only is the iterative solution much longer, it is harder to interpret.
+It forces us to think procedurally, and keep track of what is happening with
+the ``layer`` and ``total`` variables through time.  Let's satisfy ourselves
+that both solutions give the same result:
+
+    >>> from nltk.corpus import wordnet as wn
+    >>> dog = wn.synset('dog.n.01')
+    >>> size1(dog)
+    190
+    >>> size2(dog)
+    190
+
+As a final example of recursion, let's use it to `construct`:em:
+a deeply-nested object.
 A `letter trie`:dt: is a data structure that can be used
 for indexing a lexicon, one letter at a time.  For example, if ``trie``
 contained a letter trie, then the sub-trie ``trie['c']`` would be a smaller
@@ -1769,6 +1808,12 @@ store the intended value (in this case, the word `dog`:lx:).
    {'c': {'h': {'a': {'t': {'value': 'cat'}},
                 'i': {'e': {'n': {'value': 'dog'}}}}}}
 
+
+.. Backtracking (notes)
+   --------------------
+
+   [This discussion will provide the background for understanding the
+   recursive descent parser, covered in Chapter chap-parse_.]
 
 Space-Time Tradeoffs
 --------------------
@@ -1829,9 +1874,31 @@ for an example of how to do this for a tagged corpus.
 Another example of a space-time tradeoff is maintaining a vocabulary list.
 If you need to process an input text to check that all words are in an
 existing vocabulary, the vocabulary should be stored as a set, not a list.
-Sets index their elements |mdash| which takes more space |mdash|
-and testing for membership of a large set will
-be much faster than testing for membership of an equivalent list. 
+The elements of a set are automatically indexed, so testing membership
+of a large set will be much faster than testing membership of the
+corresponding list.
+
+We can test this claim using the ``timeit`` module.
+The ``Timer`` class has two parameters, a statement which
+is executed multiple times, and setup code that is executed
+once at the beginning.  We will simulate a vocabulary of
+100,000 items using a list vocab-list_ or set vocab-set_
+of integers.  The test statement will generate a random
+item which has a 50% chance of being in the vocabulary vocab-statement_.
+
+    >>> from timeit import Timer
+    >>> vocab_size = 100000
+    >>> setup_list = "import random; vocab = range(%d)" % vocab_size # [_vocab-list]
+    >>> setup_set = "import random; vocab = set(range(%d))" % vocab_size # [_vocab-set]
+    >>> statement = "random.randint(0, %d) in vocab" % vocab_size * 2 # [_vocab-statement]
+    >>> print Timer(statement, setup_list).timeit(1000)
+    2.78092288971
+    >>> print Timer(statement, setup_set).timeit(1000)
+    0.0037260055542
+
+Performing 1000 list membership tests takes a total of 2.8 seconds,
+while the equivalent tests on a set take a mere 0.0037 seconds,
+or three orders of magnitude faster!
 
 Dynamic Programming
 -------------------
@@ -1868,7 +1935,8 @@ subsets, those starting with *L* and those starting with
         i.e. S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
 
 .. pylisting:: virahanka
-   :caption: Four Ways to Compute Sanskrit Meter
+   :caption: Four Ways to Compute Sanskrit Meter: (i) iterative; (ii) bottom-up dynamic programming;
+   (iii) top-down dynamic programming; and (iv) built-in memoization.
 
    def virahanka1(n):
        if n == 0:
@@ -1954,27 +2022,17 @@ Unlike the bottom-up approach, this approach is recursive.  It avoids
 the huge wastage of ``virahanka1()`` by checking whether it has
 previously stored the result.  If not, it computes the result
 recursively and stores it in the table.  The last step is to return
-the stored result.  The final method is to use a Python `decorator`:dt:
-called ``memoize``, which takes care of the housekeeping work done
-by ``virahanka3()`` without cluttering up the program, using a
-programming technique that falls outside the scope of this book.
+the stored result.  The final method, in ``virahanka4()``,
+is to use a Python `decorator`:dt: called ``memoize``,
+which takes care of the housekeeping work done
+by ``virahanka3()`` without cluttering up the program.
+This "memoization" process stores the result of each previous
+calls to the function along with the parameters that were used.
+If the function is subsequently called with the same parameters,
+it returns the stored result instead of recalculating it.
 
 This concludes our brief introduction to dynamic programming.
 We will encounter it again in Section sec-parsing_.
-
-.. note::
-   Dynamic programming is a kind of `memoization`:dt:.
-   A memoized function stores results of previous calls to the
-   function along with the supplied parameters.  If the function is
-   subsequently called with those parameters, it returns the
-   stored result instead of recalculating it.
-
-Backtracking (notes)
---------------------
-
-[This discussion will provide the background for understanding the
-recursive descent parser, covered in Chapter chap-parse_.]
-
 
 ------
 Search
@@ -2171,19 +2229,6 @@ Non-Deterministic Search
    51 ['doyou', 'seethekittysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
    42 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
 
-
-
-Timing (notes)
---------------
-
-We can easily test the efficiency gains made by the use of dynamic programming,
-or any other putative performance enhancement, using the ``timeit`` module:
-
-.. doctest-ignore::
-    >>> from timeit import Timer
-    >>> Timer("PYTHON CODE", "INITIALIZATION CODE").timeit()
-
-[MORE]
 
 
 .. note:: Authors' note:
