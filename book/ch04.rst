@@ -29,6 +29,7 @@
 .. TODO: say more about performance tuning of a Python program
 .. TODO: add exercises on string formatting
 .. TODO: this chapter presumes knowledge of dictionaries, not defined until ch05
+.. TODO: the "b" flag for read(), when to use "rb"; also the "rU" flag
 
 .. _chap-structured-programming:
 
@@ -1637,6 +1638,10 @@ Another common use of optional arguments is to permit a flag, e.g.:
     ...     if trace: print
     ...     return freqdist.keys()[:num]
 
+.. caution::
+   Take care not to use a mutable object as the default value of
+   an argument.  A series of calls to the function will use the
+   same object, with bizarre results. 
 
 Exceptions
 ----------
@@ -1644,9 +1649,9 @@ Exceptions
 [not strictly part of a section on functions; but we'll mainly use them for
 defensive programming, duck typing, etc, inside functions.]
 
----------------------------
-Program Development (NOTES)
----------------------------
+-------------------
+Program Development
+-------------------
 
 Programming is a skill that is acquired over several years of
 experience with a variety of programming languages and tasks.  Key
@@ -1655,6 +1660,8 @@ high-level abilities are *algorithm design* and its manifestation in
 with the syntactic constructs of the language, and knowledge of a
 variety of diagnostic methods for trouble-shooting a program which
 does not exhibit the expected behavior.
+
+SECTION OVERVIEW
 
 Structure of a Python Module
 ----------------------------
@@ -1711,10 +1718,11 @@ to see examples of the module in use.)
 Multi-Module Programs
 ---------------------
 
-A module serves as a `namespace`:dt:\ : names defined in a module |mdash| such as variables
-and functions |mdash| are not visible to other modules, unless those names are imported.
-
-See Figure fig-multi-module_.
+Some programs bring together a diverse range of tasks, such as loading data from
+a corpus, performing some analysis tasks on the data, then visualizing it.
+We may already have stable modules that take care of loading data and producing visualizations.
+Our work might involve coding up the analysis task, and just invoking functions
+from the existing modules.  This scenario is depicted in fig-multi-module_.
 
 .. _fig-multi-module:
 .. figure:: ../images/multi-module.png
@@ -1724,11 +1732,73 @@ See Figure fig-multi-module_.
    from two other modules; unique analysis tasks are localized to the main program, while
    common loading and visualization tasks are kept apart to facilitate re-use and abstraction.
 
+By dividing our work into several modules and using ``import`` statements to
+access functions defined elsewhere, we can keep the individual modules simple
+and easy to maintain.  This approach will also result in a growing collection
+of modules, and make it possible for us to build sophisticated systems involving
+a hierarchy of modules.  Designing such systems well is a
+complex software engineering task, and beyond the scope of this book.  
 
 Debugging
 ---------
 
-* adding diagnostic print statements
+Mastery of programming depends on having a variety of problem-solving skills to
+draw upon when the program doesn't work as expected.  Something as trivial as
+a mis-placed symbol might cause the program to behave very differently.
+We call these "bugs" because they are tiny in comparison to the damage
+they can cause.  They creep into our code unnoticed, and its only much later
+when we're running the program on some new data that their presence is detected.
+Sometimes, fixing one bug only reveals another, and we get the distinct impression
+that the bug is on the move.  The only reassurance we have is that bugs are
+spontaneous and not the fault of the programmer.
+ 
+Flippancy aside, debugging code is hard because there are so many ways for
+it to be faulty.  Our understanding of the input data, the algorithm, or
+even the programming language, may be at fault.  Let's look at examples
+of each of these.
+  
+First, the input data may contain some unexpected characters.
+For example, WordNet synset names have the form ``tree.n.01``, with three
+components separated using periods.  The |NLTK| WordNet module initially
+decomposed these names using ``split('.')``.  However, this method broke when
+someone tried to look up the word `PhD`:lx:, which has the synset
+name ``ph.d..n.01``, containing four periods instead of the expected two.
+The solution was to use ``rsplit('.', 2)`` to do at most two splits, using
+the rightmost instances of the period, and leaving the ``ph.d.`` string intact.
+Although several people had tested
+the module before it was released, it was some weeks before someone detected
+the problem (see ``http://code.google.com/p/nltk/issues/detail?id=297``).
+
+Second, a supplied function might not behave as expected.
+For example, while testing |NLTK|\ 's interface to WordNet, one of the
+authors noticed that no synsets had any antonyms defined, even though
+the underlying database provided a large quantity of antonym information.
+What looked like a bug in the WordNet interface turned out to
+be a misunderstanding about WordNet itself: antonyms are defined for
+lemmas, not for synsets.  The only bug was the user's misunderstanding
+of the interface (see ``http://code.google.com/p/nltk/issues/detail?id=98``).
+
+Third, our understanding of Python's semantics may be at fault.
+It is easy to make the wrong assumption about the relative
+scope of two operators.
+For example, ``"%s.%s.%02d" % "ph.d.", "n", 1`` produces a run-time
+error ``TypeError: not enough arguments for format string``.
+This is because the percent operator has higher precedence than
+the comma operator.  The fix is to add parentheses in order to
+force the required scope.
+
+
+Is our understanding of Python's semantics at fault
+assignment
+
+indentation, operator precedence
+
+
+* adding diagnostic print statements, checking your assumptions
+* isolate the problem: get it down to a few lines; test it with a small instance (e.g. trivial input file)
+* disciplined approach to setting out, variable names etc
+* don't just randomly change things in the hope that something will work
+* sometimes the program is giving the correct result; you just didn't understand what you were asking it to do
 * hunting with divide-and-conquer
 * defensive programming: adding asserts etc
 * showing code to someone else...
@@ -2163,225 +2233,27 @@ it returns the stored result instead of recalculating it.
 This concludes our brief introduction to dynamic programming.
 We will encounter it again in Section sec-parsing_.
 
-------
-Search
-------
 
-Many NLP tasks can be construed as search problems.
-For example, the task of a parser is to identify one or more
-parse trees for a given sentence.  As we saw in Part II,
-there are several algorithms for parsing.  A `recursive descent parser`:idx:
-performs `backtracking search`:dt:, applying grammar productions in turn
-until a match with the next input word is found, and backtracking when
-there is no match.  As we will see in Section sec-grammar-development_,
-the space of possible parse trees is very large; a parser can be thought
-of as providing a relatively efficient way to find the right solution(s)
-within a very large space of candidates.
-
-As another example of search, suppose we want to find the most complex
-sentence in a text corpus.  Before we can begin we have to be explicit
-about how the complexity of a sentence is to be measured: word count,
-verb count, character count, parse-tree depth, etc.  In the context
-of learning this is known as the `objective function`:dt:, the property
-of candidate solutions we want to optimize.
-
-In this section we will explore some other search methods that are
-useful in NLP.  For concreteness we will apply them to the problem
-of learning word segmentations in text, following the work of [Brent1995]_.
-Put simply, this is the problem faced by a language learner in dividing
-a continuous speech stream into individual words.  We will consider this
-problem from the perspective of a child hearing utterances from a parent, e.g.
-
-.. _ex-kitty:
-.. ex::
-  .. ex:: doyouseethekitty
-  .. ex:: seethedoggy
-  .. ex:: doyoulikethekitty
-  .. ex:: likethedoggy
-
-Our first challenge is simply to represent the problem: we need to find
-a way to separate the text content from the segmentation.  We will borrow
-an idea from IOB-tagging (Chapter chap-chunk_), by annotating each character
-with a boolean value to indicate whether or not a word-break appears after
-the character.  We will assume that the learner is given the utterance breaks,
-since these often correspond to extended pauses.  Here is a possible representation,
-including the initial and target segmentations:
-
-    >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
-    >>> seg1 = "0000000000000001000000000010000000000000000100000000000"
-    >>> seg2 = "0100100100100001001001000010100100010010000100010010000"
-
-Observe that the segmentation strings consist of zeros and ones.  They
-are one character shorter than the source text, since a text of length
-`n`:math: can only be broken up in `n-1`:math: places.
-
-Now let's check that our chosen representation is effective.  We need to make
-sure we can read segmented text from the representation.  The following function,
-``segment()``, takes a text string and a segmentation string, and returns a list
-of strings.
-
-.. pylisting:: segment
-   :caption: Program to Reconstruct Segmented Text from String Representation
-
-   def segment(text, segs):
-       words = []
-       last = 0
-       for i in range(len(segs)):
-           if segs[i] == '1':
-               words.append(text[last:i+1])
-               last = i+1
-       words.append(text[last:])
-       return words
-    
-   >>> segment(text, seg1)
-   ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   >>> segment(text, seg2)
-   ['do', 'you', 'see', 'the', 'kitty', 'see', 'the', 'doggy', 'do', 'you',
-    'like', 'the', kitty', 'like', 'the', 'doggy']
-
-Now the learning task becomes a search problem: find the bit string that causes
-the text string to be correctly segmented into words.  Our first task is done: we have
-represented the problem in a way that allows us to reconstruct the data, and to
-focus on the information to be learned.
-
-Now that we have effectively represented the problem we need to choose the objective
-function.  We assume the learner is acquiring words and storing them in an internal lexicon.
-Given a suitable lexicon, it is possible to reconstruct the source text as a sequence of
-lexical items.  Following [Brent1995]_, we can use the size of the lexicon and the amount
-of information needed to reconstruct the source text as the basis for an objective function, as shown
-in Figure fig-brent_.
-
-.. _fig-brent:
-.. figure:: ../images/brent.png
-   :scale: 30
-
-   Calculation of Objective Function for Given Segmentation
-
-It is a simple matter to implement this objective function, as shown in Listing
-evaluate_.
-
-.. pylisting:: evaluate
-   :caption: Computing the Cost of Storing the Lexicon and Reconstructing the Source Text
-
-   def evaluate(text, segs):
-       import string
-       words = segment(text, segs)
-       text_size = len(words)
-       lexicon_size = len(' '.join(list(set(words))))
-       return text_size + lexicon_size
-
-   >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
-   >>> seg3 = "0000100100000011001000000110000100010000001100010000001"
-   >>> segment(text, seg3)
-   ['doyou', 'see', 'thekitt', 'y', 'see', 'thedogg', 'y', 'doyou', 'like',
-    'thekitt', 'y', 'like', 'thedogg', 'y']
-   >>> evaluate(text, seg3)
-   47
-
-Exhaustive Search
------------------
-
-* brute-force approach
-* enumerate search space, evaluate at each point
-* this example: search space size is 2\ `55`:superscript: = 36,028,797,018,963,968
-
-For a computer that can do 100,000 evaluations per second, this
-would take over 10,000 years!
-
-Backtracking search -- saw this in the recursive descent parser.
-
-Hill-Climbing Search
---------------------
-
-Starting from a given location in the search space, evaluate nearby locations and move to
-a new location only if it is an improvement on the current location.
-
-.. pylisting:: hill-climb
-   :caption: Hill-Climbing Search
-
-   def flip(segs, pos):
-       return segs[:pos] + `1-int(segs[pos])` + segs[pos+1:]
-   def hill_climb(text, segs, iterations):
-       for i in range(iterations):
-           pos, best = 0, evaluate(text, segs)
-           for i in range(len(segs)):
-               score = evaluate(text, flip(segs, i))
-               if score < best:
-                   pos, best = i, score
-           if pos != 0:
-               segs = flip(segs, pos)
-               print evaluate(text, segs), segment(text, segs)
-       return segs
-
-   >>> print evaluate(text, seg1), segment(text, seg1)
-   63 ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   >>> hill_climb(text, segs1, 20)
-   61 ['doyouseethekittyseethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   59 ['doyouseethekittyseethedoggydoyoulikethekitty', 'likethedoggy']
-   57 ['doyouseethekittyseethedoggydoyoulikethekittylikethedoggy']
-
-Non-Deterministic Search
-------------------------
-
-* Simulated annealing
-
-.. pylisting:: anneal
-   :caption: Non-Deterministic Search Using Simulated Annealing
-
-   def flip_n(segs, n):
-       for i in range(n):
-           segs = flip(segs, randint(0,len(segs)-1))
-       return segs
-   def anneal(text, segs, iterations, rate):
-       distance = len(segs)
-       while distance > 0.5:
-           best_segs, best = segs, evaluate(text, segs)
-           for i in range(iterations):
-               guess = flip_n(segs, int(round(distance)))
-               score = evaluate(text, guess)
-               if score < best:
-                   best = score
-                   best_segs = guess
-           segs = best_segs
-           score = best
-           distance = distance / rate
-           print evaluate(text, segs),
-       print
-       return segs
-    
-   >>> anneal(text, segs, 5000, 1.2)
-   60 ['doyouseetheki', 'tty', 'see', 'thedoggy', 'doyouliketh', 'ekittylike', 'thedoggy']
-   58 ['doy', 'ouseetheki', 'ttysee', 'thedoggy', 'doy', 'o', 'ulikethekittylike', 'thedoggy']
-   56 ['doyou', 'seetheki', 'ttysee', 'thedoggy', 'doyou', 'liketh', 'ekittylike', 'thedoggy']
-   54 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'likethekittylike', 'thedoggy']
-   53 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   51 ['doyou', 'seethekittysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   42 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-
-
-
-
-.. _sec-visualization:
 .. _sec-libraries:
 
 ----------------------------
 A Sample of Python Libraries
 ----------------------------
 
-The ``pylab`` Package (notes)
------------------------------
+Matplotlib
+----------
 
 Python has some libraries that are useful for visualizing language data.
-The PyLab package supports sophisticated
+The Matplotlib package supports sophisticated
 plotting functions with a MATLAB-style interface, and is available from
 ``http://matplotlib.sourceforge.net/``.
 
 So far we have focused on textual presentation and the use of formatted print
 statements to get output lined up in columns.  It is often very useful to display
 numerical data in graphical form, since this often makes it easier to detect
-patterns.  For example, in Example code-modal-tabulate_ we saw a table of numbers
+patterns.  For example, in code-modal-tabulate_ we saw a table of numbers
 showing the frequency of particular modal verbs in the Brown Corpus, classified
-by genre.  The program in Example code-modal-plot_ presents the same information in graphical
+by genre.  The program in code-modal-plot_ presents the same information in graphical
 format.  The output is shown in Figure fig-modal-genre_ (a color figure in the online version).
 
 .. pylisting:: code-modal-plot
@@ -2457,15 +2329,23 @@ HTML markup that directs the web browser to load the file.
     >>> print '<img src="rainfall.png"/>'
     >>> print '</body></html>'
 
-The ``networkx`` Package (notes)
---------------------------------
+The ``networkx`` Package
+------------------------
 
-The NetworkX package is for
-displaying network diagrams, and is available from ``https://networkx.lanl.gov/``.
+The NetworkX package is for defining and manipulating structures consisting of
+nodes and edges, known as `graphs`:dt:.  It is
+available from ``https://networkx.lanl.gov/``.
+NetworkX can be used in conjunction with Matplotlib to
+visualize networks, such as WordNet (the semantic network we
+introduced in Section sec-wordnet_).  The program in code-networkx_
+initializes an empty graph define-graph_ then traverses
+the WordNet hypernym hierarchy adding edges to
+the graph add-edge_.
+Notice that the traversal is recursive recursive-traversal_,
+applying the programming technique discussed in
+Section sec-algorithm-design_.
 
-Using recursion (see above?)
-
-.. pylisting:: networkx
+.. pylisting:: code-networkx
    :caption: Using the NetworkX and Matplotlib Libraries
 
     import networkx as nx
@@ -2475,11 +2355,11 @@ Using recursion (see above?)
     def traverse(graph, start, node):
         graph.depth[node.name] = node.shortest_path_distance(start)
         for child in node.hyponyms():
-            graph.add_edge(node.name, child.name)
-            traverse(graph, start, child)
+            graph.add_edge(node.name, child.name) # [_add-edge]
+            traverse(graph, start, child) # [_recursive-traversal]
 
     def hyponym_graph(start):
-        G = nx.Graph()
+        G = nx.Graph() # [_define-graph]
         G.depth = {}
         traverse(G, start, start)
         return G
@@ -2506,20 +2386,33 @@ Using recursion (see above?)
    the distance of the node from ``dog.n.01``; this visualization was produced
    by the program in Example networkx_.
 
+csv
+---
 
-The ``csv`` Package (notes)
----------------------------
+Language analysis work often involves data tabulations, containing information
+about lexical items, or the participants in an empirical study, or the linguistic
+features extracted from a corpus.  Here's a fragment of a simple lexicon, in CSV format:  
 
-[Example accessing lexical data]
+::
+    sleep, sli:p, v.i, a condition of body and mind ...
+    walk, wo:k, v.intr, progress by lifting and setting down each foot ...
+    wake, weik, intrans, cease to sleep
+
+We can use Python's CSV library to read and write files stored in this format.
+For example, we can open a CSV file called ``dict.csv`` open-csv_ 
+and iterate over its rows iterate-csv_:
 
     >>> import csv
-    >>> input_file = open("dict.csv", "rb")
-    >>> for row in csv.reader(input_file):
+    >>> input_file = open("dict.csv", "rb") # [_open-csv]
+    >>> for row in csv.reader(input_file): # [_iterate-csv]
     ...     print row
     ['sleep', 'sli:p', 'v.i', 'a condition of body and mind ...']
     ['walk', 'wo:k', 'v.intr', 'progress by lifting and setting down each foot ...']
     ['wake', 'weik', 'intrans', 'cease to sleep']
 
+Each row is just a list of strings.  If any fields contain numerical
+data, they will appear as strings, and will have to be converted using
+``int()`` or ``float()``.
 
 Database Connectivity (notes)
 -----------------------------
@@ -2536,6 +2429,10 @@ Summary
 -------
 
 * [Summary of string formatting.]
+
+* A module serves as a `namespace`:dt:\ : names defined in a module |mdash| such as variables
+  and functions |mdash| are not visible to other modules, unless those names are imported.
+
 
 ---------------
 Further Reading
