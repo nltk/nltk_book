@@ -1661,7 +1661,10 @@ with the syntactic constructs of the language, and knowledge of a
 variety of diagnostic methods for trouble-shooting a program which
 does not exhibit the expected behavior.
 
-SECTION OVERVIEW
+This section describes the internal structure of a program module, and
+how to organize a multi-module program.  Then it describes various
+kinds of error that arise during program development, and what you can
+do to fix them, and to avoid them in the first place.
 
 Structure of a Python Module
 ----------------------------
@@ -1739,8 +1742,8 @@ of modules, and make it possible for us to build sophisticated systems involving
 a hierarchy of modules.  Designing such systems well is a
 complex software engineering task, and beyond the scope of this book.  
 
-Debugging
----------
+Sources of Error
+----------------
 
 Mastery of programming depends on having a variety of problem-solving skills to
 draw upon when the program doesn't work as expected.  Something as trivial as
@@ -1785,64 +1788,149 @@ For example, ``"%s.%s.%02d" % "ph.d.", "n", 1`` produces a run-time
 error ``TypeError: not enough arguments for format string``.
 This is because the percent operator has higher precedence than
 the comma operator.  The fix is to add parentheses in order to
-force the required scope.
+force the required scope.  As another example, suppose we are
+defining a function to collect all tokens of a text having a
+given length.  The function has parameters for the text and
+the word length, and an extra parameter that allows the initial
+value of the result to be given as a parameter:
 
+    >>> def find_words(text, wordlength, result=[]):
+    ...     for word in text:
+    ...         if len(word) == wordlength:
+    ...             result.append(word)
+    ...     return result
+    >>> find_words(['the', 'cat', 'sat', 'on', 'the', 'mat'], 3) # [_find-words-1]
+    ['the', 'cat', 'sat', 'the', 'mat']
+    >>> find_words(['the', 'cat', 'sat', 'on', 'the', 'mat'], 2, ['be']) # [_find-words-2]
+    ['be', 'on']
+    >>> find_words(['the', 'cat', 'sat', 'on', 'the', 'mat'], 3) # [_find-words-3]
+    ['the', 'cat', 'sat', 'the', 'mat', 'the', 'cat', 'sat', 'the', 'mat']
 
-Is our understanding of Python's semantics at fault
-assignment
+The first time we call ``find_words()`` find-words-1_, we get all three-letter
+words as expected.  The second time we specify an initial value for the result,
+a list ``['be']``, and as expected, the result has this word along with the
+other two-letter word in our text.  Now, the next time we call ``find_words()`` find-words-3_
+we use the same parameters as in find-words-1_, but we get a different result!
+Each time we call ``find_words()`` with no third parameter, the result will
+simply extend the result of the previous call, rather than start with the
+empty result list as specified in the function definition.  The program's
+behavior is not as expected because we incorrectly assumed that the default
+value was created at the time the function was invoked.  However, it is
+created just once, at the time the Python interpreter loads the function.
+This one list object is used whenever no explicit value is provided to the function.
 
-indentation, operator precedence
+Debugging Techniques
+--------------------
 
+Since most code errors result from the programmer making incorrect assumptions,
+the first thing to do when you detect a bug is to `check your assumptions`:em:.
+Localize the problem by adding ``print`` statements to the program, showing the
+value of important variables, and showing how far the program has progressed.
+If the program produced an exception, the interpreter will print a `stack trace`:dt:,
+pinpointing the location of program execution at the time of the error.
+If the program depends on input data, try to reduce this to the smallest
+size while still producing the error.
 
-* adding diagnostic print statements, checking your assumptions
-* isolate the problem: get it down to a few lines; test it with a small instance (e.g. trivial input file)
-* disciplined approach to setting out, variable names etc
-* don't just randomly change things in the hope that something will work
-* sometimes the program is giving the correct result; you just didn't understand what you were asking it to do
-* hunting with divide-and-conquer
-* defensive programming: adding asserts etc
-* showing code to someone else...
-* reading the stack-trace
+Once you have localized the problem to a particular function, or to a line
+of code, you need to work out what is going wrong.  It is often helpful to
+recreate the situation using the interactive command line.  Define some
+variables then copy-paste the offending line of code into the session
+and see what happens.  Check your understanding of the code by reading
+some documentation, and examining other code samples that purport to do
+the same thing that you are trying to do.  Try explaining your code to
+someone else, in case they can see where things are going wrong.
 
-Regression tests -- doctest framework
-
-* The Python debugger: allows you to monitor program execution, set "breakpoints",
-  step through particular sections and inspect variables 
+Python provides a `debugger`:dt: which allows you to monitor the execution
+of your program, specify line numbers where execution will stop (i.e. `breakpoints`:dt:),
+and step through sections of code and inspect the value of variables.
+You can invoke the debugger on your code as follows:
 
 .. doctest-ignore::
     >>> import pdb
     >>> import mymodule
-    >>> pdb.run('mymodule.test()')
+    >>> pdb.run('mymodule.myfunction()')
 
+It will present you with a prompt ``(Pdb)`` where you can type instructions
+to the debugger.  Type ``help`` to see the full list of commands.
+Typing ``step`` (or just ``s``) will execute the current line and
+stop.  If the current line calls a function, it will enter the function
+and stop at the first line.  Typing ``next`` (or just ``n``) is similar,
+but it stops execution at the next line in the current function.  The
+``break`` (or ``b``) command can be used to create or list breakpoints.  Type
+``continue`` (or ``c``) to continue execution as far as the next breakpoint.
+Type the name of any variable to inspect its value.
 
-Commands:
+We can use the Python debugger to locate the problem in our ``find_words()``
+function.  Remember that the problem arose the second time the function was
+called.  We'll start by calling the function without using the debugger first-run_,
+using the smallest possible input.  The second time, we'll call it with the
+debugger second-run_.
+ 
+.. doctest-ignore::
+    >>> import pdb
+    >>> find_words(['cat'], 3) # [_first-run]
+    ['cat']
+    >>> pdb.run("find_words(['dog'], 3)") # [_second-run]
+    > <string>(1)<module>()
+    (Pdb) step
+    --Call--
+    > <stdin>(1)find_words()
+    (Pdb) args
+    text = ['dog']
+    wordlength = 3
+    result = ['cat']
 
-list [first [,last]]: list sourcecode for the current file
+Here we typed just two commands into the debugger: ``step`` took us inside
+the function, and ``args`` showed the values of its arguments (or parameters).
+We see immediately that ``result`` has an initial value of ``['cat']``, and not
+the empty list as expected.  The debugger has helped us to localize the problem,
+but it turns out not to be a bug in the code, but a bug in our understanding
+of how Python's default parameters work.
 
-next: continue execution until the next line in the current function is reached
+Defensive Programming
+---------------------
 
-cont: continue execution until a breakpoint is reached (or the end of the program)
+In order to avoid some of the pain of debugging, it helps to adopt
+some `defensive programming`:dt: habits.  Instead of writing a 20-line
+program then testing it, build the program bottom-up out of
+small pieces that are known to work.  Each time you combine these
+pieces to make a larger unit, test it carefully to see that it works
+as expected.  Consider adding ``assert`` statements to your code,
+specifying properties of a variable, e.g. ``assert(isinstance(text, list))``.
+If the value of the ``text`` variable later becomes a string when your
+code is used in some larger context, this will raise an ``AssertionError``
+and you will get immediate notification of the problem.
 
-break: list the breakpoints
+Once you think you've found the bug, view your solution as a hypothesis.
+Try to predict the effect of your bugfix before re-running the program.
+If the bug isn't fixed, don't fall into the trap of blindly changing
+the code in the hope that it will magically start working again.
+Instead, for each change, try to articulate a hypothesis about what
+is wrong and why the change will fix the problem.  Then undo the change
+if the problem was not resolved.
 
-break n: insert a breakpoint at this line number in the current file
+As you develop your program, extend its functionality, and fix any bugs,
+it helps to maintain a suite of test cases.
+This is called `regression testing`:dt:, since it is meant to detect
+situations where the code "regresses" |mdash| where a change to the
+code has an unintended side-effect of breaking something that
+used to work.  Python provides a simple regression testing framework
+in the form of the ``doctest`` module.  This module searches a file
+of code or documentation for blocks of text that look like
+an interactive Python session, of the form you have already seen
+many times in this book.  It executes the Python commands it finds,
+and tests that their output matches the output supplied in the original
+file.  Whenever there is a mismatch, it reports the expected and actual
+values.  For details please consult the ``doctest`` documentation at
+``http://docs.python.org/library/doctest.html``.  Apart from its
+value for regression testing, the ``doctest`` module is useful for
+ensuring that your software documentation stays in sync with your
+code.
 
-break file.py:n: insert a breakpoint at this line in the specified file
-
-break function: insert a breakpoint at the first executable line of the function
-
-Profiling
----------
-
-[more]
-
-
-Efficiency
-----------
-
-[Building a big list out of smaller lists: linear vs n-squared solutions; e.g. accumulating lines
-of a long file into a list.]
-
+Perhaps the most important defensive programming strategy is to
+set out your code clearly, choose meaningful variable and function
+names, and simplify the code wherever possible by decomposing it into
+functions and modules with well-documented interfaces.
 
 
 .. _sec-algorithm-design:
