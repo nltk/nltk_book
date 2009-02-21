@@ -289,9 +289,21 @@ add new non-terminals and productions to the grammar:
      V_SG -> 'runs'
      V_PL -> 'run'
 
-It should be clear that this grammar will do the required
-task, but only at the cost of duplicating our previous set of
-productions. 
+In place of a single production expanding ``S``, we now have two
+productions, one covering the sentences involving singular subject
+``NP``\ s and ``VP`` s, the other covering sentences with plural
+subject ``NP``\ s and ``VP`` s. In fact, every production in
+ex-agcfg0_ has two counterparts in ex-agcfg1_. With a small grammar,
+this is not really such a problem, although it is aesthetically
+unappealing. However, with a larger grammar that covers a reasonable
+subset of English constructions, the prospect of doubling the grammar
+size is very unattractive. Let's suppose now that we used the same
+approach to deal with first, second and third person agreement, for
+both singular and plural. This would lead to the original grammar
+being multiplied by a factor of 6, which we definitely want to
+avoid. Can we do better than this? In the next section we will show
+that capturing number and person agreement need not come at the cost
+of "blowing up" the number of productions.
 
 .. Rule multiplication is of course more severe if we add in
    person agreement constraints.
@@ -566,10 +578,14 @@ case of atomic values are `boolean`:dt: values, that is, values that
 just specify whether a property is true or false of a category. For
 example, we might want to distinguish `auxiliary`:dt: verbs such as
 `can`:lx:, `may`:lx:, `will`:lx: and `do`:lx: with the boolean feature
-``AUX``. Then our lexicon for verbs could include entries such as
-ex-lex_. (Note that we follow the convention that boolean
-features are not written `f`:feat: +, `f`:feat: `-`:math: but simply
-`+f`:feat:, `-f`:feat:, respectively.)
+``AUX``. For example, the production ``V[TENSE=pres, aux=+] -> 'can'``
+means that `can`:lx receives the value ``pres`` for ``TENSE`` and
+``+`` or ``true`` for ``AUX``. There is a widely adopted
+convention which abbreviates the representation of boolean
+features ``f``; instead of ``aux=+`` or ``aux=-``, we use ``+aux`` and
+``-aux`` respectively. These are just abbreviations, however, and the
+parser should interpret them as though ``+`` and ``-`` are like any
+other atomic value. ex-lex_ shows some representative productions:
 
 .. _ex-lex:
 .. ex::
@@ -599,30 +615,35 @@ category`:dt:.
 In addition to atomic-valued features, we allow features whose values
 are themselves feature structures. For example, we might want to group
 together agreement features (e.g., person, number and gender) as a
-distinguished part of a category, as shown in ex-agr0_.
+distinguished part of a category as shown in ex-agr0_. In this case,
+we say that the feature ``AGR`` has a `complex`:dt: value.
 
 .. _ex-agr0:
 .. ex::
     :: 
 
-        [pos = N           ]
+        [POS = N           ]
         [                  ]
-        [agr = [per = 3   ]]
-        [      [num = pl  ]]
-        [      [gnd = fem ]]
+        [AGR = [PER = 3   ]]
+        [      [NUM = pl  ]]
+        [      [GND = fem ]]
 
-
-*AVM as included figure:*
+In passing, we should point out that there are alternative approaches
+for presenting AVMs; figure fig-avm1_ shows an example.
 
 .. _fig-avm1:
-.. image:: ../images/avm1.png
+.. figure:: ../images/avm1.png
    :scale: 60
 
+   Alternative rendering of an Attribute Value Matrix
 
-In this case, we say that the feature ``AGR`` has a `complex`:dt: value.
+Athough feature structures rendered in the style of ex-agr0_ are less
+visually pleasing, we will stick with this format, since it
+corresponds to the output we will be getting from |NLTK|.
 
-There is no particular significance to the *order* of features in a
-feature structure. So ex-agr0_ is equivalent to ex-agr0_.
+On the topic of representation, we also note that there is no
+particular significance to the *order* of features in a feature
+structure. So ex-agr1_ is equivalent to ex-agr0_.
 
 .. _ex-agr1:
 .. ex::
@@ -635,36 +656,34 @@ feature structure. So ex-agr0_ is equivalent to ex-agr0_.
         [pos = N           ]
 
 Once we have the possibility of using features like `agr`:feat:, we
-can refactor a grammar like Example code-feat0cfg_ so that agreement features are
-bundled together. A tiny grammar illustrating this point is shown in ex-agr2_.
+can refactor a grammar like code-feat0cfg_ so that agreement features are
+bundled together. A tiny grammar illustrating this idea is shown in ex-agr2_.
 
 .. _ex-agr2:
 .. ex::
   ::
 
-      S -> NP[AGR=?n] VP[AGR=?n]
-      NP[AGR=?n] -> PropN[AGR=?n] 
+      S                    -> NP[AGR=?n] VP[AGR=?n]
+      NP[AGR=?n]           -> PropN[AGR=?n] 
       VP[TENSE=?t, AGR=?n] -> Cop[TENSE=?t, AGR=?n] Adj
+
       Cop[TENSE=pres,  AGR=[NUM=sg, PER=3]] -> 'is' 
-      PropN[AGR=[NUM=sg, PER=3]] -> 'Kim'
-      Adj -> 'happy'
+      PropN[AGR=[NUM=sg, PER=3]]            -> 'Kim'
+      Adj                                   -> 'happy'
 
 
 .. _sec-feat-comp:
 
----------------------------------
-Computing with Feature Structures
----------------------------------
+------------------------------
+Processing  Feature Structures
+------------------------------
 
 In this section, we will show how feature structures can be
-constructed and manipulated in Python. We will also discuss the
+constructed and manipulated in |NLTK|. We will also discuss the
 fundamental operation of unification, which allows us to combine the
 information contained in two different feature structures.
 
-Feature Structures in Python
-----------------------------
-
-Feature structures are declared with the
+Feature structures in |NLTK| are declared with the
 ``FeatStruct()`` constructor. Atomic feature values can be strings or
 integers.
 
@@ -709,9 +728,6 @@ use a bracketed string consisting of feature-value pairs in the format
     [AGR=[GND='fem', NUM='pl', PER=3], POS='N']
 
 
-Feature Structures as Graphs
-----------------------------
-
 Feature structures are not inherently tied to linguistic objects; they are
 general purpose structures for representing knowledge. For example, we
 could encode information about a person in a feature structure:
@@ -726,8 +742,13 @@ could encode information about a person in a feature structure:
         [telno = 01 27 86 42 96  ]
         [age = 33                ]
 
+In the next couple of pages, we are going to use examples like
+ex-person01_ to explore standard operations over feature
+structures. This might seem to be taking us away from processing
+natural language, but we need to lay the ground work before we can
+get back to talking about grammars. Hang on tight!
 
-It is sometimes helpful to view feature structures as graphs; more
+It is often helpful to view feature structures as graphs; more
 specifically, `directed acyclic graphs`:dt: (DAGs). ex-dag01_ is equivalent to
 the AVM ex-person01_.
 
@@ -795,21 +816,6 @@ subsequent reference to that structure uses the notation
     [ SPOUSE  = [ ADDRESS -> (1)  ]           ]
     [           [ NAME    = 'Kim' ]           ]
 
-
-This is similar to more conventional displays of AVMs, as shown in
-ex-reentrant01_.
-
-.. _ex-reentrant01:
-.. ex::
-    :: 
-
-	 [ address = (1) [ number = 74           ] ]
-	 [               [ street = 'rue Pascal' ] ]
-	 [                                         ]
-	 [ name    = 'Lee'                         ]
-	 [                                         ]
-	 [ spouse  = [ address -> (1)  ]           ]
-	 [           [ name    = 'Kim' ]           ]
 
 The bracketed integer is sometimes called a `tag`:dt: or a
 `coindex`:dt:. The choice of integer is not significant.
@@ -1070,16 +1076,19 @@ using variables such as ``?x``.
 Extending a Feature-Based Grammar
 ---------------------------------
 
-.. TODO: I think this section needs an opening
+In this section, we are going to use the framework established earlier
+in the chapter to examine a variety of different linguistic issues. In the
+process, we hope to demonstrate the advantages that flow from the
+flexibility of using features in the grammar.
 
 Subcategorization
 -----------------
 
-In Chapter chap-parse_, we proposed to augment our
-category labels to represent different kinds of verb.
-We introduced labels such as `iv`:gc: and `tv`:gc: for intransitive
-and transitive verbs respectively.  This allowed us to write productions
-like the following:
+In Chapter chap-parse_, we proposed to augment our category labels to
+represent different kinds of verb, and introduced labels such as
+`iv`:gc: and `tv`:gc: for intransitive and transitive verbs
+respectively.  This allowed us to write productions like the
+following:
 
 .. _ex-subcatcfg0:
 .. ex::
@@ -1095,47 +1104,57 @@ with `np`:gc:. As it stands, `iv`:gc: and `tv`:gc: are just atomic
 nonterminal symbols from a CFG.  This approach doesn't allow us
 to say anything about the class of verbs in general.
 For example, we cannot say something like "All lexical
-items of category `v`:gc: can be marked for tense", since `bark`:lx:,
+items of category `v`:gc: can be marked for tense", since `walk`:lx:,
 say, is an item of category `iv`:gc:, not `v`:gc:.
-A simple solution, originally developed for a grammar framework
-called Generalized Phrase Structure Grammar (GPSG), stipulates that lexical
-categories may bear a `subcat`:feat: feature whose values are integers.
-This is illustrated in a modified portion of Example code-feat0cfg_, shown in ex-subcatgpsg_.
+The question arises as to whether we can replace  category labels such
+as ``TV`` and ``IV`` by ``V`` together with a feature that tells us
+whether the verb in question combines with (or is subcategorized for)
+a following ``NP`` object or whether it can occur without any
+complement.
+
+A simple approach, originally developed for a grammar framework
+called Generalized Phrase Structure Grammar (GPSG), tries to solve
+this problem by allowing lexical
+categories to bear a ``SUBCAT`` which tells us what subcategorization
+class the item belongs to. While GPSG  used integer values for
+``SUBCAT``, the example below adopts more mnemonic values, namely
+``intrans``, ``trans`` and ``clause``:
 
 .. _ex-subcatgpsg:
 .. ex::
    ::
 
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=0, TENSE=?t, NUM=?n]
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=1, TENSE=?t, NUM=?n] NP
-     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=2, TENSE=?t, NUM=?n] SBar
+     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=intrans, TENSE=?t, NUM=?n]
+     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=trans, TENSE=?t, NUM=?n] NP
+     VP[TENSE=?t, NUM=?n] -> V[SUBCAT=clause, TENSE=?t, NUM=?n] SBar
 
-     V[SUBCAT=0, TENSE=pres, NUM=sg] -> 'disappears' | 'walks'
-     V[SUBCAT=1, TENSE=pres, NUM=sg] -> 'sees' | 'likes'
-     V[SUBCAT=2, TENSE=pres, NUM=sg] -> 'says' | 'claims'
+     V[SUBCAT=, TENSE=pres, NUM=sg] -> 'disappears' | 'walks'
+     V[SUBCAT=trans, TENSE=pres, NUM=sg] -> 'sees' | 'likes'
+     V[SUBCAT=clause, TENSE=pres, NUM=sg] -> 'says' | 'claims'
 
-     V[SUBCAT=0, TENSE=pres, NUM=pl] -> 'disappear' | 'walk'
-     V[SUBCAT=1, TENSE=pres, NUM=pl] -> 'see' | 'like'
-     V[SUBCAT=2, TENSE=pres, NUM=pl] -> 'say' | 'claim'
+     V[SUBCAT=intrans, TENSE=pres, NUM=pl] -> 'disappear' | 'walk'
+     V[SUBCAT=trans, TENSE=pres, NUM=pl] -> 'see' | 'like'
+     V[SUBCAT=clause, TENSE=pres, NUM=pl] -> 'say' | 'claim'
 
-     V[SUBCAT=0, TENSE=past, NUM=?n] -> 'disappeared' | 'walked'
-     V[SUBCAT=1, TENSE=past, NUM=?n] -> 'saw' | 'liked'
-     V[SUBCAT=2, TENSE=past, NUM=?n] -> 'said' | 'claimed'
+     V[SUBCAT=intrans, TENSE=past, NUM=?n] -> 'disappeared' | 'walked'
+     V[SUBCAT=trans, TENSE=past, NUM=?n] -> 'saw' | 'liked'
+     V[SUBCAT=clause, TENSE=past, NUM=?n] -> 'said' | 'claimed'
 
-When we see a lexical category like ``V[SUBCAT=1]``, we can interpret the ``SUBCAT`` specification as a
-pointer to the production in which ``V[SUBCAT=1]``
-is introduced as the head daughter in a ``VP`` production.
-By convention, there is a one-to-one correspondence between
-``SUBCAT`` values and the productions that introduce lexical heads.
-It's worth noting that the choice of integer which acts as a value for
-``subcat`` is completely arbitrary |mdash| we could equally well
-have chosen 3999, 113 and 57 as our three values in ex-subcatgpsg_.  On this
-approach, ``subcat`` can *only* appear on lexical categories; it
-makes no sense, for example, to specify a ``SUBCAT`` value on
-``vp``.
+When we see a lexical category like ``V[SUBCAT=trans]``, we can
+interpret the ``SUBCAT`` specification as a pointer to a production in
+which ``V[SUBCAT=trans]`` is introduced as the head daughter in a
+``VP`` production.  By convention, there is a correspondence between
+the values of ``SUBCAT`` and the productions that introduce lexical
+heads.  On this approach, ``SUBCAT`` can *only* appear on lexical
+categories; it makes no sense, for example, to specify a ``SUBCAT``
+value on ``VP``. As required, `walk`:lx: and `like`:lx: both belong to
+the category ``V``. Nevertheless, `walk`:lx: will only occur in
+``VP``\ s expanded by a production with the feature ``SUBCAT=intrans``
+on the right hand side, as opposed to `like`:lx:, which requires a
+``SUBCAT=trans``.
 
 In our third class of verbs above, we have specified a category
-``Sbar``. This is a label for subordinate clauses such as the
+``SBar``. This is a label for subordinate clauses such as the
 complement of `claim`:lx: in the example `You claim that you like
 children`:lx:. We require two further productions to analyze such sentences:
 
