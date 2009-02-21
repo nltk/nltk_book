@@ -11,8 +11,7 @@ import sys
 import re
 
 EXT = "-flat"              # output filename extension
-XI1 = r'<xi:include href="(.*)"/>'
-XI2 = r'<xi:include href=".*"/>'
+XI1 = r'<xi:include href="(.*?)".*/>'
 DOC = r'(?s)<!DOCTYPE .*?>'
 NAMESPACE = r' xmlns:xi="http://www.w3.org/2001/XInclude"'
 
