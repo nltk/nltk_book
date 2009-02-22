@@ -10,9 +10,9 @@ Chart Parsing
 -------------
 
 Chart Parsing is a parsing algorithm that uses dynamic programming,
-a technique described in Section sec-algorithm-design_.
+a technique described in sec-algorithm-design_.
 It extends the method of well-formed substring tables from
-Section sec-parsing_.
+sec-parsing_.
 
 Active Charts
 -------------
@@ -335,7 +335,7 @@ The Earley Algorithm
 
 The Earley algorithm [Earley1970ECF]_ is a parsing strategy that
 resembles the Top-Down Strategy, but deals more efficiently with
-matching against the input string. Table tab-earley-terminology_ shows the
+matching against the input string. tab-earley-terminology_ shows the
 correspondence between the parsing rules introduced above and the
 rules used by the Earley algorithm.
 
@@ -401,7 +401,7 @@ chart.
 ``TD_STRATEGY``, a basic top-down strategy; and ``BU_STRATEGY``, a
 basic bottom-up strategy.  When constructing a chart parser, you
 can use either of these strategies, or create your own.  We've
-already seen how to define a chart parser in section sec-dilemmas_.
+already seen how to define a chart parser in sec-dilemmas_.
 This time we'll specify a strategy and turn on tracing:
 
 .. doctest-ignore::
@@ -712,7 +712,7 @@ the best parse first.  In fact, since it might prune a necessary edge,
 beam search is not `complete`:idx:\ : it won't find every parse,
 and it is not even guaranteed to return a parse if one exists.
 
-The code in Example code-bottom-up-chart-parsers_ demonstrates how
+The code in code-bottom-up-chart-parsers_ demonstrates how
 we define and use these probabilistic chart parsers in |NLTK|.
 
 .. pylisting:: code-bottom-up-chart-parsers

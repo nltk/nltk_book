@@ -39,7 +39,7 @@ Stacks and Queues
 Lists are a versatile data type.  We can use lists to
 implement so-called `abstract data types`:dt: such as stacks and queues.
 A `stack`:dt: is a container that has a last-in-first-out (or LIFO) policy
-for adding and removing items (see Figure fig-stack-queue_).
+for adding and removing items (see fig-stack-queue_).
 
 .. _fig-stack-queue:
 .. figure:: ../images/stack-queue.png
@@ -54,7 +54,7 @@ of |NLTK| parsers, treebank corpus readers, (and even Python functions),
 all use stacks behind the scenes.
 However, it is important to understand what stacks are and how they work.
 
-.. pylisting:: check-parens
+.. pylisting:: code-check-parens
    :caption: Check parentheses are balanced
 
    def check_parens(tokens):
@@ -73,18 +73,18 @@ However, it is important to understand what stacks are and how they work.
 In Python, we can treat a list as a stack by limiting ourselves to the three
 operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
 ``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
-item on the top of the stack.  The program in Figure check-parens_ processes a sentence with
+item on the top of the stack.  The program in code-check-parens_ processes a sentence with
 phrase markers, and checks that the parentheses are balanced.
 The loop pushes material onto the stack when it gets an open parenthesis,
 and pops the stack when it gets a close parenthesis.
 We see that two are left on the stack at the end;
 i.e. the parentheses are not balanced.
 
-Although the program in Figure check-parens_ is a useful illustration of stacks,
+Although the program in code-check-parens_ is a useful illustration of stacks,
 it is overkill because we could have done a direct count:
 ``phrase.count('(') == phrase.count(')')``.  However, we
 can use stacks for more sophisticated processing of strings
-containing nested structure, as shown in Figure convert-parens_.
+containing nested structure, as shown in convert-parens_.
 Here we build a (potentially deeply-nested) list of lists.
 Whenever a token other than a parenthesis is encountered,
 we add it to a list at the appropriate level of nesting.
@@ -115,10 +115,10 @@ the function to help you see what it is doing.)
 
 Lists can be used to represent another important data structure.
 A `queue`:dt: is a container that has a first-in-first-out (or FIFO) policy
-for adding and removing items (see Figure fig-stack-queue_).
+for adding and removing items (see fig-stack-queue_).
 We could use a queue of length `n`:math: to create all the n-grams of a text.
 As with stacks, we will seldom have to deal with queues explicitly,
-as the implementation of |NLTK| n-gram taggers (Section sec-n-gram-tagging_)
+as the implementation of |NLTK| n-gram taggers (sec-n-gram-tagging_)
 and chart parsers use queues behind the scenes.
 Here's how queues can be implemented using lists.
 
@@ -243,7 +243,7 @@ should consult the resources mentioned at the end of this tutorial.
 Decorate-Sort-Undecorate
 ------------------------
 
-In Chapter chap-structured-programming_ we saw how to sort a list of items
+In chap-structured-programming_ we saw how to sort a list of items
 according to some property of the list.
 
     >>> words = 'I turned off the spectroroute'.split()
@@ -470,7 +470,7 @@ parse trees for a given sentence.  As we saw in Part II,
 there are several algorithms for parsing.  A `recursive descent parser`:idx:
 performs `backtracking search`:dt:, applying grammar productions in turn
 until a match with the next input word is found, and backtracking when
-there is no match.  As we will see in Section sec-grammar-development_,
+there is no match.  As we will see in sec-grammar-development_,
 the space of possible parse trees is very large; a parser can be thought
 of as providing a relatively efficient way to find the right solution(s)
 within a very large space of candidates.
@@ -498,7 +498,7 @@ problem from the perspective of a child hearing utterances from a parent, e.g.
 
 Our first challenge is simply to represent the problem: we need to find
 a way to separate the text content from the segmentation.  We will borrow
-an idea from IOB-tagging (Chapter chap-chunk_), by annotating each character
+an idea from IOB-tagging (chap-chunk_), by annotating each character
 with a boolean value to indicate whether or not a word-break appears after
 the character.  We will assume that the learner is given the utterance breaks,
 since these often correspond to extended pauses.  Here is a possible representation,
@@ -546,7 +546,7 @@ function.  We assume the learner is acquiring words and storing them in an inter
 Given a suitable lexicon, it is possible to reconstruct the source text as a sequence of
 lexical items.  Following [Brent1995]_, we can use the size of the lexicon and the amount
 of information needed to reconstruct the source text as the basis for an objective function, as shown
-in Figure fig-brent_.
+in fig-brent_.
 
 .. _fig-brent:
 .. figure:: ../images/brent.png
@@ -554,10 +554,10 @@ in Figure fig-brent_.
 
    Calculation of Objective Function for Given Segmentation
 
-It is a simple matter to implement this objective function, as shown in Listing
-evaluate_.
+It is a simple matter to implement this objective function, as shown in
+code-evaluate_.
 
-.. pylisting:: evaluate
+.. pylisting:: code-evaluate
    :caption: Computing the Cost of Storing the Lexicon and Reconstructing the Source Text
 
    def evaluate(text, segs):

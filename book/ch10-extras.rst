@@ -300,7 +300,7 @@ member of a pair in `R`:math: is called the `range`:dt: of `R`:math:,
 written `ran(R)`:math:.
  
 We can visually represent the relation ``mod`` by drawing arrows to
-indicate elements that stand in the relation, as shown in Figure fig-modrel_.
+indicate elements that stand in the relation, as shown in fig-modrel_.
 
 .. _fig-modrel:
 .. figure:: ../images/mod_relation.png
@@ -310,7 +310,7 @@ indicate elements that stand in the relation, as shown in Figure fig-modrel_.
 
 
 |nopar| The domain and range of the relation are shown as shaded areas
-in Figure fig-modrel_.
+in fig-modrel_.
 
 .. 
    For sets `A`:math: and `B`:math:, a (set-theoretic) `function`:dt:

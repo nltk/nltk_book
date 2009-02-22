@@ -809,7 +809,7 @@ class ExternalCrossrefVisitor(docutils.nodes.NodeVisitor):
                 else:
                     node.clear()
                     node.append(docutils.nodes.Text(label))
-                    expand_reference_text(node)
+                    process_reference_text(node, node_id)
 
 ######################################################################
 #{ Figure & Example Numbering
@@ -1185,20 +1185,18 @@ class ReferenceVisitor(docutils.nodes.NodeVisitor):
                 node.append(callout_marker(number=label, name=node_id))
             else:
                 node.append(docutils.nodes.Text(label))
-                expand_reference_text(node)
+                process_reference_text(node, node_id)
         elif node_id in self.callout_labels:
             label = self.callout_labels[node_id]
             node.clear()
             node.append(callout_marker(number=label, name='ref-%s' % node_id))
-            expand_reference_text(node)
+            # process_reference_text(node, node_id) -- don't process callout labels
             # There's no explicitly encoded target element, so manually
             # resolve the reference:
             node['refid'] = node_id
             node.resolved = True
 
-_EXPAND_REF_RE = re.compile(r'(?is)^(.*)(%s)\s+$' % '|'.join(
-    ['figure', 'table', 'example', 'chapter', 'section', 'appendix',
-     'sentence', 'tree', 'listing', 'program']))
+# No longer required: this does the reverse of what we want
 def expand_reference_text(node):
     """If the reference is immediately preceeded by the word 'figure'
     or the word 'table' or 'example', then include that word in the
@@ -1215,6 +1213,46 @@ def expand_reference_text(node):
                 link = node.children[0]
                 link.data = '%s %s' % (m.group(2), link.data)
                 node['expanded_ref'] = True
+
+# Handle the anchor text of references.
+
+_EXPAND_REF_RE = re.compile(r'(?is)^(.*)(%s)\s+$' % '|'.join(
+    ['figure', 'table', 'example', 'chapter', 'section', 'appendix']))
+
+_EXPAND_REF_DICT = {'sec': 'Section',
+                    'chap': 'Chapter',
+                    'fig': 'Figure',
+                    'ex': '',
+                    'code': 'Example',
+                    'tab': 'Table'
+                    }
+
+def process_reference_text(node, node_id):
+    """Expand the reference text to include the right word,
+    based on the prefix of the reference."""
+    if node.get('expanded_ref'):
+        assert 0, ('Already expanded!!  %s' % node)
+    else:
+        # Check that surrounding text does not contain the extra term
+        node_index = node.parent.children.index(node)
+        if node_index > 0:
+            prev_node = node.parent.children[node_index-1]
+            if (isinstance(prev_node, docutils.nodes.Text)):
+                m = _EXPAND_REF_RE.match(prev_node.data)
+                if m:
+                    print "Warning: '%s' citation has '%s' on its left" % (node_id, m.group(2))
+
+        # Add the extra term
+        link = node.children[0]
+        if '-' in node_id:
+            reftype = node_id.split('-', 1)[0]
+            if reftype in _EXPAND_REF_DICT:
+                link.data = _EXPAND_REF_DICT[reftype] + ' ' + link.data
+            else:
+                print "Warning: '%s' reference text not expanded" % node_id
+        else:
+            print "Warning: '%s' reference not hyphenated" % node_id
+        node['expanded_ref'] = True
 
 ######################################################################
 #{ Feature Structures (AVMs)
