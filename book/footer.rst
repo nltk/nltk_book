@@ -4,7 +4,7 @@
 
    This chapter is a draft from *Natural Language Processing*,
    by |StevenBird|, |EwanKlein| and |EdwardLoper|,
-   Copyright |copy| 2008 the authors.
+   Copyright |copy| 2009 the authors.
    It is distributed with the *Natural Language Toolkit* [|NLTK-URL|],
    Version |version|, under the terms of the
    *Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License*
