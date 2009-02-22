@@ -20,13 +20,13 @@
    but variable binding does.
    More examples are in Edward's email of 25 August
 
-   * check grammar involving +/-aux
    * s/rule/production/ in the grammars
    * BR: augment discussion of slash categories to show compatibility
      with ordinary phrases
    * BR: give example of parsing with German grammar
    * Give example of grammar with HPSG style subcat?
-   * fix discussion of non-specified variables wrt code-feat0cfg
+   * deal with callouts in discussion of parse trace for KLC
+   * make _ex-gapparse consistent with actual parse
 
 
 .. _chap-featgram:
@@ -464,36 +464,36 @@ far in this chapter, plus a couple of new ones.
 .. pylisting:: code-feat0cfg
    :caption: Example Feature based Grammar
 
-   >>> nltk.data.show_cfg('grammars/book_grammars/feat0.fcfg')
-   % start S
-   # ############################
-   # Grammar Rules
-   # ############################
-   # S expansion rules
-   S -> NP[NUM=?n] VP[NUM=?n]
-   # NP expansion rules
-   NP[NUM=?n] -> N[NUM=?n] 
-   NP[NUM=?n] -> PropN[NUM=?n] 
-   NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]
-   NP[NUM=pl] -> N[NUM=pl] 
-   # VP expansion rules
-   VP[TENSE=?t, NUM=?n] -> IV[TENSE=?t, NUM=?n]
-   VP[TENSE=?t, NUM=?n] -> TV[TENSE=?t, NUM=?n] NP
-   # ############################
-   # Lexical Rules
-   # ############################
-   Det[NUM=sg] -> 'this' | 'every'
-   Det[NUM=pl] -> 'these' | 'all'
-   Det -> 'the' | 'some'
-   PropN[NUM=sg]-> 'Kim' | 'Jody'
-   N[NUM=sg] -> 'dog' | 'girl' | 'car' | 'child'
-   N[NUM=pl] -> 'dogs' | 'girls' | 'cars' | 'children' 
-   IV[TENSE=pres,  NUM=sg] -> 'disappears' | 'walks'
-   TV[TENSE=pres, NUM=sg] -> 'sees' | 'likes'
-   IV[TENSE=pres,  NUM=pl] -> 'disappear' | 'walk'
-   TV[TENSE=pres, NUM=pl] -> 'see' | 'like'
-   IV[TENSE=past, NUM=?n] -> 'disappeared' | 'walked'
-   TV[TENSE=past, NUM=?n] -> 'saw' | 'liked'
+    >>> nltk.data.show_cfg('grammars/book_grammars/feat0.fcfg')
+    % start S
+    # ###################
+    # Grammar Productions
+    # ###################
+    # S expansion productions
+    S -> NP[NUM=?n] VP[NUM=?n]
+    # NP expansion productions
+    NP[NUM=?n] -> N[NUM=?n] 
+    NP[NUM=?n] -> PropN[NUM=?n] 
+    NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]
+    NP[NUM=pl] -> N[NUM=pl] 
+    # VP expansion productions
+    VP[TENSE=?t, NUM=?n] -> IV[TENSE=?t, NUM=?n]
+    VP[TENSE=?t, NUM=?n] -> TV[TENSE=?t, NUM=?n] NP
+    # ###################
+    # Lexical Productions
+    # ###################
+    Det[NUM=sg] -> 'this' | 'every'
+    Det[NUM=pl] -> 'these' | 'all'
+    Det -> 'the' | 'some' | 'several'
+    PropN[NUM=sg]-> 'Kim' | 'Jody'
+    N[NUM=sg] -> 'dog' | 'girl' | 'car' | 'child'
+    N[NUM=pl] -> 'dogs' | 'girls' | 'cars' | 'children' 
+    IV[TENSE=pres,  NUM=sg] -> 'disappears' | 'walks'
+    TV[TENSE=pres, NUM=sg] -> 'sees' | 'likes'
+    IV[TENSE=pres,  NUM=pl] -> 'disappear' | 'walk'
+    TV[TENSE=pres, NUM=pl] -> 'see' | 'like'
+    IV[TENSE=past] -> 'disappeared'     
+
 
 Notice that a syntactic category can have more than one feature; for
 example,
@@ -512,11 +512,13 @@ copy of this for further experimentation using ``nltk.data.load()``.
 
 Feature based grammars are parsed in |NLTK| using an Earley chart
 parser. For more information about this parsing technique, see [URL].
-After tokenizing the input, we import the ``load_earley`` function load_earley1_
-which takes a grammar filename as input and returns a chart parser
-``cp`` load_earley2_.
-Calling the parser's ``nbest_parse()`` method should yield one or more
-parse trees.
+After tokenizing the input, we import the ``load_earley`` function
+load_earley1_ which takes a grammar filename as input and returns a
+chart parser ``cp`` load_earley2_.  Calling the parser's
+``nbest_parse()`` method will return a list ``trees`` of parse trees;
+``trees`` will be empty if the grammar fails to parse the input and
+will contain one or more parse trees, depending on whether the input
+is syntactically ambiguous or not.
 
 .. pylisting:: code-featurecharttrace
    :caption: Trace of Feature based Chart Parser
@@ -526,46 +528,32 @@ parse trees.
     >>> cp = load_earley('grammars/book_grammars/feat0.fcfg', trace=2)  # [_load_earley2]
     >>> trees = cp.nbest_parse(tokens) 
               |.K.l.c.|
-    Processing queue 0
-    Predictor |> . . .| [0:0] S[] -> * NP[NUM=?n] VP[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * N[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * PropN[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
-    Predictor |> . . .| [0:0] NP[NUM='pl'] -> * N[NUM='pl'] {}
     Scanner   |[-] . .| [0:1] 'Kim'
     Scanner   |[-] . .| [0:1] PropN[NUM='sg'] -> 'Kim' *
-    Processing queue 1
     Completer |[-] . .| [0:1] NP[NUM='sg'] -> PropN[NUM='sg'] *
-    Completer |[-> . .| [0:1] S[] -> NP[NUM=?n] * VP[NUM=?n] {?n: 'sg'}
-    Predictor |. > . .| [1:1] VP[NUM=?n, TENSE=?t] -> * IV[NUM=?n, TENSE=?t] {}
-    Predictor |. > . .| [1:1] VP[NUM=?n, TENSE=?t] -> * TV[NUM=?n, TENSE=?t] NP[] {}
+    Completer |[-> . .| [0:1] S[] -> NP[NUM=?n] * VP[NUM=?n] {?n: 'sg'} 
     Scanner   |. [-] .| [1:2] 'likes'
     Scanner   |. [-] .| [1:2] TV[NUM='sg', TENSE='pres'] -> 'likes' *
-    Processing queue 2
-    Completer |. [-> .| [1:2] VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] * NP[] {?n: 'sg', ?t: 'pres'}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * N[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * PropN[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM=?n] -> * Det[NUM=?n] N[NUM=?n] {}
-    Predictor |. . > .| [2:2] NP[NUM='pl'] -> * N[NUM='pl'] {}
+    Completer |. [-> .| [1:2] VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] * NP[] {?n: 'sg', ?t: 'pres'}  # [_binding1]
     Scanner   |. . [-]| [2:3] 'children'
     Scanner   |. . [-]| [2:3] N[NUM='pl'] -> 'children' *
-    Processing queue 3
     Completer |. . [-]| [2:3] NP[NUM='pl'] -> N[NUM='pl'] *
-    Completer |. [---]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] *
+    Completer |. [---]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] *  # [_binding2]
     Completer |[=====]| [0:3] S[] -> NP[NUM='sg'] VP[NUM='sg'] *
     Completer |[=====]| [0:3] [INIT][] -> S[] *
 
-.. TODO: discussion of underspecified productions, compilation etc presumes specialized CL knowledge.
-   Do we need to make this point?  Its just an implementation detail.
-
 The details of the parsing procedure are not that important for
-present purposes. However, there is one implementation issue which
+present purposes. However, there is an implementation issue which
 bears on our earlier discussion of grammar size. One possible approach
-to parsing productions containing features is to compile out the
-features so that we end up with a large, fully specified CFG along the
-lines of ex-agcfg1_. By contrast, the parser process illustrated above
-works directly with the underspecified productions given by the
-grammar. 
+to parsing productions containing features constraints is to compile
+out all admissible values of the features in question so that we end
+up with a large, fully specified CFG along the lines of ex-agcfg1_. By
+contrast, the parser process illustrated above works directly with the
+underspecified productions given by the grammar. Feature values "flow
+upwards" from lexical entries, and variable values are then bound to
+those values binding1_. As the parser assembles information about the
+nodes of the tree it is building, the bindings of variables are used
+to instantiate values in these nodes binding2_.
 
 Finally, we can inspect the resulting parse trees (in this case, a
 single one).
@@ -1554,63 +1542,104 @@ specification of tense on the verbs.
 
 
 .. pylisting:: code-slashcfg
-   :caption: Grammar for Simple Long-distance Dependencies
+   :caption:
+       Grammar with productions for inverted clauses and
+       long-distance dependencies
 
-   >>> nltk.data.show_cfg('grammars/book_grammars/feat1.fcfg')
-   % start S
-   # ############################
-   # Grammar Rules
-   # ############################
-   S[-INV] -> NP  S/NP
-   S[-INV]/?x -> NP VP/?x
-   S[+INV]/?x -> V[+AUX] NP VP/?x
-   S-BAR/?x -> Comp S[-INV]/?x
-   NP/NP ->
-   VP/?x -> V[SUBCAT=1, -AUX] NP/?x
-   VP/?x -> V[SUBCAT=2, -AUX] S-BAR/?x
-   VP/?x -> V[SUBCAT=3, +AUX] VP/?x
-   # ############################
-   # Lexical Rules
-   # ############################
-   V[SUBCAT=1, -AUX] -> 'see' | 'like'
-   V[SUBCAT=2, -AUX] -> 'say' | 'claim'
-   V[SUBCAT=3, +AUX] -> 'do' | 'can'
-   NP[-WH] -> 'you' | 'children' | 'girls'
-   NP[+WH] -> 'who'
-   Comp -> 'that'
+    >>> nltk.data.show_cfg('grammars/book_grammars/feat1.fcfg')
+    % start S
+    # ###################
+    # Grammar Productions
+    # ###################
+    S[-INV] -> NP VP
+    S[-INV]/?x -> NP VP/?x
+    S[-INV] -> NP S/NP
+    S[-INV] -> Adv[+NEG] S[+INV]
+    S[+INV] -> V[+AUX] NP VP
+    S[+INV]/?x -> V[+AUX] NP VP/?x
+    SBar -> Comp S[-INV]
+    SBar/?x -> Comp S[-INV]/?x
+    VP -> V[SUBCAT=intrans, -AUX]
+    VP -> V[SUBCAT=trans, -AUX] NP
+    VP/?x -> V[SUBCAT=trans, -AUX] NP/?x
+    VP -> V[SUBCAT=clause, -AUX] SBar
+    VP/?x -> V[SUBCAT=clause, -AUX] SBar/?x
+    VP -> V[+AUX] VP
+    VP/?x -> V[+AUX] VP/?x
+    # ###################
+    # Lexical Productions
+    # ###################
+    V[SUBCAT=intrans, -AUX] -> 'walk' | 'sing'
+    V[SUBCAT=trans, -AUX] -> 'see' | 'like'
+    V[SUBCAT=clause, -AUX] -> 'say' | 'claim'
+    V[+AUX] -> 'do' | 'can'
+    NP[-WH] -> 'you' | 'cats'
+    NP[+WH] -> 'who'
+    Adv[+NEG] -> 'rarely' | 'never'
+    NP/NP ->
+    Comp -> 'that'
 
-The grammar in code-slashcfg_ contains one gap-introduction production, namely
-
-.. ex::
-     ::
-
-      S[-INV] -> NP S/NP 
-
+The grammar in code-slashcfg_ contains one "gap-introduction"
+production, namely ``S[-INV] -> NP S/NP``.
 In order to percolate the slash feature correctly, we need to add
 slashes with variable values to both sides of the arrow in productions
-that expand `s`, `vp` and `np`. For example,
-
-.. ex::
-     ::
-
-      VP/?x -> V SBar/?x 
-
-says that a slash value can be specified on the `vp` mother of a
-constituent if the same value is also specified on the `s-bar`
-daughter. Finally, ex-empty_ allows the slash information on `np` to
+that expand `S`, `VP` and `NP`. For example, ``VP/?x -> V SBar/?x`` is
+the slashed version of ``VP -> V SBar`` and
+says that a slash value can be specified on the `VP` mother of a
+constituent if the same value is also specified on the `SBar`
+daughter. Finally, ``NP/NP ->``  allows the slash information on `NP` to
 be discharged as the empty string.
-
-..  _ex-empty:
-.. ex::
-
-      NP/NP ->
-
 Using code-slashcfg_, we can parse the string `who do you claim that you
-like`:lx:  into the tree shown in ex-gapparse_.
+like`:lx:
+    >>> tokens = 'who do you claim that you like'.split()
+    >>> from nltk.parse import load_earley 
+    >>> cp = load_earley('file:feat1.fcfg')  
+    >>> for tree in cp.nbest_parse(tokens): print tree
+    (S[-INV]
+      (NP[+WH] who)
+      (S[+INV]/NP[]
+        (V[+AUX] do)
+        (NP[-WH] you)
+        (VP[]/NP[]
+          (V[-AUX, SUBCAT='clause'] claim)
+          (SBar[]/NP[]
+            (Comp[] that)
+            (S[-INV]/NP[]
+              (NP[-WH] you)
+              (VP[]/NP[] (V[-AUX, SUBCAT='trans'] like) (NP[]/NP[] )))))))
+
+A more readable version of this tree is shown in ex-gapparse_.
 
 .. _ex-gapparse:
 .. ex::
     .. tree:: (S[-INV](NP[+WH] who)(S[SLASH=NP,+INV](V[+AUX,SUBCAT=3] do)(NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=2] claim)(S-BAR[SLASH=NP](Comp that)(S[SLASH=NP,-INV](NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=1] like)(NP[SLASH=NP] )))))))
+
+The grammar in code-slashcfg_ will also allow us to parse sentences
+without gaps:
+
+    >>> tokens = 'you claim that you like cats'.split()
+    >>> for tree in cp.nbest_parse(tokens): print tree
+    (S[-INV]
+      (NP[-WH] you)
+      (VP[]
+        (V[-AUX, SUBCAT='clause'] claim)
+        (SBar[]
+          (Comp[] that)
+          (S[-INV]
+            (NP[-WH] you)
+            (VP[] (V[-AUX, SUBCAT='trans'] like) (NP[-WH] cats))))))
+
+In addition, it admits inverted sentences which do not involve
+`wh`:lx:constructions:
+
+    >>> tokens = 'rarely do you sing'.split()
+    >>> for tree in cp.nbest_parse(tokens): print tree
+    (S[-INV]
+      (Adv[+NEG] rarely)
+      (S[+INV]
+        (V[+AUX] do)
+        (NP[-WH] you)
+        (VP[] (V[-AUX, SUBCAT='intrans'] sing))))
 
 
 Case and Gender in German
