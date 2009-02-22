@@ -20,6 +20,15 @@
    but variable binding does.
    More examples are in Edward's email of 25 August
 
+   * check grammar involving +/-aux
+   * s/rule/production/ in the grammars
+   * BR: augment discussion of slash categories to show compatibility
+     with ordinary phrases
+   * BR: give example of parsing with German grammar
+   * Give example of grammar with HPSG style subcat?
+   * fix discussion of non-specified variables wrt code-feat0cfg
+
+
 .. _chap-featgram:
 
 ==================================
@@ -105,7 +114,7 @@ chap-parse_. But capturing the fact that the interpretations of
 ex-germanagra_ and ex-germanagrb_ differ is more challenging. In this
 chapter, we will only examine the syntactic aspect of local
 dependencies such as number agreement. In chap-semantics_, we
-will demonstrate how feature-based grammars can be extended so that
+will demonstrate how feature based grammars can be extended so that
 they build a representation of meaning in parallel with a
 representation of syntactic structure.
 
@@ -114,7 +123,7 @@ Why Features?
 -------------
 
 We have already used the term "feature" a few times, without saying
-what it means. What's special about feature-based grammars? The core
+what it means. What's special about feature based grammars? The core
 ideas are probably already familiar to you. To make things concrete,
 let's look at the simple phrase `these dogs`. It's composed of two
 words. We'll be a bit abstract for the moment, and call these words
@@ -167,7 +176,9 @@ aspects of linguistic structure.
 Syntactic Agreement
 -------------------
 
-Consider the following contrasts:
+The following examples show pairs of strings, the first of which is
+grammatical and the second not. (We use an asterisk at the start of a
+string to signal that is ungrammatical.) 
 
 .. _ex-thisdog:
 .. ex::
@@ -385,18 +396,19 @@ depth one):
       .. tree:: (N[NUM=pl] dogs) 
 
 Now ``S -> NP[NUM=?n] VP[NUM=?n]`` says that whatever the ``NUM``
-values of `N`:gc: and `Det`:gc: are, they have to be the
+values of ``N`` and ``Det` are, they have to be the
 same. Consequently, ``NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]`` will
-permit ex-this_ and ex-dog_ to be combined into an `NP`:gc: as shown
+permit ex-this_ and ex-dog_ to be combined into an ``NP`` as shown
 in ex-good1_ and it will also allow ex-these_ and ex-dogs_ to be
 combined, as in ex-good2_. By contrast, ex-bad1_ and ex-bad2_ are
-prohibited because the roots of their constituent local trees differ
-in their values for the ``NUM`` feature.
+prohibited because the roots of their subtrees differ
+in their values for the ``NUM`` feature; this incompatibility of values is
+indicated informally with a *FAIL* value at the top node. 
 
 .. ex::
    .. _ex-good1:
    .. ex::
-      .. tree:: (NP[NUM=pl] (Det[NUM=sg] this)(N[NUM=sg] dog))
+      .. tree:: (NP[NUM=sg] (Det[NUM=sg] this)(N[NUM=sg] dog))
 
    .. _ex-good2:
    .. ex::
@@ -405,13 +417,13 @@ in their values for the ``NUM`` feature.
 .. ex::
    .. _ex-bad1:
    .. ex::
-      .. tree:: (NP[NUM=...] (Det[NUM=sg] this)(N[NUM=pl] dogs))
+      .. tree:: (NP[NUM=*FAIL*] (Det[NUM=sg] this)(N[NUM=pl] dogs))
 
    .. _ex-bad2:
    .. ex::
-      .. tree:: (NP[NUM=...] (Det[NUM=PL] these)(N[NUM=SG] dog))
+      .. tree:: (NP[NUM=*FAIL*] (Det[NUM=pl] these)(N[NUM=sg] dog))
 
-Production ``VP[NUM=?n] -> V[NUM=?n]`` can be thought of as saying
+Production ``VP[NUM=?n] -> V[NUM=?n]`` says
 that the ``NUM`` value of the head verb has to be the same as the
 ``NUM`` value of the `VP`:gc: mother. Combined with the production for
 expanding ``S``, we
@@ -422,11 +434,35 @@ head verb.
 .. ex::
    .. tree:: (S (NP[NUM=pl] (Det[NUM=pl] these)(N[NUM=pl] dogs))(VP[NUM=pl] (V[NUM=pl] run)))
 
+ex-agcfg2_ illustrated lexical productions for determiners like `this`:lx:
+and `these`:lx: which require a singular or plural head noun
+respectively. However, other determiners in English are not choosy
+about the grammatical number of the noun they combine with.
+One way of describing this would be to add
+two lexical entries to the grammar, one each for the singular and
+plural versions of determiner such as `the`:lx:
+::
+
+    Det[NUM=sg] -> 'the' | 'some' | 'several' 
+    Det[NUM=pl] -> 'the' | 'some' | 'several' 
+
+However, a more elegant solution is to
+leave the ``NUM`` value `underspecified`:dt: and letting it agree
+in number with whatever noun it combines with. Assigning a variable
+value to ``NUM`` is one way of achieving this result::
+
+    Det[NUM=?n] -> 'the' | 'some' | 'several' 
+
+But in fact we can be even more economical, and just omit any
+specification for ``NUM`` in the relevant lexical productions. We only need
+to explicitly enter a variable value when this constrains another
+value elsewhere in the same production.
+
 The grammar in code-feat0cfg_ illustrates most of the ideas we have introduced so
 far in this chapter, plus a couple of new ones.
 
 .. pylisting:: code-feat0cfg
-   :caption: Example Feature-Based Grammar
+   :caption: Example Feature based Grammar
 
    >>> nltk.data.show_cfg('grammars/book_grammars/feat0.fcfg')
    % start S
@@ -464,42 +500,31 @@ example,
 ``V[TENSE=pres, NUM=pl]``.
 In general, we can add as many features as we like.
 
-Notice also that we have used feature variables in lexical entries as well
-as grammatical productions. For example, `the`:lx: has been assigned the
-category `Det`:gc:\ [``NUM``\ =\ `?n`:math:]. Why is this?  Well,
-you know that the definite article `the`:lx: can combine with both
-singular and plural nouns. One way of describing this would be to add
-two lexical entries to the grammar, one each for the singular and
-plural versions of `the`:lx:. However, a more elegant solution is to
-leave the ``NUM`` value `underspecified`:dt: and letting it agree
-in number with whatever noun it combines with.
-
 A final detail about code-feat0cfg_ is the statement ``%start S``.
-This a "directive" that tells the parser to take `s`:gc: as the
+This a "directive" that tells the parser to take ``S`` as the
 start symbol for the grammar.
 
 In general, when we are trying to develop even a very small grammar,
 it is convenient to put the productions in a file where they can be edited,
 tested and revised.  We have saved code-feat0cfg_ as a file named
-``'feat0.fcfg'`` in the NLTK data distribution, and it
-can be accessed using ``nltk.data.load()``.
+``'feat0.fcfg'`` in the NLTK data distribution. You can make your own
+copy of this for further experimentation using ``nltk.data.load()``.
 
-.. TODO: why two print statements here, print vs pprint?
-.. TODO: first mention of earley in this chapter
-
-We can inspect the productions and the lexicon using the commands ``print
-g.earley_grammar()`` and  ``pprint(g.earley_lexicon())``.
-
-Next, we can tokenize a sentence and use the ``nbest_parse()`` function to
-invoke the Earley chart parser.
+Feature based grammars are parsed in |NLTK| using an Earley chart
+parser. For more information about this parsing technique, see [URL].
+After tokenizing the input, we import the ``load_earley`` function load_earley1_
+which takes a grammar filename as input and returns a chart parser
+``cp`` load_earley2_.
+Calling the parser's ``nbest_parse()`` method should yield one or more
+parse trees.
 
 .. pylisting:: code-featurecharttrace
-   :caption: Trace of Feature-Based Chart Parser
+   :caption: Trace of Feature based Chart Parser
 
     >>> tokens = 'Kim likes children'.split()
-    >>> from nltk.parse import load_earley
-    >>> cp = load_earley('grammars/book_grammars/feat0.fcfg', trace=2)
-    >>> trees = cp.nbest_parse(tokens)
+    >>> from nltk.parse import load_earley # [_load_earley1]
+    >>> cp = load_earley('grammars/book_grammars/feat0.fcfg', trace=2)  # [_load_earley2]
+    >>> trees = cp.nbest_parse(tokens) 
               |.K.l.c.|
     Processing queue 0
     Predictor |> . . .| [0:0] S[] -> * NP[NUM=?n] VP[NUM=?n] {}
@@ -533,30 +558,14 @@ invoke the Earley chart parser.
 .. TODO: discussion of underspecified productions, compilation etc presumes specialized CL knowledge.
    Do we need to make this point?  Its just an implementation detail.
 
-Observe that the parser works directly with
-the underspecified productions given by the grammar. That is, the
-Predictor rule does not attempt to compile out all admissible feature
-combinations before trying to expand the non-terminals on the left hand
-side of a production. However, when the Scanner matches an input word
-against a lexical production that has been predicted, the new edge will
-typically contain fully specified features; e.g., the edge
-[PropN[``NUM`` = `sg`:fval:] |rarr| 'Kim', (0, 1)]. Recall from
-chap-parse_ that the Fundamental (or Completer) Rule in
-standard CFGs is used to combine an incomplete edge that's expecting a
-nonterminal *B* with a following, complete edge whose left hand side
-matches *B*. In our current setting, rather than checking for a
-complete match, we test whether the expected category *B* will
-`unify`:dt: with the left hand side *B'* of a following complete
-edge. We will explain in more detail in sec-feat-comp_ how
-unification works; for the moment, it is enough to know that as a
-result of unification, any variable values of features in *B* will be
-instantiated by constant values in the corresponding feature structure
-in *B'*, and these instantiated values will be used in the new edge
-added by the Completer. This instantiation can be seen, for example,
-in the edge 
-[`np`:gc:\ [``NUM``\ =\ `sg`:fval:] |rarr| PropN[`num`:feat:\ =\ `sg`:fval:] |dot|, (0, 1)]
-in code-featurecharttrace_,
-where the feature ``NUM`` has been assigned the value `sg`:fval:.
+The details of the parsing procedure are not that important for
+present purposes. However, there is one implementation issue which
+bears on our earlier discussion of grammar size. One possible approach
+to parsing productions containing features is to compile out the
+features so that we end up with a large, fully specified CFG along the
+lines of ex-agcfg1_. By contrast, the parser process illustrated above
+works directly with the underspecified productions given by the
+grammar. 
 
 Finally, we can inspect the resulting parse trees (in this case, a
 single one).
@@ -569,7 +578,6 @@ single one).
         (TV[NUM='sg', TENSE='pres'] likes)
         (NP[NUM='pl'] (N[NUM='pl'] children))))
 
-.. TODO: delete the [INIT] and Start non terminals from the tree display!
 
 Terminology
 -----------
@@ -609,7 +617,7 @@ The syntactic category ``N``, as we have seen before, provides part
 of speech information. This information can itself be captured as a
 feature value pair, using  ``POS`` to represent "part of speech":
 ``[POS=N, NUM=sg]``. In fact, we  regard this as our "official" representation of a
-feature-based linguistic category, and ``N[NUM=sg]`` as a convenient abbreviation.
+feature based linguistic category, and ``N[NUM=sg]`` as a convenient abbreviation.
 A bundle of feature-value pairs is called a `feature structure`:dt:
 or an `attribute value matrix`:dt: (AVM). A feature structure that
 contains a specification for the feature ``POS`` is a `linguistic
@@ -892,7 +900,7 @@ structure `subsumes`:dt: a less general one. If `FS`:math:\
 :subscript:`1`), then `FS`:math:\ :subscript:`1` must have all the
 paths and path equivalences of `FS`:math:\ :subscript:`0`, and may
 have additional paths and equivalences as well. Thus, ex-dag04_ subsumes
-ex-dag03_, since the latter has additional path equivalences.. It should
+ex-dag03_, since the latter has additional path equivalences. It should
 be obvious that subsumption only provides a partial ordering on
 feature structures, since some feature structures are
 incommensurable. For example, ex-fs04_ neither subsumes nor is subsumed
@@ -1076,7 +1084,7 @@ using variables such as ``?x``.
 .. _sec-extending-a-feature-based-grammar:
 
 ---------------------------------
-Extending a Feature-Based Grammar
+Extending a Feature based Grammar
 ---------------------------------
 
 In this section, we are going to use the framework established earlier
@@ -1175,7 +1183,7 @@ The resulting structure is the following.
       .. tree::  (S (NP you)(VP (V[-AUX,\ SUBCAT\ 2] claim)(SBar (Comp that) (S (NP you)(VP (V[-AUX,\ SUBCAT\ 1] like)(NP children))))))
 
 An alternative treatment of subcategorization, due originally to a framework
-known as categorial grammar, is represented in feature-based frameworks such as PATR
+known as categorial grammar, is represented in feature based frameworks such as PATR
 and Head-driven Phrase Structure Grammar. Rather than using
 ``SUBCAT`` values as a way of indexing productions, the ``SUBCAT``
 value directly encodes the valency of a head (the list of
@@ -1478,15 +1486,14 @@ the sentence, as shown by the following examples.
 
       \*Which slot do you put the card into this one?
 
-The mutual co-occurence between filler and gap leads to ex-gap3_ |ndash|
-ex-gap4_ is sometimes termed a "dependency". One issue of considerable
-importance in theoretical linguistics has been the nature of the
-material that can intervene between a filler and the gap that it
-licenses; in particular, can we simply list a finite set of strings
-that separate the two? The answer is No: there is no upper bound on
-the distance between filler and gap. This fact can be easily
-illustrated with constructions involving sentential complements, as
-shown in ex-gap8_. 
+The mutual co-occurence between filler and gap is sometimes termed a
+"dependency". One issue of considerable importance in theoretical
+linguistics has been the nature of the material that can intervene
+between a filler and the gap that it licenses; in particular, can we
+simply list a finite set of strings that separate the two? The answer
+is No: there is no upper bound on the distance between filler and
+gap. This fact can be easily illustrated with constructions involving
+sentential complements, as shown in ex-gap8_.
 
 .. _ex-gap8:
 .. ex::
@@ -1535,7 +1542,7 @@ immediately dominated by ``NP/NP``.
 
 Do we need to think of slash categories as a completely new kind of
 object in our grammars?  Fortunately, no, we don't |mdash| in fact, we
-can accommodate them within our existing feature-based framework. We
+can accommodate them within our existing feature based framework. We
 do this by treating slash as a feature, and the category to its right
 as a value. In other words, our "official" notation for ``S/NP``
 will be ``S[SLASH=NP]``. Once we have taken this
@@ -1658,7 +1665,7 @@ The grammar in code-germancfg_ illustrates the interaction of agreement
 (comprising person, number and gender) with case. 
 
 .. pylisting:: code-germancfg
-   :caption: Example Feature-Based Grammar
+   :caption: Example Feature based Grammar
 
    >>> nltk.data.show_cfg('grammars/book_grammars/german.fcfg')
    % start S
@@ -1774,7 +1781,7 @@ Summary
 
 Consult [URL] for further materials on this chapter.
 
-For more examples of feature-based parsing with |NLTK|, please see the
+For more examples of feature based parsing with |NLTK|, please see the
 HOWTOs for feature structures, feature grammars and grammar test suites
 at |NLTK-HOWTO-URL|.
 
@@ -1802,7 +1809,7 @@ formalism. Early work in Lexical-Functional grammar (LFG;
 was primarily intended to represent the grammatical relations and
 predicate-argument structure associated with a constituent structure
 parse.  [Shieber1986IUB]_ provides an excellent introduction to this
-phase of research into feature-based grammars.
+phase of research into feature based grammars.
 
 One conceptual difficulty with algebraic approaches to feature
 structures arose when researchers attempted to model negation. An
@@ -1816,6 +1823,10 @@ integral to LFG from the outset (cf. [Kaplan1989FAL]_, and was also adopted by l
 versions of Head-Driven Phrase Structure Grammar (HPSG;
 [Sag1999ST]_). A comprehensive bibliography of HPSG literature can be
 found at `<http://www.cl.uni-bremen.de/HPSG-Bib/>`_.
+
+chart parsing
+
+
 
 Feature structures, as presented in this chapter, are unable to
 capture important constraints on linguistic information. For example,
@@ -1845,7 +1856,7 @@ the formal foundations can be found in [Carpenter1992LTF]_, while
 to typed feature structures.
 
 There is a copious literature on the analysis of German within
-feature-based grammar frameworks. [Nerbonne1994GHD]_ is a good
+feature based grammar frameworks. [Nerbonne1994GHD]_ is a good
 starting point for the HPSG literature on this topic, while
 [Mueller2002CP]_ gives a very extensive and detailed analysis of
 German syntax in HPSG.
@@ -1884,7 +1895,7 @@ Exercises
        .. ex:: The water is precious.
        .. ex:: Water is precious.
 
-#. |soso| Develop a feature-based grammar that will correctly describe the following
+#. |soso| Develop a feature based grammar that will correctly describe the following
    Spanish noun phrases:
 
    .. gloss::
@@ -1963,7 +1974,7 @@ Exercises
 #. |soso| Extend the German grammar in code-germancfg_ so that it can
    handle so-called verb-second structures like the following:
 
-   .. ex:: Heute sieht der hund die katze.
+   .. ex:: Heute sieht der Hund die Katze.
 
 #. |hard| Morphological paradigms are rarely completely regular, in
    the sense of every cell in the matrix having a different
