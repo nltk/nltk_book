@@ -188,6 +188,7 @@
   .. |EwanKlein| replace:: `Ewan Klein <http://www.ltg.ed.ac.uk/~ewan/>`__
   .. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
   .. |PYTHON-URL| replace:: `http://python.org/ <http://python.org/>`__
+  .. |PYTHON-DOCS| replace:: `http://docs.python.org/ <http://docs.python.org/>`__
   .. |NLTK-URL| replace:: `http://www.nltk.org/ <http://www.nltk.org/>`__
   .. |NLTK-HOWTO-URL| replace:: `http://www.nltk.org/howto <http://www.nltk.org/howto>`__
   
