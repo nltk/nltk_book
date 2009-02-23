@@ -23,3 +23,6 @@ Search OLAC, the `Open Language Archives Community`
 Search the archives of the "Corpora List":
 
 * http://listserv.linguistlist.org/archives/corpora.html
+
+
+.. include:: footer.rst

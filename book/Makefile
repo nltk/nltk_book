@@ -169,6 +169,8 @@ book.pdf: book.bbl book.tex
 publish:
 	find . \( -name '*.html' -or -name '*.py' -or -name '*.png' \) -print |\
 	        cpio -padu $(PUBLISH)/book/
-	python ../../tools/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
 	svn add $(PUBLISH)/book/*
+	svn add $(PUBLISH)/book/tree_images/*
+	svn add $(PUBLISH)/book/pylisting/*
+	python ../../tools/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
 	echo Note that "make -C book publish" omits images and stylesheets

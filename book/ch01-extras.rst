@@ -68,3 +68,6 @@ Two freely available online texts are the following:
 *  Jeffrey Elkner, Allen B. Downey and Chris Meyers, 
    *How to Think Like a Computer Scientist: Learning with Python* (Second Edition),
    ``http://openbookproject.net/thinkCSpy/``
+
+   
+.. include:: footer.rst

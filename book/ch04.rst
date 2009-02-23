@@ -259,6 +259,7 @@ We can check that all or any items meet some condition:
     >>> any(len(w) > 4 for w in sent)
     True
 
+.. _sec-sequences:
 
 ---------
 Sequences
@@ -488,7 +489,27 @@ the operations on lists that do in-place modification of the list.
 Generator Expressions
 ---------------------
 
-[Recap list comprehensions, discuss generator expressions]
+We've been making heavy use of list comprehensions, for compact and readable
+processing of texts.  Here's an example where we tokenize and normalize a text:
+
+    >>> text = '"When I use a word," Humpty Dumpty said in rather a scornful tone,
+    ... "it means just what I choose it to mean - neither more nor less."'
+    >>> [w.lower() for w in nltk.word_tokenize(text)]
+
+Suppose we now want to process these words further.  We can do this by inserting the above
+expression inside a call to some other function max-comprehension_,
+but Python allows us to omit the brackets max-generator_.
+
+    >>> max([w.lower() for w in nltk.word_tokenize(text)]) # [_max-comprehension]
+    >>> max(w.lower() for w in nltk.word_tokenize(text)) # [_max-generator]
+
+The second line uses a `generator expression`:dt:.  This is more than a notational convenience:
+in many language processing situations, generator expressions will be more efficient.
+In max-comprehension_, storage for the list object must be allocated.  If the text is
+very large, this could be slow.  In max-generator_, the data is streamed to the calling
+function.  Since the calling function simply has to find the maximum value |mdash| the
+word which comes latest in lexicographic sort order |mdash| it can process the stream
+of data without having to store anything more than the maximum value seen so far. 
 
 .. _sec-formatting:
 
@@ -505,11 +526,13 @@ textual output is usually the most natural choice.  However, when the results ar
 it may be preferable to produce graphical output.  In this section you will learn about
 a variety of ways to present program output.
 
-Converting Between Strings and Lists (notes)
---------------------------------------------
+From Lists to Strings
+---------------------
 
-We specify the string to be used as the "glue", followed by a
-period, followed by the ``join()`` function.
+The simplest kind of structured object we use for text processing is lists of words.
+When we want to output these to a display or a file, we must convert these lists
+into strings.  To do this in Python we use the ``join()`` function, and specify
+the string to be used as the "glue".
 
     >>> silly = ['We', 'called', 'him', 'Tortoise', 'because', 'he', 'taught', 'us', '.']
     >>> ' '.join(silly)
@@ -521,111 +544,9 @@ period, followed by the ``join()`` function.
 
 So ``' '.join(silly)`` means: take all the items in ``silly`` and
 concatenate them as one big string, using ``' '`` as a spacer between
-the items.  (Many people find the notation for ``join()`` rather unintuitive.)
-
-Notice that ``join()`` only works on a list of strings (what we have been calling a text).
-
-.. (Thus we could say this type is privileged in Python.)
-
-Formatting Output
------------------
-
-The output of a program is usually structured to make the information
-easily digestible by a reader.  Instead of running some code and then
-manually inspecting the contents of a variable, we would like the code
-to tabulate some output.
-There are many ways we might want to format the output of a program.  For
-instance, we might want to place the length value in parentheses `after`:em: the
-word, and print all the output on a single line:
-
-    >>> saying = ['After', 'all', 'is', 'said', 'and', 'done', ',',
-    ...           'more', 'is', 'said', 'than', 'done', '.']
-    >>> for word in saying:
-    ...     print word, '(' + str(len(word)) + '),',
-    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),
-
-However, this approach has some problems.  First, the ``print``
-statement intermingles variables and punctuation, making it a little
-difficult to read.  Second, the output has spaces around every item
-that was printed.  Third, we have to convert the length of the word to
-a string so that we can surround it with parentheses.  A cleaner way to produce structured output uses
-Python's `string formatting expressions`:dt:. Before diving into
-clever formatting tricks, however, let's look at a really simple example. We
-are going to use a special symbol, ``%s``, as a placeholder in
-strings. Once we have a string containing this placeholder, we follow
-it with a single ``%``
-and then a value ``v``. Python then returns a new string where
-``v`` has been slotted in to replace ``%s``:
-
-    >>> "I want a %s right now" % "coffee"
-    'I want a coffee right now'
-
-In fact, we can have a number of placeholders, but following the ``%`` operator
-we need to specify a tuple with exactly the same number of values.
-
-    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
-    'Lee wants a sandwich for lunch'
-    >>>
-
-We can also provide the values for the placeholders indirectly. Here's
-an example using a ``for`` loop:
-
-    >>> menu = ['sandwich', 'spam fritter', 'pancake']
-    >>> for snack in menu:
-    ...     "Lee wants a %s right now" % snack
-    ... 
-    'Lee wants a sandwich right now'
-    'Lee wants a spam fritter right now'
-    'Lee wants a pancake right now'
-    >>>
-
-We oversimplified things when we said that placeholders were
-of the form ``%s``; in fact, this is a complex object, called a
-`conversion specifier`:dt:. This has to start with the ``%``
-character, and ends with conversion character such as ``s`` or ``d``. The ``%s``
-specifier tells Python that the corresponding variable is a string (or
-should be converted into a string), while the ``%d`` specifier
-indicates that the corresponding variable should be converted into a
-decimal integer representation. The string containing conversion specifiers is
-called a `format string`:dt:.
-
-Picking up on the ``print`` example that we opened this section with,
-here's how we can use two different kinds of conversion specifier:
-
-    >>> for word in saying:
-    ...     print "%s (%d)," % (word, len(word)),
-    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),'
-
-To summarize, string formatting is accomplished with
-the syntax: `format`:ph: ``%`` `values`:ph:.  The
-`format`:ph: section is a string containing format specifiers
-such as ``%s`` and ``%d`` that Python will replace with the supplied
-values.  The `values`:ph: section of a formatting string is a parenthesized
-list containing exactly as many items as there are format specifiers in the
-`format`:ph: section.  In the case that there is just one item, the
-parentheses can be left out.
-
-In the above example, we used a trailing comma to suppress the
-printing of a newline. Suppose, on the other hand, that we want to
-introduce some additional newlines in our output. We can accomplish
-this by inserting the "special" character ``\n`` into the ``print`` string:
-
-    >>> for i, word in enumerate(saying[:6]):
-    ...    print "Word = %s\nIndex = %s" % (word, i)
-    ...
-    Word = After
-    Index = 0
-    Word = all
-    Index = 1
-    Word = is
-    Index = 2
-    Word = said
-    Index = 3
-    Word = and
-    Index = 4
-    Word = done
-    Index = 5
-
+the items.  (Many people find this notation for ``join()`` counter-intuitive.)
+The ``join()`` function only works on a list of strings |mdash| what we have been calling a text
+|mdash| a complex type that enjoys some privileges in Python.
 
 Strings and Formats
 -------------------
@@ -667,13 +588,61 @@ consisting of words and their frequencies we could do:
 
 Apart from the problem of unwanted whitespace, print statements
 that contain alternating variables and constants can be difficult to read and
-maintain.  A better solution is to use formatting strings:
+maintain.  A better solution is to use `string formatting expressions`:dt:.
 
     >>> for word in sorted(wordcount):
     ...    print '%s->%d;' % (word, wordcount[word]),
     cat->3; dog->4; snake->1;
 
-.. TODO: describe textwrap package
+To understand what is going on here, let's test out the
+string formatting expression on its own.  (By now this will be
+your usual method of exploring new syntax).
+
+    >>> '%s->%d;' % ('cat', 3)
+    'cat->3;'
+    >>> '%s->%d;' % 'cat'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: not enough arguments for format string
+
+The special symbols ``%s`` and ``%d`` are placeholders
+for strings and (decimal) integers.  We can embed these
+inside a string, then use the ``%`` operator to combine them.
+Let's unpack the above code further, in order to see this
+behavior up close:
+
+    >>> '%s->' % 'cat'
+    'cat->'
+    >>> '%d' % 3
+    '3'
+    >>> 'I want a %s right now' % 'coffee'
+    'I want a coffee right now'
+
+We can have a number of placeholders, but following the ``%`` operator
+we need to specify a tuple with exactly the same number of values.
+
+    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
+    'Lee wants a sandwich for lunch'
+
+We can also provide the values for the placeholders indirectly. Here's
+an example using a ``for`` loop:
+
+    >>> template = 'Lee wants a %s right now'
+    >>> menu = ['sandwich', 'spam fritter', 'pancake']
+    >>> for snack in menu:
+    ...     print template % snack
+    ... 
+    Lee wants a sandwich right now
+    Lee wants a spam fritter right now
+    Lee wants a pancake right now
+
+The ``%s`` and ``%d`` symbols are called `conversion specifiers`:dt:.
+They start with the ``%`` character and end with conversion character
+such as ``s`` (for string) or ``d`` (for decimal integer)
+The string containing conversion specifiers is
+called a `format string`:dt:.
+We combine a format string with the ``%`` operator and
+a tuple of values to create a complete string formatting expression.
 
 Lining Things Up
 ----------------
@@ -786,6 +755,37 @@ file, before closing it.
     >>> file.write(str(len(words)) + "\n")
     >>> file.close()
 
+Text Wrapping
+-------------
+
+When the output of our program is text-like, instead of tabular,
+it will usually be necessary to wrap it so that it can be displayed
+conveniently.  Consider the following output, which overflows its line,
+and which uses a complicated ``print`` statement:
+
+    >>> saying = ['After', 'all', 'is', 'said', 'and', 'done', ',',
+    ...           'more', 'is', 'said', 'than', 'done', '.']
+    >>> for word in saying:
+    ...     print word, '(' + str(len(word)) + '),',
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),
+
+We can take care of line wrapping with the help of Python's ``textwrap`` module.
+For maximum clarity we will separate each step onto its own line: 
+
+    >>> from textwrap import fill
+    >>> format = '%s (%d),'
+    >>> pieces = [format % (word, len(word)) for word in saying]
+    >>> output = ' '.join(pieces)
+    >>> wrapped = fill(output)
+    >>> print wrapped
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more
+    (4), is (2), said (4), than (4), done (4), . (1),
+
+Notice that there is a linebreak between ``more`` and its following number.
+If we wanted to avoid this, we could
+redefine the formatting string so that it contained no spaces,
+e.g. ``'%s_(%d),'``, then instead of printing the value of ``wrapped``,
+we could print ``wrapped.replace('_', ' ')``.
 
 ------------------
 Questions of Style
@@ -1028,8 +1028,7 @@ function, and give it a name such as ``get_text()``, as shown in code-get-text_.
 
    import re
    def get_text(file):
-       """Read text from a file, normalizing whitespace
-       and stripping HTML markup."""
+       """Read text from a file, normalizing whitespace and stripping HTML markup."""
        text = open(file).read()
        text = re.sub('\s+', ' ', text)
        text = re.sub(r'<.*?>', ' ', text)
@@ -1201,12 +1200,31 @@ This behavior is just as if we had done the following sequence of assignments:
 Thus, to understand Python's call-by-value parameter passing,
 it is enough to understand how assignment works.
 
-Scope Rules (notes)
--------------------
+Variable Scope
+--------------
 
-* local and global variables
-* global variables introduce dependency on context and limits the reusability of a function
-* importance of avoiding side-effects
+Function definitions create a new, local `scope`:dt: for variables.
+When you assign to a new variable inside the body of a function,
+the name is only defined within that function.  The name is not
+visible outside the function, or in other functions.  This behavior
+means you can choose variable names without being concerned about
+collisions with names used in your other function definitions.
+ 
+When you refer to an existing name from within the body
+of a function, the Python interpreter first tries to resolve
+the name with respect to the names that are local to the function.
+If nothing is found, the interpreter checks if it is a global
+name within the module.  Finally, if that does not succeed, the
+interpreter checks if the name is a Python built-in.  This is
+the so-called `LGB rule`:dt: of name resolution: local,
+then global, then built-in.
+
+.. caution::
+   A function can create a new global variable, using the
+   ``global`` declaration.  However, this practice should be
+   avoided as much as possible.  Defining global variables
+   inside a function introduces dependencies on context
+   and limits the portability (or reusability) of the function.  
 
 Checking Parameter Types
 ------------------------
@@ -1405,15 +1423,56 @@ should not explain how the functionality is implemented; in fact it should be po
 to re-implement the function using a different method without changing this
 statement.
 
-NLTK's docstrings are (mostly) written using the "epytext" markup
-language.  Using an explicit markup language allows us to generate
-prettier online documentation, e.g. see:
+For the simplest functions, a one-line docstring is usually adequate (see code-get-text_).
+You should provide a triple-quoted string containing a complete sentence on a single line.
+For non-trivial functions, you should still provide a one sentence summary on the first line,
+since many docstring processing tools index this string.  This should be followed by
+a blank line, then a more detailed description of the functionality.
 
-   http://nltk.org/doc/api/nltk.tree.Tree-class.html
+Docstrings can include a `doctest block`:dt:, illustrating the use of
+the function and the expected output.
 
-[Examples of function-level docstrings with epytext markup.]
+Docstrings should document the type of each parameter to the function, and the return
+type.  |NLTK|\ 's docstrings do this using the "epytext" markup language,
+which can be automatically converted into richly formatted,
+online API documentation (see |NLTK-URL|).  code-epytext_ illustrates
+a complete docstring.
 
-[The importance of documenting the types of arguments expected by the function.]
+.. pylisting:: code-epytext
+   :caption: Illustration of a complete docstring, consisting of a one-line summary,
+             a more detailed explanation, a doctest example, and epytext markup
+             specifying the parameters, types, return type, and exceptions.
+
+   def accuracy(reference, test):
+       """
+       Calculate the fraction of test items that equal the corresponding reference items.
+
+       Given a list of reference values and a corresponding list of test values,
+       return the fraction of corresponding values that are equal.
+       In particular, return the fraction of indexes
+       {0<i<=len(test)} such that C{test[i] == reference[i]}.
+
+           >>> accuracy(['ADJ', 'N', 'V', 'N'], ['N', 'N', 'V', 'ADJ'])
+           0.5
+
+       @param reference: An ordered list of reference values.
+       @type reference: C{list}
+       @param test: A list of values to compare against the corresponding
+           reference values.
+       @type test: C{list}
+       @rtype: C{float}
+       @raise ValueError: If C{reference} and C{length} do not have the
+           same length.
+       """
+
+       if len(reference) != len(test):
+           raise ValueError("Lists must have the same length.")
+       num_correct = 0
+       for x, y in izip(reference, test):
+           if x == y:
+               num_correct += 1
+       return float(num_correct) / len(reference)
+
 
 .. _sec-doing-more-with-functions:
 
@@ -2328,6 +2387,10 @@ We will encounter it again in sec-parsing_.
 A Sample of Python Libraries
 ----------------------------
 
+[NB These have to be installed.]
+
+[Mention ipython]
+
 Matplotlib
 ----------
 
@@ -2502,15 +2565,17 @@ Each row is just a list of strings.  If any fields contain numerical
 data, they will appear as strings, and will have to be converted using
 ``int()`` or ``float()``.
 
-Database Connectivity (notes)
------------------------------
 
-[Example storing corpus analysis to a database]
+Other Python Libraries
+----------------------
 
-Lucene
-------
+* Database Connectivity, e.g. ``mysql-python`` library
 
-[Python-Lucene interface]
+Example storing corpus analysis to a database
+
+* PyLucene: Connecting to a text retrieval engine
+
+* Python package index: ``http://pypi.python.org/``
 
 -------
 Summary
@@ -2518,9 +2583,11 @@ Summary
 
 * [Summary of string formatting.]
 
-* A module serves as a `namespace`:dt:\ : names defined in a module |mdash| such as variables
+* A module serves as a namespace: names defined in a module |mdash| such as variables
   and functions |mdash| are not visible to other modules, unless those names are imported.
 
+* A function serves as a namespace: names defined inside a function are not visible
+  outside that function, unless those names are declared to be global.
 
 ---------------
 Further Reading
@@ -2528,25 +2595,31 @@ Further Reading
 
 Consult [URL] for further materials on this chapter.
 
+Touched on many topics in programming, and Python programming.
+Whole books are devoted to those topics...
+
+Python:
+
+http://docs.python.org/library/stdtypes.html
+
+http://effbot.org/zone/python-objects.htm
+
+http://www.python.org/dev/peps/pep-0257/ (docstrings)
+
+Other PEPs?
+
+Algorithms: [Harel2004]_, [Levitin2004]_, [Knuth2006Trees]_
+
+Design:
+
 Hunt, Andrew and David Thomas (2000). *The Pragmatic Programmer: From journeyman to master*  Addison Wesley.
-
-[Harel2004]_
-
-[Levitin2004]_
-
-[Knuth2006Trees]_
-
-http://docs.python.org/lib/typesseq-strings.html
 
 http://www.jwz.org/doc/worse-is-better.html
 
 http://c2.com/cgi/wiki?DontRepeatYourself
 
-http://effbot.org/zone/python-objects.htm
-
 Pages on Python pitfalls.
 
-Python books.
 
 ---------
 Exercises
@@ -2587,6 +2660,28 @@ Exercises
    context`:dt:.
    Experiment with different kind of non-Boolean expressions in Boolean
    contexts, and see whether they evaluate as true or false.
+
+#. |easy| Write code that removes whitespace at the beginning and end of a
+   string, and normalizes whitespace between words to be a single
+   space character.
+
+   #) do this task using ``split()`` and ``join()``
+
+   #) do this task using regular expression substitutions
+
+#. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
+   are used to display strings that are longer than six characters?
+
+#. |easy| We can use a dictionary to specify the values to be
+   substituted into a formatting string.  Read Python's library
+   documentation for formatting strings
+   (`http://docs.python.org/lib/typesseq-strings.html
+   <http://docs.python.org/lib/typesseq-strings.html>`_),
+   and use this method to display today's date in two
+   different formats.
+
+#. |easy| Write a program to sort words by length.  Define a helper function
+   ``cmp_len`` which uses the ``cmp`` comparison function on word lengths.
 
 #. |soso| Create a list of words and store it in a variable ``sent1``.
    Now assign ``sent2 = sent1``.  Modify one of the items in ``sent1``
@@ -2661,40 +2756,9 @@ Exercises
 #. |soso| Write a function ``shorten(text, n)`` to process a text, omitting the ``n``
    most frequently occurring words of the text.  How readable is it?
 
-#. |easy| Write code that removes whitespace at the beginning and end of a
-   string, and normalizes whitespace between words to be a single
-   space character.
-
-   #) do this task using ``split()`` and ``join()``
-
-   #) do this task using regular expression substitutions
-
-#. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
-   are used to display strings that are longer than six characters?
-
-#. |easy| We can use a dictionary to specify the values to be
-   substituted into a formatting string.  Read Python's library
-   documentation for formatting strings
-   (`http://docs.python.org/lib/typesseq-strings.html
-   <http://docs.python.org/lib/typesseq-strings.html>`_),
-   and use this method to display today's date in two
-   different formats.
-
-#. |easy| Write a program to sort words by length.  Define a helper function
-   ``cmp_len`` which uses the ``cmp`` comparison function on word
-   lengths.
-
 #. |soso| Write code to print out an index for a lexicon, allowing someone
    to look up words according to their meanings (or pronunciations; whatever
    properties are contained in lexical entries).
-
-#. |easy| Review the answers that you gave for the exercises in sec-back-to-the-basics_,
-   and rewrite the code as one or more functions.
-
-#. |soso| In this section we saw examples of some special functions such as ``filter()`` and
-   ``map()``.  Other functions in this family are ``zip()`` and ``reduce()``.
-   Find out what these do, and write some code to try them out.
-   What uses might they have in language processing?
 
 #. |soso| Write a function that takes a list of words (containing duplicates) and
    returns a list of words (with no duplicates) sorted by decreasing frequency.
@@ -2706,11 +2770,6 @@ Exercises
    and returns the set of words that appear in the text but not in the
    vocabulary.  Both arguments can be represented as lists of strings.
    Can you do this in a single line, using ``set.difference()``?
-
-#. |soso| As you saw, ``zip()`` combines two lists into a single list
-   of pairs. What happens when the lists are of unequal lengths?
-   Define a function ``myzip()`` that does something different with
-   unequal lists.
 
 #. |soso| Import the ``itemgetter()`` function from the ``operator`` module in Python's
    standard library (i.e. ``from operator import itemgetter``).  Create a list
@@ -2760,6 +2819,13 @@ Exercises
 #. |hard| Write a recursive function that processes text, locating the uniqueness point in
    each word, and discarding the remainder of each word.  How much compression does this
    give?  How readable is the resulting text?
+
+#. |hard| Obtain some raw text, in the form of a single, long string.
+   Use Python's ``textwrap`` module to break it up into multiple lines.
+   Now write code to add extra spaces between words, in order to justify
+   the output.  Each line must have the same width, and spaces must be
+   approximately evenly distributed across each lines.  No line can
+   begin or end with a space.
 
 #. |hard| Develop a simple extractive summarization tool, that prints the
    sentences of a document which contain the highest total word

@@ -790,6 +790,3 @@ Duck Typing
 .. include:: footer.rst
 
 
-
-
-.. include:: footer.rst
