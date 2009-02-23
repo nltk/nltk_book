@@ -924,7 +924,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         self.visit_figure(node)
         pyfile = re.sub('\W', '_', node['name']) + PYLISTING_EXTENSION
         num = '%s.%s' % (self.format_section_num(1), self.figure_num)
-        self.label_node(node, 'Figure %s (%s)' % (num, pyfile),
+        self.label_node(node, 'Example %s (%s)' % (num, pyfile),
                       PYLISTING_DIR + pyfile)
 
         self.callout_labels.update(node['callouts'])

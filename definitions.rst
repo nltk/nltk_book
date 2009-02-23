@@ -191,6 +191,7 @@
   .. |PYTHON-DOCS| replace:: `http://docs.python.org/ <http://docs.python.org/>`__
   .. |NLTK-URL| replace:: `http://www.nltk.org/ <http://www.nltk.org/>`__
   .. |NLTK-HOWTO-URL| replace:: `http://www.nltk.org/howto <http://www.nltk.org/howto>`__
+  .. |OLAC-URL| replace:: `http://www.language-archives.org/ <http://www.language-archives.org/>`__
   
   .. Python example - a snippet of code in running text
   .. role:: py
