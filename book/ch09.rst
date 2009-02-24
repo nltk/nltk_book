@@ -20,13 +20,8 @@
    but variable binding does.
    More examples are in Edward's email of 25 August
 
-   * s/rule/production/ in the grammars
-   * BR: augment discussion of slash categories to show compatibility
-     with ordinary phrases
-   * BR: give example of parsing with German grammar
    * Give example of grammar with HPSG style subcat?
    * deal with callouts in discussion of parse trace for KLC
-   * make _ex-gapparse consistent with actual parse
 
 
 .. _chap-featgram:
@@ -534,11 +529,11 @@ is syntactically ambiguous or not.
     Completer |[-> . .| [0:1] S[] -> NP[NUM=?n] * VP[NUM=?n] {?n: 'sg'} 
     Scanner   |. [-] .| [1:2] 'likes'
     Scanner   |. [-] .| [1:2] TV[NUM='sg', TENSE='pres'] -> 'likes' *
-    Completer |. [-> .| [1:2] VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] * NP[] {?n: 'sg', ?t: 'pres'}  # [_binding1]
+    Completer |. [-> .| [1:2] VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] * NP[] {?n: 'sg', ?t: 'pres'}
     Scanner   |. . [-]| [2:3] 'children'
     Scanner   |. . [-]| [2:3] N[NUM='pl'] -> 'children' *
     Completer |. . [-]| [2:3] NP[NUM='pl'] -> N[NUM='pl'] *
-    Completer |. [---]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] *  # [_binding2]
+    Completer |. [---]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] * 
     Completer |[=====]| [0:3] S[] -> NP[NUM='sg'] VP[NUM='sg'] *
     Completer |[=====]| [0:3] [INIT][] -> S[] *
 
@@ -550,10 +545,15 @@ out all admissible values of the features in question so that we end
 up with a large, fully specified CFG along the lines of ex-agcfg1_. By
 contrast, the parser process illustrated above works directly with the
 underspecified productions given by the grammar. Feature values "flow
-upwards" from lexical entries, and variable values are then bound to
-those values binding1_. As the parser assembles information about the
-nodes of the tree it is building, the bindings of variables are used
-to instantiate values in these nodes binding2_.
+upwards" from lexical entries, and variable values are then associated
+with those values, via bindings (i.e., dictionaries) such as ``{?n:
+'sg', ?t: 'pres'}``.  As the parser assembles information about the
+nodes of the tree it is building, these variable bindings are used to
+instantiate values in these nodes; thus the underspecified
+``VP[NUM=?n, TENSE=?t] -> TV[NUM=?n, TENSE=?t] NP[]`` becomes
+instantiated as ``VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg',
+TENSE='pres'] NP[]`` by looking up the values of ``?n`` and ``?t`` in
+the bindings.
 
 Finally, we can inspect the resulting parse trees (in this case, a
 single one).
@@ -1168,7 +1168,7 @@ The resulting structure is the following.
 
 .. _ex-sbartree:
 .. ex::
-      .. tree::  (S (NP you)(VP (V[-AUX,\ SUBCAT\ 2] claim)(SBar (Comp that) (S (NP you)(VP (V[-AUX,\ SUBCAT\ 1] like)(NP children))))))
+      .. tree::  (S (NP you)(VP (V[-AUX,\ SUBCAT=clause] claim)(SBar (Comp that) (S (NP you)(VP (V[-AUX,\ SUBCAT=trans] like)(NP children))))))
 
 An alternative treatment of subcategorization, due originally to a framework
 known as categorial grammar, is represented in feature based frameworks such as PATR
@@ -1176,7 +1176,7 @@ and Head-driven Phrase Structure Grammar. Rather than using
 ``SUBCAT`` values as a way of indexing productions, the ``SUBCAT``
 value directly encodes the valency of a head (the list of
 arguments that it can combine with). For example, a verb like
-`put`:lx: that takes  `np` and `pp` complements (`put the
+`put`:lx: that takes  `NP` and `PP` complements (`put the
 book on the table`:lx:) might be represented as ex-subcathpsg0_:
 
 .. TODO: angle brackets don't appear
@@ -1210,7 +1210,7 @@ category assignments combine in a parse of `Kim put the book on the table`:lx:.
 
 .. _ex-subcathpsg2:
 .. ex::
-      .. tree:: (V[SUBCAT\ \<\>] (NP Kim)(V[SUBCAT\ \<NP\>](V[SUBCAT\ \<NP,\ NP,\ VP\>] put)<NP the\ book><PP on\ the\ table>))
+      .. tree:: (V[SUBCAT=\<\>] (NP Kim)(V[SUBCAT=\<NP\>](V[SUBCAT=\<NP,\ NP,\ PP\>] put)<NP the\ book><PP on\ the\ table>))
 
 Heads Revisited
 ---------------
@@ -1511,14 +1511,14 @@ A variety of mechanisms have been suggested for handling unbounded
 dependencies in formal grammars; we shall adopt an approach due to
 Generalized Phrase Structure Grammar that involves something called
 `slash categories`:dt:. A slash category is something of the form
-``y/xp``; we interpret this as a phrase of category ``y`` that
-is missing a sub-constituent of category ``xp``. For example,
-``s/np`` is an ``s`` that is missing an ``np``. The use of
+``Y/XP``; we interpret this as a phrase of category ``Y`` that
+is missing a sub-constituent of category ``XP``. For example,
+``S/NP`` is an ``S`` that is missing an ``NP``. The use of
 slash categories is illustrated in ex-gaptree1_. 
 
 .. _ex-gaptree1:
 .. ex::
-      .. tree:: (S(NP[+WH] who)(S[+INV]\/NP (V[+AUX,\ SUBCAT=3] do)(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=1] like)(NP/NP e))))
+      .. tree:: (S(NP[+WH] who)(S[+INV]/NP (V[+AUX] do)(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=trans] like)(NP/NP))))
 
 The top part of the tree introduces the filler `who`:lx: (treated as
 an expression of category ``NP[+wh]``) together with a
@@ -1583,11 +1583,11 @@ The grammar in code-slashcfg_ contains one "gap-introduction"
 production, namely ``S[-INV] -> NP S/NP``.
 In order to percolate the slash feature correctly, we need to add
 slashes with variable values to both sides of the arrow in productions
-that expand `S`, `VP` and `NP`. For example, ``VP/?x -> V SBar/?x`` is
+that expand ``S``, ``VP`` and ``NP``. For example, ``VP/?x -> V SBar/?x`` is
 the slashed version of ``VP -> V SBar`` and
-says that a slash value can be specified on the `VP` mother of a
-constituent if the same value is also specified on the `SBar`
-daughter. Finally, ``NP/NP ->``  allows the slash information on `NP` to
+says that a slash value can be specified on the ``VP`` mother of a
+constituent if the same value is also specified on the ``SBar``
+daughter. Finally, ``NP/NP ->``  allows the slash information on ``NP`` to
 be discharged as the empty string.
 Using code-slashcfg_, we can parse the string `who do you claim that you
 like`:lx:
@@ -1613,7 +1613,7 @@ A more readable version of this tree is shown in ex-gapparse_.
 
 .. _ex-gapparse:
 .. ex::
-    .. tree:: (S[-INV](NP[+WH] who)(S[SLASH=NP,+INV](V[+AUX,SUBCAT=3] do)(NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=2] claim)(S-BAR[SLASH=NP](Comp that)(S[SLASH=NP,-INV](NP[-WH] you)(VP[SLASH=NP](V[-AUX,SUBCAT=1] like)(NP[SLASH=NP] )))))))
+    .. tree:: (S[-INV](NP[+WH] who)(S[+INV]/NP(V[+AUX] do)(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=clause] claim)(SBar/NP(Comp that)(S[-INV]/NP(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=trans] like)(NP/NP)))))))
 
 The grammar in code-slashcfg_ will also allow us to parse sentences
 without gaps:
@@ -1751,8 +1751,55 @@ The grammar in code-germancfg_ illustrates the interaction of agreement
    TV[OBJCASE=dat, AGR=[NUM=sg,PER=2]] -> 'folgst' | 'hilfst'
    TV[OBJCASE=dat, AGR=[NUM=sg,PER=3]] -> 'folgt' | 'hilft'
 
-As you can see, the feature `objcase` is used to
-specify the case that a verb governs on its object.
+As you can see, the feature `objcase` is used to specify the case that
+a verb governs on its object. The next example illustrates the parse
+tree for a sentence containing a verb which governs dative case.
+    
+    >>> tokens = 'ich folge den Katzen'.split()
+    >>> cp = load_earley('grammars/book_grammars/german.fcfg')  
+    >>> for tree in cp.nbest_parse(tokens): print tree
+    (S[]
+      (NP[AGR=[NUM='sg', PER=1], CASE='nom']
+        (PRO[AGR=[NUM='sg', PER=1], CASE='nom'] ich))
+      (VP[AGR=[NUM='sg', PER=1]]
+        (TV[AGR=[NUM='sg', PER=1], OBJCASE='dat'] folge)
+        (NP[AGR=[GND='fem', NUM='pl', PER=3], CASE='dat']
+          (Det[AGR=[NUM='pl', PER=3], CASE='dat'] den)
+          (N[AGR=[GND='fem', NUM='pl', PER=3]] Katzen))))
+
+In developing grammars, excluding ungrammatical strings is often as
+challenging than parsing grammatical ones. In order to get an idea
+where and why a string fails to parse, setting the ``trace``
+parameter of the ``load_earley()`` method can be crucial. Consider the
+following parse failure:
+
+    >>> tokens = 'ich folge den Katze'.split()
+    >>> cp = load_earley('grammars/book_grammars/german.fcfg', trace=2)  
+    >>> for tree in cp.nbest_parse(tokens): print tree
+              |.i.f.d.K.|
+    Scanner   |[-] . . .| [0:1] 'ich'
+    Scanner   |[-] . . .| [0:1] PRO[AGR=[NUM='sg', PER=1], CASE='nom'] -> 'ich' *
+    Completer |[-] . . .| [0:1] NP[AGR=[NUM='sg', PER=1], CASE='nom'] -> PRO[AGR=[NUM='sg', PER=1], CASE='nom'] *
+    Completer |[-> . . .| [0:1] S[] -> NP[AGR=?a, CASE='nom'] * VP[AGR=?a] {?a: [NUM='sg', PER=1]}
+    Scanner   |. [-] . .| [1:2] 'folge'
+    Scanner   |. [-] . .| [1:2] TV[AGR=[NUM='sg', PER=1], OBJCASE='dat'] -> 'folge' *
+    Completer |. [-> . .| [1:2] VP[AGR=?a] -> TV[AGR=?a, OBJCASE=?c] * NP[CASE=?c] {?a: [NUM='sg', PER=1], ?c: 'dat'}
+    Scanner   |. . [-] .| [2:3] 'den'
+    Scanner   |. . [-] .| [2:3] Det[AGR=[GND='masc', NUM='sg', PER=3], CASE='acc'] -> 'den' *
+    Scanner   |. . [-] .| [2:3] Det[AGR=[NUM='pl', PER=3], CASE='dat'] -> 'den' *
+    Completer |. . [-> .| [2:3] NP[AGR=?a, CASE=?c] -> Det[AGR=?a, CASE=?c] * N[AGR=?a, CASE=?c] {?a: [GND='masc', NUM='sg', PER=3], ?c: 'acc'}
+    Completer |. . [-> .| [2:3] NP[AGR=?a, CASE=?c] -> Det[AGR=?a, CASE=?c] * N[AGR=?a, CASE=?c] {?a: [NUM='pl', PER=3], ?c: 'dat'}
+
+The last two ``Scanner`` lines in the trace show that `den`:lx: is recognized as
+admitting two possible categories: ``Det[AGR=[GND='masc', NUM='sg',
+PER=3], CASE='acc']`` and ``Det[AGR=[NUM='pl', PER=3], CASE='dat']``.
+We know from the grammar in code-germancfg_ that ``Katze`` has category
+``N[AGR=[GND=fem, NUM=sg, PER=3]]``. Thus there is no binding for the
+variable ``?a`` in production ``NP[CASE=?c, AGR=?a] -> Det[CASE=?c,
+AGR=?a] N[CASE=?c, AGR=?a]`` which will satisfy these constraints, since the
+``AGR`` value of ``Katze`` will not unify with either of the ``AGR``
+values of  `den`:lx:, that is, with either ``[GND='masc', NUM='sg',
+PER=3]`` or ``[NUM='pl', PER=3]``.
 
 
 -------
