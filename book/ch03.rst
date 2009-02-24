@@ -23,9 +23,6 @@
 .. TODO: type conversion using int(), list(), etc
 .. TODO: vowel harmony example: extract vowel sequence using re.findall; extract bigrams from the
    vowel sequences; then build a conditional frequency distribution
-.. TODO: spelling correction (a kind of normalization);
-   Soundex -- indexing strings in a dictionary (key = soundex code; value = list of words)
-.. TODO: indexing a text with the help of wordnet hypernyms
 .. TODO: mention urllib2 library (issue 207)
 
 .. _chap-words:
@@ -47,8 +44,8 @@ The goal of this chapter is to answer the following questions:
 #. How can we split documents up into individual words and
    punctuation symbols, so we can do the same kinds of
    analysis we did with text corpora in earlier chapters?
-#. What features of the Python programming language are
-   needed to do this?
+#. How can we write programs to produce formatted output
+   and save it in a file?
 
 In order to address these questions, we will be covering
 key concepts in |NLP|, including tokenization and stemming.
@@ -1851,6 +1848,281 @@ Notice that this example is really a single sentence, reporting the speech of Mr
 However, the quoted speech contains several sentences, and these have been split into individual
 strings.  This is reasonable behavior for most applications.
 
+.. _sec-formatting:
+
+---------------------------------
+Formatting: From Lists to Strings
+---------------------------------
+
+Often we write a program to report a single data item, such as a particular element
+in a corpus that meets some complicated criterion, or a single summary statistic
+such as a word-count or the performance of a tagger.  More often, we write a program
+to produce a structured result, such as a tabulation of numbers or linguistic forms,
+or a reformatting of the original data.  When the results to be presented are linguistic,
+textual output is usually the most natural choice.  However, when the results are numerical,
+it may be preferable to produce graphical output.  In this section you will learn about
+a variety of ways to present program output.
+
+From Lists to Strings
+---------------------
+
+The simplest kind of structured object we use for text processing is lists of words.
+When we want to output these to a display or a file, we must convert these lists
+into strings.  To do this in Python we use the ``join()`` function, and specify
+the string to be used as the "glue".
+
+    >>> silly = ['We', 'called', 'him', 'Tortoise', 'because', 'he', 'taught', 'us', '.']
+    >>> ' '.join(silly)
+    'We called him Tortoise because he taught us .'
+    >>> ';'.join(silly)
+    'We;called;him;Tortoise;because;he;taught;us;.'
+    >>> ''.join(silly)
+    'WecalledhimTortoisebecausehetaughtus.'
+
+So ``' '.join(silly)`` means: take all the items in ``silly`` and
+concatenate them as one big string, using ``' '`` as a spacer between
+the items.  (Many people find this notation for ``join()`` counter-intuitive.)
+The ``join()`` function only works on a list of strings |mdash| what we have been calling a text
+|mdash| a complex type that enjoys some privileges in Python.
+
+Strings and Formats
+-------------------
+
+We have seen that there are two ways to display the contents of an object:
+
+    >>> word = 'cat'
+    >>> sentence = """hello
+    ... world"""
+    >>> print word
+    cat
+    >>> print sentence
+    hello
+    world
+    >>> word
+    'cat'
+    >>> sentence
+    'hello\nworld'
+
+The ``print`` command yields Python's attempt to produce the most human-readable form of an object.
+The second method |mdash| naming the variable at a prompt |mdash| shows us a string
+that can be used to recreate this object.  It is important to keep in mind that both of
+these are just strings, displayed for the benefit of you, the user.  They do not give
+us any clue as to the actual internal representation of the object.
+
+There are many other useful ways to display an object as a string of
+characters.  This may be for the benefit of a human reader, or because
+we want to `export`:dt: our data to a particular file format for use
+in an external program.
+
+Formatted output typically contains a combination of variables and
+pre-specified strings, e.g. given a frequency distribution ``fdist``
+we could do:
+
+    >>> fdist = nltk.FreqDist(['dog', 'cat', 'dog', 'cat', 'dog', 'snake', 'dog', 'cat'])
+    >>> for word in fdist:
+    ...     print word, '->', fdist[word], ';',
+    dog -> 4 ; cat -> 3 ; snake -> 1 ;
+
+Apart from the problem of unwanted whitespace, print statements
+that contain alternating variables and constants can be difficult to read and
+maintain.  A better solution is to use `string formatting expressions`:dt:.
+
+    >>> for word in fdist:
+    ...    print '%s->%d;' % (word, fdist[word]),
+    dog->4; cat->3; snake->1;
+
+To understand what is going on here, let's test out the
+string formatting expression on its own.  (By now this will be
+your usual method of exploring new syntax).
+
+    >>> '%s->%d;' % ('cat', 3)
+    'cat->3;'
+    >>> '%s->%d;' % 'cat'
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: not enough arguments for format string
+
+The special symbols ``%s`` and ``%d`` are placeholders
+for strings and (decimal) integers.  We can embed these
+inside a string, then use the ``%`` operator to combine them.
+Let's unpack the above code further, in order to see this
+behavior up close:
+
+    >>> '%s->' % 'cat'
+    'cat->'
+    >>> '%d' % 3
+    '3'
+    >>> 'I want a %s right now' % 'coffee'
+    'I want a coffee right now'
+
+We can have a number of placeholders, but following the ``%`` operator
+we need to specify a tuple with exactly the same number of values.
+
+    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
+    'Lee wants a sandwich for lunch'
+
+We can also provide the values for the placeholders indirectly. Here's
+an example using a ``for`` loop:
+
+    >>> template = 'Lee wants a %s right now'
+    >>> menu = ['sandwich', 'spam fritter', 'pancake']
+    >>> for snack in menu:
+    ...     print template % snack
+    ... 
+    Lee wants a sandwich right now
+    Lee wants a spam fritter right now
+    Lee wants a pancake right now
+
+The ``%s`` and ``%d`` symbols are called `conversion specifiers`:dt:.
+They start with the ``%`` character and end with conversion character
+such as ``s`` (for string) or ``d`` (for decimal integer)
+The string containing conversion specifiers is
+called a `format string`:dt:.
+We combine a format string with the ``%`` operator and
+a tuple of values to create a complete string formatting expression.
+
+Lining Things Up
+----------------
+
+So far our formatting strings generated output of arbitrary width
+on the page (or screen), such as ``%s`` and ``%d``.  We can specify
+a width as well, such as ``%6s``, producing a string that is
+padded to width 6.  It is right-justified by default right-justified_,
+but we can include a minus sign to make it left-justified left-justified_.
+In case we don't know in advance how wide a displayed value should be,
+the width value can be replaced with a star in the formatting string,
+then specified using a variable width-variable_.
+
+    >>> '%6s' % 'dog' # [_right-justified]
+    '   dog'
+    >>> '%-6s' % 'dog' # [_left-justified]
+    'dog   '
+    >>> width = 6
+    >>> '%-*s' % (width, 'dog') # [_width-variable]
+    'dog   '
+
+Other control characters are used for decimal integers and floating point numbers.
+Since the percent character ``%`` has a special interpretation in formatting strings,
+we have to precede it with another ``%`` to get it in the output.
+
+    >>> count, total = 3205, 9375 
+    >>> "accuracy for %d words: %2.4f%%" % (total, 100 * count / total)
+    'accuracy for 9375 words: 34.1867%'
+
+An important use of formatting strings is for tabulating data.
+Recall that in sec-extracting-text-from-corpora_ we saw
+data being tabulated from a conditional frequency distribution.
+Let's perform the tabulation ourselves, exercising full control
+of headings and column widths.
+Note the clear separation between the language processing work,
+and the tabulation of results.
+
+.. pylisting:: code-modal-tabulate
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+    def tabulate(cfdist, words, categories):
+        print '%-16s' % 'Category',
+        for word in words:                                  # column headings
+            print '%6s' % word,
+        print
+        for category in categories:
+            print '%-16s' % category,                       # row heading
+            for word in words:                              # for each word
+                print '%6d' % cfdist[category][word],       # print table cell
+            print                                           # end the row
+
+    >>> from nltk.corpus import brown
+    >>> cfd = nltk.ConditionalFreqDist(
+    ...           (genre, word)
+    ...           for genre in brown.categories()
+    ...           for word in brown.words(categories=genre))
+    >>> genres = ['news', 'religion', 'hobbies', 'science_fiction', 'romance', 'humor']
+    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+    >>> tabulate(cfd, modals, genres)
+    Category            can  could    may  might   must   will
+    news                 93     86     66     38     50    389
+    religion             82     59     78     12     54     71
+    hobbies             268     58    131     22     83    264
+    science_fiction      16     49      4     12      8     16
+    romance              74    193     11     51     45     43
+    humor                16     30      8      8      9     13
+
+Recall from the listing in code-stemmer-indexing_ that we used a formatting string
+``"%*s"``.  This allows us to specify the width of a field using a variable.
+
+    >>> '%*s' % (15, "Monty Python")
+    '   Monty Python'
+
+We could use this to automatically customise the column to be
+just wide enough to accommodate all the words, using
+``width = max(len(w) for w in words)``.  Remember that the comma at the end
+of print statements adds an extra space, and this is sufficient to prevent
+the column headings from running into each other.
+
+Writing Results to a File
+-------------------------
+
+We have seen how to read text from files (sec-accessing-text_).
+It is often useful to write output to files as well.  The following
+code opens a file ``output.txt`` for writing, and saves the program
+output to the file.
+
+    >>> output_file = open('output.txt', 'w')
+    >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
+    >>> for word in sorted(words):
+    ...     output_file.write(word + "\n")
+
+.. note:: |TRY|
+   What is the effect of appending ``\n`` to each string before
+   we write it to the file?  If you're using a Windows machine
+   you may want to use ``word + "\r\n"`` instead.  
+   What happens if we do ``output_file.write(word)``?
+
+When we write non-text data to a file we must convert it to a string first.
+We can do this conversion using formatting strings, as we saw above.
+We can also do it using Python's backquote notation, which converts any
+object into a string.  Let's write the total number of words to our
+file, before closing it.
+
+    >>> len(words)
+    2789
+    >>> str(len(words))
+    '2789'
+    >>> output_file.write(str(len(words)) + "\n")
+    >>> output_file.close()
+
+Text Wrapping
+-------------
+
+When the output of our program is text-like, instead of tabular,
+it will usually be necessary to wrap it so that it can be displayed
+conveniently.  Consider the following output, which overflows its line,
+and which uses a complicated ``print`` statement:
+
+    >>> saying = ['After', 'all', 'is', 'said', 'and', 'done', ',',
+    ...           'more', 'is', 'said', 'than', 'done', '.']
+    >>> for word in saying:
+    ...     print word, '(' + str(len(word)) + '),',
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more (4), is (2), said (4), than (4), done (4), . (1),
+
+We can take care of line wrapping with the help of Python's ``textwrap`` module.
+For maximum clarity we will separate each step onto its own line: 
+
+    >>> from textwrap import fill
+    >>> format = '%s (%d),'
+    >>> pieces = [format % (word, len(word)) for word in saying]
+    >>> output = ' '.join(pieces)
+    >>> wrapped = fill(output)
+    >>> print wrapped
+    After (5), all (3), is (2), said (4), and (3), done (4), , (1), more
+    (4), is (2), said (4), than (4), done (4), . (1),
+
+Notice that there is a linebreak between ``more`` and its following number.
+If we wanted to avoid this, we could
+redefine the formatting string so that it contained no spaces,
+e.g. ``'%s_(%d),'``, then instead of printing the value of ``wrapped``,
+we could print ``wrapped.replace('_', ' ')``.
+
 
 ----------
 Conclusion
@@ -1883,15 +2155,13 @@ Summary
 * Strings can be split into lists: ``'Monty Python'.split()`` gives
   ``['Monty', 'Python']``.  Lists can be joined into strings:
   ``'/'.join(['Monty', 'Python'])`` gives ``'Monty/Python'``.
-* We can read text from a file ``f`` using ``text = open(f).read()``
-* We can read text from a URL ``u`` using ``text = urlopen(u).read()``
+* We can read text from a file ``f`` using ``text = open(f).read()``.
+  We can read text from a URL ``u`` using ``text = urlopen(u).read()``.
 * Texts found on the web may contain unwanted material (such as headers, footers, markup),
   that need to be removed before we do any linguistic processing.
-* A word token is an individual occurrence of a word in a particular context
-* A word type is the vocabulary item, independent of any particular use of that item
 * Tokenization is the segmentation of a text into basic units |mdash| or tokens |mdash|
   such as words and punctuation.
-* Tokenization based on whitespace is inadequate for many applications because it
+  Tokenization based on whitespace is inadequate for many applications because it
   bundles punctuation together with words
 * Lemmatization is a process that maps the various forms of a word (such as `appeared`:lx:, `appears`:lx:)
   to the canonical or citation form of the word, also known as the lexeme or lemma (e.g. `appear`:lex:).
@@ -1905,7 +2175,9 @@ Summary
   a special meaning (newline character); however, when backslash is used
   before regular expression wildcards and operators, e.g. ``\.``, ``\|``, ``\$``,
   these characters `lose`:em: their special meaning and are matched literally.
-* Normalization of words collapses distinctions, and is useful when indexing texts.
+* A string formatting expression ``template % arg_tuple`` consists of a
+  format string ``template`` that contains conversion specifiers
+  like ``%-6s`` and ``%0.2d``.
 
 -----------------------
 Further Reading (NOTES)
@@ -2103,6 +2375,9 @@ Exercises
    This time, Python should return with a value. You can also try
    ``import test``, in which case Python should be able to
    evaluate the expression ``test.msg`` at the prompt.  
+
+#. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
+   are used to display strings that are longer than six characters?
 
 #. |soso| Read in some text from a corpus, tokenize it, and print the list of
    all `wh`:lx:\ -word types that occur.  (`wh`:lx:\ -words in English
@@ -2336,6 +2611,12 @@ Exercises
 
     .. sorted(set(''.join(c for c in word if c in 'aeiou') for word in words))
 
+#. |hard| Use WordNet to create a semantic index for a text collection.
+   Extend the concordance search program in code-stemmer-indexing_,
+   indexing each word using the offset of its first synset,
+   e.g. ``wn.synsets('dog')[0].offset`` (and optionally the
+   offset of some of its ancestors in the hypernym hierarchy).
+   
 #. |hard| Write a program that processes a text and discovers
    cases where a word has been used with a novel sense.
    For each word, compute the wordnet similarity

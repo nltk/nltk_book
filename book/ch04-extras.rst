@@ -191,6 +191,43 @@ writing, there seems to be a problem reading GB2312-encoded files in
     >>> print repr(uni_text.splitlines()[1])
     '\xe7\x94\x9a\xe8\x87\xb3\xe7\x8c\xab\xe4\xbb\xa5\xe4\xba\xba\xe8\xb4\xb5'
 
+-----------------------------
+More on Defensive Programming
+-----------------------------
+
+The Return Statement
+--------------------
+
+Another aspect of defensive programming concerns the return statement of a function.
+In order to be confident that all execution paths through a function lead to a
+return statement, it is best to have a single return statement at the end of
+the function definition.
+This approach has a further benefit: it makes it more likely that the
+function will only return a single type.
+Thus, the following version of our ``tag()`` function is safer.
+First we assign a default value default-value_, then in certain
+cases certain-cases_ we replace it with a different value different-value_.
+All paths through the function body end at the single return statement single-return_.
+
+    >>> def tag(word):
+    ...     result = 'noun' # [_default-value]
+    ...     if word in ['a', 'the', 'all']: # [_certain-cases]
+    ...         result = 'det' # [_different-value]
+    ...     return result # [_single-return]
+
+A return statement can be used to pass multiple values back to the calling
+program, by packing them into a tuple.
+Here we define a function that returns a tuple
+consisting of the average word length of a sentence, and the inventory
+of letters used in the sentence.  It would have been clearer to write
+two separate functions.
+
+    >>> def proc_words(words):
+    ...     avg_wordlen = sum(len(word) for word in words)/len(words)
+    ...     chars_used = ''.join(sorted(set(''.join(words))))
+    ...     return avg_wordlen, chars_used
+    >>> proc_words(['Not', 'a', 'good', 'way', 'to', 'write', 'functions'])
+    (3, 'Nacdefginorstuwy')
 
 
 ----------------
