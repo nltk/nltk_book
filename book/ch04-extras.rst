@@ -29,6 +29,18 @@ review of the basic mathematical notions of set, relation, and
 function, and illustrates them in terms of Python data structures.
 It contains many working program fragments that you should try yourself.
 
+------------------------------------
+The Practice of Software Development
+------------------------------------
+
+``http://www.jwz.org/doc/worse-is-better.html``
+
+``http://c2.com/cgi/wiki?DontRepeatYourself``
+
+``import this``
+
+* Pages on Python pitfalls.
+
 -------------------
 Abstract Data Types
 -------------------
