@@ -992,23 +992,22 @@ word itself, and the tag of the previous word.  We will see
 how this information can be used by a POS tagger.
 
     >>> pos = nltk.defaultdict(lambda: nltk.defaultdict(int))
-    >>> for ((w1, t1), (w2, t2)) in nltk.ibigrams(brown_news_tagged):
-    ...     pos[(t1, w2)][t2] += 1
+    >>> for ((w1, t1), (w2, t2)) in nltk.ibigrams(brown_news_tagged): # [_processing-pairs]
+    ...     pos[(t1, w2)][t2] += 1 # [_tag-word-update]
     ...
-    >>> pos[('N', 'that')].items()
-    [('V', 10), ('CNJ', 145), ('WH', 112)]
-    >>> pos[('DET', 'right')].items()
-    [('ADV', 3), ('ADJ', 9), ('N', 3)]
+    >>> pos[('DET', 'right')] # [_compound-key]
+    {'ADV': 3, 'ADJ': 9, 'N': 3}
 
 This example uses a dictionary whose default value for an entry
 is a dictionary (whose default value is ``int()``, i.e. zero).
 Notice how we iterated over the bigrams of the tagged
-corpus, processing a pair of word-tag pairs for each iteration.
+corpus, processing a pair of word-tag pairs for each iteration processing-pairs_.
 Each time through the loop we updated our ``pos`` dictionary's
-entry for ``(t1, w2)``, a tag and its *following* word.  The entry
-for ``('DET', 'right')`` is itself a dictionary of counts.
-A POS tagger could use such information to decide to tag the
-word `right`:lx: as ``ADJ`` when it is preceded by a determiner.
+entry for ``(t1, w2)``, a tag and its *following* word tag-word-update_.
+When we look up an item in ``pos`` we must specify a compound key compound-key_,
+and we get back a dictionary object.
+A POS tagger could use such information to decide that the
+word `right`:lx:, when preceded by a determiner, should be tagged as ``ADJ``. 
 
 Inverting a Dictionary
 ----------------------
@@ -1177,7 +1176,8 @@ The Lookup Tagger
 
 A lot of high-frequency words do not have the ``NN`` tag.
 Let's find the hundred most frequent words and store their most likely tag.
-We can then use this information as the model for a "lookup tagger". 
+We can then use this information as the model for a "lookup tagger"
+(an |NLTK| ``UnigramTagger``):
 
     >>> fd = nltk.FreqDist(brown.words(categories='news'))
     >>> cfd = nltk.ConditionalFreqDist(brown.tagged_words(categories='news'))
@@ -1206,27 +1206,20 @@ Let's see what it does on some untagged input text:
 
 Many words have been assigned a tag of ``None``,
 because they were not among the 100 most frequent words.
-In these cases we would like to assign the default tag of ``NN``,
-a process known as backoff.
+In these cases we would like to assign the default tag of ``NN``.
+In other words, we want to use the lookup table first,
+and if it is unable to assign a tag, then use the default tagger,
+a process known as `backoff`:dt: (sec-n-gram-tagging_).
+We do this by specifying one tagger as a parameter to the other,
+as shown below.  Now the lookup tagger will only store word-tag pairs
+for words other than nouns, and whenever it cannot assign a tag to a
+word it will invoke the default tagger.  
 
-Getting Better Coverage with Backoff
-------------------------------------
+    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags,
+    ...                                      backoff=nltk.DefaultTagger('NN'))
 
-How do we combine these taggers?  We want to use the lookup table
-first, and if it is unable to assign a tag, then use the default tagger.
-We do this by specifying the default tagger as a parameter to the
-lookup tagger.  The lookup tagger will invoke the default tagger when
-it can't assign a tag itself.
-
-    >>> baseline_tagger = nltk.UnigramTagger(model=likely_tags, backoff=nltk.DefaultTagger('NN'))
-    >>> baseline_tagger.evaluate(brown_tagged_sents)
-    0.58177695566561249
-
-We can put all this together to write a simple (but slow) program to create and
-evaluate lookup taggers having a range of sizes, as shown in code-baseline-tagger_.
-We include a backoff tagger that tags everything as a noun.  A consequence
-of using this backoff tagger is that the lookup tagger only has to store word/tag
-pairs for words other than nouns.
+Let's put all this together and write a program to create and
+evaluate lookup taggers having a range of sizes, in code-baseline-tagger_.
 
 .. pylisting:: code-baseline-tagger
    :caption: Lookup Tagger Performance with Varying Model Size
