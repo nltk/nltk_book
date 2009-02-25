@@ -3,7 +3,6 @@
 
 .. standard global imports
 
-    >>> from __future__ import division
     >>> import nltk, re, pprint
 
 .. try not to increment the variable indices
@@ -15,6 +14,12 @@
     * higher-order lambda abstraction (glue)
     * say something about interpreting first order lamba abstracts
     * fix models
+
+    * DG: dt.retract_sentence('No person dances', quiet=False)".
+      Might be best to replace the parameter "quiet" with "verbose"
+      since "verbose" is used throughout other modules.
+
+    * use capitalized proper names in DRSs?
 
 
 
@@ -886,7 +891,7 @@ list of assumptions (which may be empty).
     >>> NotQ = lp.parse('-north_of(f, s)')
     >>> R = lp.parse('all x. all y. (north_of(x, y) -> -north_of(y, x))')
     >>> prover = nltk.Prover9()
-    >>> prover.prove((NotQ, [P, R])
+    >>> prover.prove(NotQ, [P, R])
     True
 
 As required, we cannot infer ``north_of(f, s)`` from our premises:
@@ -1935,10 +1940,10 @@ in the list.
         (PropN[-loc, num='sg', sem=<\P.P(irene)>] Irene))
       (VP[num='sg', sem=<\x.walk(x)>]
         (IV[num='sg', sem=<\x.walk(x)>, tns='pres'] walks)))
-    (S[sem=<exists z1.(ankle(z1) & bite(cyril,z1))>]
+    (S[sem=<exists z3.(ankle(z3) & bite(cyril,z3))>]
       (NP[-loc, num='sg', sem=<\P.P(cyril)>]
         (PropN[-loc, num='sg', sem=<\P.P(cyril)>] Cyril))
-      (VP[num='sg', sem=<\x.exists z1.(ankle(z1) & bite(x,z1))>]
+      (VP[num='sg', sem=<\x.exists z3.(ankle(z3) & bite(x,z3))>]
         (TV[num='sg', sem=<\X x.X(\y.bite(x,y))>, tns='pres'] bites)
         (NP[num='sg', sem=<\Q.exists x.(ankle(x) & Q(x))>]
           (Det[num='sg', sem=<\P Q.exists x.(P(x) & Q(x))>] an)
@@ -1954,13 +1959,26 @@ variable assignment as parameters. The output is a triple  (*synrep*,
 *semrep*, *value*) where *synrep*,
 *semrep* are as before, and *value* is a truth value.
 
+    >>> from nltk.sem import parse_valuation
+    >>> v = """
+    ... bertie => b
+    ... olive => o
+    ... cyril => c
+    ... boy => {b}
+    ... girl => {o}
+    ... dog => {c}
+    ... walk => {o, c}
+    ... see => {(b, o), (c, b), (o, c)}
+    ... """
+    >>> val = parse_valuation(v)
     >>> g = nltk.sem.Assignment(val.domain)
+    >>> m = nltk.sem.Model(val.domain, val)
     >>> sent = 'Cyril sees every boy'
     >>> results = nltk.sem.text_evaluate([sent], 'grammars/book_grammars/simple-sem.fcfg', m, g)
     >>> for (syntree, semrel, value) in results[sent]:
     ...     print semrep
     ...     print value
-    exists z1.(ankle(z1) & bite(cyril,z1))
+    exists z3.(ankle(z3) & bite(cyril,z3))
     True
 
 A more extensive example of evaluating English sentences in a model
@@ -2125,26 +2143,26 @@ forms. First, we construct a ``CooperStore`` instance, and inspect its
     >>> semrep = trees[0].node['sem']
     >>> cs_semrep = cs.CooperStore(semrep)
     >>> print cs_semrep.core
-    chase(z2,z3)
+    chase(z5,z6)
     >>> for bo in cs_semrep.store:
     ...     print bo
-    bo(\P.all x.(girl(x) -> P(x)),z2)
-    bo(\P.exists x.(dog(x) & P(x)),z3)
+    bo(\P.all x.(girl(x) -> P(x)),z5)
+    bo(\P.exists x.(dog(x) & P(x)),z6)
 
 Finally we call ``s_retrieve()`` and check the readings.
 
     >>> cs_semrep.s_retrieve(trace=True)
     Permutation 1
-       (\P.all x.(girl(x) -> P(x)))(\z2.chase(z2,z3))
-       (\P.exists x.(dog(x) & P(x)))(\z3.all x.(girl(x) -> chase(x,z3)))
+       (\P.all x.(girl(x) -> P(x)))(\z5.chase(z5,z6))
+       (\P.exists x.(dog(x) & P(x)))(\z6.all x.(girl(x) -> chase(x,z6)))
     Permutation 2
-       (\P.exists x.(dog(x) & P(x)))(\z3.chase(z2,z3))
-       (\P.all x.(girl(x) -> P(x)))(\z2.exists x.(dog(x) & chase(z2,x)))
+       (\P.exists x.(dog(x) & P(x)))(\z6.chase(z5,z6))
+       (\P.all x.(girl(x) -> P(x)))(\z5.exists x.(dog(x) & chase(z5,x)))
 
     >>> for reading in cs_semrep.readings:
     ...     print reading
-    exists x.(dog(x) & all z4.(girl(z4) -> chase(z4,x)))
-    all x.(girl(x) -> exists z5.(dog(z5) & chase(x,z5)))
+    exists x.(dog(x) & all z7.(girl(z7) -> chase(z7,x)))
+    all x.(girl(x) -> exists z8.(dog(z8) & chase(x,z8)))
 
 |NLTK| contains implementations of two other approaches to scope
 ambiguity, namely `hole semantics`:dt: as described in
@@ -2224,15 +2242,18 @@ of a |DRS| as follows:
     DRS([x, y], [angus(x), dog(y), own(x ,y)])
 
 The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
-string representation. Once we have done this, we can use the
-``draw()`` method to visualize the result, as shown in fig-drs-screenshot_.
+string representation.
 
-.. doctest-ignore::
     >>> from nltk.sem import drt
     >>> dp = drt.DrtParser()
     >>> drs1 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])')
     >>> print drs1
     ([x,y],[angus(x), dog(y), own(x,y)])
+
+ Once we have done this, we can use the
+``draw()`` method to visualize the result, as shown in fig-drs-screenshot_.
+
+.. doctest-ignore::
     >>> drs1.draw()
 
 .. _fig-drs-screenshot:
@@ -2249,7 +2270,7 @@ translated into a formula of |FOL|, and the ``toFol()`` method
 implements this translation.
 
     >>> print drs1.toFol()
-    exists x y.(angus(x) & (dog(y) & own(x,y)))
+    exists x y.((angus(x) & dog(y)) & own(x,y))
 
 In addition to the functionality available for |FOL|
 expressions, |DRT| ``Expression``\ s have a |DRS|\ -concatenation operator,
@@ -2346,7 +2367,7 @@ parsed using ``drt.DrtParser`` in place of the default ``LogicParser``.
     >>> parser = load_earley('grammars/book_grammars/drt.fcfg', trace=0, logic_parser=drt.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
     >>> print trees[0].node['sem'].simplify()
-    ([x,z7],[angus(x), dog(z7), own(x,z7)])
+    ([x,z10],[Angus(x), dog(z10), own(x,z10)])
 
 
 
@@ -2377,8 +2398,10 @@ ignores scope ambiguity.
     >>> from nltk.inference.discourse import DiscourseTester as DT
     >>> dt = DT(['A student dances', 'Every student is a person'])
     >>> dt.readings()
+    <BLANKLINE>
     s0 readings:
     s0-r0: exists x.(student(x) & dance(x))
+    <BLANKLINE>
     s1 readings:
     s1-r0: all x.(student(x) -> person(x))
 
@@ -2393,7 +2416,7 @@ of retracting the sentence in question.
     s0-r0: exists x.(student(x) & dance(x))
     s1-r0: all x.(student(x) -> person(x))
     s2-r0: -exists x.(person(x) & dance(x))
-    >>> dt.retract_sentence('No person dances', quiet=False)
+    >>> dt.retract_sentence('No person dances', verbose=True)
     Current sentences are 
     s0: A student dances
     s1: Every student is a person
