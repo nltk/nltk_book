@@ -1565,7 +1565,7 @@ inconsistent.
     >>> a3 = lp.parse('exists x.(man(x) & walks(x))')
     >>> c1 = lp.parse('mortal(socrates)')
     >>> c2 = lp.parse('-mortal(socrates)')
-    >>> mb = nltk.Mace()
+    >>> mb = nltk.Mace(5)
     >>> print mb.build_model(None, [a3, c1])
     True
     >>> print mb.build_model(None, [a3, c2])
@@ -1588,23 +1588,26 @@ concludes that it cannot find the required proof.  Conversely, if
 unsuccessfully trying to find a countermodel, and will eventually
 give up.
 
-Let's consider a concrete scenario. Our assumptions are: {`There is a
+Let's consider a concrete scenario. Our assumptions are the set {`There is a
 woman that every man loves`:lx:, `Adam is a man`:lx:, `Eve is a
 woman`:lx:}. Our conclusion is `Adam loves Eve`:lx:. Can Mace4 find a
-model in which the premises are true but the conclusion is false?
+model in which the premises are true but the conclusion is false? In
+the following code, we use ``MaceCommand()`` which will let us inspect
+the model that has been built.
 
     >>> a4 = lp.parse('exists y. (woman(y) & all x. (man(x) -> love(x,y)))')
     >>> a5 = lp.parse('man(adam)')
     >>> a6 = lp.parse('woman(eve)')
     >>> g = lp.parse('love(adam,eve)')
-    >>> print mb.build_model(g, [a4, a5, a6])
+    >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6])
+    >>> mc.build_model()
     True
 
 So the answer is Yes: Mace4 found a countermodel in which there is some woman other than
 Eve that Adam loves. But let's have a closer look at Mace4's model,
 converted to the format we use for valuations.
 
-    >>> print mb.valuation
+    >>> print mc.valuation
     {'C1': 'b',
      'adam': 'a',
      'eve': 'a',
@@ -1635,9 +1638,10 @@ resulting model is more in accord with our intuitions about the situation.
     >>> a7 = lp.parse('-(adam = eve)')
     >>> a8 = lp.parse('all x. (man(x) -> -woman(x))')
     >>> g = lp.parse('love(adam,eve)')
-    >>> mb.build_model(g, [a4, a5, a6, a7, a8])
+    >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6, a7, a8])
+    >>> mc.build_model()
     True
-    >>> print mb.valuation
+    >>> print mc.valuation
     {'C1': 'c',
      'adam': 'a',
      'eve': 'b',
@@ -1858,9 +1862,11 @@ giving `chases`:lx: the semantic representation shown in ex-sem12_.
 If ex-sem12_ is applied to ex-sem7_, the result after |beta|-reduction is
 equivalent to ex-sem99_, which is what we wanted all along:
 
+    >>> lp = nltk.LogicParser()
     >>> tvp = lp.parse(r'\X x.X(\y.chase(x,y))')
     >>> np = lp.parse(r'(\P.exists x.(dog(x) & P(x)))')
-    >>> vp = logic.ApplicationExpression(tvp, np)
+    >>> from nltk.sem import ApplicationExpression
+    >>> vp = ApplicationExpression(tvp, np)
     >>> print vp
     (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
     >>> print vp.simplify()
@@ -1892,13 +1898,15 @@ Boolean-valued application such as ``\x.walk(x)(angus)`` with an
 equivalent function application ``\P.P(angus)(\x.walk(x))``. By
 |beta|\ - conversion, both expressions reduce to ``walk(angus)``.
 
-..
+..  
+    >>> from nltk.sem import logic
     >>> logic._counter._value = 0
 
 The grammar ``simple-sem.fcfg`` contains a small set of rules for parsing
 and translating simple examples of the kind that we have been looking
 at. Here's a slightly more complicated example.
 
+    >>> from nltk.parse import load_earley
     >>> parser = load_earley('grammars/book_grammars/simple-sem.fcfg', trace=0)
     >>> sentence = 'Angus gives a bone to every dog'
     >>> tokens = sentence.split()
@@ -2564,31 +2572,51 @@ Exercises
 
 #. |easy| Translate the following sentences into
    predicate-argument formula of first order logic.
+
    #) Angus likes Cyril and Irene hates Cyril.
+
    #) Tofu is taller than Bertie.
+
    #) Bruce loves himself and Pat does too.
+
    #) Cyril saw Bertie, but Angus didn't.
+
    #) Cyril is a fourlegged friend.
+
    #) Tofu and Olive are near each other.
 
 #. |easy| Translate the following sentences into
    quantified formulas of first order logic.
+
    #) Angus likes someone and someone likes Julia.
+
    #) Angus loves a dog who loves him.
+
    #) Nobody smiles at Pat.
+
    #) Somebody coughs and sneezes.
+
    #) Nobody coughed or sneezed.
+
    #) Bruce loves somebody other than Bruce.
+
    #) Nobody other than Matthew loves somebody Pat.
+
    #) Cyril likes everyone except for Irene.
+
    #) Exactly one person is asleep.
 
 #. |easy| Translate the following verb phrases using |lambda| abstracts.
    quantified formulas of first order logic.
+
    #) feed Cyril and give a capuccino to Angus
+
    #) be given 'War and Peace' by Pat
+
    #) be loved by everyone
+
    #) be loved or detested by everyone
+
    #) be loved by everyone and detested by no-one
 
 #. |easy| Consider the following statements:
@@ -2613,34 +2641,34 @@ Exercises
    Now carry on doing this same task for the further cases of
    ``e3.simplify()`` shown below.
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> print e3.simplify()
     exists y.(love(pat,y) | love(y,pat))
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> print e3.simplify()
     exists y.(love(pat,y) | love(y,pat))
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> print e3.simplify()
     walk(fido)
 
 #. |easy| As in the preceding exercise, find a |lambda| abstract ``e1`` that yields
    results equivalent to those shown below.
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('chase')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.all y.(dog(y) -> chase(x,pat))
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('chase')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.exists y.(dog(y) & chase(pat,x))
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('give')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
@@ -2649,19 +2677,19 @@ Exercises
 #. |easy| As in the preceding exercise, find a |lambda| abstract ``e1`` that yields
    results equivalent to those shown below.
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('bark')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     exists y.(dog(x) & bark(x))
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('bark')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     bark(fido)
 
-.. doctest-ignore::
+   .. doctest-ignore::
     >>> e2 = lp.parse('\\P. all x. (dog(x) -> P(x))')
     >>> e3 = ApplicationExpression(e1, e2)
     >>> print e3.simplify()
