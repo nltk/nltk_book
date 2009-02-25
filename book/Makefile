@@ -43,6 +43,7 @@ RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
 DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk/test/doctest_driver.py
 BIBTEX = bibtex -terse
+XSLT = java org.apache.xalan.xslt.Process
 #get from environment
 #DOCBOOKDTD = /sw/share/xml/dtd/docbookx/4.4.0/docbookx.dtd
 #DOCBOOKDTD = /opt/local/share/xml/docbook/4.4/docbookx.dtd
@@ -129,6 +130,9 @@ revision.rst: $(CHAPTERS)
 bibliography.html: $(BIBTEX_FILE) bib_template.html
 	cp bib_template.html $@
 	$(BIB2XHTML) $< $@
+
+# bibliography.xml: bibliography.html bibliography.xsl
+#	$(XSLT) -in bibliography.html -xsl bibliography.xsl > bibliography.xml
 
 # This fairly complex target here will cause pdflatex to only generate
 # output if it fails; and to clean up after itself if it fails.  Also,
