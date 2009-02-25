@@ -67,7 +67,7 @@ all use stacks behind the scenes.
 However, it is important to understand what stacks are and how they work.
 
 .. pylisting:: code-check-parens
-   :caption: Check parentheses are balanced
+   :caption: Check whether parentheses are balanced
 
    def check_parens(tokens):
        stack = []
@@ -82,6 +82,10 @@ However, it is important to understand what stacks are and how they work.
    >>> print check_parens(phrase.split())
    ['(', '(']
 
+.. Adam: what this code does is funny: in some cases of unbalanced parens it
+   returns a non-empty stack, as in the example in the book, in other
+   cases -- it just fails (e.g., for ")(").
+
 In Python, we can treat a list as a stack by limiting ourselves to the three
 operations defined on stacks: ``append(item)`` (to push ``item`` onto the stack),
 ``pop()`` to pop the item off the top of the stack, and ``[-1]`` to access the
@@ -91,6 +95,9 @@ The loop pushes material onto the stack when it gets an open parenthesis,
 and pops the stack when it gets a close parenthesis.
 We see that two are left on the stack at the end;
 i.e. the parentheses are not balanced.
+
+.. Adam: And certainly the bit of code in text involving "phrase.count" does
+         not do the same -- it returns True for ")(".
 
 Although the program in code-check-parens_ is a useful illustration of stacks,
 it is overkill because we could have done a direct count:
