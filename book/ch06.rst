@@ -28,13 +28,17 @@
 .. explain that segmentation (e.g. tokenization, sentence segmentation) can
    be viewed as a classification task
 
-Detecting patterns is a central part of |NLP|.
-Words ending in `-ed`:lx: tend to be past tense verbs (chap-tag_).
-Frequent use of `will`:lx: is indicative of news text (chap-words_).
-These observable patterns |mdash| word structure and word frequency |mdash|
-happen to correlate with particular aspects of meaning, such as tense and topic.
-But how did we know where to start looking, which aspects of form to associate
-with which aspects of meaning? 
+.. Determinize, for the sake of doctest:
+
+    >>> import random; random.seed(12345)
+
+Detecting patterns is a central part of |NLP|.  Words ending in
+`-ed`:lx: tend to be past tense verbs (chap-tag_).  Frequent use of
+`will`:lx: is indicative of news text (chap-words_).  These observable
+patterns |mdash| word structure and word frequency |mdash| happen to
+correlate with particular aspects of meaning, such as tense and topic.
+But how did we know where to start looking, which aspects of form to
+associate with which aspects of meaning?
 
 The goal of this chapter is to answer the following questions:
 
@@ -44,13 +48,13 @@ The goal of this chapter is to answer the following questions:
    be used to perform language processing tasks automatically?
 #. What can we learn about language from these models?
 
-Along the way we will study some important machine learning techniques,
-including as decision trees, naive Bayes' classifiers, maximum entropy classifiers.
-We will gloss over the mathematical and statistical underpinnings of these
-techniques, focusing instead on how and when to use them (see the
-further readings section for more technical background). 
-Before looking at these methods, we first need to appreciate the
-broad scope of this topic.
+Along the way we will study some important machine learning
+techniques, including decision trees, naive Bayes' classifiers,
+maximum entropy classifiers.  We will gloss over the mathematical and
+statistical underpinnings of these techniques, focusing instead on how
+and when to use them (see the further readings section for more
+technical background).  Before looking at these methods, we first need
+to appreciate the broad scope of this topic.
 
 -------------------------
 Supervised Classification
@@ -58,7 +62,7 @@ Supervised Classification
 
 `Classification`:dt: is the task of choosing the correct `class
 label`:dt: for a given input.  In basic classification tasks, each
-input is considered in isolation from all other inputs, and set of
+input is considered in isolation from all other inputs, and the set of
 labels is defined in advance.  Some examples of classification tasks
 are:
 
@@ -77,7 +81,9 @@ labels is not defined in advance; and in sequence classification, a
 list of inputs are jointly classified.
 
 A classifier is called `supervised`:dt: if it is built based on
-training corpora containing the correct label for each input.
+training corpora containing the correct label for each input.  The
+framework used by supervised classification is shown in Figure
+fig-supervised-classification_.
 
 .. _fig-supervised-classification:
 .. figure:: ../images/supervised-classification.png
@@ -85,6 +91,9 @@ training corpora containing the correct label for each input.
 
    Supervised Classification.  (a) During training, a feature
    extractor is used to convert each input value to a feature set.
+   These feature sets, which capture the basic information about
+   each input that should be used to classify it, are discussed in
+   the next section.
    Pairs of feature sets and labels are fed into the machine learning
    algorithm to generate a model.  (b) During prediction, the same
    feature extractor is used to convert unseen inputs to feature sets.
@@ -156,8 +165,9 @@ use the resulting feature sets to train a "Naive Bayes" classifier.
    ``nltk.classify.apply_features``, which returns an object that acts
    like a list but does not store all the feature sets in memory:
 
-   >>> train = apply_features(extract_features, labeled_words)
-   >>> test = apply_features(extract_features, unseen_words)
+   >>> from nltk.classify import apply_features
+   >>> train = apply_features(gender_features, names[500:])
+   >>> test = apply_features(gender_features, names[:500])
 
 We will study the naive Bayes classifier later.  For now, let's
 just test it out on some names that did not appear in its training data:
@@ -173,19 +183,19 @@ conforms with our expectations about names and genders.  We can
 systematically evaluate the classifier on a much larger quantity of
 unseen data:
 
-    >>> nltk.classify.accuracy(classifier, test_set)
-    0.774
+    >>> print nltk.classify.accuracy(classifier, test_set)
+    0.758
 
 Finally, we can examine the classifier to determine which features it
 found most useful in distinguishing the names' genders:
 
     >>> classifier.show_most_informative_features(5)
     Most Informative Features
-             last_letter = 'a'              female : male   =     33.4 : 1.0
-             last_letter = 'k'                male : female =     29.7 : 1.0
-             last_letter = 'f'                male : female =     25.3 : 1.0
-             last_letter = 'v'                male : female =     17.5 : 1.0
-             last_letter = 'm'                male : female =     13.6 : 1.0
+                 last_letter = 'a'              femal : male  =     38.3 : 1.0
+                 last_letter = 'k'               male : femal =     31.4 : 1.0
+                 last_letter = 'f'               male : femal =     15.3 : 1.0
+                 last_letter = 'p'               male : femal =     10.6 : 1.0
+                 last_letter = 'w'               male : femal =     10.6 : 1.0
 
 This listing shows that the names in the training corpus that end in
 "a" are female 33.4 times more often than they are male; but names
@@ -201,14 +211,15 @@ that end in "k" are male 29.7 times more often than they are female.
 Choosing The Right Features
 ---------------------------
 
-Selecting relevant features, and deciding how to encode them for the
-learning method, can have an enormous impact on its ability to extract
-a good model.  Much of the interesting work in building a classifier
-is deciding what features might be relevant, and how we can represent
-them.  Although it's often possible to get decent performance by using
-a fairly simple and obvious set of features, there are usually
-significant gains to be had by using carefully constructed features
-based on a thorough understanding of the task at hand.  
+Selecting relevant features, and deciding how to encode them for a
+learning method, can have an enormous impact on the learning method's
+ability to extract a good model.  Much of the interesting work in
+building a classifier is deciding what features might be relevant, and
+how we can represent them.  Although it's often possible to get decent
+performance by using a fairly simple and obvious set of features,
+there are usually significant gains to be had by using carefully
+constructed features based on a thorough understanding of the task at
+hand.
 
 Typically, feature extractors are built through a process of
 trial-and-error, guided by intuitions about what information is
@@ -220,21 +231,13 @@ that you should use with a given learning algorithm |mdash| if you provide
 too many features, then the algorithm will have a higher chance of
 relying on idiosyncrasies of your training data that don't generalize
 well to new examples.  This problem is known as `overfitting`:dt:, and
-can especially problematic when working with small training sets.  For
+can be especially problematic when working with small training sets.  For
 example, the features returned by the feature extractor shown in
 code-gender-features-overfitting_ look like they might be useful.
-However, when we train a classifier using all these features, the resulting
-accuracy is about 10% lower than the accuracy of a classifier
-that only uses the final letter of each name:
-
-    >>> featuresets = [(gender_features2(n), g) for (n,g) in names]
-    >>> train_set, test_set = featuresets[500:], featuresets[:500]
-    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
-    >>> nltk.classify.accuracy(classifier, test_set)
-    0.688
 
 .. pylisting:: code-gender-features-overfitting
-   :caption: A Feature Extractor that Overfits Gender Features
+   :caption:
+       A Feature Extractor that Overfits Gender Features
 
    def gender_features2(name):
        """
@@ -250,148 +253,273 @@ that only uses the final letter of each name:
            features["has(%s)" % letter] = (letter in name.lower())
        return features
 
-    >>> gender_features('John')
-    {'count(j)': 1, 'has(d)': False, 'count(b)': 0, ...}
+   >>> gender_features2('John') # doctest: +SKIP
+   {'count(j)': 1, 'has(d)': False, 'count(b)': 0, ...}
 
-..  SHOW DONT TELL FOR ERROR ANALYSIS HERE:
+However, when we train a classifier using all these features, the resulting
+accuracy is about 10% lower than the accuracy of a classifier
+that only uses the final letter of each name:
+
+    >>> featuresets = [(gender_features2(n), g) for (n,g) in names]
+    >>> train_set, test_set = featuresets[500:], featuresets[:500]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+    >>> print nltk.classify.accuracy(classifier, test_set)
+    0.688
 
 Once an initial set of features has been chosen, a very productive
 method for refining the feature set is `error analysis`:dt:.  First,
 the training corpus is split into two pieces: a training sub-corpus,
-and a `development`:dt: sub-corpus.  The model is trained on the
-training sub-corpus, and then run on the development sub-corpus.  We can
-then examine individual cases in the development sub-corpus where the
-model predicted the wrong label, and try to determine what additional
-pieces of information would allow it to make the right decision (or
-which existing pieces of information are tricking it into making the
-wrong decision).  The feature set can then be adjusted accordingly,
-and the error analysis procedure can be repeated, ideally using a
-different development/training split.
+and a `development`:dt: sub-corpus.  
+
+
+    >>> test_names = names[:500]
+    >>> dev_names = names[500:1500]
+    >>> train_names = names[1500:]
+
+The model is trained on the
+training sub-corpus, and then run on the development sub-corpus.
+
+    >>> train_set = [(gender_features(n), g) for (n,g) in train_names]
+    >>> dev_set = [(gender_features(n), g) for (n,g) in dev_names]
+    >>> test_set = [(gender_features(n), g) for (n,g) in test_names]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+    >>> print nltk.classify.accuracy(classifier, dev_set)
+    0.765
+    >>> print nltk.classify.accuracy(classifier, test_set)
+    0.758
+
+    >>> errors = []
+    >>> for (name, tag) in dev_names:
+    ...     guess = classifier.classify(gender_features(name))
+    ...     if guess != tag:
+    ...         errors.append( (tag, guess, name) )
+
+We can then examine individual cases in the development sub-corpus
+where the model predicted the wrong label, and try to determine what
+additional pieces of information would allow it to make the right
+decision (or which existing pieces of information are tricking it into
+making the wrong decision).  The feature set can then be adjusted
+accordingly.  The names classifier that we have built generates about
+100 errors on the heldout corpus:
+
+    >>> for (tag, guess, name) in sorted(errors): # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    ...     print 'wanted=%-8s got=%-8s name=%-30s' % (tag, guess, name)
+    wanted=female   got=male     name=Alleen                        
+    wanted=female   got=male     name=Allys                         
+      ...
+    wanted=female   got=male     name=Yoshiko                       
+    wanted=male     got=female   name=Abbie                         
+    wanted=male     got=female   name=Abby                          
+      ...
+    wanted=male     got=female   name=Zebadiah                      
+
+Looking through this list of errors makes it clear that some suffixes
+that are more than one letter can be indicitive of name genders.  For
+example, names ending in "el" appear to be predominatly female, while
+names ending in "ie" are much more likely to be male.  We therefore
+adjust our feature extractor to include features for two-letter
+suffixes:
+
+    >>> def gender_features(word):
+    ...     return {'suffix1': word[-1:],
+    ...             'suffix2': word[-2:]}
+
+Rebuilding the classifier with the new feature extractor, we see that
+the performance on the development data set improves by almost 3
+percentage points (from 76.5% to 78.2%):
+
+    >>> train_set = [(gender_features(n), g) for (n,g) in train_names]
+    >>> dev_set = [(gender_features(n), g) for (n,g) in dev_names]
+    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+    >>> print nltk.classify.accuracy(classifier, dev_set)
+    0.782
+
+This error analysis procedure can then be repeated, checking for
+patterns in the errors that are made by the newly improved classifier.
+Each time the error analysis procedure is repeated, we should select a
+different development/training split, to ensure that the classifier
+does not start to reflect idisyncracies in the development set.
+However, the test set should be kept seperate, and should not be used
+for feature development, to ensure that it can be used to accurately
+measure the expected performance of the final classifier.
 
 Document Classification
 -----------------------
 
-In sec-extracting-text-from-corpora_, we saw several examples
-of corpora where documents have been labeled with categories.  Using
+.. Determinize, for the sake of doctest:
+
+    >>> import random; random.seed(12345)
+
+In sec-extracting-text-from-corpora_, we saw several examples of
+corpora where documents have been labeled with categories.  Using
 these corpora, we can build classifiers that will automatically tag
 new documents with appropriate category labels.  First, we'll
 construct a list of documents, labeled with the appropriate
-categories:
+categories.  For this example, we'll use the movie reviews corpus,
+which categorizes each review as positive or negative.
 
-    >>> documents = [(nltk.corpus.brown.words(fileid), category)
-    ...              for category in brown.categories()
-    ...              for fileid in brown.files(category)]
+    >>> from nltk.corpus import movie_reviews
+    >>> documents = [(list(movie_reviews.words(fileid)), category)
+    ...              for category in movie_reviews.categories()
+    ...              for fileid in movie_reviews.fileids(category)]
     >>> random.shuffle(documents)
 
 Next, we need to define a feature extractor for documents, so the
 classifier will know what information it should make use of.  For
 document topic identification, we can define a feature for each word,
-indicating whether the document contains that word.  (We use a
-`stoplist`:dt: to eliminate common words like "in" and "the," which
-don't tell us much about the topic of a document).
+indicating whether the document contains that word.  To limit the
+number of features that the classifier needs to process, we begin by
+constructing a list of the 2000 most frequent words in the overall
+corpus:
 
+    >>> all_words = nltk.FreqDist(w.lower() for w in movie_reviews.words())
+    >>> word_features = all_words.keys()[:2000]
+
+We can then define a feature extractor that simply checks whether each
+of these words is present or not in a given document:
+
+    >>> stopwords = nltk.corpus.stopwords.words('english')
     >>> def document_features(document):
+    ...     document_words = set(document)    # [document-set_]
     ...     features = {}
+    ...     for word in all_words:
+    ...         features['contains(%s)' % word] = (word in document_words)
+    ...     return features
+    >>> print document_features(movie_reviews.words('pos/cv957_8737.txt')) # doctest: +SKIP
+    {'contains(waste)': False, 'contains(lot)': False, ...}
+
+.. note:: 
+    The reason that we find the set of all words in a document in
+    document-set_, rather than just checking if ``word in document``, is
+    that checking whether a word occurs in a set is much faster than
+    checking whether a word occurs in a list.
+
     ...     for word in document:
     ...         if word not in stopwords:
     ...             features['contains(%s)' % word] = True
     ...     return features
-    >>> print document_features(nltk.corpus.brown.words('cj79'))
-    (add output)
 
 Now that we've defined our feature extractor, we can use it to train a
-new classifier:
+classifier to label new movie reviews:
     
     >>> featuresets = [(document_features(d), c) for (d,c) in documents]
     >>> train_set, test_set = featuresets[100:], featuresets[:100]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
 
 To check how reliable the resulting classifier is, we compute its
-accuracy on the training data:
+accuracy on the test data:
 
-    >>> nltk.classify.accuracy(classifier, test_set)
+    >>> print nltk.classify.accuracy(classifier, test_set)
+    0.81
 
 Once again, we can use ``show_most_informative_features`` to find out
 which features the classifier found to be especially useful:
 
     >>> classifier.show_most_informative_features(5)
+    Most Informative Features
+       contains(outstanding) = True               pos : neg   =     11.1 : 1.0
+            contains(seagal) = True               neg : pos   =      7.7 : 1.0
+       contains(wonderfully) = True               pos : neg   =      6.8 : 1.0
+             contains(damon) = True               pos : neg   =      5.9 : 1.0
+            contains(wasted) = True               neg : pos   =      5.8 : 1.0
 
-.. add word frequencies, with binning??  FreqDist(document), then for
-   each word not in the stoplist, list the document frequency ..  not
-   enough training data for this??
+Apparently in this corpus, a review that mentions "Seagal" is almost 8
+times more likely to be negative than positive, while a review that
+mentions "Damon" is about 6 times more likely to be positive.
+
+.. I tried adding simple frequencies w/ binning, but it didn't improve
+   performance.  Using something more advanced like tf-idf probably
+   would, but I don't want to take up the space here to explain all that.
 
 Part-of-Speech Tagging
 ----------------------
 
-In chap-tag_ we built a regular expression tagger that chooses
-a part-of-speech tag for a word by looking at the internal make-up of
+.. The decision tree classifier is currently RIDICULOUSLY SLOW. :-/
+
+In chap-tag_ we built a regular expression tagger that chooses a
+part-of-speech tag for a word by looking at the internal make-up of
 the word.  However, this regular expression tagger had to be
 hand-crafted.  Instead, we can train a classifier to work out which
-suffixes are most informative.  Let's begin by defining a new feature
-extraction function:
+suffixes are most informative.  Let's begin by finding out what the
+most common prefixes are:
 
-    >>> def pos_features(word):
-    ...     return {"suffix(1)": word[-1:],
-    ...             "suffix(2)": word[-2:],
-    ...             "suffix(3)": word[-3:]}
+    >>> suffix_fdist = nltk.FreqDist()
+    >>> for word in brown.words():
+    ...     word = word.lower()
+    ...     suffix_fdist.inc(word[-1:])
+    ...     suffix_fdist.inc(word[-2:])
+    ...     suffix_fdist.inc(word[-3:])
+
+    >>> common_suffixes = suffix_fdist.keys()[:100]
+    >>> print common_suffixes # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    ['e', ',', '.', 's', 'd', 't', 'he', 'n', 'a', 'of', 'the', 
+     'y', 'r', 'to', 'in', 'f', 'o', 'ed', 'nd', 'is', 'on', 'l', 
+     'g', 'and', 'ng', 'er', 'as', 'ing', 'h', 'at', 'es', 'or', 
+     're', 'it', '``', 'an', "''", 'm', ';', 'i', 'ly', 'ion', ...]
+
+Next, we'll define a feature extractor function, which checks a given
+word for these sufffixes:
+
+  >>> def pos_features(word):
+  ...     features = {}
+  ...     for suffix in common_suffixes:
+  ...         features['endswith(%r)' % suffix] = word.lower().endswith(suffix)
+  ...     return features
 
 Feature extraction functions behave like tinted glasses, highlighting
 some of the properties (colors) in our data and making it impossible
 to see other properties.  The classifier will rely exclusively on
-these highlighted properties when determining how to label inputs.
-
-    >>> pos_features('studied')
-    {'suffix(1)': 'd', 'suffix(3)': 'ied', 'suffix(2)': 'ed'}
-    >>> pos_features('if')
-    {'suffix(1)': 'f', 'suffix(3)': 'if', 'suffix(2)': 'if'}
-
-Now that we've defined our feature extractor, we can use it to train a
-new "decision tree" classifier:
+these highlighted properties when determining how to label inputs.  In
+this case, the classifier will make its decisions based only on
+information about which of the common suffixes (if any) a given word
+has.  Now that we've defined our feature extractor, we can use it to
+train a new "decision tree" classifier (discussed in more
+detail in sec-decision-trees_):
     
-    >>> tagged_words = nltk.corpus.brown.tagged_words(categories='news')
+    >>> tagged_words = brown.tagged_words(categories='news')
     >>> featuresets = [(pos_features(n), g) for (n,g) in tagged_words]
 
     >>> size = int(len(featuresets) * 0.1)
     >>> train_set, test_set = featuresets[size:], featuresets[:size]
 
-    >>> classifier = nltk.DecisionTreeClassifier.train(train_set, binary=True)
+    >>> classifier = nltk.DecisionTreeClassifier.train(train_set)
     >>> nltk.classify.accuracy(classifier, test_set)
-    0.809864757359
+    0.607125307125
 
-    >>> classifier.classify(pos_features('cats')
+    >>> classifier.classify(pos_features('cats'))
     NNS
 
-One nice feature of decision trees is that they are often fairly easy
-to interpret -- we can even instruct |NLTK| to print them out as
-pseudocode:
+One nice feature of decision tree models is that they are often fairly
+easy to interpret |mdash| we can even instruct |NLTK| to print them
+out as pseudocode:
 
->>> print classifier.truncate(depth=3).pseudocode()
-if suffix(1) == 's':
-  if suffix(2) == 'as':
-    if suffix(3) == 'was': return 'BEDZ'
-    if suffix(3) != 'was': return 'CS'
-  if suffix(2) != 'as':
-    if suffix(2) == 'is': return 'BEZ'
-    if suffix(2) != 'is': return 'NNS'
-if suffix(1) != 's':
-  if suffix(1) == 'd':
-    if suffix(3) == 'and': return 'CC'
-    if suffix(3) != 'and': return 'VBD'
-  if suffix(1) != 'd':
-    if suffix(2) == ',': return ','
-    if suffix(2) != ',': return 'NN'
+>>> print classifier.pseudocode(depth=4)
+if endswith(',') == True: return ','
+if endswith(',') == False: 
+  if endswith('the') == True: return 'AT'
+  if endswith('the') == False: 
+    if endswith('s') == True: 
+      if endswith('is') == True: return 'BEZ'
+      if endswith('is') == False: return 'VBZ'
+    if endswith('s') == False: 
+      if endswith('.') == True: return '.'
+      if endswith('.') == False: return 'NN'
 
 Here, we can see that the classifier begins by checking whether a word
-ends with "s."  If so, it's likely to be a plural noun (NNS), unless
-it fits into one of a few special cases (for "was", "as" and "is").
-If a word doesn't end in "s," then the classifier next checks whether
-it ends in "d" (in which case it's probably a past-tense verb) or in
-"," (in which case it will almost always be tagged as ",").  Finally,
-if none of the tested features match, it makes the reasonable default
-guess that the word is a singular noun (NN).
+ends with a comma |mdash| if so, then it will recieve the special tag
+``","``.  Next, the classifier checks if the word ends in ``"the"``,
+in which case it's almost certainly a determiner.  This "suffix" gets
+used early by the decision tree because the word "the" is so common.
+Continuing on, the classifier checks if the word ends in "s".  If so,
+then it's most likely a verb (unless it's the word "is"); and if not,
+then it's most likely a noun (unless it's the punctuation mark ".").
+The actual classifier contains further nested if-then statements below
+the ones shown here, but the ``depth=4`` argument just displays the
+top portion of the decision tree.
 
 Making Use of Context
 ---------------------
+.. [XXX] Change this to use DecisionTree, to match prev section!!
 
 By augmenting the feature extraction function, we could modify this
 part-of-speech tagger to make use of a variety of other word-internal
@@ -399,13 +527,13 @@ features, such as the length of the word, the number of syllables it
 contains, or its prefix.  However, as long as the feature extractor
 just looks at the target word, we have no way to add features that
 depend on the *context* that the word appears in.  But contextual
-features often provide powerful clues about the correct tag -- for
+features often provide powerful clues about the correct tag |mdash| for
 example, when tagging the word "fly," knowing that the previous word
 is "a" will allow us to determine that it is being used as a noun, not
 a verb.
 
 In order to accommodate features that depend on a word's context, we
-must revise the pattern that we used define our feature extractor.
+must revise the pattern that we used to define our feature extractor.
 Instead of just passing in the word to be tagged, we will pass in a
 complete (untagged) sentence, along with the index of the target word:
 
@@ -418,13 +546,13 @@ complete (untagged) sentence, along with the index of the target word:
 ...     else:
 ...         features["prev-word"] = sentence[i-1]
 ...     return features
->>> pos_features(nltk.corpus.brown.sents()[0], 8)
+>>> pos_features(brown.sents()[0], 8)
 {'suffix(3)': 'ion', 'prev-word': 'an', 'suffix(2)': 'on', 'suffix(1)': 'n'}
 
 Having defined the feature extractor, we next apply it to the words in
 a chosen corpus:
 
->>> tagged_sents = nltk.corpus.brown.tagged_sents(categories='news')
+>>> tagged_sents = brown.tagged_sents(categories='news')
 >>> featuresets = []
 >>> for tagged_sent in tagged_sents:
 ...     untagged_sent = nltk.tag.untag(tagged_sent)
@@ -439,6 +567,9 @@ classifier:
 
 >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
 >>> nltk.classify.accuracy(classifier, test_set)
+    0.78915962207856782
+
+.. This needs a comparison point from prev classifier!!
 
 .. It would be nice to actually show this (using 
    show_most_informative_features or something):
@@ -471,16 +602,17 @@ tags for all the words in a given sentence.
    but it seems reasonably good to me.
 
 One sequence classification strategy, known as `consecutive
-classification`:dt:, is to find the most likely class label for one of
-the related inputs; and then using that answer to help find the best
-label for the next input.  The process can then be repeated until all
-of the inputs have been labeled.  This is the approach that was taken
-by the bigram tagger from sec-n-gram-tagging_, which began by
-choosing a part-of-speech tag for the first word in the sentence, and
-then chose the tag for each subsequent word based on the word itself
-and the predicted tag for the previous word.
+classification`:dt: or `greedy sequence classification`:dt:, is to
+find the most likely class label for one of the related inputs; and
+then to use that answer to help find the best label for the next
+input.  The process can then be repeated until all of the inputs have
+been labeled.  This is the approach that was taken by the bigram
+tagger from sec-n-gram-tagging_, which began by choosing a
+part-of-speech tag for the first word in the sentence, and then chose
+the tag for each subsequent word based on the word itself and the
+predicted tag for the previous word.
 
-In order to use this strategy with general classifiers models, we must
+In order to use this strategy with general classifier models, we must
 first augment our feature extractor function to take a ``history``
 argument, which provides a list of the tags that we've predicted for
 the sentence so far:
@@ -510,7 +642,7 @@ tagging new sentences, we generate the history list based on the
 output of the tagger itself.
 
 .. pylisting:: code-consecutive-pos-tagger
-   :caption: Missing Title
+   :caption: Part of Speech Tagging with a Consecutive Classifier
 
    class ConsecutivePosTagger(nltk.TaggerI):
 
@@ -533,9 +665,9 @@ output of the tagger itself.
                history.append(tag)
            return zip(sentence, history)
     
-   >>> tagged_sents = nltk.corpus.brown.tagged_sents(categories='news')
+   >>> tagged_sents = brown.tagged_sents(categories='news')
    >>> train_sents, test_sents = tagged_sents[size:], tagged_sents[:size]
-   >>> tagger = SimplePosTagger(train_sents)
+   >>> tagger = ConsecutivePosTagger(train_sents)
    >>> print nltk.tag.accuracy(tagger, test_sents)
 
 One shortcoming of this approach is that we commit to every decision
@@ -551,7 +683,8 @@ described in chap-tag_, is a good example of this strategy.
 Another solution is to assign scores to all of the possible sequences
 of part-of-speech tags, and to choose the sequence whose overall score
 is highest.  This is the approach taken by `Hidden Markov Models`:dt:,
-`Maximum Entropy Markov Models`:dt:, and `Linear-Chain CRFs`:dt:,
+`Maximum Entropy Markov Models`:dt:, and `Linear-Chain Conditional
+Random Fields`:dt:,
 which are all similar to consecutive classifiers in that they look at
 both the inputs and the history of predicted tags.  However, rather
 than simply finding the single best tag for a given word, they
@@ -584,6 +717,7 @@ extracting features:
 
 >>> sents = nltk.corpus.treebank_raw.sents()
 >>> tokens = []
+>>> boundaries = set()
 >>> offset = 0
 >>> for sent in nltk.corpus.treebank_raw.sents():
 ...     tokens.extend(sent)
@@ -591,7 +725,7 @@ extracting features:
 ...     boundaries.add(offset-1)
 
 Here, ``tokens`` is a merged list of tokens from the individual
-sentences; and ``boundaries`` is a set containing the indices of all
+sentences; and ``boundaries`` is a set containing the indexes of all
 sentence-boundary tokens.  Next, we need to specify the features of
 the data that will be used in order to decide whether punctuation
 indicates a sentence-boundary:
@@ -607,8 +741,8 @@ featuresets by selecting out all the punctuation tokens, and tagging
 whether they are boundary tokens or not:
 
 >>> featuresets = [(punct_features(tokens, i), (i in boundaries))
-...              for i in range(1, len(tokens)-1)
-...              if tokens[i] in '.?!']
+...                for i in range(1, len(tokens)-1)
+...                if tokens[i] in '.?!']
 
 Using that list of featuresets, we can train and evaluate a
 punctuation classifier:
@@ -625,7 +759,7 @@ and divide the list of words at the boundary marks.  The listing
 in code-classification-based-segmenter_ shows how this can be done.
 
 .. pylisting:: code-classification-based-segmenter
-   :caption: Missing Title
+   :caption: Classification Based Sentence Segmenter
 
    def segment_sentences(words):
        start = 0
@@ -659,7 +793,7 @@ instant messaging posts.  The first step is to extract the basic
 messaging data.  We will use ``xml_posts()`` to get a data structure
 representing the XML annotation for each post:
 
->>> posts = nps_chat.xml_posts()[:10000]
+>>> posts = nltk.corpus.nps_chat.xml_posts()[:10000]
 
 Next, we'll define a simple feature extractor that checks what words
 the post contains:
@@ -743,22 +877,24 @@ extract distinct information for ``word``\ s  and ``ne``\ s (Named
 Entities). In addition, some high frequency function words are
 filtered out as "stopwords".
 
-.. pylisting:: code-rte-features
-   :caption: Missing Title
+.. [xx] give some intro to RTEFeatureExtractor??
 
-    def rte_features(rtepair):
-        extractor = RTEFeatureExtractor(rtepair)
-        features['word_overlap'] = len(extractor.overlap('word'))
-        features['word_hyp_extra'] = len(extractor.hyp_extra('word'))
-        features['ne_overlap'] = len(extractor.overlap('ne'))
-        features['ne_hyp_extra'] = len(extractor.hyp_extra('ne'))
-        return features 
+.. pylisting:: code-rte-features
+   :caption: "Recognizing Text Entailment" Feature Extractor.
+
+   def rte_features(rtepair):
+       extractor = RTEFeatureExtractor(rtepair)
+       features['word_overlap'] = len(extractor.overlap('word'))
+       features['word_hyp_extra'] = len(extractor.hyp_extra('word'))
+       features['ne_overlap'] = len(extractor.overlap('ne'))
+       features['ne_hyp_extra'] = len(extractor.hyp_extra('ne'))
+       return features 
 
 To illustrate the content of these features, we examine some
 attributes of the Text/Hypothesis Pair 34 shown earlier:
 
     >>> rtepair = nltk.corpus.rte.pairs(['rte3_dev.xml'])[33]
-    >>> extractor = RTEFeatureExtractor(rtepair)
+    >>> extractor = nltk.RTEFeatureExtractor(rtepair)
     >>> print extractor.text_words
     set(['Russia', 'Organisation', 'Shanghai', 'Asia', 'four', 'at',
     'operation', 'SCO', ...])
@@ -804,7 +940,7 @@ or a large number of features, we recommend that you make use of
 packages.  Once these packages have been installed, |NLTK| can
 transparently make use of them (via system calls) to train classifier
 models significantly faster than the pure-Python classifier
-implementations.  See the |NLTK| webpage or a list of recommended
+implementations.  See the |NLTK| webpage for a list of recommended
 machine learning packages that are supported by |NLTK|.
 
 .. SB: I think numpy and other numerical libraries do their work in C, and
@@ -862,9 +998,10 @@ one extreme, we could create the training set and evaluation set by
 randomly assigning sentences from a data source that reflects a single
 genre (news):
 
->>> tagged_sents = nltk.corpus.brown.tagged_sents(categories='news')
+>>> tagged_sents = list(brown.tagged_sents(categories='news'))
 >>> random.shuffle(tagged_sents)
 >>> size = int(len(tagged_sents) * 0.1)
+>>> print size, len(tagged_sents)
 >>> train_set, test_set = featuresets[size:], featuresets[:size]
 
 In this case, our evaluation set will be *very* similar to our test
@@ -879,17 +1016,17 @@ that difference will be reflected in both the development set and the
 evaluation set.  A somewhat better approach is to at least ensure that
 the training set and test set are taken from different documents:
 
->>> file_ids = nltk.corpus.brown.files(categories='news')
+>>> file_ids = brown.fileids(categories='news')
 >>> size = int(len(tagged_sents) * 0.1)
->>> train_set = nltk.corpus.brown.tagged_sents(file_ids[size:])
->>> test_set = nltk.corpus.brown.tagged_sents(file_ids[size:])
+>>> train_set = brown.tagged_sents(file_ids[size:])
+>>> test_set = brown.tagged_sents(file_ids[size:])
 
 If we want to perform a more stringent evaluation, we can draw the
 evaluation set from documents that are less strongly related to those
 in the training set:
 
->>> train_set = nltk.corpus.brown.tagged_sents(categories='news')
->>> test_set = nltk.corpus.brown.tagged_sents(categories='fiction')
+>>> train_set = brown.tagged_sents(categories='news')
+>>> test_set = brown.tagged_sents(categories='fiction')
 
 If we build a classifier that performs well on this evaluation set,
 then we can be confident that it has the power to generalize well
@@ -920,8 +1057,8 @@ set containing 80 names would have an accuracy of 60/80 = 75%.  The
 function ``nltk.classify.accuracy`` can be used to calculate the
 accuracy of a classifier model on a given evaluation set:
 
-    >>> classifier = nltk.NaiveBayesClassifier.train(train)
-    >>> print 'Accuracy: %4.2f' % nltk.classify.accuracy(classifier, test)
+    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+    >>> print 'Accuracy: %4.2f' % nltk.classify.accuracy(classifier, test_set) # doctest: +SKIP
     0.75
 
 When interpreting the accuracy score of a classifier, it is important
@@ -959,7 +1096,7 @@ categories shown in fig-precision-recall_:
 
 - `True positives`:dt: are relevant items that we correctly identified
   as relevant.
-- `True negatives`:dt: are relevant items that we correctly identified
+- `True negatives`:dt: are irrelevant items that we correctly identified
   as irrelevant.
 - `False positives`:dt: (or `Type I errors`:dt:) are irrelevant items
   that we incorrectly identified as relevant.
@@ -974,7 +1111,10 @@ Given these four numbers, we can define the following metrics:
   identified, is `TP/(TP+FN)`:math:.
 - The `F-Measure`:dt: (or `F-Score`:dt:), which combines the precision
   and recall to give a single score, is defined to be the harmonic
-  mean of the precision and recall: `2/(1/Precision+1/Recall)`:math:.
+  mean of the precision and recall:
+  `(2*Precision*Recall)/(Precision+Recall)`:math:.
+
+.. alternative def for f-score: 2/(1/Precision+1/Recall)
 
 Confusion Matrices
 ------------------
@@ -994,9 +1134,9 @@ tagger developed in sec-automatic-tagging_:
 >>> def apply_tagger(tagger, corpus):
 ...     return [tagger.tag(tag.untag(sent)) for sent in corpus]
 >>> gold = tag_list(brown.tagged_sents(categories='editorial'))
->>> test = tag_list(apply_tagger(t2, brown.tagged_sents(categories='editorial')))
->>> cm = nltk.ConfusionMatrix(gold, test)
->>> print cm.pp(sort_by_count=True, show_percents=True, truncate=9)
+>>> test = tag_list(apply_tagger(t2, brown.tagged_sents(categories='editorial'))) # doctest: +SKIP
+>>> cm = nltk.ConfusionMatrix(gold, test) # doctest: +SKIP
+>>> print cm.pp(sort_by_count=True, show_percents=True, truncate=9) # doctest: +SKIP
     |                                                N                 
     |      N      I      A      J                    N      V      C   
     |      N      N      T      J      .      ,      S      B      C   
@@ -1097,6 +1237,8 @@ features should be encoded.  And an understanding of the generated
 models can allow us to extract useful information about which features
 are most informative, and how those features relate to one another.
 
+.. _sec-decision-trees:
+
 --------------
 Decision Trees
 --------------
@@ -1193,33 +1335,37 @@ probability of that same label:
 For example, fig-entropy_ shows how the entropy of labels in
 the name gender prediction task depends on the ratio of male to female
 names.  Note that if most input values have the same label (e.g., if
-P(male) is near 0 or near 1), then entropy is be low.  In particular,
+P(male) is near 0 or near 1), then entropy is low.  In particular,
 labels that have low frequency do not contribute much to the entropy
 (since :math:`P(l)` is low); and labels with high frequency also do
 not contribute much to the entropy (since :math:`log`\ :sub:`2`\
-:math:`P(l)` is be low).  On the other hand, if the input values have
+:math:`P(l)` is low).  On the other hand, if the input values have
 a wide variety of labels, then there are many labels with a "medium"
 frequency, where neither :math:`P(l)` nor :math:`log`\ :sub:`2`\
 :math:`P(l)` is low, so the entropy is high.
 
-.. pylisting:: code-entropy
-   :caption: Missing Title
+.. (skip doctest on the 0-entropy example below because it prints
+   -0.0, and it's not worth it to explain *why* it does that.)
 
-    import math
-    def entropy(labels):
+.. pylisting:: code-entropy
+   :caption: Calculating the Entropy of a List of Labels
+
+   import math
+   def entropy(labels):
+       freqdist = nltk.FreqDist(labels)
        probs = [freqdist.freq(l) for l in nltk.FreqDist(labels)]
        return -sum([p * math.log(p,2) for p in probs])
 
-    >>> entropy(['male', 'male', 'male', 'male'])
-    0.0
-    >>> entropy(['male', 'female', 'male', 'male'])
-    0.811278124459
-    >>> entropy(['female', 'male', 'female', 'male'])
-    1.0
-    >>> entropy(['female', 'female', 'male', 'female'])
-    0.811278124459
-    >>> entropy(['female', 'female', 'female', 'female'])
-    0.0
+   >>> print entropy(['male', 'male', 'male', 'male']) # doctest: +SKIP
+   0.0
+   >>> print entropy(['male', 'female', 'male', 'male'])
+   0.811278124459
+   >>> print entropy(['female', 'male', 'female', 'male'])
+   1.0
+   >>> print entropy(['female', 'female', 'male', 'female'])
+   0.811278124459
+   >>> print entropy(['female', 'female', 'female', 'female'])
+   0.0
 
 .. XX show: print entropy of decision stump etc
 
@@ -1369,6 +1515,8 @@ easier to combine the contributions of the different features, since
 we don't need to worry about how they should interact with one
 another.
 
+.. This fig is not referenced in text -- does it need to be?
+
 .. _fig-naive-bayes-graph:
 .. figure:: ../images/naive_bayes_graph.png
    :scale: 30:120:30
@@ -1467,7 +1615,7 @@ see <<ref -- manning & schutze?>>.
 Non-Binary Features
 -------------------
 
-We have assumed here that each feature is binary -- in other words
+We have assumed here that each feature is binary |mdash| in other words
 that each input either has a feature or does not.  Label-valued
 features (e.g., a color feature which could be red, green, blue,
 white, or orange) can be converted to binary features by replacing
@@ -1522,8 +1670,8 @@ The Cause of Double-Counting
 ----------------------------
 
 The basic problem that causes this double-counting issue is that
-during training, feature contributions are computed separately; but
-when using the classifier to choose labels for new inputs, those
+during training, feature contributions are computed separately; 
+but when using the classifier to choose labels for new inputs, those
 feature contributions are combined.  One solution, therefore, is to
 consider the possible interactions between feature contributions
 during training.  We could then use those interactions to adjust the
@@ -1556,9 +1704,9 @@ choosing their values.
 Maximum Entropy Classifiers
 ---------------------------
 
-The `Maximum Entropy`:dt: classifier uses a model that is very similar
-to the model used by the Naive Bayes classifier.  But rather than
-using probabilities to set the model's parameters, it uses search
+The `Maximum Entropy`:dt: classifier uses a model that is very 
+similar to the model used by the Naive Bayes classifier.  But rather
+than using probabilities to set the model's parameters, it uses search
 techniques to find a set of parameters that will maximize the
 performance of the classifier.  In particular, it looks for the set of
 parameters that maximizes the `total likelihood`:dt: of the training
@@ -1689,7 +1837,7 @@ discussion of decision trees, we described entropy as a measure of how
 dominates, then entropy is low; but if the labels are more evenly
 distributed, then entropy is high.  In our example, we chose
 distribution |d1| because the labels' probabilities are evenly
-distributed -- in other words, because its entropy is high.  In
+distributed |mdash| in other words, because its entropy is high.  In
 general, the `Maximum Entropy principle`:dt: states that, among the
 distributions that are consistent with what we know, we should choose
 the distribution whose entropy is highest.
@@ -1709,7 +1857,7 @@ new piece of information, such as:
    ==== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
 But again, we will likely choose the distribution that makes the
-fewest unwarranted assumptions -- in this case, distribution |d5|.
+fewest unwarranted assumptions |mdash| in this case, distribution |d5|.
 
 Finally, suppose that we are told that the word "up" appears in the
 nearby context 10% of the time; and that when it does appear in the
@@ -1739,7 +1887,7 @@ that are consistent with what we know; and among these, we chose the
 distribution with the highest entropy.  This is exactly what the
 Maximum Classifier does as well.  In particular, for each
 joint-feature, the Maximum Entropy model calculates the "empirical
-frequency" of that feature -- i.e., the frequency with which it occurs
+frequency" of that feature |mdash| i.e., the frequency with which it occurs
 in the training corpus.  It then searches for the distribution which
 maximizes entropy, while still predicting the correct frequency for
 each joint-feature.  
@@ -1751,7 +1899,7 @@ An important difference between the Naive Bayes classifier and the
 Maximum Entropy classifier has to do with what they are attempting to
 build a model for from the training corpus.  The Naive Bayes
 classifier is an example of a `generative`:dt: classifier, which
-builds a model that predict `P(input, label)`:math:, the joint
+builds a model that predicts `P(input, label)`:math:, the joint
 probability of a `(input, label)`:math: pair.  As a result, generative
 models can be used to answer the following questions:
 
@@ -1766,8 +1914,8 @@ models can be used to answer the following questions:
 The Maximum Entropy classifier, on the other hand, is an example of a
 conditional classifier.  `Conditional`:dt: classifiers build models
 that predict `P(label|input)`:math:, the probability of a label,
-*given* the input value.  Thus, generative models can still be used to
-answer questions 1 and 2.  However, generative models can *not* be
+*given* the input value.  Thus, generative models can still be used 
+to answer questions 1 and 2.  However, generative models can *not* be
 used to answer the remaining questions 3-6.
 
 In general, generative models are strictly more powerful than
@@ -1868,40 +2016,55 @@ part of a language processing system), then we can use the model to
 make predictions about new data, without worrying about the precise
 nature of the underlying causal relationships.
 
-
-..       
-  ------------
-  Data Sources
-  ------------
-
-  Publishers: LDC, ELRA
-
-  Annual competitions: CoNLL, TREC, CLEF
-
-
 -------
 Summary
 -------
 
-* Intuitions about how language works are unreliable.
+* Modeling the linguistic data found in corpora can help us to
+  understand linguistic patterns, and can be used to make predictions
+  about new language data.
 
-* Data modeling helps us to understand the linguistic patterns, and
-  can be used to make predictions about new language data.
+* Supervised classifiers use labeled training corpora to build models
+  that predict the label of an input based on specific features of
+  that input.
 
-* Automatically constructed models are typically descriptive, not
-  explanatory.
+* Supervised classifiers can be used to perform a wide variety of
+  |NLP| tasks, including document classification, part-of-speech
+  tagging, sentence segmentation, dialogue act type identification,
+  and determining entailment relations, and many other tasks.
 
-* Supervised classification: training data, dev set, test set.
+* When training a supervised classifier, you should split your corpus
+  into three data sets: a training set, which is used to build the
+  classifier model; a development set, which is used to help select
+  and tune the model's features; and a test set, which is used to
+  evaluate the final model's performance.
 
-* Feature extraction
+* When evaluating a supervised classifier, it is important that you
+  use fresh data, that was not included in the training or development
+  set.  Otherwise, your evaluation results may be unrealistically
+  optimistic.
 
-* Evaluation [don't test on train/train on test!]
+* Decision trees are automatically constructed tree-structured
+  flowcharts that are used to assign labels to input values based on
+  their features.  Although they're easy to interpret, they are not
+  very good at handling cases where feature values interact in
+  determining the proper label.
 
-* Decision trees
+* In Naive Bayes classifiers, each feature independently contributes
+  to the decision of which label should be used.  This allows feature
+  values to interact, but can be problematic when two or more features
+  are highly correlated with one another.
 
-* Naive bayes
+* Maximum Entropy classifiers use a basic model that is similar to the
+  model used by Naive Bayes; however, it uses iterative optimization
+  to find the set of feature weights that maximizes the probability of
+  the training corpus.
 
-* Maxent
+* Most of the models that are automatically constructed from a corpus
+  are descriptive |mdash| they let us know which features are relevant
+  to a given patterns or construction, but they don't give any
+  information about causal relationships between those features and
+  patterns.
 
 ---------------
 Further Reading
@@ -1909,6 +2072,8 @@ Further Reading
 
 Consult [URL] for further materials on this chapter.
 
+- supported ML packages
+- http://www.cs.waikato.ac.nz/~ml/weka/book.html
 - choosing prepositions http://itre.cis.upenn.edu/~myl/languagelog/archives/002003.html
 - Jurafsky and Martin
 - publications describing some of the corpora that were created for the
