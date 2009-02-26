@@ -3,7 +3,6 @@
 
 .. standard global imports
 
-    >>> from __future__ import division
     >>> import nltk, re, pprint
 
 .. TODO: exercise on cascaded tagging
@@ -110,7 +109,7 @@ text-to-speech systems usually perform POS-tagging.)
    of this word, and run the POS-tagger on this sentence.  
 
 Lexical categories like "noun" and part-of-speech tags like ``NN`` seem to have
-their uses, but the details often seem obscure.  You might wonder what
+their uses, but the details will be obscure to many readers.  You might wonder what
 justification there is for introducing this extra level of information.
 Many of these categories arise from superficial analysis the distribution
 of words in text.  Consider the following analysis involving
@@ -136,10 +135,10 @@ i.e. `w`:math:\ `1`:subscript:\ `w'`:math:\ `w`:math:\ `2`:subscript:.
     a his this their its her an that our any all one these my in your no
     some other and
 
-Observe that searching for `woman`:lx: finds *nouns*;
-searching for `bought`:lx: mostly finds *verbs*;
-searching for `over`:lx: generally finds *prepositions*;
-searching for `the`:lx: finds several *determiners*.
+Observe that searching for `woman`:lx: finds nouns;
+searching for `bought`:lx: mostly finds verbs;
+searching for `over`:lx: generally finds prepositions;
+searching for `the`:lx: finds several determiners.
 A tagger can correctly identify the tags on these words
 in the context of a sentence, e.g. `The woman bought over $150,000
 worth of clothes`:lx:.
@@ -476,7 +475,7 @@ there are many variants of ``NN``; the most important contain ``$``
 for possessive nouns, ``S`` for plural nouns (since plural nouns
 typically end in `s`:lx:) and ``P`` for proper nouns.  In addition,
 most of the tags have suffix modifiers: ``-NC`` for citations, ``-HL``
-for words in headlines and ``-TL`` for titles.
+for words in headlines and ``-TL`` for titles (a feature of Brown tabs).
 
 .. pylisting:: code-findtags
    :caption: Program to Find the Most Frequent Noun Tags
@@ -547,9 +546,9 @@ match, we print the corresponding words [print-words]:
 
     from nltk.corpus import brown
     def process(sentence):
-        for (w1,t1), (w2,t2), (w3,t3) in nltk.trigrams(sentence) # [three-word]
-        if (t1.startswith('V') and t2 == 'TO' and t3.startswith('V')): # [verb-to-verb]
-            print w1, w2, w3 # [print-words]
+        for (w1,t1), (w2,t2), (w3,t3) in nltk.trigrams(sentence): # [three-word]
+            if (t1.startswith('V') and t2 == 'TO' and t3.startswith('V')): # [verb-to-verb]
+                print w1, w2, w3 # [print-words]
     
     >>> for tagged_sent in brown.tagged_sents():
     ...     process(tagged_sent)
@@ -759,7 +758,9 @@ as we did for printing lists:
     ideas: N
 
 Finally, the dictionary methods ``keys()``, ``values()`` and
-``items()`` allow us to access the keys, values, and key-value pairs as separate lists:
+``items()`` allow us to access the keys, values, and key-value pairs as separate lists.
+We can even sort tuples sort-tuples_, which orders them according to their first element
+(and if the first elements are the same, it uses their second elements).
 
     >>> pos.keys()
     ['colorless', 'furiously', 'sleep', 'ideas']
@@ -767,7 +768,7 @@ Finally, the dictionary methods ``keys()``, ``values()`` and
     ['ADJ', 'ADV', 'V', 'N']
     >>> pos.items()
     [('colorless', 'ADJ'), ('furiously', 'ADV'), ('sleep', 'V'), ('ideas', 'N')]
-    >>> for key, val in sorted(pos.items()):
+    >>> for key, val in sorted(pos.items()): # [_sort-tuples]
     ...     print key + ":", val
     ...
     colorless: ADJ
@@ -781,6 +782,8 @@ suppose we try to use a dictionary to store the fact that the
 word `sleep`:lx: can be used as both a verb and a noun:
 
     >>> pos['sleep'] = 'V'
+    >>> pos['sleep']
+    'V'
     >>> pos['sleep'] = 'N'
     >>> pos['sleep']
     'N'
@@ -797,12 +800,19 @@ which stores multiple pronunciations for a single word.
 Defining Dictionaries
 ---------------------
 
-We can use the same key-value pair format to create a dictionary:
+We can use the same key-value pair format to create a dictionary.  There's
+a couple of ways to do this, and we will normally use the first:
 
     >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
     >>> pos = dict(colorless='ADJ', ideas='N', sleep='V', furiously='ADV')
 
 Note that dictionary keys must be immutable types, such as strings and tuples.
+If we try to define a dictionary using a mutable key, we get a ``TypeError``:
+
+    >>> pos = {['ideas', 'blogs', 'adventures']: 'N'}
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: list objects are unhashable
 
 Default Dictionaries
 --------------------
@@ -837,12 +847,16 @@ be the default value of a particular data type.  However, we can specify
 any default value we like, simply by providing the name of a function
 that can be called with no arguments to create the required value.
 Let's return to our part-of-speech example, and create a dictionary
-whose default value for any entry is ``'N'``.
+whose default value for any entry is ``'N'`` default-noun_.
+When we access a non-existent entry non-existent_,
+it is automatically added to the dictionary automatically-added_.
 
-    >>> pos = nltk.defaultdict(lambda: 'N')
+    >>> pos = nltk.defaultdict(lambda: 'N') # [_default-noun]
     >>> pos['colorless'] = 'ADJ'
-    >>> pos['blog']
+    >>> pos['blog'] # [_non-existent]
     'N'
+    >>> pos.items()
+    [('blog', 'N'), ('colorless', 'ADJ')] # [_automatically-added]
 
 .. note::
    The above example used a `lambda expression`:em:, introduced in
@@ -906,7 +920,7 @@ we increment its count using the ``+=`` operator.
    :caption: Incrementally Updating a Dictionary, and Sorting by Value
 
     >>> counts = nltk.defaultdict(int)
-    >>> for (word, tag) in brown_news_tagged:
+    >>> for (word, tag) in brown.tagged_words(categories='news')
     ...     counts[tag] += 1
     ...
     >>> counts['N']
@@ -967,21 +981,22 @@ The following example uses the same pattern to create an anagram dictionary.
     ...     key = ''.join(sorted(word))
     ...     anagrams[key].append(word)
     ...
-    >>> anagrams['aegilnrt']
-    ['alerting', 'altering', 'integral', 'relating', 'triangle']
+    >>> anagrams['aeilnrt']
+    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
 
 Since accumulating words like this is such a common task,
-|NLTK| provides a more convenient way of creating a ``defaultdict(list)``:
+|NLTK| provides a more convenient way of creating a ``defaultdict(list)``,
+in the form of ``nltk.Index()``.
 
     >>> anagrams = nltk.Index((''.join(sorted(w)), w) for w in words)
-    >>> anagrams['aegilnrt']
-    ['alerting', 'altering', 'integral', 'relating', 'triangle']
+    >>> anagrams['aeilnrt']
+    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
 
 .. note::
+   ``nltk.Index`` is a ``defaultdict(list)`` with extra support for
+   initialization.  Similarly,
    ``nltk.FreqDist`` is essentially a ``defaultdict(int)`` with extra
-   support for initialization, sorting and plotting that are needed in language processing.
-   Similarly ``nltk.Index`` is a ``defaultdict(list)`` with extra support for
-   initialization.
+   support for initialization (along with sorting and plotting methods).
 
 Complex Keys and Values
 -----------------------
@@ -1040,8 +1055,8 @@ Let's first make our part-of-speech dictionary a bit more realistic
 and add some more words to ``pos`` using the dictionary ``update()`` method, to
 create the situation where multiple keys have the same value. Then the
 technique just shown for reverse lookup will no longer work (why
-not?).  Instead, we have to incrementally add new values to the
-dictionary ``pos2``, as follows:
+not?).  Instead, we have to use ``append()`` to accumulate the words
+for each part-of-speech, as follows:
 
     >>> pos.update({'cats': 'N', 'scratch': 'V', 'peacefully': 'ADV', 'old': 'ADJ'})
     >>> pos2 = nltk.defaultdict(list)
@@ -1056,6 +1071,8 @@ all words having that part-of-speech.  We can do the same thing even
 more simply using |NLTK|\ 's support for indexing as follows:
 
     >>> pos2 = nltk.Index((value, key) for (key, value) in pos.items())
+    >>> pos2['ADV']
+    ['peacefully', 'furiously']
 
 
 .. table:: tab-dict
@@ -1122,14 +1139,16 @@ Now we can create a tagger that tags everything as ``NN``.
     ('I', 'NN'), ('am', 'NN'), ('!', 'NN')]
 
 Unsurprisingly, this method performs rather poorly.
-On a typical corpus, it will tag only about an eighth of the tokens correctly:
+On a typical corpus, it will tag only about an eighth of the tokens correctly,
+as we see below:
 
     >>> default_tagger.evaluate(brown_tagged_sents)
     0.13089484257215028
 
 Default taggers assign their tag to every single word, even words that
-have never been encountered before.  As it happens, most new words are
-nouns.  As we will see, this means that default taggers can help to improve the
+have never been encountered before.  As it happens, once we have processed
+several thousand words of English text, most new words will be nouns.
+As we will see, this means that default taggers can help to improve the
 robustness of a language processing system.  We will return to them
 shortly.
 
@@ -1154,7 +1173,8 @@ regular expressions:
     ... ]
 
 Note that these are processed in order, and the first one that matches is applied.
-Now we can set up a tagger and use it to tag a sentence.
+Now we can set up a tagger and use it to tag a sentence.  Now its right about a fifth
+of the time.
 
     >>> regexp_tagger = nltk.RegexpTagger(patterns)
     >>> regexp_tagger.tag(brown_sents[3])
@@ -1310,6 +1330,7 @@ except there is a more convenient technique for setting it up,
 called `training`:dt:\ .  In the following code sample,
 we train a unigram tagger, use it to tag a sentence, then evaluate:
 
+    >>> brown_tagged_sents = brown.tagged_sents(categories='news')
     >>> unigram_tagger = nltk.UnigramTagger(brown_tagged_sents)
     >>> unigram_tagger.tag(brown_sents[2007])
     [('Various', 'JJ'), ('of', 'IN'), ('the', 'AT'), ('apartments', 'NNS'),
@@ -1335,6 +1356,8 @@ be useless for tagging new text.  Instead, we should split the data, training on
 testing on the remaining 10%:
 
     >>> size = int(len(brown_tagged_sents) * 0.9)
+    >>> size
+    1045073
     >>> train_sents = brown_tagged_sents[:size]
     >>> test_sents = brown_tagged_sents[size:]
     >>> unigram_tagger = nltk.UnigramTagger(train_sents)
@@ -1748,7 +1771,9 @@ which employ a potentially massive table of n-grams.  We cannot learn
 much from direct inspection of such a table, in comparison to the
 rules learned by the Brill tagger.
 
-.. TODO: saving a Brill tagger to a file, reloading
+[saving a Brill tagger to a file, reloading]
+
+[comment on performance]
 
 
 ---------------------------------------

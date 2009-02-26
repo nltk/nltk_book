@@ -236,6 +236,7 @@ two separate functions.
     >>> proc_words(['Not', 'a', 'good', 'way', 'to', 'write', 'functions'])
     (3, 'Nacdefginorstuwy')
 
+[write version with two separate functions]
 
 ----------------
 Algorithm Design
