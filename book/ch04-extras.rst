@@ -669,7 +669,7 @@ a new location only if it is an improvement on the current location.
 
    >>> print evaluate(text, seg1), segment(text, seg1)
    63 ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
-   >>> hill_climb(text, segs1, 20)
+   >>> hill_climb(text, seg1, 20)
    61 ['doyouseethekittyseethedoggy', 'doyoulikethekitty', 'likethedoggy']
    59 ['doyouseethekittyseethedoggydoyoulikethekitty', 'likethedoggy']
    57 ['doyouseethekittyseethedoggydoyoulikethekittylikethedoggy']

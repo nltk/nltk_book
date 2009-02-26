@@ -326,7 +326,7 @@ For an agreement of 50%, we would get
 
 .. _fig-windowdiff:
 .. figure:: ../images/windowdiff.png
-   :scale: 30:100:30
+   :scale: 30:100:75
 
    Three Segmentations of a Sequence of Characters or Tokens
 
@@ -342,7 +342,7 @@ two segmentations by running a sliding window over the
 data and awarding partial credit for near misses.
 If we preprocess our tokens into a sequence of zeros and ones, to
 record when a token is followed by a boundary, we can represent the
-segmentations as strings, and apply the windowdiff scorer:
+segmentations as strings, and apply the windowdiff scorer.
    
     >>> s1 = "00000010000000001000000"
     >>> s2 = "00000001000000010000000"
@@ -354,8 +354,13 @@ segmentations as strings, and apply the windowdiff scorer:
     >>> nltk.windowdiff(s2, s3, 3)
     16
 
-In the above example, the window had a size of 3.  We can increase or shrink this
-window to fine-tune the windowdiff score.
+In the above example, the window had a size of 3.
+The windowdiff computation slides this window across a pair of strings.
+At each position it totals up the number of boundaries found inside this
+window, for both strings, then computes the difference.  These differences
+are then summed.  
+We can increase or shrink the window size to control the sensitivity of the
+measure.
 
 Curation vs Evolution
 ---------------------
@@ -483,7 +488,7 @@ saved in a non-proprietary format, such as text, HTML, or XML, we can
 sometimes write programs to do this checking automatically.
 
 Consider the following fragment of a lexical entry:
-"sleep [sli:p] **vi** *condition of body and mind...*\ ".
+"sleep [sli:p] **v.i.** *condition of body and mind...*\ ".
 We can enter this in MSWord, then "Save as Web Page",
 then inspect the resulting HTML file::
 
@@ -491,7 +496,7 @@ then inspect the resulting HTML file::
       <span style='mso-spacerun:yes'> </span>
       [<span class=SpellE>sli:p</span>]
       <span style='mso-spacerun:yes'> </span>
-      <b><span style='font-size:11.0pt'>vi</span></b>
+      <b><span style='font-size:11.0pt'>v.i.</span></b>
       <span style='mso-spacerun:yes'> </span>
       <i>a condition of body and mind ...<o:p></o:p></i>
     </p>
@@ -522,9 +527,9 @@ the original file *using the original word processor*.
 
 Once we know the data is correctly formatted, we
 can write other programs to convert the data into a different format.
-For example, the program in code-html2csv_ strips out the HTML markup using ``ntlk.clean_html()``,
+The program in code-html2csv_ strips out the HTML markup using ``ntlk.clean_html()``,
 extracts the words and their pronunciations, and generates output
-in "comma-separated value" (CSV) format:
+in "comma-separated value" (CSV) format.
 
 .. pylisting:: code-html2csv
    :caption: Converting HTML Created by Microsoft Word into Comma-Separated Values
@@ -542,6 +547,11 @@ in "comma-separated value" (CSV) format:
    >>> import csv
    >>> writer = csv.writer(open("dict1.csv", "wb"))
    >>> writer.writerows(lexical_data("dict.htm"))
+
+.. note::
+   For more sophisticated processing of |HTML|, use the *Beautiful Soup* package,
+   available from ``http://www.crummy.com/software/BeautifulSoup/``
+
 
 Obtaining Data from Spreadsheets and Databases
 ----------------------------------------------
@@ -578,7 +588,7 @@ in example sentences for which no dictionary entry is provided*.
 For this task, we would need to extract enough information from a record
 for it to be uniquely identified, along with the headwords and example
 sentences.  Let's suppose this information was now available in a CSV file
-``dict.csv``:
+``dict.csv``::
 
     "sleep","sli:p","v.i","a condition of body and mind ..."
     "walk","wo:k","v.intr","progress by lifting and setting down each foot ..."
@@ -790,12 +800,13 @@ cognitively salient that people will not get it wrong.
     >>> print soundex('ti')
     T400
   
+
 Now we can build a soundex index of the lexicon:
 
     >>> soundex_idx = nltk.defaultdict(set)
-    >>> for lex in lexemes:
-    ...     code = soundex(lex)
-    ...     soundex_idx[code].add(lex)
+    >>> for word in nltk.corpus.toolbox.words('rotokas.dic')
+    ...     code = soundex(word)
+    ...     soundex_idx[code].add(word)
 
 We should sort these candidates by proximity with the target word.
 
@@ -878,8 +889,8 @@ ElementTree API
 [Overview of Shakespeare XML Corpus]
 
     >>> from nltk.etree.ElementTree import ElementTree
-    >>> from nltk import data
-    >>> merchant = ElementTree().parse(data.find('corpora/shakespeare/merchant.xml'))
+    >>> xml = nltk.data.find('corpora/shakespeare/merchant.xml')
+    >>> merchant = ElementTree().parse(xml)
     >>> merchant[0]
     <Element TITLE at 2101670>
     >>> merchant[0].text
@@ -1003,7 +1014,6 @@ field:
     'lx'
     >>> lexicon[3][0].text
     'kaa'
-    XML output    
 
 The second way to access the contents of the lexicon object uses
 paths.  The lexicon is a series of ``record`` objects, each containing
@@ -1150,9 +1160,9 @@ lexicon:
 
    def validate_lexicon(grammar, lexicon):
        rd_parser = nltk.RecursiveDescentParser(grammar)
-       for entry in lexicon[10:20]:
+       for entry in lexicon:
            marker_list = [field.tag for field in entry]
-           if rd_parser.get_parse_list(marker_list):
+           if rd_parser.nbest_parse(marker_list):
                print "+", ':'.join(marker_list)
            else:
                print "-", ':'.join(marker_list)
