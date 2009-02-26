@@ -720,13 +720,9 @@ We can also find the position of a substring within a string, using ``find()``:
 More operations on strings
 --------------------------
 
-* character frequency plot, e.g get text in some language using ``language_x = nltk.corpus.udhr.raw(x)``,
-  then construct its frequency distribution ``fdist = FreqDist(language_x)``, then
-  view the distribution with ``fdist.keys()`` and ``fdist.plot()``.
-
-* functions involving strings, e.g. determining past tense
-
-tab-word-tests_
+Python has comprehensive support for processing strings.  A summary, including some operations
+we haven't seen yet, is sown in tab-string-methods_.  For more information on strings, type
+``help(str)`` at the Python prompt.
 
 .. table:: tab-string-methods
 
@@ -749,6 +745,7 @@ tab-word-tests_
 
    Useful String Methods: operations on strings in addition to the string tests
    shown in tab-word-tests; all methods produce a new string or list
+
 
 The Difference between Lists and Strings
 ----------------------------------------
@@ -836,18 +833,18 @@ Unicode for processing texts that use non-ASCII character sets.
 What is Unicode?
 ----------------
 
-Unicode supports over a million characters.  Each of these
-characters is assigned a number, called a **code point**.  In Python, code
+Unicode supports over a million characters.  Each
+character is assigned a number, called a `code point`:dt:.  In Python, code
 points are written in the form ``\u``\ *XXXX*, where *XXXX* is the number
 in 4-digit hexadecimal form.
 
-Within a program, Unicode code points can be manipulated directly, but
-when Unicode characters are stored in files or displayed on a terminal
-they must be encoded as one or more bytes.  Some encodings (such
-as ASCII and Latin-2) use a single byte, so they can only support a
-small subset of Unicode, suited to a single language.  Other encodings
+Within a program, we can manipulate Unicode strings just like normal strings.
+However, when Unicode characters are stored in files or displayed on a terminal,
+they must be encoded as a stream of bytes.  Some encodings (such
+as ASCII and Latin-2) use a single byte per code point, so they can only support a
+small subset of Unicode, enough for a single language.  Other encodings
 (such as UTF-8) use multiple bytes and can represent the full range of
-Unicode.
+Unicode characters.
 
 Text in files will be in a particular encoding, so we need some
 mechanism for translating it into Unicode |mdash| translation into
@@ -876,8 +873,7 @@ http://pl.wikipedia.org/wiki/Biblioteka_Pruska), encoded as Latin-2,
 also known as ISO-8859-2. The function ``nltk.data.find()`` locates the
 file for us.
 
-    >>> import nltk.data
-    >>> path = nltk.data.find('samples/polish-lat2.txt')
+    >>> path = nltk.data.find('corpora/unicode_samples/polish-lat2.txt')
 
 The Python ``codecs`` module provides functions to read encoded data
 into Unicode strings, and to write out Unicode strings in encoded
@@ -890,7 +886,9 @@ our Polish file as Unicode.
     >>> f = codecs.open(path, encoding='latin2')
 
 For a list of encoding parameters allowed by ``codecs``, see
-http://docs.python.org/lib/standard-encodings.html.
+``http://docs.python.org/lib/standard-encodings.html``.
+Note that we can write unicode-encoded data to a
+file using ``f = codecs.open(path, 'w', encoding='utf-8')``.
 
 Text read from the file object ``f`` will be returned in Unicode. As
 we pointed out earlier, in order to view this text on a terminal, we
@@ -900,11 +898,9 @@ non-ASCII characters into their ``\u``\ *XXXX* representations.  Code
 points above the ASCII 0-127 range but below 256 are represented in
 the two-digit form ``\x``\ *XX*.
 
-    >>> lines = f.readlines()
-    >>> for l in lines:
-    ...     l = l[:-1]
-    ...     uni = l.encode('unicode_escape')
-    ...     print uni
+    >>> for line in f:
+    ...     line = line.strip()
+    ...     print line.encode('unicode_escape')
     Pruska Biblioteka Pa\u0144stwowa. Jej dawne zbiory znane pod nazw\u0105
     "Berlinka" to skarb kultury i sztuki niemieckiej. Przewiezione przez
     Niemc\xf3w pod koniec II wojny \u015bwiatowej na Dolny \u015al\u0105sk, zosta\u0142y
@@ -943,7 +939,7 @@ ASCII range, so cannot be printed unless we specify an encoding. In
 the following example, we have specified that ``print`` should use the
 ``repr()`` of the string, which outputs the UTF-8 escape sequences
 (of the form ``\x``\ *XX*) rather than trying to render the glyphs.
-        
+
     >>> nacute = u'\u0144'
     >>> nacute
     u'\u0144'
@@ -1049,21 +1045,6 @@ string like ``'latin-1'``, ``'big5'`` or ``'utf-8'`` (see fig-polish-utf8_).
 
 The above example also illustrates how regular expressions can use
 encoded strings.
-
-
-.. Neil Mayhew: There is another way to force utf-8 output without explicitly encoding
-   every string, and that's to 'wrap' the output stream with a codec. This
-   technique is particularly useful if you are writing to a file and you
-   know that the file *must* have a particular encoding regardless of the
-   locale (eg because it's XML).
-   f = codecs.open("test.out", "w", "utf-8")
-   Then f can be used just like any other file, including print >> f,
-   f.write, etc.
-   If you really do need to use stdout, you can even wrap that as follows:
-   sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
-   These things also work for input (with the obvious modifications).
-   And, to finish, here's one more nifty trick:
-   sys.argv = map(lambda a: a.decode('utf-8'), sys.argv)
 
 ..
    If you are using Emacs as your editor, the coding specification
@@ -1813,14 +1794,20 @@ between tokens (cf ``re.split()``).
    using ``set(tokens).difference(wordlist)``.  You'll probably want to
    lowercase all the tokens first.
 
-Dealing with Contractions
--------------------------
+Further Issues with Tokenization
+--------------------------------
+
+Tokenization turns out to be a far more difficult task than you might have expected.
+No single solution works well across-the-board, and we
+must decide what counts as a token depending on the application domain.
+
+[WORKING WITH A TEST SET TO IMPROVE A TOKENIZER.]
 
 A final issue for tokenization is the presence of contractions, such
 as `didn't`:lx:.  If we are analyzing the meaning
 of a sentence, it would probably be more useful to normalize this
 form to two separate forms: `did`:lx: and `n't`:lx: (or `not`:lx:).
-[MORE]
+We can do this work with the help of a lookup table.
 
 .. _sec-sentence-segmentation:
 
@@ -2146,19 +2133,6 @@ e.g. ``'%s_(%d),'``, then instead of printing the value of ``wrapped``,
 we could print ``wrapped.replace('_', ' ')``.
 
 
-----------
-Conclusion
-----------
-
-In this chapter we saw that we can do a variety of interesting
-language processing tasks that focus solely on words.  Tokenization
-turns out to be far more difficult than expected.
-No single solution works well across-the-board, and we
-must decide what counts as a token depending on the application
-domain.  We also looked at normalization (including lemmatization) and
-saw how it collapses distinctions between tokens.  In the next chapter
-we will look at word classes and automatic tagging.
-
 -------
 Summary
 -------
@@ -2184,7 +2158,8 @@ Summary
 * Tokenization is the segmentation of a text into basic units |mdash| or tokens |mdash|
   such as words and punctuation.
   Tokenization based on whitespace is inadequate for many applications because it
-  bundles punctuation together with words
+  bundles punctuation together with words.
+  |NLTK| provides an off-the-shelf tokenizer ``nltk.word_tokenize()``.
 * Lemmatization is a process that maps the various forms of a word (such as `appeared`:lx:, `appears`:lx:)
   to the canonical or citation form of the word, also known as the lexeme or lemma (e.g. `appear`:lex:).
 * Regular expressions are a powerful and flexible method of specifying
@@ -2267,7 +2242,9 @@ programming languages, including Python.
 For an introductory
 tutorial to using regular expressions in Python with the ``re``
 module, see A. M. Kuchling, *Regular Expression HOWTO*,
-http://www.amk.ca/python/howto/regex/. 
+http://www.amk.ca/python/howto/regex/.
+
+Section 2.1 of [JurafskyMartin2008]_
 
 Chapter 3 of [Mertz2003TPP]_ provides a more extended tutorial on
 Python's facilities for text processing with regular expressions.
@@ -2638,13 +2615,20 @@ Exercises
    indexing each word using the offset of its first synset,
    e.g. ``wn.synsets('dog')[0].offset`` (and optionally the
    offset of some of its ancestors in the hypernym hierarchy).
+
+#. |hard| With the help of a multilingual corpus such as the
+   Universal Declaration of Human Rights Corpus (``nltk.corpus.udhr``),
+   and |NLTK|\ 's frequency distribution and rank correlation functionality
+   (``nltk.FreqDist``, ``nltk.spearman_correlation``),
+   develop a system that guesses the language of a previously unseen text.
+   For simplicity, work with a single character encoding and just a few
+   languages.
    
 #. |hard| Write a program that processes a text and discovers
    cases where a word has been used with a novel sense.
    For each word, compute the wordnet similarity
    between all synsets of the word and all synsets of the
    words in its context.  (Note that this is a crude
-   approach; doing it well is an open research problem.)
-
+   approach; doing it well is a difficult, open research problem.)
 
 .. include:: footer.rst
