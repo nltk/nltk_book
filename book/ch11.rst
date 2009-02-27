@@ -321,8 +321,7 @@ Thus, an agreement of 25% will be assigned |kappa| = 0, and better
 levels of agreement will be scaled accordingly.
 For an agreement of 50%, we would get
 |kappa| = 0.333, as 50 is a third of the way from 25 to 100.
-
-[EXAMPLE OF USING NLTK'S AGREEMENT MODULE.]
+Many other agreement measures exist; see ``help(nltk.metrics.agreement)`` for details.
 
 .. _fig-windowdiff:
 .. figure:: ../images/windowdiff.png
@@ -438,15 +437,18 @@ discussed methods for accessing individual files, RSS feeds, and search engine
 results (see sec-accessing-text_).  However, in some cases we want to
 obtain large quantities of web text.
 
-The simplest approach is to obtain a published corpus of web text [list].
-These have the advantage of being documented and stable.  Any experimentation
-using such a corpus can be reproduced.
+The simplest approach is to obtain a published corpus of web text.  The ACL
+Special Interest Group on Web as Corpus (SIGWAC) maintains a list of resources
+at ``http://www.sigwac.org.uk/``.
+The advantage of using a well-defined web corpus is that they are documented,
+stable, and permit reproducible experimentation.
 
 If the desired content is localized to a particular website, there are many
-utilities for capturing all the accessible contents of a site [list].
-
-Finally, for maximal flexibility and control, a web-crawler can be used [list; description].
-These permit fine-grained control over where on where to look, which links to
+utilities for capturing all the accessible contents of a site, such as
+*GNU Wget* ``http://www.gnu.org/software/wget/``.
+For maximal flexibility and control, a web crawler can be used,
+such as *Heritrix* ``http://crawler.archive.org/``.
+Crawlers permit fine-grained control over where on where to look, which links to
 follow, and how to organize the results.  For example, if we want to compile
 bilingual text collection having corresponding pairs of documents in each language,
 the crawler needs to detect the structure of the site in order to extract the
@@ -608,13 +610,62 @@ Now we can express this query as shown below:
 This information would then guide the ongoing work to enrich the lexicon,
 work that updates the content of the relational database.
 
-Converting Data Formats (notes)
--------------------------------
+Converting Data Formats
+-----------------------
 
-* structure of the conversion code usually follows that of the
-  input (or the output)
-* if the input and output are isomorphic we usually don't have
-  to store anything
+Annotated linguistic data rarely arrives in the most convenient format,
+and it is often necessary to perform various kinds of format conversion.
+Converting between character encodings has already been discussed
+(see sec-unicode_).  Here we focus on the structure of the data.
+
+In the simplest case, the input and output formats are isomorphic.
+For instance, we might be converting lexical data from Toolbox
+format to XML, and it is straightforward to transliterate the
+entries one at a time (sec-working-with-XML_).  The structure
+of the data is reflected in the structure of the required
+program: a ``for`` loop whose body takes care
+of a single entry.
+
+In another common case, the output is a digested form of the
+input, such as an inverted file index.  Here it is necessary
+to build an index structure in memory (see code-search-documents_),
+then write it to a file in the desired format.
+The following example constructs an index that maps
+the words of a dictionary definition to the corresponding
+lexeme map-word-lexeme_ for each lexical entry lexical-entry_,
+having tokenized the definition text definition-text_,
+and discarded short words short-words_.  Once the index has
+been constructed we open a file and then iterate over
+the index entries, to write out the lines in the required format required-format_.
+
+    >>> idx = nltk.Index((defn_word, lexeme) # [_map-word-lexeme]
+    ...                  for (lexeme, defn) in pairs # [_lexical-entry]
+    ...                  for defn_word in nltk.word_tokenize(defn) # [_definition-text]
+    ...                  if len(defn_word) > 3) # [_short-words]
+    >>> idx_file = open("dict.idx", "w")
+    >>> for word in sorted(idx):
+    ...     idx_words = ', '.join(idx[word])
+    ...     idx_line = "%s: %s\n" % (word, idx_words) # [_required-format]
+    ...     idx_file.write(idx_line)
+    >>> idx_file.close()
+
+The resulting file ``dict.idx`` contains the following lines.  With a larger
+dictionary we would expect to find multiple lexemes listed for each index entry::
+
+    body: sleep
+    cease: wake
+    condition: sleep
+    down: walk
+    each: walk
+    foot: walk
+    lifting: walk
+    mind: sleep
+    progress: walk
+    setting: walk
+    sleep: wake
+
+
+
 * sometimes have to build a structure one way, and read it off
   another way
 * the hard case where no good, general solution is possible:
@@ -626,10 +677,11 @@ Deciding Which Layers of Annotation to Include
 
 Published corpora vary greatly in the richness of the information they contain.
 At a minimum, a corpus will typically
-contain at least a sequence of sounds or orthographic symbols.  At the
+contain at least a sequence of sound or orthographic symbols.  At the
 other end of the spectrum, a corpus could contain a large amount of
 information about the syntactic structure, morphology, prosody, and
-semantic content of every sentence.  These extra layers of annotation
+semantic content of every sentence, plus annotation of discourse relations
+or dialogue acts.  These extra layers of annotation
 may be just what someone needs for performing a particular data analysis task.
 For example, it may be much easier to find a given
 linguistic pattern if we can search for specific syntactic structures;
@@ -638,8 +690,9 @@ has been tagged with its sense.  Here are some commonly provided
 annotation layers:
 
 * Word Tokenization: The orthographic form of text does not unambiguously
-  identify its tokens.  A tokenized version, in addition to the conventional
-  orthographic version, may be a very convenient resource.
+  identify its tokens.  A tokenized and normalized version,
+  in addition to the conventional orthographic version,
+  may be a very convenient resource.
 
 * Sentence Segmentation: As we saw in chap-words_, sentence
   segmentation can be more difficult than it seems.  Some corpora 
@@ -665,9 +718,11 @@ For example, when part-of-speech tagging a document, the string
 that the word *fly* is a noun in this context.  In contrast, `standoff
 annotation`:dt: does not modify the original document, but instead
 creates a new file that adds annotation information using pointers
-into the original document.  For example, this new document might
+that reference the original document.  For example, this new document might
 contain the string ``"<token id=8 pos='NN'/>"``, to indicate
-that token 8 is a noun.
+that token 8 is a noun.  (We would want to be sure that the tokenization
+itself was not subject to change, since it would cause such references
+to break silently.)
 
 Special Considerations when Working with Endangered Languages
 -------------------------------------------------------------
@@ -753,79 +808,21 @@ simple interface to the user:
     >>> def rank(word, wordlist):
     ...     ranked = sorted((nltk.edit_dist(word, w), w) for w in wordlist)
     ...     return [word for (_, word) in ranked]
-    >>> def spell_check(word):
+    >>> def fuzzy_spell(word):
     ...     sig = signature(word)
     ...     if sig in signatures:
     ...         return rank(word, signatures[sig])
     ...     else:
     ...         return []
-    >>> spell_check('illefent')
+    >>> fuzzy_spell('illefent')
     ['olefiant', 'elephant', 'oliphant', 'elephanta']
-    >>> spell_check('ebsekwieous')
+    >>> fuzzy_spell('ebsekwieous')
     ['obsequious']
-    >>> spell_check('nucular')
+    >>> fuzzy_spell('nucular')
     ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
 
 
-[An extended reworking of the same task, this time for Rotokas.] 
-
-Confusible sets of segments: if two segments are confusible, map them
-to the same integer.
-
-    >>> group = {
-    ...     ' ':0,                     # blank (for short words)
-    ...     'p':1,  'b':1,  'v':1,     # labials
-    ...     't':2,  'd':2,  's':2,     # alveolars
-    ...     'l':3,  'r':3,             # sonorant consonants
-    ...     'i':4,  'e':4,             # high front vowels
-    ...     'u':5,  'o':5,             # high back vowels
-    ...     'a':6                      # low vowels
-    ... }
-
-Soundex: idea of a signature.  Words with the same signature
-considered confusible.  Consider first letter of a word to be so
-cognitively salient that people will not get it wrong.
-
-    >>> def soundex(word):
-    ...     if len(word) == 0: return word  # sanity check
-    ...     word += '    '                  # ensure word long enough
-    ...     c0 = word[0].upper()
-    ...     c1 = group[word[1]]
-    ...     cons = filter(lambda x: x in 'pbvtdslr ', word[2:])
-    ...     c2 = group[cons[0]]
-    ...     c3 = group[cons[1]]
-    ...     return "%s%d%d%d" % (c0, c1, c2, c3)
-    >>> print soundex('kalosavi')
-    K632
-    >>> print soundex('ti')
-    T400
-  
-
-Now we can build a soundex index of the lexicon:
-
-    >>> soundex_idx = nltk.defaultdict(set)
-    >>> for word in nltk.corpus.toolbox.words('rotokas.dic')
-    ...     code = soundex(word)
-    ...     soundex_idx[code].add(word)
-
-We should sort these candidates by proximity with the target word.
-
-    >>> def fuzzy_spell(target):
-    ...     scored_candidates = []
-    ...     code = soundex(target)
-    ...     for word in soundex_idx[code]:
-    ...         dist = nltk.edit_dist(word, target)
-    ...         scored_candidates.append((dist, word))
-    ...     scored_candidates.sort()
-    ...     return [w for (d,w) in scored_candidates[:10]]
-
-Finally, we can look up a word to get approximate matches:
-
-    >>> fuzzy_spell('kokopouto')
-    ['kokopeoto', 'kokopuoto', 'kokepato', 'koovoto', 'koepato', 'koikoipato', 'kooupato', 'kopato', 'kopiito', 'kovoto']
-    >>> fuzzy_spell('kogou')
-    ['kogo', 'koou', 'kokeu', 'koko', 'kokoi', 'kokoo', 'koku', 'kooe', 'kooku', 'kou']
-
+.. _sec-working-with-XML:
 
 ----------------
 Working with XML
@@ -872,7 +869,7 @@ an element to be optional or repeated, we make more work for any program
 that accesses the data.  We also make it harder to check the validity of the
 data.
 
-Thus, using XML to represent linguistic structures does not solve the data
+Thus, using XML to represent linguistic structures does not magically solve the data
 modeling problem or the data interchange problem.
 We still have to work out how best to structure the data, and
 we still have to write programs to read and write the format.
@@ -965,7 +962,7 @@ We can use a frequency distribution to see who has the most to say:
 
 We can also look for patterns in who follows who in the dialogues.
 Since there's 23 speakers, we need to reduce the "vocabulary"
-to a manageble size first, using the method described in
+to a manageable size first, using the method described in
 sec-dictionaries_.
 
     >>> mapping = nltk.defaultdict(lambda: 'OTH')
@@ -982,6 +979,11 @@ sec-dictionaries_.
      OTH    8   16   18  153   52   25
     PORT    7   23   13   53    0   21
     SHYL   15   15    2   26   21    0
+
+Ignoring the entry of ``153`` for exchanges between people other than the top 5,
+the largest values suggest that Othello and Portia have the most significant interactions.
+
+Clustering
 
 
 Using XML API for working with Toolbox Data
@@ -1137,7 +1139,7 @@ of fields they contain), divided by the number of entries in the
 lexicon:
 
     >>> sum(len(entry) for entry in lexicon) / len(lexicon)
-    13
+    13.637078651685393
 
 .. pylisting:: code-toolbox-validation
    :caption: Validating Toolbox Entries Using a Context Free Grammar
@@ -1254,8 +1256,10 @@ also problematic, e.g. a tree annotation tool could only load a subset
 of the data that can be expressed in the format, so must do extra checking
 [explain why XML validation technologies do not suffice here].
 
-Another response has been to write one-off scripts (usually in Perl)
-to manipulate corpus formats.  NLTK's corpus readers are a more systematic
+Another response has been to write one-off scripts
+to manipulate corpus formats.  The filespace of many members of the
+|NLP| researchers are littered with such scripts, usually written in Perl.
+NLTK's corpus readers are a more systematic
 approach, founded on the premise that the work of parsing a corpus format
 only needs to be done once (per programming language), then it can be shared. 
 
@@ -1400,7 +1404,7 @@ NLTK Version 0.9 includes support for reading an OLAC record, for example:
 Disseminating Language Resources
 --------------------------------
 
-[ACL software repository; NLTK repository for self-archived data being
+[NLTK repository for self-archived data being
 set up at ``http://nltk.ldc.upenn.edu/``; best practices for describing
 language resources ``http://www.language-archives.org/REC/bpr.html``]
 
@@ -1431,7 +1435,7 @@ are documented in [Bird1999NELS]_, [Robinson2007Toolbox]_.
 Dozens of other tools for linguistic data management are available, some
 surveyed by [Bird2003Portability]_.
 
-Dictionary development process: http://www.sil.org/computing/ddp/
+Dictionary development process: ``http://www.sil.org/computing/ddp/``
 
 **Some Major Corpora:**
 The primary sources of linguistic corpora are the *Linguistic Data Consortium* and
@@ -1450,6 +1454,10 @@ entirely different uses than were envisaged at the time they were created
 Published corpora that use XML; standard interchange formats, e.g. for lexicons
 and ontologies.  Python+XML books; XML-aware editors.
 
+Web-as-corpus resources, SIGWAC, CLEANEVAL
+
+Annotation standards and XML: SIGANN.
+
 **Annotation models and tools:**
 An extensive set of models and tools are available, surveyed at
 ``http://www.exmaralda.org/annotation/``.
@@ -1458,7 +1466,7 @@ The Annotation Graph model was proposed by [Bird2001Annotation]_.
 
 **Scoring measures:**
 Full details of the two scoring methods are available:
-Kappa: [Carletta1996Kappa]_,
+Interannotator agreement [ArtsteinPoesio2008]_;
 Windowdiff: [Pevzner2002Windowdiff]_.
 
 Chapters on planning and constructing a corpus: [Meyer2002]_

@@ -38,6 +38,10 @@ experiment with, e.g.:
 * Question Answering: ``http://www.answerbus.com/``
 * Summarization: ``http://newsblaster.cs.columbia.edu/``
 
+Online concordancing:
+
+* ``http://corpus.leeds.ac.uk/internet.html``
+
 ------
 Python
 ------
