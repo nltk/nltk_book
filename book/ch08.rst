@@ -407,84 +407,12 @@ phrase structure tree.
 .. ex::
     .. tree:: (S (NP (Det the)(Nom (Adj little)(N bear)))(VP (VP (V saw) (NP (Det the)(Nom (Adj fine)(Adj fat)(N trout))))(PP (P in) (NP(Det the)(Nom (N brook))))))
 
-
-Beyond Chunking
----------------
-
-You might be asking what's new about phrasal constituents, since they
-are very similar to the chunks presented in chap-chunk_. To
-answer this, let's return to the challenge of making explicit how a
-sentence says "who did what to whom". Let's just focus for a while on
-the "who" part of this story. As a first approximation, we'll say that
-this amounts to telling what the grammatical subject of a sentence
-is. Can we do this using chunks? Based on the techniques described in
-chap-chunk_, a chunking analysis of ex-bb0_ will look as
-follows:
-
-::
-
-    (S
-      (NP the/DT little/JJ bear/NN)
-      saw/VBD
-      (NP the/DT fine/JJ fat/JJ trout/NN)
-      in/IN
-      (NP the/DT brook/NN))
-
-.. XXX "So we might adopt the heuristic that" -> "Suppose that"
-
-So we might adopt the heuristic that the subject of a sentence is the
-`np`:gc: chunk that immediately precedes the tensed verb: this would
-correctly yield ``(NP the/DT little/JJ bear/NN)`` as
-subject. Unfortunately, this simple rule very quickly fails, as shown
-by a more complex example.
-
-    >>> from nltk.corpus import conll2000
-    >>> print conll2000.chunked_sents()[1]
-    (S
-      Chancellor/NNP
-      (PP of/IN)
-      (NP the/DT Exchequer/NNP)
-      (NP Nigel/NNP Lawson/NNP)
-      (NP 's/POS restated/VBN commitment/NN)
-      (PP to/TO)
-      (NP a/DT firm/NN monetary/JJ policy/NN)
-      (VP has/VBZ helped/VBN to/TO prevent/VB)
-      (NP a/DT freefall/NN)
-      (PP in/IN)
-      (NP sterling/NN)
-      (PP over/IN)
-      (NP the/DT past/JJ week/NN)
-      ./.)
-
-What's doing the "preventing" in this example is not the firm monetary
-policy, but rather the restated commitment to such a policy. We can
-also see from this example that a different simple rule, namely
-treating the initial `np`:gc: chunk  as the subject, also fails, since this
-would give us the ``(NP the/DT Exchequer/NNP)``. By contrast, a
-complete phrase structure analysis of
-the sentence would group together all the pre-verbal `np`:gc: chunks
-into a single `np`:gc: constituent:
-
-.. ex:: 
-    .. tree:: (NP(NP (NP (Nom (N Chancellor) (PP (P of)(NP (Det the) (N Exchequer))))(NP Nigel Lawson)) (POSS 's))(Nom (Adj restated)(Nom (N commitment)(PP (P to)(NP (Det a)(Nom (Adj firm) (Nom (Adj monetary)(Nom (N policy)))))))))
-       :scale: 80:80:50
-
-We still have a little work to determine which part of this complex
-`np`:gc: corresponds to the "who", but nevertheless, this is much
-more tractable than answering the same question from a flat sequence
-of chunks.
-
-"Subject" and "direct object" are examples of `grammatical
-functions`:dt:. Although they are not captured directly in a phrase
-structure grammar, they can be defined in terms of tree
-configurations. In ex-gfs_, the subject of `s`:gc: is the `np`:gc:
-immediately dominated by  `s`:gc: while the direct object of `v`:gc:
-is the `np`:gc: directly dominated by `vp`:gc:.
-
-.. _ex-gfs:
-.. ex::
-    .. tree:: (S <NP \ > <VP V NP ...>)
-
+.. note::
+   As we saw in sec-dilemmas_, sentences can have arbitrary length.
+   Consequently, phrase structure trees can have arbitrary `depth`:em:.
+   The cascaded chunk parsers we saw in sec-recursion-in-linguistic-structure_
+   can only produce structures of bounded depth, so chunking methods
+   aren't applicable here.
 
 .. _sec-context-free-grammar:
 
@@ -766,6 +694,8 @@ The head of a sentence is usually taken to be the tensed verb, and every other w
 either dependent on the sentence head, or connects to it through a path of
 dependencies. 
 
+.. XXX explain concept of "head"?
+
 A dependency representation is a labeled directed graph, where the
 nodes are the lexical items and the labeled arcs represent dependency
 relations from heads to dependents.  fig-depgraph0_ illustrates a
@@ -895,6 +825,8 @@ These possibilities correspond to the following productions:
     +--------------------+--------------------+
 
     Missing Caption
+
+.. XXX above table is missing a caption, required for formal tables
 
 That is, `was`:lx: can occur with a following `Adj`:gc:, `gave`:lx:
 can occur with a following `np`:gc: and `pp`:gc:; `saw`:lx: can occur
@@ -1138,6 +1070,9 @@ to the *right hand* side of a grammar production, and replace them
 with the left-hand side, until the whole sentence is reduced to
 an `s`:gc:.
 
+.. XXX earlier section no longer talks about stacks.  Concepts of
+   pushing and popping will need to be explained somewhere.
+
 The shift-reduce parser repeatedly pushes the next input word onto a
 stack (sec-back-to-the-basics_); this is the `shift`:dt: operation.
 If the top *n* items on the stack match
@@ -1182,7 +1117,6 @@ parser reports the steps that it takes as it parses a text:
 
 A shift-reduce parser can reach a dead end and fail to find any parse,
 even if the input sentence is well-formed according to the grammar.
-(We leave it as an exercise to fix this problem by adding backtracking to this parser.)
 When this happens, no input remains, and the stack contains items
 which cannot be reduced to an `s`:gc:.  The problem arises because
 there are choices made earlier that cannot be undone by the parser
@@ -1207,11 +1141,15 @@ a single time, regardless of whether it will later be used by the `vp`:gc:
 The Left-Corner Parser
 ----------------------
 
+.. XXX infinite loop should probably be explained in terms of left-recursive productions
+
 One of the problems with the recursive descent parser is that it can
 get into an infinite loop.  This is because it applies the grammar
 productions blindly, without considering the actual input sentence.
 A left-corner parser is a hybrid between the bottom-up and top-down
 approaches we have seen.
+
+.. XXX "grammar grammar" -- give xref?
 
 Grammar ``grammar`` allows us to produce the following parse of `John saw
 Mary`:lx:\ :
@@ -1232,6 +1170,9 @@ Recall that the grammar in ``grammar2`` has the following productions for expand
    .. ex:: `np`:gc: |rarr| `dt nom pp`:gc:
    .. _ex-r3:
    .. ex:: `np`:gc: |rarr| `propn`:gc: 
+
+.. XXX Following notation with DoubleRightArrow wrongly assumes
+   this relation has been defined.
 
 Suppose we ask you to first look at tree ex-jmtree_, and then decide
 which of the `np`:gc: productions you'd want a recursive descent parser to
@@ -1290,8 +1231,8 @@ can be applied to syntactic parsing, allowing us to store
 partial solutions to the parsing task and then look them up as
 necessary in order to efficiently arrive at a complete solution.
 This approach to parsing is known as `chart parsing`:dt:.  We introduce
-the main idea in this section; see the Further Reading section at
-the end of this chapter for more implementation details.
+the main idea in this section; see the online materials available for
+this chapter for more implementation details.
 
 Dynamic programming allows us to build the `pp`:gc: `in my pajamas`:lx:
 just once.  The first time we build it we save it in a table, then we look it
@@ -1310,6 +1251,13 @@ list. We have illustrated this in fig-stringpos_.
    :scale: 25:100:25
 
    Slice Points in the Input String
+
+.. XXX above notation conflicts with the earlier explanations of indexing.
+   The reason for avoiding the idea of indexes referring to cell boundaries
+   is because they do not.  Its best to reinforce the idea that a slice [m:n]
+   goes from m to n-1, than teach a falsehood that a slice is a closed interval.
+   Let's use a conventional chart diagram if that's what's needed to explain
+   the WFST.
 
 This allows us to say that, for instance, the word `shot`:lx: spans
 (1, 2) in the input.  This is reminiscent of the slice notation:
@@ -1439,6 +1387,9 @@ have found a sentence that covers the whole input.
 
 Notice that we have not used any built-in parsing functions here.
 We've implemented a complete, primitive chart parser from the ground up!
+
+.. XXX distinction between recognition and parsing should be explained
+   more carefully or else dropped.
 
 |WFST|\ 's have several shortcomings.
 First, as you can see, the |WFST| is not itself a parse tree, so the technique is
@@ -1900,7 +1851,7 @@ unbounded dependency constructions.  The most widely used
 term in linguistics for formal grammar is
 `generative grammar`:lx:, though it has nothing to do with generation. 
 
-[BurtonRoberts1997AS]_ is very practically oriented textbook on how to
+[BurtonRoberts1997AS]_ is practically oriented textbook on how to
 analyze constituency in English, with extensive exemplification and
 exercises. [Huddleston2002CGE]_ provides an up-to-date and comprehensive analysis of
 syntactic phenomena in English.

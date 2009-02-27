@@ -5,6 +5,87 @@
 8. Analyzing Sentence Structure (Extras)
 ========================================
 
+
+-------------------
+Chunking vs Parsing
+-------------------
+
+You might be asking what's new about phrasal constituents, since they
+are very similar to the chunks presented in chap-chunk_. To
+answer this, let's return to the challenge of making explicit how a
+sentence says "who did what to whom". Let's just focus for a while on
+the "who" part of this story. As a first approximation, we'll say that
+this amounts to telling what the grammatical subject of a sentence
+is. Can we do this using chunks? Based on the techniques described in
+chap-chunk_, a chunking analysis of ex-bb0_ will look as
+follows:
+
+::
+
+    (S
+      (NP the/DT little/JJ bear/NN)
+      saw/VBD
+      (NP the/DT fine/JJ fat/JJ trout/NN)
+      in/IN
+      (NP the/DT brook/NN))
+
+.. XXX "So we might adopt the heuristic that" -> "Suppose that"
+
+So we might adopt the heuristic that the subject of a sentence is the
+`np`:gc: chunk that immediately precedes the tensed verb: this would
+correctly yield ``(NP the/DT little/JJ bear/NN)`` as
+subject. Unfortunately, this simple rule very quickly fails, as shown
+by a more complex example.
+
+    >>> from nltk.corpus import conll2000
+    >>> print conll2000.chunked_sents()[1]
+    (S
+      Chancellor/NNP
+      (PP of/IN)
+      (NP the/DT Exchequer/NNP)
+      (NP Nigel/NNP Lawson/NNP)
+      (NP 's/POS restated/VBN commitment/NN)
+      (PP to/TO)
+      (NP a/DT firm/NN monetary/JJ policy/NN)
+      (VP has/VBZ helped/VBN to/TO prevent/VB)
+      (NP a/DT freefall/NN)
+      (PP in/IN)
+      (NP sterling/NN)
+      (PP over/IN)
+      (NP the/DT past/JJ week/NN)
+      ./.)
+
+What's doing the "preventing" in this example is not the firm monetary
+policy, but rather the restated commitment to such a policy. We can
+also see from this example that a different simple rule, namely
+treating the initial `np`:gc: chunk  as the subject, also fails, since this
+would give us the ``(NP the/DT Exchequer/NNP)``. By contrast, a
+complete phrase structure analysis of
+the sentence would group together all the pre-verbal `np`:gc: chunks
+into a single `np`:gc: constituent:
+
+.. ex:: 
+    .. tree:: (NP(NP (NP (Nom (N Chancellor) (PP (P of)(NP (Det the) (N Exchequer))))(NP Nigel Lawson)) (POSS 's))(Nom (Adj restated)(Nom (N commitment)(PP (P to)(NP (Det a)(Nom (Adj firm) (Nom (Adj monetary)(Nom (N policy)))))))))
+       :scale: 80:80:50
+
+We still have a little work to determine which part of this complex
+`np`:gc: corresponds to the "who", but nevertheless, this is much
+more tractable than answering the same question from a flat sequence
+of chunks.
+
+"Subject" and "direct object" are examples of `grammatical
+functions`:dt:. Although they are not captured directly in a phrase
+structure grammar, they can be defined in terms of tree
+configurations. In ex-gfs_, the subject of `s`:gc: is the `np`:gc:
+immediately dominated by  `s`:gc: while the direct object of `v`:gc:
+is the `np`:gc: directly dominated by `vp`:gc:.
+
+.. _ex-gfs:
+.. ex::
+    .. tree:: (S <NP \ > <VP V NP ...>)
+
+
+
 -------------
 Chart Parsing
 -------------
