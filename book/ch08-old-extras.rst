@@ -121,7 +121,7 @@ level is by means of a `tree diagram`:dt:, as shown in tree-diagram_.
 		  (NP
 		     (N dogs)))
 
-Note that linguistic trees grow upside down: the node labeled `s`:gc:
+Note that linguistic trees grow upside down: the node labeled ``S``
 is the `root`:dt: of the tree, while the `leaves`:dt: of the tree are
 labeled with the words.
 
@@ -153,7 +153,7 @@ In both cases, there is a prepositional phrase introduced by
 :lx:`with`.  In the first case this phrase modifies the noun
 :lx:`burglar`, and in the second case it modifies the verb :lx:`saw`.
 We could again think of this in terms of scope: does the prepositional
-phrase (`pp`:gc:) just have scope over the `np`:gc:
+phrase (``PP``) just have scope over the ``NP``
 `a burglar`:lx:, or does it have scope over
 the whole verb phrase? As before, we can represent the difference in terms
 of tree structure:
@@ -171,8 +171,8 @@ of tree structure:
 		     <NP the burglar>
 		     <PP with a telescope>))
 
-In burglar_\ a, the `pp`:gc: attaches to the `np`:gc:,
-while in burglar_\ b, the `pp`:gc: attaches to the `vp`:gc:.
+In burglar_\ a, the ``PP`` attaches to the ``NP``,
+while in burglar_\ b, the ``PP`` attaches to the ``VP``.
 
 We can generate these trees in Python as follows:
 
@@ -184,7 +184,7 @@ We can generate these trees in Python as follows:
 We can discard the structure to get the list of `leaves`:dt:, and
 we can confirm that both trees have the same leaves (except for the last word).
 We can also see that the trees have different `heights`:dt: (given by the
-number of nodes in the longest branch of the tree, starting at `s`:gc:
+number of nodes in the longest branch of the tree, starting at ``S``
 and descending to the words):
 
     >>> tree1.leaves()
@@ -201,7 +201,7 @@ The `Prepositional Phrase Attachment Corpus`:dt: makes it
 possible for us to study this question systematically.  The corpus is
 derived from the IBM-Lancaster Treebank of Computer Manuals and from
 the Penn Treebank, and distills out only the essential information
-about `pp`:gc: attachment. Consider the sentence from the WSJ
+about ``PP`` attachment. Consider the sentence from the WSJ
 in ppattach-a_.  The corresponding line in the Prepositional Phrase
 Attachment Corpus is shown in ppattach-b_.
 
@@ -218,7 +218,7 @@ Attachment Corpus is shown in ppattach-b_.
 
 That is, it includes an identifier for the original sentence, the
 head of the relevant verb phrase (i.e., `including`:lx:), the head of
-the verb's `np`:gc: object (`three`:lx:), the preposition
+the verb's ``NP`` object (`three`:lx:), the preposition
 (`with`:lx:), and the head noun within the prepositional phrase
 (`cancer`:lx:). Finally, it contains an "attachment" feature (``N`` or
 ``V``) to indicate whether the prepositional phrase attaches to
@@ -255,8 +255,8 @@ We can access the Prepositional Phrase Attachment Corpus from NLTK as follows:
     >>> nltk.corpus.ppattach.tuples('training')[9]
     ('16', 'including', 'three', 'with', 'cancer', 'N')
 
-If we go back to our first examples of `pp`:gc: attachment ambiguity,
-it appears as though it is the `pp`:gc: itself (e.g., `with a gun`:lx:
+If we go back to our first examples of ``PP`` attachment ambiguity,
+it appears as though it is the ``PP`` itself (e.g., `with a gun`:lx:
 versus `with a telescope`:lx:) that determines the attachment. However,
 we can use this corpus to find examples where other factors come into play.
 For example, it appears that the verb is the key factor in ppattach-verb_.
@@ -410,7 +410,7 @@ a compact representation in the form of a grammar.
 
 In our following discussion of grammar, we will use the following terminology.
 The grammar consists of productions, where each production involves a
-single `non-terminal`:dt: (e.g. `s`:gc:, `np`:gc:), an arrow, and one
+single `non-terminal`:dt: (e.g. ``S``, ``NP``), an arrow, and one
 or more non-terminals and `terminals`:dt: (e.g. `walked`:lx:).
 The productions are often divided into two main groups.
 The `grammatical productions`:dt: are those without a terminal on
@@ -419,13 +419,13 @@ a terminal on the right hand side.
 A special case of non-terminals are the `pre-terminals`:dt:, which
 appear on the left-hand side of lexical productions.
 We will say that a grammar `licenses`:dt: a tree if each non-terminal
-`x`:gc: with children `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`
+``X`` with children ``Y``\ :subscript:`1` ... ``Y``\ :subscript:`n`
 corresponds to a production in the grammar of the form:
-`x`:gc: |rarr| `y`:gc:\ :subscript:`1` ... `y`:gc:\ :subscript:`n`.
+``X`` |rarr| ``Y``\ :subscript:`1` ... ``Y``\ :subscript:`n`.
 
 If you have experimented with the recursive descent parser, you may
 have noticed that it fails to deal properly with the
-following production: `np`:gc: |rarr| `np pp`:gc:.
+following production: ``NP`` |rarr| `np pp`:gc:.
 From a linguistic point of view, this production is perfectly respectable,
 and will allow us to derive trees like this:
 
@@ -451,25 +451,25 @@ These occur frequently in analyses of English, and
 the failure of recursive descent parsers to deal adequately with left
 recursion means that we will need to find alternative approaches.
 
-The revised grammar for `vp`:gc: will now look like this:
+The revised grammar for ``VP`` will now look like this:
 
 .. _subcat3:
 .. ex::
    .. parsed-literal:: 
 
-      `vp`:gc: |rarr| `datv np pp`:gc:
-      `vp`:gc: |rarr| `tv np`:gc:
-      `vp`:gc: |rarr| `sv s`:gc:
-      `vp`:gc: |rarr| `iv`:gc: 
+      ``VP`` |rarr| `datv np pp`:gc:
+      ``VP`` |rarr| `tv np`:gc:
+      ``VP`` |rarr| `sv s`:gc:
+      ``VP`` |rarr| ``IV`` 
 
-      `datv`:gc: |rarr| 'gave' | 'donated' | 'presented'
-      `tv`:gc: |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
-      `sv`:gc: |rarr| 'said' | 'knew' | 'alleged'
-      `iv`:gc: |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
+      ``DATV`` |rarr| 'gave' | 'donated' | 'presented'
+      ``TV`` |rarr| 'saw' | 'kissed' | 'hit' | 'sang'
+      ``SV`` |rarr| 'said' | 'knew' | 'alleged'
+      ``IV`` |rarr| 'barked' | 'disappeared' | 'elapsed' | 'sang'
 
 Notice that according to subcat3_, a given lexical item can belong to more
 than one subcategory. For example, `sang`:lx: can occur both with and
-without a following `np`:gc: complement.
+without a following ``NP`` complement.
 
 
 

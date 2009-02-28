@@ -210,8 +210,8 @@
      :class: emphasis
   
   .. Grammatical Category - e.g. NP and verb as technical terms
-  .. role:: gc
-     :class: category
+     .. role:: gc
+        :class: category
     
   .. Math expression - e.g. especially for variables
   .. role:: math

@@ -122,7 +122,7 @@ words. We'll be a bit abstract for the moment, and call these words
 `everything`:em: about them, but we can at least give a partial
 description. For example, we know that the orthography of `a` is
 `these`:lx:, its phonological form is `DH IY Z`,  its part-of-speech is
-`Det`:gc:, and its number is plural. We can use dot notation to record
+``Det``, and its number is plural. We can use dot notation to record
 these observations: 
 
 .. _ex-feat0:
@@ -131,7 +131,7 @@ these observations:
 
       `a.spelling` = `these`:lx:
       `a.phonology` = `DH IY Z`
-      `a.pos` = `Det`:gc:
+      `a.pos` = ``Det``
       `a.number` = plural
 
 Thus ex-feat0_ is a `partial description` of a word; it lists some
@@ -257,13 +257,13 @@ context-free grammar.  We will begin with the simple CFG in ex-agcfg0_.
 .. ex::
    .. parsed-literal::
 
-     `s`:gc: |rarr| `np vp`:gc:
-     `np`:gc: |rarr| `Det n`:gc: 
-     `vp`:gc: |rarr| `v`:gc: 
+     ``S`` |rarr| ``NP VP``
+     ``NP`` |rarr| `Det n`:gc: 
+     ``VP`` |rarr| ``V`` 
 
-     `Det`:gc: |rarr| 'this'
-     `n`:gc: |rarr| 'dog'
-     `v`:gc: |rarr| 'runs'
+     ``Det`` |rarr| 'this'
+     ``N`` |rarr| 'dog'
+     ``V`` |rarr| 'runs'
 
 |nopar| Example ex-agcfg0_ allows us to generate the sentence `this dog runs`:lx:;
 however, what we really want to do is also generate `these dogs
@@ -310,10 +310,10 @@ make this explicit:
 .. ex::
    .. parsed-literal::
 
-     `N`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ]
+     ``N``\ [`num`:feat:\ =\ `pl`:fval:\ ]
 
 |nopar| In ex-num0_, we have introduced some new notation which says that the
-category `N`:gc: has a `feature`:dt: called `num`:feat: (short for
+category ``N`` has a `feature`:dt: called `num`:feat: (short for
 'number') and that the value of this feature is `pl`:fval: (short for
 'plural'). We can add similar annotations to other categories, and use
 them in lexical entries:
@@ -322,12 +322,12 @@ them in lexical entries:
 .. ex::
    .. parsed-literal::
 
-     `Det`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'this'
-     `Det`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ]  |rarr| 'these'
-     `N`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'dog'
-     `N`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'dogs'
-     `V`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'runs'
-     `V`:gc:\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'run'
+     ``Det``\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'this'
+     ``Det``\ [`num`:feat:\ =\ `pl`:fval:\ ]  |rarr| 'these'
+     ``N``\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'dog'
+     ``N``\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'dogs'
+     ``V``\ [`num`:feat:\ =\ `sg`:fval:\ ] |rarr| 'runs'
+     ``V``\ [`num`:feat:\ =\ `pl`:fval:\ ] |rarr| 'run'
 
 |nopar| Does this help at all? So far, it looks just like a slightly more
 verbose alternative to what was specified in ex-agcfg1_. Things become
@@ -340,26 +340,26 @@ these to state constraints:
    .. ex::
       .. parsed-literal::
 
-        `S`:gc: |rarr| `NP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] `VP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
+        ``S`` |rarr| ``NP``\ [`num`:feat:\ =\ `?n`:math:\ ] ``VP``\ [`num`:feat:\ =\ `?n`:math:\ ]
 
    .. _ex-nprule:
    .. ex::
       .. parsed-literal::
 
-       `NP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| `Det`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] `N`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
+       ``NP``\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| ``Det``\ [`num`:feat:\ =\ `?n`:math:\ ] ``N``\ [`num`:feat:\ =\ `?n`:math:\ ]
 
    .. _ex-vprule:
    .. ex::
       .. parsed-literal::
 
-       `VP`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| `V`:gc:\ [`num`:feat:\ =\ `?n`:math:\ ]
+       ``VP``\ [`num`:feat:\ =\ `?n`:math:\ ] |rarr| ``V``\ [`num`:feat:\ =\ `?n`:math:\ ]
 
 |nopar| We are using "`?n`:math:" as a variable over values of `num`:feat:; it can
 be instantiated either to `sg`:fval: or `pl`:fval:. Its scope is
 limited to individual productions. That is, within ex-srule_, for example,
 `?n`:math: must be instantiated to the same constant value; we can
-read the production as saying that whatever value `NP`:gc: takes for the feature
-`num`:feat:, `VP`:gc: must take the same value. 
+read the production as saying that whatever value ``NP`` takes for the feature
+`num`:feat:, ``VP`` must take the same value. 
 
 In order to understand how these feature constraints work, it's
 helpful to think about how one would go about building a tree. Lexical
@@ -382,9 +382,9 @@ depth one):
    .. ex:: 
       .. tree:: (N[NUM=pl] dogs) 
 
-|nopar| Now ex-nprule_ says that whatever the `num`:feat: values of `N`:gc: and
-`Det`:gc: are, they have to be the same. Consequently, ex-nprule_ will
-permit ex-this_ and ex-dog_ to be combined into an `NP`:gc: as shown in
+|nopar| Now ex-nprule_ says that whatever the `num`:feat: values of ``N`` and
+``Det`` are, they have to be the same. Consequently, ex-nprule_ will
+permit ex-this_ and ex-dog_ to be combined into an ``NP`` as shown in
 ex-good1_ and it will also allow ex-these_ and ex-dogs_ to be combined, as in
 ex-good2_. By contrast, ex-bad1_ and ex-bad2_ are prohibited because the roots
 of their
@@ -409,10 +409,10 @@ constituent local trees differ in their values for the `num`:feat: feature.
       .. tree:: (NP[NUM=...] (Det[NUM=PL] these)(N[NUM=SG] dog))
 
 Production ex-vprule_ can be thought of as saying that the `num`:feat: value of the
-head verb has to be the same as the `num`:feat: value of the `VP`:gc:
+head verb has to be the same as the `num`:feat: value of the ``VP``
 mother. Combined with ex-srule_, we derive the consequence that if the
 `num`:feat: value of the subject head noun is `pl`:fval:, then so is
-the `num`:feat: value of the `VP`:gc:\ 's head verb.
+the `num`:feat: value of the ``VP``\ 's head verb.
 
 .. ex::
    .. tree:: (S (NP[NUM=pl] (Det[NUM=pl] these)(N[NUM=pl] dogs))(VP[NUM=pl] (V[NUM=pl] run)))
@@ -455,12 +455,12 @@ far in this chapter, plus a couple of new ones.
    TV[TENSE=past, NUM=?n] -> 'saw' | 'liked'
 
 |nopar| Notice that a syntactic category can have more than one feature; for example,
-`v`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `num`:feat:\ =\ `pl`:fval:\ ].
+``V``\ [`tense`:feat:\ =\ `pres`:fval:, `num`:feat:\ =\ `pl`:fval:\ ].
 In general, we can add as many features as we like.
 
 Notice also that we have used feature variables in lexical entries as well
 as grammatical productions. For example, `the`:lx: has been assigned the
-category `Det`:gc:\ [`num`:feat:\ =\ `?n`:math:]. Why is this?  Well,
+category ``Det``\ [`num`:feat:\ =\ `?n`:math:]. Why is this?  Well,
 you know that the definite article `the`:lx: can combine with both
 singular and plural nouns. One way of describing this would be to add
 two lexical entries to the grammar, one each for the singular and
@@ -469,7 +469,7 @@ leave the `num`:feat: value `underspecified`:dt: and letting it agree
 in number with whatever noun it combines with.
 
 A final detail about Example code-feat0cfg_ is the statement ``%start S``.
-This a "directive" that tells the parser to take `s`:gc: as the
+This a "directive" that tells the parser to take ``S`` as the
 start symbol for the grammar.
 
 In general, when we are trying to develop even a very small grammar,
@@ -548,7 +548,7 @@ instantiated by constant values in the corresponding feature structure
 in *B'*, and these instantiated values will be used in the new edge
 added by the Completer. This instantiation can be seen, for example,
 in the edge 
-[`np`:gc:\ [`num`:feat:\ =\ `sg`:fval:] |rarr| PropN[`num`:feat:\ =\ `sg`:fval:] |dot|, (0, 1)]
+[``NP``\ [`num`:feat:\ =\ `sg`:fval:] |rarr| PropN[`num`:feat:\ =\ `sg`:fval:] |dot|, (0, 1)]
 in code-featurecharttrace_,
 where the feature `num`:feat: has been assigned the value `sg`:fval:.
 
@@ -584,11 +584,11 @@ features are not written `f`:feat: +, `f`:feat: `-`:math: but simply
 .. ex::
       .. parsed-literal::
 
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'can'
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'may'
+        ``V``\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'can'
+        ``V``\ [`tense`:feat:\ =\ `pres`:fval:, `+aux`:feat:\ =\ `+`:math:\ ] |rarr| 'may'
 
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'walks'
-        `V`:gc:\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'likes'
+        ``V``\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'walks'
+        ``V``\ [`tense`:feat:\ =\ `pres`:fval:, `-aux`:feat: `-`:math:\ ] |rarr| 'likes'
 
 We have spoken informally of attaching "feature annotations" to
 syntactic categories. A more general
@@ -600,9 +600,9 @@ features. Consider, for example, the object we have written as ex-ncat0_.
 .. ex::
       .. parsed-literal::
 
-        `n`:gc:\ [`num`:feat:\ =\ `sg`:fval:\ ] 
+        ``N``\ [`num`:feat:\ =\ `sg`:fval:\ ] 
 
-|nopar| The syntactic category `n`:gc:, as we have seen before, provides part
+|nopar| The syntactic category ``N``, as we have seen before, provides part
 of speech information. This information can itself be captured as a
 feature value pair, using  `pos`:feat: to represent "part of speech":
 
@@ -663,12 +663,12 @@ bundled together. A tiny grammar illustrating this point is shown in ex-agr2_.
 .. ex::
     .. parsed-literal::
 
-      `s`:gc: |rarr| `np`:gc:\ [`agr`:feat:\ =\ `?n`:fval:\ ] `vp`:gc:\ [`agr`:feat:\ =\ `?n`:fval:]
-      `np`:gc:\ [`agr`:feat:\ =\ `?n`:fval:] |rarr| `PropN`:gc:\ [`agr`:feat:\ =\ `?n`:fval:] 
-      `vp`:gc:\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] |rarr| `Cop`:gc:\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] Adj
+      ``S`` |rarr| ``NP``\ [`agr`:feat:\ =\ `?n`:fval:\ ] ``VP``\ [`agr`:feat:\ =\ `?n`:fval:]
+      ``NP``\ [`agr`:feat:\ =\ `?n`:fval:] |rarr| ``PropN``\ [`agr`:feat:\ =\ `?n`:fval:] 
+      ``VP``\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] |rarr| `Cop`:gc:\ [`tense`:feat:\ =\ `?t`:fval:, `agr`:feat:\ =\ `?n`:fval:] Adj
       `Cop`:gc:\ [`tense`:feat:\ =\ `pres`:fval:,  `agr`:feat:\ =\ [`num`:feat:\ =\ `sg`:fval:, `per`:feat:\ =\ `3`:fval:]] |rarr| 'is' 
-      `PropN`:gc:\ [`agr`:feat:\ =\ [`num`:feat:\ =\ `sg`:fval:, `per`:feat:\ =\ `3`:fval:]] |rarr| 'Kim'
-      `Adj`:gc: |rarr| 'happy'
+      ``PropN``\ [`agr`:feat:\ =\ [`num`:feat:\ =\ `sg`:fval:, `per`:feat:\ =\ `3`:fval:]] |rarr| 'Kim'
+      ``Adj`` |rarr| 'happy'
 
 
 .. _sec-feat-comp:
@@ -1098,7 +1098,7 @@ Subcategorization
 
 In Chapter chap-parse_, we proposed to augment our
 category labels to represent different kinds of verb.
-We introduced labels such as `iv`:gc: and `tv`:gc: for intransitive
+We introduced labels such as ``IV`` and ``TV`` for intransitive
 and transitive verbs respectively.  This allowed us to write productions
 like the following:
 
@@ -1106,18 +1106,18 @@ like the following:
 .. ex::
    .. parsed-literal::
 
-      `vp`:gc: |rarr| `iv`:gc: 
-      `vp`:gc: |rarr| `tv np`:gc: 
+      ``VP`` |rarr| ``IV`` 
+      ``VP`` |rarr| `tv np`:gc: 
 
-|nopar| Although we know that `iv`:gc: and `tv`:gc: are two
-kinds of `v`:gc:, from a formal point of view
-`iv`:gc: has no closer relationship with `tv`:gc: than it does
-with `np`:gc:. As it stands, `iv`:gc: and `tv`:gc: are just atomic
+|nopar| Although we know that ``IV`` and ``TV`` are two
+kinds of ``V``, from a formal point of view
+``IV`` has no closer relationship with ``TV`` than it does
+with ``NP``. As it stands, ``IV`` and ``TV`` are just atomic
 nonterminal symbols from a CFG.  This approach doesn't allow us
 to say anything about the class of verbs in general.
 For example, we cannot say something like "All lexical
-items of category `v`:gc: can be marked for tense", since `bark`:lx:,
-say, is an item of category `iv`:gc:, not `v`:gc:.
+items of category ``V`` can be marked for tense", since `bark`:lx:,
+say, is an item of category ``IV``, not ``V``.
 A simple solution, originally developed for a grammar framework
 called Generalized Phrase Structure Grammar (GPSG), stipulates that lexical
 categories may bear a `subcat`:feat: feature whose values are integers.
@@ -1143,10 +1143,10 @@ This is illustrated in a modified portion of Example code-feat0cfg_, shown in ex
      V[SUBCAT=1, TENSE=past, NUM=?n] -> 'saw' | 'liked'
      V[SUBCAT=2, TENSE=past, NUM=?n] -> 'said' | 'claimed'
 
-|nopar| When we see a lexical category like `v`:gc:\ [`subcat`:feat: 
+|nopar| When we see a lexical category like ``V``\ [`subcat`:feat: 
 `1`:fval:\ ], we can interpret the `subcat`:feat: specification as a
-pointer to the production in which `v`:gc:\ [`subcat`:feat: `1`:fval:\ ]
-is introduced as the head daughter in a `vp`:gc: production.
+pointer to the production in which ``V``\ [`subcat`:feat: `1`:fval:\ ]
+is introduced as the head daughter in a ``VP`` production.
 By convention, there is a one-to-one correspondence between
 `subcat`:feat: values and the productions that introduce lexical heads.
 It's worth noting that the choice of integer which acts as a value for
@@ -1154,10 +1154,10 @@ It's worth noting that the choice of integer which acts as a value for
 have chosen 3999, 113 and 57 as our two values in ex-subcatgpsg_.  On this
 approach, `subcat`:feat: can *only* appear on lexical categories; it
 makes no sense, for example, to specify a `subcat`:feat: value on
-`vp`:gc:.
+``VP``.
 
 In our third class of verbs above, we have specified a category
-`s-bar`:gc:. This is a label for subordinate clauses such as the
+``S-BAR``. This is a label for subordinate clauses such as the
 complement of `claim`:lx: in the example `You claim that you like
 children`:lx:. We require two further productions to analyze such sentences:
 
@@ -1180,25 +1180,25 @@ and Head-driven Phrase Structure Grammar. Rather than using
 `subcat`:feat: values as a way of indexing productions, the `subcat`:feat:
 value directly encodes the valency of a head (the list of
 arguments that it can combine with). For example, a verb like
-`put`:lx: that takes  `np`:gc: and `pp`:gc: complements (`put the
+`put`:lx: that takes  ``NP`` and ``PP`` complements (`put the
 book on the table`:lx:) might be represented as ex-subcathpsg0_:
 
 .. TODO: angle brackets don't appear
 
 .. _ex-subcathpsg0:
-.. ex::  `v`:gc:\ [`subcat`:feat: |langle|\ `np`:gc:, `np`:gc:, `pp`:gc:\ |rangle| ] 
+.. ex::  ``V``\ [`subcat`:feat: |langle|\ ``NP``, ``NP``, ``PP``\ |rangle| ] 
 
 |nopar| This says that the verb can combine with three  arguments. The
-leftmost element in the list is the subject `np`:gc:, while everything
-else |mdash| an `np`:gc: followed by a `pp`:gc: in this case |mdash| comprises the
+leftmost element in the list is the subject ``NP``, while everything
+else |mdash| an ``NP`` followed by a ``PP`` in this case |mdash| comprises the
 subcategorized-for complements. When a verb like `put`:lx: is combined
 with appropriate complements, the requirements which are specified in
-the  `subcat`:feat: are discharged, and only a subject `np`:gc: is
+the  `subcat`:feat: are discharged, and only a subject ``NP`` is
 needed. This category, which corresponds to what is traditionally
-thought of as `vp`:gc:, might be represented as follows.
+thought of as ``VP``, might be represented as follows.
 
 .. _ex-subcathpsg1:
-.. ex::  `v`:gc:\ [`subcat`:feat: |langle|\ `np`:gc:\ |rangle| ] 
+.. ex::  ``V``\ [`subcat`:feat: |langle|\ ``NP``\ |rangle| ] 
 
 Finally, a sentence is a kind of verbal category that has *no*
 requirements for further arguments, and hence has a `subcat`:feat:
@@ -1215,27 +1215,27 @@ Heads Revisited
 We noted in the previous section that by factoring subcategorization
 information out of the main category label, we could express more
 generalizations about properties of verbs. Another property of this
-kind is the following: expressions of category `v`:gc: are heads of
-phrases of category `vp`:gc:. Similarly (and more informally) `n`:gc:\
-s are heads of `np`:gc:\ s,  `a`:gc:\
-s (i.e., adjectives) are heads of `ap`:gc:\ s,  and `p`:gc:\
-s (i.e., adjectives) are heads of `pp`:gc:\ s. Not all phrases have
+kind is the following: expressions of category ``V`` are heads of
+phrases of category ``VP``. Similarly (and more informally) ``N``\
+s are heads of ``NP``\ s,  ``A``\
+s (i.e., adjectives) are heads of ``AP``\ s,  and ``P``\
+s (i.e., adjectives) are heads of ``PP``\ s. Not all phrases have
 heads |mdash| for example, it is standard to say that coordinate
 phrases (e.g., `the book and the bell`:lx:) lack heads |mdash|
 nevertheless, we would like our grammar formalism to express the
 mother / head-daughter
 relation where it holds. Now, although it looks as though there is
-something in common  between, say, `v`:gc: and `vp`:gc:, this is more
-of a handy convention than a real claim, since  `v`:gc: and `vp`:gc:
-formally have no more in common than `v`:gc: and `Det`:gc:. 
+something in common  between, say, ``V`` and ``VP``, this is more
+of a handy convention than a real claim, since  ``V`` and ``VP``
+formally have no more in common than ``V`` and ``Det``. 
 
 X-bar syntax (cf. [Chomsky1970RN]_, [Jackendoff1977XS]_) addresses
 this issue by abstracting out the notion of `phrasal level`:dt:. It is
-usual to recognize three such levels. If `n`:gc: represents the
-lexical level, then `n`:gc:\ ' represents the next level up,
-corresponding to the more traditional category `Nom`:gc:, while
-`n`:gc:\ '' represents the phrasal level, corresponding to the
-category `np`:gc:. (The primes here replace the typographically more
+usual to recognize three such levels. If ``N`` represents the
+lexical level, then ``N``\ ' represents the next level up,
+corresponding to the more traditional category ``Nom``, while
+``N``\ '' represents the phrasal level, corresponding to the
+category ``NP``. (The primes here replace the typographically more
 demanding horizontal bars of [Chomsky1970RN]_). ex-xbar0_ illustrates a
 representative structure.
 
@@ -1243,17 +1243,17 @@ representative structure.
 .. ex::
    .. tree:: (N''(Det a)(N'(N student)(P'' of\ French)))
 
-|nopar| The head of the structure ex-xbar0_ is `n`:gc: while `n`:gc:\ '
-and `n`:gc:\ '' are called `(phrasal) projections`:dt: of `n`:gc:. `n`:gc:\ ''
-is the `maximal projection`:dt:, and `n`:gc: is sometimes called the
+|nopar| The head of the structure ex-xbar0_ is ``N`` while ``N``\ '
+and ``N``\ '' are called `(phrasal) projections`:dt: of ``N``. ``N``\ ''
+is the `maximal projection`:dt:, and ``N`` is sometimes called the
 `zero projection`:dt:. One of the central claims of X-bar syntax is
-that all constituents share a structural similarity. Using `x`:gc: as
-a variable over `n`:gc:, `v`:gc:, `a`:gc: and `p`:gc:, we say that
+that all constituents share a structural similarity. Using ``X`` as
+a variable over ``N``, ``V``, ``A`` and ``P``, we say that
 directly subcategorized `complements`:em: of the head are always
 placed as sisters of the lexical head, whereas `adjuncts`:em: are
-placed as sisters of the intermediate category, `x`:gc:\ '. Thus, the
-configuration of the `p`:gc:\ '' adjunct in ex-xbar1_ contrasts with that
-of the complement `p`:gc:\ '' in ex-xbar0_.
+placed as sisters of the intermediate category, ``X``\ '. Thus, the
+configuration of the ``P``\ '' adjunct in ex-xbar1_ contrasts with that
+of the complement ``P``\ '' in ex-xbar0_.
 
 .. _ex-xbar1:
 .. ex::
@@ -1266,10 +1266,10 @@ using feature structures.
 .. ex::
    .. parsed-literal::
 
-     `s`:gc: |rarr| `n`:gc:\ [`bar`:feat:\ =\ `2`:fval:] `v`:gc:\ [`bar`:feat:\ =\ `2`:fval:]
-     `n`:gc:\ [`bar`:feat:\ =\ `2`:fval:] |rarr| `Det n`:gc:\ [`bar`:feat:\ =\ `1`:fval:]
-     `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] |rarr| `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] `p`:gc:\ [`bar`:feat:\ =\ `2`:fval:] 
-     `n`:gc:\ [`bar`:feat:\ =\ `1`:fval:] |rarr| `n`:gc:\ [`bar`:feat:\ =\ `0`:fval:] `p`:gc:\ [`bar`:feat:\ =\ `2`:fval:] 
+     ``S`` |rarr| ``N``\ [`bar`:feat:\ =\ `2`:fval:] ``V``\ [`bar`:feat:\ =\ `2`:fval:]
+     ``N``\ [`bar`:feat:\ =\ `2`:fval:] |rarr| `Det n`:gc:\ [`bar`:feat:\ =\ `1`:fval:]
+     ``N``\ [`bar`:feat:\ =\ `1`:fval:] |rarr| ``N``\ [`bar`:feat:\ =\ `1`:fval:] ``P``\ [`bar`:feat:\ =\ `2`:fval:] 
+     ``N``\ [`bar`:feat:\ =\ `1`:fval:] |rarr| ``N``\ [`bar`:feat:\ =\ `0`:fval:] ``P``\ [`bar`:feat:\ =\ `2`:fval:] 
 
 
 Auxiliary Verbs and Inversion
@@ -1342,8 +1342,8 @@ following production:
      S[+inv] -> V[+AUX] NP VP
 
 |nopar| That is, a clause marked as [`+inv`:feat:] consists of an auxiliary
-verb followed by a `vp`:gc:. (In a more detailed grammar, we would
-need to place some constraints on the form of the `vp`:gc:, depending
+verb followed by a ``VP``. (In a more detailed grammar, we would
+need to place some constraints on the form of the ``VP``, depending
 on the choice of auxiliary.) ex-invtree_ illustrates the structure of an
 inverted clause.
 
@@ -1392,8 +1392,8 @@ Consider the following contrasts:
 
       \*You put.
 
-The verb `like`:lx: requires an `np`:gc: complement, while
-`put`:lx: requires both a following `np`:gc: and `pp`:gc:. Examples
+The verb `like`:lx: requires an ``NP`` complement, while
+`put`:lx: requires both a following ``NP`` and ``PP``. Examples
 ex-gap1_ and ex-gap2_ show that these complements are *obligatory*:
 omitting them leads to ungrammaticality. Yet there are contexts in
 which obligatory complements can be omitted, as ex-gap3_ and ex-gap4_
@@ -1509,9 +1509,9 @@ A variety of mechanisms have been suggested for handling unbounded
 dependencies in formal grammars; we shall adopt an approach due to
 Generalized Phrase Structure Grammar that involves something called
 `slash categories`:dt:. A slash category is something of the form
-`y/xp`:gc:; we interpret this as a phrase of category `y`:gc: that
-is missing a sub-constituent of category `xp`:gc:. For example,
-`s/np`:gc: is an `s`:gc: that is missing an `np`:gc:. The use of
+`y/xp`:gc:; we interpret this as a phrase of category ``Y`` that
+is missing a sub-constituent of category ``XP``. For example,
+`s/np`:gc: is an ``S`` that is missing an ``NP``. The use of
 slash categories is illustrated in ex-gaptree1_. 
 
 .. _ex-gaptree1:
@@ -1519,19 +1519,19 @@ slash categories is illustrated in ex-gaptree1_.
       .. tree:: (S(NP[+WH] who)(S[+INV]\/NP (V[+AUX,\ SUBCAT=3] do)(NP[-WH] you)(VP/NP(V[-AUX,\ SUBCAT=1] like)(NP/NP e))))
 
 |nopar| The top part of the tree introduces the filler `who`:lx: (treated as
-an expression of category `np`:gc:\ [`+wh`:feat:]) together with a
+an expression of category ``NP``\ [`+wh`:feat:]) together with a
 corresponding gap-containing constituent `s/np`:gc:. The gap information is
 then "percolated" down the tree via the `vp/np`:gc: category, until it
-reaches the category `np/np`:gc:. At this point, the dependency 
+reaches the category ``NP/NP``. At this point, the dependency 
 is discharged by realizing the gap information as the empty string `e`
-immediately dominated by `np/np`:gc:.
+immediately dominated by ``NP/NP``.
 
 Do we need to think of slash categories as a completely new kind of
 object in our grammars?  Fortunately, no, we don't |mdash| in fact, we
 can accommodate them within our existing feature-based framework. We
 do this by treating slash as a feature, and the category to its right
 as a value. In other words, our "official" notation for `s/np`:gc:
-will be `s`:gc:\ [`slash`:feat:\ =\ `NP`:fval:\ ]. Once we have taken this
+will be ``S``\ [`slash`:feat:\ =\ `NP`:fval:\ ]. Once we have taken this
 step, it is straightforward to write a small grammar for
 analyzing unbounded dependency constructions.  Example code-slashcfg_ illustrates
 the main principles of slash categories, and also includes productions for
@@ -1570,27 +1570,27 @@ The grammar in Example code-slashcfg_ contains one gap-introduction production, 
 .. ex::
    .. parsed-literal::
 
-      `s[-inv]`:gc: |rarr| `np`:gc: `s/np`:gc: 
+      `s[-inv]`:gc: |rarr| ``NP`` `s/np`:gc: 
 
 In order to percolate the slash feature correctly, we need to add
 slashes with variable values to both sides of the arrow in productions
-that expand `s`:gc:, `vp`:gc: and `np`:gc:. For example,
+that expand ``S``, ``VP`` and ``NP``. For example,
 
 .. ex::
    .. parsed-literal::
 
-      `vp/?x`:gc: |rarr| `v`:gc: `s-bar/?x`:gc: 
+      `vp/?x`:gc: |rarr| ``V`` `s-bar/?x`:gc: 
 
-|nopar| says that a slash value can be specified on the `vp`:gc: mother of a
-constituent if the same value is also specified on the `s-bar`:gc:
-daughter. Finally, empty_ allows the slash information on `np`:gc: to
+|nopar| says that a slash value can be specified on the ``VP`` mother of a
+constituent if the same value is also specified on the ``S-BAR``
+daughter. Finally, empty_ allows the slash information on ``NP`` to
 be discharged as the empty string.
 
 ..  _empty:
 .. ex::
    .. parsed-literal::
 
-      `np/np`:gc: |rarr|
+      ``NP/NP`` |rarr|
 
 Using code-slashcfg_, we can parse the string `who do you claim that you
 like`:lx:  into the tree shown in ex-gapparse_.
@@ -1972,7 +1972,7 @@ Exercises
 
 #. |hard| So-called `head features`:dt: are shared between the mother
    and head daughter. For example, `tense`:feat: is a head feature
-   that is shared between a `vp`:gc: and its head `v`:gc:
+   that is shared between a ``VP`` and its head ``V``
    daughter. See [Gazdar1985GPS]_ for more details. Most of the
    features we have looked at are head features |mdash| exceptions are
    `subcat`:feat: and `slash`:feat:. Since the sharing of head

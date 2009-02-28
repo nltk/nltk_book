@@ -32,7 +32,7 @@ follows:
 .. XXX "So we might adopt the heuristic that" -> "Suppose that"
 
 So we might adopt the heuristic that the subject of a sentence is the
-`np`:gc: chunk that immediately precedes the tensed verb: this would
+``NP`` chunk that immediately precedes the tensed verb: this would
 correctly yield ``(NP the/DT little/JJ bear/NN)`` as
 subject. Unfortunately, this simple rule very quickly fails, as shown
 by a more complex example.
@@ -58,27 +58,27 @@ by a more complex example.
 What's doing the "preventing" in this example is not the firm monetary
 policy, but rather the restated commitment to such a policy. We can
 also see from this example that a different simple rule, namely
-treating the initial `np`:gc: chunk  as the subject, also fails, since this
+treating the initial ``NP`` chunk  as the subject, also fails, since this
 would give us the ``(NP the/DT Exchequer/NNP)``. By contrast, a
 complete phrase structure analysis of
-the sentence would group together all the pre-verbal `np`:gc: chunks
-into a single `np`:gc: constituent:
+the sentence would group together all the pre-verbal ``NP`` chunks
+into a single ``NP`` constituent:
 
 .. ex:: 
     .. tree:: (NP(NP (NP (Nom (N Chancellor) (PP (P of)(NP (Det the) (N Exchequer))))(NP Nigel Lawson)) (POSS 's))(Nom (Adj restated)(Nom (N commitment)(PP (P to)(NP (Det a)(Nom (Adj firm) (Nom (Adj monetary)(Nom (N policy)))))))))
        :scale: 80:80:50
 
 We still have a little work to determine which part of this complex
-`np`:gc: corresponds to the "who", but nevertheless, this is much
+``NP`` corresponds to the "who", but nevertheless, this is much
 more tractable than answering the same question from a flat sequence
 of chunks.
 
 "Subject" and "direct object" are examples of `grammatical
 functions`:dt:. Although they are not captured directly in a phrase
 structure grammar, they can be defined in terms of tree
-configurations. In ex-gfs_, the subject of `s`:gc: is the `np`:gc:
-immediately dominated by  `s`:gc: while the direct object of `v`:gc:
-is the `np`:gc: directly dominated by `vp`:gc:.
+configurations. In ex-gfs_, the subject of ``S`` is the ``NP``
+immediately dominated by  ``S`` while the direct object of ``V``
+is the ``NP`` directly dominated by ``VP``.
 
 .. _ex-gfs:
 .. ex::
@@ -128,14 +128,14 @@ top-down parser processes *VP* |rarr| *V* *NP* *PP*,
 it may find *V* and *NP* but not the *PP*.  This work
 can be reused when processing *VP* |rarr| *V* *NP*.
 Thus, we will record the
-hypothesis that "the `v`:gc: constituent `likes`:lx: is the beginning of a `vp`:gc:."
+hypothesis that "the ``V`` constituent `likes`:lx: is the beginning of a ``VP``."
 
 We can do this by adding a `dot`:dt: to the edge's right hand side.
 Material to the left of the dot records what has been found so far;
 material to the right of the dot specifies what still needs to be found in order
 to complete the constituent.  For example, the edge in
-ex-dottededge_ records the hypothesis that "a `vp`:gc: starts with the `v`:gc:
-`likes`:lx:, but still needs an `np`:gc: to become complete":
+ex-dottededge_ records the hypothesis that "a ``VP`` starts with the ``V``
+`likes`:lx:, but still needs an ``NP`` to become complete":
 
 .. _ex-dottededge:
 .. ex::
@@ -149,18 +149,18 @@ Types of Edge
 -------------
 
 Let's take stock.
-An edge [`VP`:gc: |rarr| |dot| `V`:gc: `NP`:gc: `PP`:gc:, (*i*, *i*)]
-records the hypothesis that a `VP`:gc: begins at location *i*, and that we anticipate
-finding a sequence `V NP PP`:gc: starting here.  This is known as a
+An edge [``VP`` |rarr| |dot| ``V`` ``NP`` ``PP``, (*i*, *i*)]
+records the hypothesis that a ``VP`` begins at location *i*, and that we anticipate
+finding a sequence ``V NP PP`` starting here.  This is known as a
 `self-loop edge`:dt:; see ex-chart-intro-selfloop_.
-An edge [`VP`:gc: |rarr| `V`:gc: |dot| `NP`:gc: `PP`:gc:, (*i*, *j*)]
-records the fact that we have discovered a `V`:gc: spanning (*i*, *j*),
-and hypothesize a following `NP PP`:gc: sequence to complete a `VP`:gc:
+An edge [``VP`` |rarr| ``V`` |dot| ``NP`` ``PP``, (*i*, *j*)]
+records the fact that we have discovered a ``V`` spanning (*i*, *j*),
+and hypothesize a following ``NP PP`` sequence to complete a ``VP``
 beginning at *i*.  This is known as an `incomplete edge`:dt:;
 see ex-chart-intro-incomplete_.
-An edge [`VP`:gc: |rarr| `V`:gc: `NP`:gc: `PP`:gc: |dot| , (*i*, *k*)]
-records the discovery that a `VP`:gc: consisting of the sequence
-`V NP PP`:gc: has been discovered for the span (*i*, *j*).  This is known
+An edge [``VP`` |rarr| ``V`` ``NP`` ``PP`` |dot| , (*i*, *k*)]
+records the discovery that a ``VP`` consisting of the sequence
+``V NP PP`` has been discovered for the span (*i*, *j*).  This is known
 as a `complete edge`:dt:; see ex-chart-intro-parseedge_.
 If a complete edge spans the entire sentence, and has the grammar's
 start symbol as its left-hand side, then the edge is called a `parse
@@ -244,7 +244,7 @@ bottom-up parsing starts from the input string,
 and tries to find sequences of words and phrases that
 correspond to the *right hand* side of a grammar production. The
 parser then replaces these with the left-hand side of the production,
-until the whole sentence is reduced to an `S`:gc:.  Bottom-up chart
+until the whole sentence is reduced to an ``S``.  Bottom-up chart
 parsing is an extension of this approach in which hypotheses about
 structure are recorded as edges on a chart. In terms of our earlier
 terminology, bottom-up chart parsing can be seen as a parsing
@@ -296,11 +296,11 @@ for each grammar production whose right hand side begins with category
    :scale: 30
 
 The next step is to use the Fundamental Rule to add edges
-like [`np`:gc: |rarr| Lee |dot| , (0, 1)],
+like [``NP`` |rarr| Lee |dot| , (0, 1)],
 where we have "moved the dot" one position to the right.
 After this, we will now be able to add new self-loop edges such as 
-[`s`:gc: |rarr|  |dot| `np`:gc: `vp`:gc:, (0, 0)] and
-[`vp`:gc: |rarr|  |dot| `vp`:gc: `np`:gc:, (1, 1)], and use these to
+[``S`` |rarr|  |dot| ``NP`` ``VP``, (0, 0)] and
+[``VP`` |rarr|  |dot| ``VP`` ``NP``, (1, 1)], and use these to
 build more complete edges.
 
 Using these three rules, we can parse a sentence as shown in
@@ -329,29 +329,29 @@ Top-Down Parsing
 ----------------
 
 Top-down chart parsing works in a similar way to the recursive descent
-parser, in that it starts off with the top-level goal of finding an `s`:gc:.
-This goal is broken down into the subgoals of trying to find constituents such as `np`:gc: and
-`vp`:gc: predicted by the grammar.
+parser, in that it starts off with the top-level goal of finding an ``S``.
+This goal is broken down into the subgoals of trying to find constituents such as ``NP`` and
+``VP`` predicted by the grammar.
 To create a top-down chart parser, we use the Fundamental Rule as before plus
 three other rules: the `Top-Down Initialization Rule`:dt:, the `Top-Down
 Expand Rule`:dt:, and the `Top-Down Match Rule`:dt:.
 The Top-Down Initialization Rule in ex-td-init-rule_
 captures the fact that the root of any
-parse must be the start symbol `s`:gc:\.
+parse must be the start symbol ``S``\.
 
 .. _ex-td-init-rule:
-.. ex:: `Top-Down Initialization Rule`:dt: For each production `s`:gc: |rarr| |alpha|
-   add the self-loop edge [`s`:gc: |rarr| |dot|\ |alpha|\ , (0, 0)]
+.. ex:: `Top-Down Initialization Rule`:dt: For each production ``S`` |rarr| |alpha|
+   add the self-loop edge [``S`` |rarr| |dot|\ |alpha|\ , (0, 0)]
 
    |chart_td_ex1|
 
 .. |chart_td_ex1| image:: ../images/chart_td_ex1.png
    :scale: 30
 
-In our running example, we are predicting that we will be able to find an `np`:gc: and a
-`vp`:gc: starting at 0, but have not yet satisfied these subgoals.
-In order to find an  `np`:gc: we need to
-invoke a production that has `np`:gc: on its left hand side. This work
+In our running example, we are predicting that we will be able to find an ``NP`` and a
+``VP`` starting at 0, but have not yet satisfied these subgoals.
+In order to find an  ``NP`` we need to
+invoke a production that has ``NP`` on its left hand side. This work
 is done by the Top-Down Expand Rule ex-td-expand-rule_.
 This tells us that if our chart contains an incomplete
 edge whose dot is followed by a nonterminal *B*, then the parser
@@ -387,7 +387,7 @@ add an edge if the terminal corresponds to the current input symbol.
 
 Here we see our example chart after applying the Top-Down Match rule.
 After this, we can apply the fundamental rule to
-add the edge [`np`:gc: |rarr| Lee |dot| , (0, 1)].
+add the edge [``NP`` |rarr| Lee |dot| , (0, 1)].
 
 Using these four rules, we can parse a sentence top-down as shown in
 ex-top-down-strategy_.
@@ -452,8 +452,8 @@ which *P* dominates *w*. More precisely:
 
 To illustrate, suppose the input is of the form 
 `I saw ...`:lx:, and the chart already contains the edge 
-[`vp`:gc: |rarr|  |dot| `v`:gc: ..., (1, 1)]. Then the Scanner Rule will add to 
-the chart the edges [`v`:gc: |rarr| 'saw', (1, 2)]
+[``VP`` |rarr|  |dot| ``V`` ..., (1, 1)]. Then the Scanner Rule will add to 
+the chart the edges [``V`` |rarr| 'saw', (1, 2)]
 and ['saw'|rarr| |dot|\ , (1, 2)]. So in effect the Scanner Rule packages up a
 sequence of three rule applications: the Bottom-Up Initialization Rule for 
 [*w* |rarr| |dot|\ , (*j*, *j*\ +1)],
@@ -706,7 +706,7 @@ is the product of the probability of the production that
 generated it and the probabilities of its children.  For example, the
 probability of the edge ``[Edge: S`` |rarr| ``NP``\ |dot|\ ``VP, 0:2]``
 is the probability of the PCFG production ``S`` |rarr| ``NP VP``
-multiplied by the probability of its `np`:gc: child.
+multiplied by the probability of its ``NP`` child.
 (Note that an edge's tree only includes children for elements to the left
 of the edge's dot.)
 
