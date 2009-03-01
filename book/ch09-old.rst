@@ -1735,7 +1735,7 @@ Summary
 
 * Two features can share a value (either atomic or
   complex). Structures with shared values are said to be
-  re-entrant. Shared values are represented by numerical indices (or
+  re-entrant. Shared values are represented by numerical indexes (or
   tags) in AVMs.
 
 * A path in a feature structure is a tuple of features

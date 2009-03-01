@@ -25,6 +25,8 @@ Wikipedia has entries for |NLP| and its subfields
 (but don't confuse natural language processing with
 the other |NLP|\ : neuro-linguistic programming).
 
+``http://www.statmt.org/``
+
 ----------------------------------
 NLP Systems with Online Interfaces
 ----------------------------------
