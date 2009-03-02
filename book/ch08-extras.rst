@@ -258,7 +258,7 @@ bottom-up, the base case for our induction will be determined by the
 words in the input string, so we add new edges for each word.  Now,
 for the induction step, suppose the chart contains an edge labeled
 with constituent *A*. Since we are working bottom-up, we want to build
-constituents that can have an *A* as a daughter. In other words, we
+constituents that can have an *A* as a child. In other words, we
 are going to look for productions of the form *B* |rarr| *A* |beta| and use
 these to label new edges.
 
