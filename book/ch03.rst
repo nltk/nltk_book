@@ -1464,21 +1464,25 @@ Searching Tokenized Text
 You can use a special kind of regular expression for searching across multiple words
 in a text (where a text is a list of tokens).  For example, ``"<a> <man>"`` finds all
 instances of `a man`:lx: in the text.  The angle brackets are used to mark token boundaries,
-and any whitespace between the angle brackets is ignored.
-
-.. XXX this is our own syntax!  Explain this is specialized in NLTK.
+and any whitespace between the angle brackets is ignored (behaviors that are unique
+to |NLTK|\ 's ``findall()`` method for texts).  In the following example, we include
+``<.*>`` single-token-wildcard_ which will match any single token, and enclose it in parentheses so only the
+matched word (e.g. `monied`:lx:) and not the matched phrase (e.g. `a monied man`:lx:)
+is produced.  The second example finds three-word phrases ending with the word `bro`:lx:
+three-word-phrases_.  The last example finds sequences of three or more words starting with
+the letter `l`:lx: letter-l_.
 
     >>> from nltk.corpus import gutenberg, nps_chat
     >>> moby = nltk.Text(gutenberg.words('melville-moby_dick.txt'))
-    >>> moby.findall(r"<a> (<.*>) <man>")
+    >>> moby.findall(r"<a> (<.*>) <man>") # [_single-token-wildcard]
     monied; nervous; dangerous; white; white; white; pious; queer; good;
     mature; white; Cape; great; wise; wise; butterless; white; fiendish;
     pale; furious; better; certain; complete; dismasted; younger; brave;
     brave; brave; brave
     >>> chat = nltk.Text(nps_chat.words())
-    >>> chat.findall(r"<.*> <.*> <bro>")
+    >>> chat.findall(r"<.*> <.*> <bro>") # [_three-word-phrases]
     you rule bro; telling you bro; u twizted bro
-    >>> chat.findall(r"<l.*>{3,}")
+    >>> chat.findall(r"<l.*>{3,}") # [_letter-l]
     lol lol lol; lmao lol lol; lol lol lol; la la la la la; la la la; la
     la la; lovely lol lol love; lol lol lol.; la la la; la la la
 
@@ -1578,45 +1582,46 @@ Stemming is not a well-defined process, and we typically pick the stemmer that b
 suits the application we have in mind.  The Porter Stemmer is a good choice if you
 are indexing some texts and want to support search using alternative forms of
 words (illustrated in code-stemmer-indexing_, which uses *object oriented*
-programming techniques that are outside the scope of this book, and string formatting
-techniques to be covered in sec-formatting_). 
+programming techniques that are outside the scope of this book, string formatting
+techniques to be covered in sec-formatting_, and the ``enumerate()`` function
+to be explained in sec-sequences_). 
 
 .. pylisting:: code-stemmer-indexing
    :caption: Indexing a Text Using a Stemmer
 
-    class IndexedText(object):
+   class IndexedText(object):
 
-        def __init__(self, stemmer, text):
-            self._text = text
-            self._stemmer = stemmer
-            self._index = nltk.Index((self._stem(word), i)
-                                     for (i, word) in enumerate(text))
+       def __init__(self, stemmer, text):
+           self._text = text
+           self._stemmer = stemmer
+           self._index = nltk.Index((self._stem(word), i)
+                                    for (i, word) in enumerate(text))
 
-        def concordance(self, word, width=40):
-            key = self._stem(word)
-            wc = width/4                # words of context
-            for i in self._index[key]:
-                lcontext = ' '.join(self._text[i-wc:i])
-                rcontext = ' '.join(self._text[i:i+wc])
-                ldisplay = '%*s'  % (width, lcontext[-width:])
-                rdisplay = '%-*s' % (width, rcontext[:width])
-                print ldisplay, rdisplay
+       def concordance(self, word, width=40):
+           key = self._stem(word)
+           wc = width/4                # words of context
+           for i in self._index[key]:
+               lcontext = ' '.join(self._text[i-wc:i])
+               rcontext = ' '.join(self._text[i:i+wc])
+               ldisplay = '%*s'  % (width, lcontext[-width:])
+               rdisplay = '%-*s' % (width, rcontext[:width])
+               print ldisplay, rdisplay
 
-        def _stem(self, word):
-            return self._stemmer.stem(word).lower()
+       def _stem(self, word):
+           return self._stemmer.stem(word).lower()
 
-    >>> porter = nltk.PorterStemmer()
-    >>> grail = nltk.corpus.webtext.words('grail.txt')
-    >>> text = IndexedText(porter, grail)
-    >>> text.concordance('lie')
-    r king ! DENNIS : Listen , strange women lying in ponds distributing swords is no
-     beat a very brave retreat . ROBIN : All lies ! MINSTREL : [ singing ] Bravest of
-           Nay . Nay . Come . Come . You may lie here . Oh , but you are wounded !   
-    doctors immediately ! No , no , please ! Lie down . [ clap clap ] PIGLET : Well  
-    ere is much danger , for beyond the cave lies the Gorge of Eternal Peril , which 
-       you . Oh ... TIM : To the north there lies a cave -- the cave of Caerbannog --
-    h it and lived ! Bones of full fifty men lie strewn about its lair . So , brave k
-    not stop our fight ' til each one of you lies dead , and the Holy Grail returns t
+   >>> porter = nltk.PorterStemmer()
+   >>> grail = nltk.corpus.webtext.words('grail.txt')
+   >>> text = IndexedText(porter, grail)
+   >>> text.concordance('lie')
+   r king ! DENNIS : Listen , strange women lying in ponds distributing swords is no
+    beat a very brave retreat . ROBIN : All lies ! MINSTREL : [ singing ] Bravest of
+          Nay . Nay . Come . Come . You may lie here . Oh , but you are wounded !   
+   doctors immediately ! No , no , please ! Lie down . [ clap clap ] PIGLET : Well  
+   ere is much danger , for beyond the cave lies the Gorge of Eternal Peril , which 
+      you . Oh ... TIM : To the north there lies a cave -- the cave of Caerbannog --
+   h it and lived ! Bones of full fifty men lie strewn about its lair . So , brave k
+   not stop our fight ' til each one of you lies dead , and the Holy Grail returns t
 
 
 Lemmatization
@@ -1710,8 +1715,9 @@ can split on anything *other* than a word character:
     'Maybe', 'it', 's', 'always', 'pepper', 'that', 'makes', 'people', 'hot', 'tempered',
     '']
 
-Observe that this gives us empty strings [explain why].  We get the same result using
-``re.findall(r'\w+', raw)``, using a pattern that matches the words instead of the spaces.
+Observe that this gives us empty strings at the start and the end (to understand
+why, try doing ``'xx'.split('x')``).  We get the same tokens, but without the empty strings,
+with ``re.findall(r'\w+', raw)``, using a pattern that matches the words instead of the spaces.
 Now that we're matching the words, we're in a position to extend the regular expression
 to cover a wider range of cases.
 The regular expression |l|\ ``\w+|\S\w*``\ |r| will first try to match any sequence
@@ -1747,7 +1753,7 @@ The above expression also included |l|\ ``[-.(]+``\ |r| which causes the double 
 ellipsis, and open parenthesis to be tokenized separately.
 
 tab-re-symbols_ lists the regular expression character class symbols we have
-seen in this section.
+seen in this section, in addition to some other useful symbols.
 
 .. table:: tab-re-symbols
 
@@ -1788,9 +1794,11 @@ tells Python to strip out the embedded whitespace and comments.
     >>> nltk.regexp_tokenize(text, pattern)
     ['That', 'U.S.A.', 'poster-print', 'costs', '$12.40', '...']
 
+When using the verbose flag, you can no longer use ``' '`` to match
+a space character; use ``\s`` instead.
 The ``regexp_tokenize()`` function has an optional ``gaps`` parameter.
 When set to ``True``, the regular expression specifies the gaps
-between tokens (cf ``re.split()``).
+between tokens, as with ``re.split()``.
 
 .. note::
    We can evaluate a tokenizer by comparing the resulting tokens with a
@@ -1838,9 +1846,8 @@ sentence in the Brown Corpus:
 
 In other cases, the text is only available as a stream of characters.  Before
 tokenizing the text into words, we need to segment it into sentences.  NLTK facilitates
-this by including the Punkt sentence segmenter [KissStrunk2006]_, along with
-supporting data for English.  Here is an example of its use in segmenting
-the text of a novel:
+this by including the Punkt sentence segmenter [KissStrunk2006]_.
+Here is an example of its use in segmenting the text of a novel:
 
     >>> sent_tokenizer=nltk.data.load('tokenizers/punkt/english.pickle')
     >>> text = nltk.corpus.gutenberg.raw('chesterton-thursday.txt')
@@ -1861,10 +1868,11 @@ Notice that this example is really a single sentence, reporting the speech of Mr
 However, the quoted speech contains several sentences, and these have been split into individual
 strings.  This is reasonable behavior for most applications.
 
-[TODO: Explain how sentence segmentation followed by word tokenization can give
-different results to word tokenization on its own.]
+Sentence segmentation is difficult because period is used to mark abbreviations,
+and some periods simultaneously mark an abbreviation and terminate a sentence,
+as often happens with acronyms like `U.S.A.`:lx:
 
-[TODO: add xref to discussion of sentence segmentation in chapter 6]
+For another approach to sentence segmentation, see sec-further-examples-of-supervised-classification_.
 
 Word Segmentation
 -----------------
@@ -2038,7 +2046,8 @@ the string to be used as the "glue".
 
 So ``' '.join(silly)`` means: take all the items in ``silly`` and
 concatenate them as one big string, using ``' '`` as a spacer between
-the items.  (Many people find this notation for ``join()`` counter-intuitive.)
+the items.  I.e. ``join()`` is a method of the string that you want to
+use as the glue.  (Many people find this notation for ``join()`` counter-intuitive.)
 The ``join()`` function only works on a list of strings |mdash| what we have been calling a text
 |mdash| a complex type that enjoys some privileges in Python.
 
@@ -2170,7 +2179,7 @@ An important use of formatting strings is for tabulating data.
 Recall that in sec-extracting-text-from-corpora_ we saw
 data being tabulated from a conditional frequency distribution.
 Let's perform the tabulation ourselves, exercising full control
-of headings and column widths.
+of headings and column widths, as shown in code-modal-tabulate_.
 Note the clear separation between the language processing work,
 and the tabulation of results.
 
@@ -2237,9 +2246,7 @@ output to the file.
 
 When we write non-text data to a file we must convert it to a string first.
 We can do this conversion using formatting strings, as we saw above.
-We can also do it using Python's backquote notation, which converts any
-object into a string.  Let's write the total number of words to our
-file, before closing it.
+Let's write the total number of words to our file, before closing it.
 
     >>> len(words)
     2789
@@ -2295,7 +2302,7 @@ Summary
   typically store and visualize a text.
 * A string is specified in Python using single or double quotes: ``'Monty Python'``, ``"Monty Python"``.
 * The characters of a string are accessed using indexes, counting from zero:
-  ``'Monty Python'[1]`` gives the value ``o``.  The length of a string is
+  ``'Monty Python'[0]`` gives the value ``M``.  The length of a string is
   found using ``len()``.
 * Substrings are accessed using slice notation: ``'Monty Python'[1:5]``
   gives the value ``onty``.  If the start index is omitted, the
@@ -2456,7 +2463,7 @@ Exercises
    #) ``([^aeiou][aeiou][^aeiou])*``
    #) ``\w+|[^\w\s]+``
 
-   Test your answers using ``re_show()``.
+   Test your answers using ``nltk.re_show()``.
 
 #. |easy| Write regular expressions to match the following classes of strings:
 
@@ -2477,8 +2484,8 @@ Exercises
 
    a) Use ``nltk.regexp_tokenize()`` to create a tokenizer that tokenizes
       the various kinds of punctuation in this text.  Use a single
-      regular expression, with inline comments using the
-      ``re.VERBOSE`` flag.
+      regular expression, with clear setting out and inline comments,
+      using the verbose flag ``(?x)``.
    b) Use ``nltk.regexp_tokenize()`` to create a tokenizer that tokenizes
       the following kinds of expression: monetary amounts; dates; names
       of people and companies.
@@ -2565,38 +2572,11 @@ Exercises
    preserved. Define further regular expressions that improve the
    extraction of text from this web page.
 
-#. |soso| Define a function ``ghits()`` that takes a word as its argument and
-   builds a Google query string of the form ``http://www.google.com/search?q=word``.
-   Strip the |HTML| markup and normalize whitespace.  Search for a substring
-   of the form ``Results 1 - 10 of about``, followed by some number
-   `n`:math:,  and extract `n`:math:.
-   Convert this to an integer and return it.
-
-#. |soso| The above example of extracting (name, domain) pairs from
-   text does not work when there is more than one email address
-   on a line, because the ``+`` operator is "greedy" and consumes
-   too much of the input.
-
-   a) Experiment with input text containing more than one email address
-      per line, such as that shown below.  What happens?
-   #) Using ``re.findall()``, write another regular expression
-      to extract email addresses, replacing the period character
-      with a range or negated range, such as ``[a-z]+`` or ``[^ >]+``.
-   #) Now try to match email addresses by changing the regular
-      expression ``.+`` to its "non-greedy" counterpart, ``.+?``
-
-   >>> s = """
-   ... austen-emma.txt:hart@vmd.cso.uiuc.edu  (internet)  hart@uiucvmd (bitnet)
-   ... austen-emma.txt:Internet (72600.2026@compuserve.com); TEL: (212-254-5093)
-   ... austen-persuasion.txt:Editing by Martin Ward (Martin.Ward@uk.ac.durham)
-   ... blake-songs.txt:Prepared by David Price, email ccx074@coventry.ac.uk
-   ... """
-
 #. |soso| Are you able to write a regular expression to tokenize text in such
    a way that the word `don't`:lx: is tokenized into `do`:lx: and `n't`:lx:?
    Explain why this regular expression won't work: |l|\ ``n't|\w+``\ |r|.
 
-#. |soso| Write code to convert text into *hAck3r*, using regular expressions
+#. |soso| Twy to write code to convert text into *hAck3r*, using regular expressions
    and substitution, where
    ``e`` |rarr| ``3``,
    ``i`` |rarr| ``1``,
@@ -2701,15 +2681,9 @@ Exercises
       build a list ``phrase`` consisting of all the words up to (but not
       including) ``in`` in ``silly``.
 
-#. |soso| Write code to abbreviate text by removing all the vowels.
-   Define ``sentence`` to hold any string you like, then initialize
-   a new string ``result`` to hold the empty string ``''``.  Now write
-   a ``for`` loop to process the string, one character at a time,
-   and append any non-vowel characters to the result string.
-
 #. |soso| Write code to convert nationality adjectives like `Canadian`:lx: and
-   `Australian`:lx: to their corresponding nouns `Canada`:lx: and `Australia`:lx:.
-   (see ``http://en.wikipedia.org/wiki/List_of_adjectival_forms_of_place_names``)
+   `Australian`:lx: to their corresponding nouns `Canada`:lx: and `Australia`:lx:
+   (see ``http://en.wikipedia.org/wiki/List_of_adjectival_forms_of_place_names``).
 
 #. |soso| Read the LanguageLog post on phrases of the form `as best as p can`:lx:
    and `as best p can`:lx:, where `p`:lx: is a pronoun.   Investigate this
@@ -2736,15 +2710,14 @@ Exercises
    b) Use ``re.sub()`` to remove the ``\n`` character from these
       words.
 
+   c) How might you identify words that should not remain hyphenated
+      once the newline is removed, e.g. ``'encyclo-\npedia'``.
+
 #. |hard| Read the Wikipedia entry on *Soundex*.  Implement this
    algorithm in Python.
 
-#. |hard| Define a function ``percent(word, text)`` that calculates
-   how often a given word occurs in a text, and expresses the result
-   as a percentage.
-
 #. |hard| Obtain raw texts from two or more genres and compute their respective
-   reading difficulty scores as in the previous exercise.
+   reading difficulty scores as in the earlier exercise on reading difficulty.
    E.g. compare ABC Rural News and ABC Science News (``nltk.corpus.abc``).
    Use Punkt to perform sentence segmentation.
 
@@ -2780,9 +2753,17 @@ Exercises
    
 #. |hard| Write a program that processes a text and discovers
    cases where a word has been used with a novel sense.
-   For each word, compute the wordnet similarity
+   For each word, compute the WordNet similarity
    between all synsets of the word and all synsets of the
    words in its context.  (Note that this is a crude
    approach; doing it well is a difficult, open research problem.)
+
+.. no longer works, need UserAgent spoofing
+   #. |soso| Define a function ``ghits()`` that takes a word as its argument and
+      builds a Google query string of the form ``http://www.google.com/search?q=word``.
+      Strip the |HTML| markup and normalize whitespace.  Search for a substring
+      of the form ``Results 1 - 10 of about``, followed by some number
+      `n`:math:,  and extract `n`:math:.
+      Convert this to an integer and return it.
 
 .. include:: footer.rst
