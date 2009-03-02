@@ -176,6 +176,7 @@
   .. |tau| unicode:: U+03C4
   .. |rho| unicode:: U+03C1
   .. |Sigma| unicode:: U+03A3
+  .. |sum| unicode:: U+03A3
   .. |Omega| unicode:: U+03A9
   
   .. Chinese
