@@ -939,7 +939,7 @@ The above example has been laid out nicely using whitespace, but it could
 equally have been put on a single, long line.  Our approach to processing
 XML will usually not be sensitive to whitespace.  In order for XML to be
 "well formed", all opening tags must have corresponding closing tags, at the
-same level of nesting.
+same level of nesting (i.e. the XML document must be a well-formed tree).
 
 XML permits us to repeat elements, e.g. to add another gloss field as we see below.
 We will use different whitespace to underscore the point that layout
@@ -1007,7 +1007,7 @@ We can use XML to represent many kinds of linguistic information
 However the flexibility comes at a price.  Each time we introduce a complication, e.g. by permitting
 an element to be optional or repeated, we make more work for any program
 that accesses the data.  We also make it more difficult to check the validity of the
-data.
+data, or to interrogate the data using one of the XML query languages.
 
 Thus, using XML to represent linguistic structures does not magically solve the data
 modeling problem.  We still have to work out how to structure the data,
@@ -1031,33 +1031,69 @@ both words and senses must be enumerated separately, as must the
 list of (word, sense) pairings.  This complex structure might be split
 across three separate XML files.
 
-As we can see, XML is no panacea.  It provides us with a convenient format,
-accompanied by an extensive collection of tools.
+As we can see, although XML provides us with a convenient format,
+accompanied by an extensive collection of tools, it is no panacea.
 
-ElementTree API
----------------
+The ElementTree Interface 
+-------------------------
 
-[Requires Python 2.5, included with NLTK for convenience.]
+Python's ElementTree module provides a convenient way to access
+data stored in XML files.  ElementTree is part of Python's
+standard library (since Python 2.5), and is also provided as
+part of NLTK in case you are using Python 2.4.
 
-[Overview of Shakespeare XML Corpus]
+We will illustrate the use of ElementTree using a collection
+of Shakespeare plays that have been formatted using XML.
+Let's load the XML file and inspect the raw data, first
+at the top of the file top-of-file_, where we see some
+XML headers and the name of a schema called ``play.dtd``,
+followed by the `root element`:dt: ``PLAY``.
+We pick it up again at the start of Act 1 start-act-one_.
+(Some blank lines have been omitted from the output.)
+
+.. doctest-ignore::   
+    >>> merchant_file = nltk.data.find('corpora/shakespeare/merchant.xml')
+    >>> raw = open(merchant_file).read()
+    >>> print raw[0:168] # [_top-of-file]
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/css" href="shakes.css"?>
+    <!-- <!DOCTYPE PLAY SYSTEM "play.dtd"> -->
+    <PLAY>
+    <TITLE>The Merchant of Venice</TITLE>
+    >>> print raw[1850:2075] # [_start-act-one]
+    <TITLE>ACT I</TITLE>
+    <SCENE><TITLE>SCENE I.  Venice. A street.</TITLE>
+    <STAGEDIR>Enter ANTONIO, SALARINO, and SALANIO</STAGEDIR>
+    <SPEECH>
+    <SPEAKER>ANTONIO</SPEAKER>
+    <LINE>In sooth, I know not why I am so sad:</LINE>
+
+We have just accessed the XML data as a string.  As we can see,
+the string at the start of Act 1 contains XML tags for title, scene, stage directions, and so forth.
+
+The next step is to process the file contents as structured XML data,
+using ``ElementTree``.  We are processing a file (a multi-line string)
+and building a tree, so its not surprising that the method name is ``parse`` xml-parse_.
+The variable ``merchant`` contains an XML element ``PLAY`` element-play_.
+This element has internal structure; we can use an index
+to get its first child, a ``TITLE`` element element-title_.
+We can also see the text content of this element, the title of the play element-text_.
+To get a list of all the child elements, we use the
+``getchildren()`` method getchildren-method_.
 
     >>> from nltk.etree.ElementTree import ElementTree
-    >>> xml = nltk.data.find('corpora/shakespeare/merchant.xml')
-    >>> merchant = ElementTree().parse(xml)
+    >>> merchant = ElementTree().parse(merchant_file) # [_xml-parse]
+    >>> merchant
+    <Element PLAY at 22fa800> # [_element-play]
     >>> merchant[0]
-    <Element TITLE at 2101670>
+    <Element TITLE at 22fa828> # [_element-title]
     >>> merchant[0].text
-    'The Merchant of Venice'
+    'The Merchant of Venice' # [_element-text]
+    >>> merchant.getchildren() # [_getchildren-method]
+    [<Element TITLE at 22fa828>, <Element PERSONAE at 22fa7b0>, <Element SCNDESCR at 2300170>,
+    <Element PLAYSUBT at 2300198>, <Element ACT at 23001e8>, <Element ACT at 234ec88>,
+    <Element ACT at 23c87d8>, <Element ACT at 2439198>, <Element ACT at 24923c8>]
 
-The variable ``merchant`` contains an XML tree.  Its first child is a TITLE element,
-whose text content is the name of the play.  We can access the other children as
-follows:
-
-    >>> merchant.getchildren()
-    [<Element TITLE at 2101670>, <Element PERSONAE at 21016c0>, <Element SCNDESCR at 2101eb8>,
-    <Element PLAYSUBT at 2101ee0>, <Element ACT at 2101f30>, <Element ACT at 2156a08>,
-    <Element ACT at 21e2558>, <Element ACT at 224cee0>, <Element ACT at 22ac148>]
-    
 The play consists of a title, the personae, a scene description, a subtitle, and five acts.
 Each act has a title and some scenes, and each scene consists of speeches which are made
 up of lines, a structure with four levels of nesting.  Let's dig down into Act IV: 
@@ -1078,6 +1114,11 @@ up of lines, a structure with four levels of nesting.  Let's dig down into Act I
     <Element LINE at 226eee0>
     >>> merchant[-2][1][54][1].text
     "The quality of mercy is not strain'd,"
+
+.. note:: |TRY|
+   Repeat some of the above methods, for one of the other Shakespeare plays
+   included in the corpus, such as `Romeo and Juliet`:em: or `Macbeth`:em:
+   (for a list, see ``nltk.corpus.shakespeare.fileids()``).
 
 Although we can access the entire tree this way, it is more convenient to search for
 sub-elements with particular names.  Recall that the elements at the top level have
@@ -1139,8 +1180,8 @@ sec-dictionaries_.
 Ignoring the entry of ``153`` for exchanges between people other than the top 5,
 the largest values suggest that Othello and Portia have the most significant interactions.
 
-Using XML API for working with Toolbox Data
--------------------------------------------
+Using ElementTree for Accessing Toolbox Data
+--------------------------------------------
 
 In sec-lexical-resources_ we saw a simple interface
 for accessing Toolbox data, a popular and well-established format
