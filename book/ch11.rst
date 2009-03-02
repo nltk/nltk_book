@@ -747,18 +747,17 @@ of data and access tools over time.
 
 One response to this situation has been to forge ahead with generic formats
 which are sufficiently expressive to capture a wide variety of
-annotation types.  However, these have problems of their own.
-More expressive formats allow the equivalent information to be expressed in
-multiple ways, and make validation a much more complex process.
+annotation types within a single model.  Please see sec-further-reading-data_ for pointers
+to representative work in this area.  A challenge when working with
+any generic format is that validation is a more complex process. 
 For example, if the annotation task involves creating trees, and the
 underlying notation permits arbitrary directed graphs, then the validation
-process must check rootedness and connectedness properties.
+process must check rootedness and connectedness properties required for trees.
 Developing annotation tools that work with these generic formats is
-also problematic, e.g. a tree annotation tool could only load a subset
-of the data that can be expressed in the format, so must do extra checking.
-Notable attempts at general-purpose annotation formats,
-such as *Universal Transcription Format* and the *Corpus Encoding Standard*,
-have had little traction away from the institutions where they were developed. 
+also challenging, e.g. a tree annotation tool could only load a subset
+of the data that can be expressed in the generic format.  Once modified
+data was saved back to the file format, information about any non-tree
+annotations may be lost.
 
 Another response has been to write one-off scripts
 to manipulate corpus formats.  The filespace of many members of the
@@ -774,24 +773,22 @@ only needs to be done once (per programming language), then it can be shared.
    A Common Format vs A Common Interface
 
 Instead of focussing on a common format, we believe it is more promising to
-develop a common interface (cf ``nltk.corpus``).  For example,
-there are many ways to store a phrase structure tree in a file.
-We can use nested parentheses, nested XML elements,
-a dependency notation with a (child-id, parent-id) pair on each line, and so on.
-However, the logical tree structure in each case is the same, making it easy
-to come up with a common interface.  This parallels some central themes
-in computer science such as abstract data types, object oriented design,
+develop a common interface, e.g. ``nltk.corpus``.  Consider the
+case of treebanks, an important corpus type for work in |NLP|.
+There are many ways to store a phrase structure tree in a file.
+We can use nested parentheses, or nested XML elements,
+or a dependency notation with a (child-id, parent-id) pair on each line,
+or an XML version of the dependency notation, etc.
+However, in each case the logical tree structure in is the same, making it easy
+to devise a common interface.  This approach follows pervasive practice within
+computer science, viz. abstract data types, object oriented design,
 and the three layer architecture (fig-three-layer-arch_).
-The last of these, from the world of relational databases,
+The last of these |mdash| from the world of relational databases |mdash|
 allows end-user applications to use a common model (the "relational model")
-and a common language (SQL), abstracting away from questions of file storage.
-Innovations in storage can take place without requiring any change to
-end-user applications.
-
-
-
-
-
+and a common language (SQL), to abstracting away from the idiosyncrasies
+of file storage.  Innovations in storage can take place without requiring
+end-user applications to be updated.  In the same way, a common corpus
+interface insulates user programs from data formats.
 
 Special Considerations when Working with Endangered Languages
 -------------------------------------------------------------
@@ -822,8 +819,10 @@ to have better tools for collecting and curating data, with a focus
 on texts and lexicons.
 
 On the face of it, it should be a straightforward matter to start collecting texts
-in an endangered language.  However, this presupposes a transcription
-system, since most languages lack a standard orthography.  If a language
+in an endangered language.  Even if we ignore vexed issues such as who
+owns the texts, and sensitivities within the texts such as secret cultural knowledge,
+there is the obvious practical issue of transcription.
+Most languages lack a standard orthography.  If a language
 has no literary tradition, there will not be established spellings for
 words, or conventions for punctuation.  Therefore it is usually necessary
 to create a lexicon in tandem with a text collection, continually updating
@@ -890,6 +889,15 @@ simple interface to the user:
     >>> fuzzy_spell('nucular')
     ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
 
+This is just one illustration where a simple program can facilitate access to lexical
+data in a context where the writing system of a language may not be standardized, or
+where users of the language may not have a good command of spellings.  Other simple
+applications of |NLP| in this area include: building indexes to facilitate access to
+data, gleaning wordlists from texts,
+locating examples of word usage in constructing a lexicon, detecting prevalent or
+exceptional patterns in poorly understood data, and performing specialized validation
+on data created using various linguistic software tools.  We will return to the last
+of these in sec-ref-toolbox_. 
 
 .. _sec-working-with-XML:
 
@@ -902,50 +910,129 @@ domain-specific markup languages.  It is sometimes used for representing
 annotated text and for lexical resources.  Unlike HTML, with its predefined
 tags, XML permits us to make up our own tags.  Unlike a database, XML
 permits us to create data without first specifying its structure, and it
-permits us to have optional and repeatable elements.
+permits us to have optional and repeatable elements.  In this section
+we briefly review some features of XML that are relevant for representing
+linguistic data, and show how to access data stored in XML files using
+Python programs.  
 
 Using XML for Linguistic Structures
 -----------------------------------
 
 Thanks to its flexibility and extensibility, XML is a natural
 choice for representing linguistic structures.  Here's an example
-of a simple lexical entry:
+of a simple lexical entry.
 
-|  <entry>
-|    <headword>whale</headword>
-|    <pos>noun</pos>
-|    <gloss>any of the larger cetacean mammals having a streamlined
-|       body and breathing through a blowhole on the head</gloss>
-|  </entry>
+.. ex::
+   ::
 
-[well-formedness; significance of whitespace]
+     <entry>
+       <headword>whale</headword>
+       <pos>noun</pos>
+       <gloss>any of the larger cetacean mammals having a streamlined
+         body and breathing through a blowhole on the head</gloss>
+     </entry>
 
-[adding extra fields; second gloss: "a very large person; impressive in size or qualities"]
+It consists of a series of XML tags enclosed in angle brackets.
+Each opening tag, like ``<gloss>`` is matched with a closing tag, like ``</gloss>``;
+together they constitute an `XML element`:dt:.
+The above example has been laid out nicely using whitespace, but it could
+equally have been put on a single, long line.  Our approach to processing
+XML will usually not be sensitive to whitespace.  In order for XML to be
+"well formed", all opening tags must have corresponding closing tags, at the
+same level of nesting.
 
-[added nested structure, e.g. for gloss and translation into another language.]
+XML permits us to repeat elements, e.g. to add another gloss field as we see below.
+We will use different whitespace to underscore the point that layout
+does not matter.
 
-[fields that are conditional on the value of other fields, e.g. nouns should have
-plural (if irregular); verbs should have past tense (if irregular)]
+.. ex::
+   ::
 
-[representing parse trees]
+     <entry><headword>whale</headword><pos>noun</pos><gloss>any of the larger cetacean
+     mammals having a streamlined body and breathing through a blowhole on the head</gloss>
+     <gloss>a very large person; impressive in size or qualities</gloss></entry>
+
+A further step might be to link our lexicon to some external resource, such as WordNet,
+using external identifiers.  In ex-xml-nested_ we group the gloss and a synset identifier
+inside a new element which we have called "sense".
+
+.. _ex-xml-nested:
+.. ex::
+   :: 
+
+     <entry>
+       <headword>whale</headword>
+       <pos>noun</pos>
+       <sense>
+         <gloss>any of the larger cetacean mammals having a streamlined
+           body and breathing through a blowhole on the head</gloss>
+         <synset>whale.n.02</synset>
+       </sense>
+         <gloss>a very large person; impressive in size or qualities</gloss>
+         <synset>giant.n.04</synset>
+       </sense>
+     </entry>
+
+Alternatively, we could have represented the synset identifier using an `XML attribute`:dt:,
+without the need for any nested structure, as in ex-xml-attribute_. 
+
+.. _ex-xml-attribute:
+.. ex::
+   :: 
+
+     <entry>
+       <headword>whale</headword>
+       <pos>noun</pos>
+       <gloss synset="whale.n.02">any of the larger cetacean mammals having
+           a streamlined body and breathing through a blowhole on the head</gloss>
+       <gloss synset="giant.n.04">a very large person; impressive in size or
+           qualities</gloss>
+     </entry>
+
+This illustrates some of the flexibility of XML.  If it seems somewhat arbitrary
+that's because it is.  Following the rules of XML we can invent new attribute
+names, and nest them as deeply as we like.  We can repeat elements, leave them
+out, and put them in a different order each time.  We can have fields whose
+presence depends on the value of some other field (e.g. if the part of speech
+is "verb", then the entry has a ``past_tense`` element to hold the
+past tense of the verb).  To impose some order over all
+this freedom, we can constrain the structure of an XML file using a "schema,"
+which is a declaration akin to a context free grammar.  Tools exist for
+testing the `validity`:dt: of an XML file with respect to a schema.
 
 The Role of XML
 ---------------
 
-We can use XML to represent linguistic information, however the flexibility
-comes at a price.  Each time we introduce a complication, e.g. by permitting
+We can use XML to represent many kinds of linguistic information
+However the flexibility comes at a price.  Each time we introduce a complication, e.g. by permitting
 an element to be optional or repeated, we make more work for any program
-that accesses the data.  We also make it harder to check the validity of the
+that accesses the data.  We also make it more difficult to check the validity of the
 data.
 
 Thus, using XML to represent linguistic structures does not magically solve the data
-modeling problem, the data interchange problem, or the data validation problem.
-We still have to work out how best to structure the data,
-and write programs to read and write the format, and to validate the data.
+modeling problem.  We still have to work out how to structure the data,
+then define that structure with a schema, and then
+write programs to read and write the format and convert it to other formats.
+Similarly, we still need to follow some standard principles concerning
+data normalization.  It is wise to avoid making duplicate copies of the
+same information, so that we don't end up with inconsistent data when
+only one copy is changed.  For example, a cross-reference that was
+represented as ``<xref>headword</xref>`` would duplicate the storage
+of the headword of some other lexical entry, and the link would break
+if the copy of the string at the other location was modified.
+Existential dependencies between information types need to be
+modeled, so that we can't create elements without a home.
+For example, if sense definitions cannot exist independently
+of a lexical entry, the ``sense`` element can be nested inside the ``entry``
+element.  Many-to-many relations need to be abstracted out of
+hierarchical structures.  For example, if a word can have many corresponding
+senses, and a sense can have several corresponding words, then
+both words and senses must be enumerated separately, as must the
+list of (word, sense) pairings.  This complex structure might be split
+across three separate XML files.
 
-[Some principles of normalization from databases that apply to XML:
-not duplicating information but storing it once; identifying
-dependencies; dealing with many-to-many relations.]  
+As we can see, XML is no panacea.  It provides us with a convenient format,
+accompanied by an extensive collection of tools.
 
 ElementTree API
 ---------------
@@ -1052,9 +1139,6 @@ sec-dictionaries_.
 Ignoring the entry of ``153`` for exchanges between people other than the top 5,
 the largest values suggest that Othello and Portia have the most significant interactions.
 
-Clustering
-
-
 Using XML API for working with Toolbox Data
 -------------------------------------------
 
@@ -1148,6 +1232,11 @@ It produces HTML elements ``<table>``, ``<tr>`` (table row), and
       <tr><td>kakarau</td><td>N</td><td>frog</td></tr>
     </table>
 
+.. _sec-working-with-toolbox-data:
+
+-------------------------
+Working with Toolbox Data
+-------------------------
 
 It is often convenient to add new fields that are derived automatically from
 existing ones.  Such fields often facilitate search and analysis.
@@ -1444,6 +1533,7 @@ Summary
   * corpus structure, balance, documentation
   * OLAC
 
+.. _sec-further-reading-data:
 
 ---------------
 Further Reading
@@ -1482,6 +1572,10 @@ Web-as-corpus resources, SIGWAC, CLEANEVAL
 
 Annotation standards and XML: SIGANN.
 
+XML book: many books... 
+
+Linguistic Annotation Page: ``http://www.ldc.upenn.edu/annotation/``
+
 **Annotation models and tools:**
 An extensive set of models and tools are available, surveyed at
 ``http://www.exmaralda.org/annotation/``.
@@ -1503,6 +1597,8 @@ Three layer architecture in linguistic annotation
 
 `General Ontology for Linguistic Description`:dt: (GOLD)
 ``http://www.linguistics-ontology.org/``
+
+LaTeCH workshops on language technology for cultural heritage data.
 
 ---------
 Exercises
@@ -1550,6 +1646,17 @@ Exercises
    spreadsheet in CSV format.  Write Python code to read the CSV file and print it in
    Toolbox format, using ``lx`` for the headword, ``ps`` for the part of speech,
    and ``gl`` for the gloss.
+
+#. |soso| Index the words of Shakespeare's plays, with the help of ``nltk.Index``.
+   The resulting data structure should permit lookup on individual words such as `music`:lx:,
+   returning a list of references to acts, scenes and speeches, of the form
+   ``[(3, 2, 9), (5, 1, 23), ...]``, where ``(3, 2, 9)`` indicates
+   Act 3 Scene 2 Speech 9.
+
+#. |soso| Construct a conditional frequency distribution which records the word length
+   for each speech in `The Merchant of Venice`:em:, conditioned on the name of the character,
+   e.g. ``cfd['PORTIA'][12]`` would give us the number of speeches by Portia
+   consisting of 12 words.
 
 #. |hard| Obtain a comparative wordlist in CSV format, and write a program
    that prints those cognates having an edit-distance of at least three
