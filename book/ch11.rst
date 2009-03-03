@@ -1052,7 +1052,6 @@ followed by the `root element`:dt: ``PLAY``.
 We pick it up again at the start of Act 1 start-act-one_.
 (Some blank lines have been omitted from the output.)
 
-.. doctest-ignore::   
     >>> merchant_file = nltk.data.find('corpora/shakespeare/merchant.xml')
     >>> raw = open(merchant_file).read()
     >>> print raw[0:168] # [_top-of-file]
@@ -1280,6 +1279,23 @@ It produces HTML elements ``<table>``, ``<tr>`` (table row), and
 Working with Toolbox Data
 -------------------------
 
+Given the popularity of Toolbox amongst linguists, we will discuss some further
+methods for working with Toolbox data.  Many of the methods discussed in previous
+chapters, such as counting, building frequency distributions, tabulating cooccurrences,
+can be applied to the content of Toolbox entries.  For example, we can trivially
+compute the average number of fields for each entry:
+
+    >>> from nltk.corpus import toolbox
+    >>> lexicon = toolbox.xml('rotokas.dic')
+    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
+    13.635955056179775
+
+In this section we will discuss two tasks that arise in the context of documentary
+linguistics, neither of which is supported by the Toolbox software.
+
+Adding a Field to Each Entry
+----------------------------
+
 It is often convenient to add new fields that are derived automatically from
 existing ones.  Such fields often facilitate search and analysis.
 For instance, in code-add-cv-field_ we define a function ``cv()`` which
@@ -1313,7 +1329,7 @@ the last line of output, which shows the new CV field.
 
    >>> lexicon = toolbox.xml('rotokas.dic')
    >>> add_cv_field(lexicon[53])
-   >>> print nltk.corpus.reader.toolbox.to_sfm_string(lexicon[53])
+   >>> print nltk.to_sfm_string(lexicon[53])
    \lx kaeviro
    \ps V
    \pt A
@@ -1329,30 +1345,54 @@ the last line of output, which shows the new CV field.
    \xe Peter went to look at the house that the wind destroyed.
    \cv CVVCVCV
 
+.. note::
+   If a Toolbox file is being continually updated, the program in
+   code-add-cv-field will need to be run more than once.  It would
+   be possible to modify ``add_cv_field()`` to modify the contents
+   of an existing entry.  However, it is a safer practice to use such
+   programs to create enriched files for the purpose of data analysis,
+   without replacing the manually curated source files. 
 
-Finally, we take a look at simple methods to generate summary reports,
-giving us an overall picture of the quality and organisation of the data.
+Validating a Toolbox Lexicon
+----------------------------
 
-First, suppose that we wanted to compute the average number of fields for
-each entry.  This is just the total length of the entries (the number
-of fields they contain), divided by the number of entries in the
-lexicon:
+Many lexicons in Toolbox format do not conform to any particular schema.
+Some entries may include extra fields, or may order existing fields
+in a new way.  
+Manually inspecting thousands of lexical entries is not practible.
+However, we can easily identify frequent vs exceptional field sequences,
+with the help of a ``FreqDist``:
 
-    >>> sum(len(entry) for entry in lexicon) / len(lexicon)
-    13.637078651685393
+    >>> fd = nltk.FreqDist(':'.join(field.tag for field in entry) for entry in lexicon)
+    >>> fd.items()
+    [('lx:ps:pt:ge:tkp:dt:ex:xp:xe', 41), ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe', 37),
+    ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe', 27), ('lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe', 20),
+    ..., ('lx:alt:rt:ps:pt:ge:eng:eng:eng:tkp:tkp:dt:ex:xp:xe:ex:xp:xe:ex:xp:xe', 1)]
+
+After inspecting the high-frequency field sequences we could devise a context
+free grammar for lexical entries.  The grammar in code-toolbox-validation_
+uses the CFG format we saw in chap-parse_.
+Such a grammar would model the implicit
+nested structure of Toolbox entries, building a tree structure, where the
+leaves of the tree are individual field names.  We could then iterate
+over the entries and report their conformance with the grammar, as
+shown in code-toolbox-validation_ .
+Those that are accepted by the grammar prefixed with
+a ``'+'``, and those that are rejected are prefixed with a ``'-'``.
 
 .. pylisting:: code-toolbox-validation
    :caption: Validating Toolbox Entries Using a Context Free Grammar
 
    grammar = nltk.parse_cfg('''
-     S -> Head PS Glosses Comment Date Examples
+     S -> Head PS Glosses Comment Date Sem_Field Examples
      Head -> Lexeme Root
      Lexeme -> "lx"
      Root -> "rt" |
      PS -> "ps"
      Glosses -> Gloss Glosses |
-     Gloss -> "ge" | "gp"
+     Gloss -> "ge" | "tkp"
      Date -> "dt"
+     Sem_Field -> "sf"
      Examples -> Example Ex_Pidgin Ex_English Examples |
      Example -> "ex"
      Ex_Pidgin -> "xp"
@@ -1382,20 +1422,17 @@ lexicon:
    - lx:rt:ps:ge:ge:ge:gp:dt:cmt:ex:xp:xe:ex:xp:xe:ex:xp:xe
    + lx:rt:ps:ge:gp:dt:ex:xp:xe
 
-We could try to write
-down a grammar for lexical entries, and look for entries which do not
-conform to the grammar.  In general, toolbox entries have nested
-structure.  Thus they correspond to a tree over the fields.  We can
-check for well-formedness by parsing the field names.
-In code-chunk-toolbox_ we set up
-a putative grammar for the entries, then parse each entry.
-Those that are accepted by the grammar prefixed with
-a ``'+'``, and those that are rejected are prefixed with a ``'-'``.
+Another approach would be to use a chunk parser (chap-chunk_),
+since these are much more effective at identifying partial
+structures, and can report the partial structures that have
+been identified.  In code-chunk-toolbox_ we set up
+a chunk grammar for the entries of a lexicon, then parse each entry.
+A sample of the output from this program is shown in fig-iu-mien_.
 
 .. pylisting:: code-chunk-toolbox
-   :caption: Chunking a Toolbox Lexicon
+   :caption: Chunking a Toolbox Lexicon: A chunk grammar describing the structure of
+   entries for a lexicon for `Iu Mien`:em:, a language of China
 
-   import os.path, sys
    from nltk_contrib import toolbox
 
    grammar = r"""
@@ -1408,18 +1445,18 @@ a ``'+'``, and those that are rejected are prefixed with a ``'-'``.
    >>> from nltk.etree.ElementTree import ElementTree
    >>> db = toolbox.ToolboxData()
    >>> db.open(nltk.data.find('corpora/toolbox/iu_mien_samp.db'))
-   >>> lexicon = db.chunk_parse(grammar, encoding='utf8')
+   >>> lexicon = db.parse(grammar, encoding='utf8')
    >>> toolbox.data.indent(lexicon)
    >>> tree = ElementTree(lexicon)
-   >>> tree.write(sys.stdout, encoding='utf8')
+   >>> output = open("iu_mien_samp.xml", "w")
+   >>> tree.write(output, encoding='utf8')
+   >>> output.close()
 
+.. _fig-iu-mien:
+.. figure:: ../images/iu-mien.png
+   :scale: 30
 
-Interlinear Text
-----------------
-
-The NLTK corpus collection includes many interlinear text samples
-(though no suitable corpus reader as yet).
-
+   
 
 
 -------------------------------------------------
@@ -1641,6 +1678,8 @@ Three layer architecture in linguistic annotation
 ``http://www.linguistics-ontology.org/``
 
 LaTeCH workshops on language technology for cultural heritage data.
+
+Rotokas data was provided by Stuart Robinson, and Iu Mien data was provided by Greg Aumann.
 
 ---------
 Exercises
