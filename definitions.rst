@@ -188,11 +188,11 @@
   .. |StevenBird| replace:: `Steven Bird <http://www.csse.unimelb.edu.au/~sb/>`__
   .. |EwanKlein| replace:: `Ewan Klein <http://www.ltg.ed.ac.uk/~ewan/>`__
   .. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
-  .. |PYTHON-URL| replace:: `http://python.org/ <http://python.org/>`__
-  .. |PYTHON-DOCS| replace:: `http://docs.python.org/ <http://docs.python.org/>`__
-  .. |NLTK-URL| replace:: `http://www.nltk.org/ <http://www.nltk.org/>`__
-  .. |NLTK-HOWTO-URL| replace:: `http://www.nltk.org/howto <http://www.nltk.org/howto>`__
-  .. |OLAC-URL| replace:: `http://www.language-archives.org/ <http://www.language-archives.org/>`__
+  .. |PYTHON-URL| replace:: ``http://python.org/``
+  .. |PYTHON-DOCS| replace:: ``http://docs.python.org/``
+  .. |NLTK-URL| replace:: ``http://www.nltk.org/``
+  .. |NLTK-HOWTO-URL| replace:: ``http://www.nltk.org/howto``
+  .. |OLAC-URL| replace:: ``http://www.language-archives.org/``
   
   .. Python example - a snippet of code in running text
   .. role:: py

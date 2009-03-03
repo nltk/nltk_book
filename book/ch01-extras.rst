@@ -27,6 +27,8 @@ the other |NLP|\ : neuro-linguistic programming).
 
 ``http://www.statmt.org/``
 
+``http://www.aclweb.org/aclwiki/index.php?title=Textual_Entailment_Resource_Pool``
+
 ----------------------------------
 NLP Systems with Online Interfaces
 ----------------------------------
