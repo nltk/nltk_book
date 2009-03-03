@@ -348,7 +348,7 @@ class callout_marker(docutils.nodes.Inline, docutils.nodes.Element):
 
 DOCTEST_BLOCK_RE = re.compile('((?:[ ]*>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
                               re.MULTILINE)
-CALLOUT_RE = re.compile(r'#[ ]+\[_([\w-]+)\][ ]*$', re.MULTILINE)
+CALLOUT_RE = re.compile(r'#[ ]+\[_([\w-]+)\][ ]*', re.MULTILINE)
 
 from docutils.nodes import fully_normalize_name as normalize_name
 
