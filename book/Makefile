@@ -37,6 +37,8 @@ LATEXHACKS = ../latexhacks.py
 DOCTEST_SPLIT = ../doctest_split.py 
 
 RST = ../rst.py
+NLTK_INDEX = ../tools/nltk_term_index.py
+XINCLUDER = ../xincluder.py
 RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2DOCBOOK = $(RST) --docbook
@@ -71,8 +73,9 @@ all: html examples clean_up  # pdf
 html: $(HTML) bibliography.html 
 pdf: $(PDF)
 xml: $(XML)
-	$(PYTHON) ../xincluder.py book.xml
+	$(PYTHON) $(XINCLUDER) book.xml
 	$(XMLLINT) book-flat.xml
+	$(PYTHON) $(NLTK_INDEX)
 
 examples: $(PY)
 book: book.pdf book.html
