@@ -108,9 +108,9 @@ clean_up:
 %.xml: %.rst $(RST) ../docbook.py $(REF) revision.rst
 	$(RSTHACKS) --format=xml $<
 	$(RST2DOCBOOK) $(REF) `basename $< .rst`.rst2
-	@(if [ "`grep -i 'preface::' $*.rst`" ]; then\
+	(if [ "`grep -i 'preface::' $*.rst`" ]; then\
 	    sed -e "s/chapter>/preface>/" -i "" $*.xml;\
-	    sed -e "s/DOCTYPE chapter/DOCTYPE preface/" -i "" $*.xml;\
+	    sed -e "s/DOCTYPE chapter/DOCTYPE preface/" -i $*.xml;\
 	fi)
 #	$(XMLLINT) $@
 
