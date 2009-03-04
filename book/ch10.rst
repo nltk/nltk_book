@@ -156,12 +156,15 @@ This allows us to parse a query into SQL.
    to the chart.
 
 Finally, we execute the query over the database ``city.db`` and
-retrieve some results.
+retrieve some results. 
 
     >>> from nltk.sem import chat80
     >>> rows = chat80.sql_query('corpora/city_database/city.db', q)
-    >>> for r in rows: print "%s" % r,
+    >>> for r in rows: print r[0], # [_tuple-val]
     canton chungking dairen harbin kowloon mukden peking shanghai sian tientsin
+
+Since each row ``r`` is a one-element tuple, we print out the member of
+the tuple rather than tuple itself tuple-val_.
 
 To summarize, we have defined a task where the computer returns useful data
 in response to a natural language query, and we implemented this
@@ -480,12 +483,14 @@ you give as your reasons that Sylvania is to the north of Freedonia. In this cas
 you have produced an `argument`:dt:. The sentence `Sylvania is to the north of
 Freedonia`:lx: is the `assumption`:dt: of the argument while `Freedonia is not to the
 north of Sylvania`:lx: is the `conclusion`:dt:. The step of moving from one or more assumptions
-to a conclusion is called `inference`:dt:. Informally, it is commont to write arguments in a
+to a conclusion is called `inference`:dt:. Informally, it is common to write arguments in a
 format where the conclusion is preceded by `therefore`:lx:.
 
 .. _ex-proplog8:
 .. ex::
-       Sylvania is to the north of Freedonia. Therefore, Freedonia is not to the north of Sylvania.
+   |  Sylvania is to the north of Freedonia. 
+   |  Therefore, Freedonia is not to the north of Sylvania
+        
 
 An argument is `valid`:dt: if there is no possible situation in which
 its premises are all true and its conclusion is not true.
@@ -566,7 +571,7 @@ operators (i.e, tab-boolean-tcs_) and applying them to the values of
 the formula's components. A ``Valuation`` is a mapping from basic
 expressions of the logic to their values. Here's an example:
 
-    >>> val = nltk.sem.Valuation([('P', True), ('Q', True), ('R', False)])
+    >>> val = nltk.Valuation([('P', True), ('Q', True), ('R', False)])
 
 We initialize a ``Valuation`` with a list of pairs, each of which
 consists of a semantic symbol and a semantic value. The resulting
@@ -582,11 +587,11 @@ next section; for the time being, just ignore the ``dom`` and
 ``g`` parameters in the following declarations.
 
     >>> dom = set([])
-    >>> g = nltk.sem.Assignment(dom)
+    >>> g = nltk.Assignment(dom)
 
 Now let's initialize a model ``m`` that uses ``val``:
 
-    >>> m = nltk.sem.Model(dom, val)
+    >>> m = nltk.Model(dom, val)
     
 Every model comes with an ``evaluate()`` method, which will determine
 the semantic value of logical expression, such as formulas of
@@ -711,11 +716,12 @@ invoked so that it carries out type checking.
     >>> parsed.function.type
     <e,?>
 
-Why do we see ``<e, ?>`` at the end of this example? It means that the
-type-checker has not managed to fully specify the type of ``walk``,
+Why do we see ``<e,?>`` at the end of this example? Although the
+type-checker will try to infer as many types as possible, in this case
+it has not managed to fully specify the type of ``walk``,
 since its result type is unknown. Although we are intending ``walk``
-to receive type ``<e, t>``, as far as the type-checker knows, it could
-be of some other type such as ``<e, e>`` or ``<e, <e, t>``. To help
+to receive type ``<e, t>``, as far as the type-checker knows, in this
+context it could be of some other type such as ``<e, e>`` or ``<e, <e, t>``. To help
 the type-checker, we need to specify a `signature`:dt:, implemented as
 a dictionary that explicitly associates types with non-logical
 constants:
@@ -725,10 +731,13 @@ constants:
     >>> parsed.function.type
     <e,t>
 
-A binary predicate is given type |langle|\ `e`:mathit:, |langle|\
-`e`:mathit:, `t`:mathit:\ |rangle|\ |rangle|, that is, the type of
-something which combines with an argument of type `e`:mathit: to make
-a unary predicate.
+A binary predicate has type |langle|\ `e`:mathit:, |langle|\
+`e`:mathit:, `t`:mathit:\ |rangle|\ |rangle|. Although this the type of
+something which combines first with an argument of type `e`:mathit: to make
+a unary predicate, we represent binary predicates as combining
+directly with their two arguments. For example, the predicate `see`:math: in the
+translation of `Angus sees Cyril` will
+combine with its arguments to give the the result `see(angus, cyril)`:math:.
 
 In |FOL|, arguments of predicates can also be individual variables
 such as `x`:math:, `y`:math: and `z`:math:. Individual variables are similar to
@@ -827,7 +836,7 @@ The |NLTK| syntax for ex-predlog71_:
 Although ex-predlog71_ is the standard |FOL| translation of ex-predlog73_, the truth
 conditions aren't necessarily what you expect. 
 The formula says that `if`:em: some *x* is a dog, then
-*x* runs away |mdash| but it doesn't say that there are any dogs. So
+*x* disappears |mdash| but it doesn't say that there are any dogs. So
 in a situation where there are no dogs, ex-predlog71_ will still
 come out true. (Remember that ``'(P -> Q)'`` is true when ``'P'``
 is false.) Now you might argue that `every dog disappeared`:lx: does presuppose the
@@ -843,11 +852,11 @@ happens in formulas such as the following?::
 
     ((exists x. dog(x)) -> bark(x))
 
-The scope of the ``exists x`` quantifier is ``walk(x)``, so the occurrence of ``x``
-in ``bark(x)`` is unbound. Consequently it can get bound by some other quantifier,
+The scope of the ``exists x`` quantifier is ``dog(x)``, so the occurrence of ``x``
+in ``bark(x)`` is unbound. Consequently it can become bound by some other quantifier,
 for example ``all x`` in the next formula::
 
-    all x.((exists x. dog(x)) -> bark
+    all x.((exists x. dog(x)) -> bark(x))
 
 In general, an occurrence of a variable ``x`` in a formula |phi| is `free`:dt: in
 |phi| if that occurrence doesn't fall within the scope of ``all x`` or ``some x`` in
@@ -856,34 +865,48 @@ In general, an occurrence of a variable ``x`` in a formula |phi| is `free`:dt: i
 to be `closed`:dt:. 
 
 We mentioned before that the ``parse()`` method of
-``nltk``\ 's ``LogicParser`` returns objects of class ``Expression``. Each
+|nltk|\ 's ``LogicParser`` returns objects of class ``Expression``. Each
 instance ``expr`` of this class comes with a method ``free()`` which returns the set
 of variables that are free in ``expr``.
 
     >>> lp = nltk.LogicParser()
-    >>> print lp.parse('dog(cyril)').free()
+    >>> lp.parse('dog(cyril)').free()
     set([])
-    >>> print lp.parse('dog(x)').free()
+    >>> lp.parse('dog(x)').free()
     set([Variable('x')])
-    >>> print lp.parse('own(angus, cyril)').free()
+    >>> lp.parse('own(angus, cyril)').free()
     set([])
-    >>> print lp.parse('exists x.dog(x)').free()
+    >>> lp.parse('exists x.dog(x)').free()
     set([])
-    >>> print lp.parse('((some x. walk(x)) -> sing(x))').free()
+    >>> lp.parse('((some x. walk(x)) -> sing(x))').free()
     set([Variable('x')])
-    >>> print lp.parse('exists x.own(y, x)').free()
+    >>> lp.parse('exists x.own(y, x)').free()
     set([Variable('y')])
 
 
 First Order Theorem Proving
 ---------------------------
 
-We observed, in sec-proplog_, that propositional logic is too restricted to allow us
-to represent constraints like ex-north_ on the meaning of binary predicates such as
-`to the north of`:lx:. However, representing the argument in ex-proplog8_ is
-straightforward within first order logic. 
-Even better, we can perform inference to
-show the validity of the argument.  The general case in theorem proving is to
+Recall the constraint on `to the north of`:lx: which we proposed earlier as ex-north_:
+
+.. ex:: 
+    if `x`:math: is to the north of `y`:math: then `y`:math: is not to the north of
+    `x`:math:.
+
+We observed that propositional logic is not expressive enough to
+represent generalizations about binary predicates, and as a result we
+did not properly capture the argument `Sylvania is to the north of
+Freedonia. Therefore, Freedonia is not to the north of Sylvania`:lx:.
+
+You have no doubt realized that first order logic, by contrast, is
+ideal for formalizing such rules::
+
+     all x. all y.(north_of(x, y) -> -north_of(y, x))
+   
+Even better, we can perform automated inference to
+show the validity of the argument.  
+
+The general case in theorem proving is to
 determine whether a formula that we want to prove (a `proof goal`:dt:) can be derived
 by a finite sequence of inference steps from a list of assumed formulas. We write this
 as `S`:mathit: ⊢ `g`:mathit:, where ``S`` is a (possibly empty) list of assumptions,
@@ -896,8 +919,8 @@ assumptions prove_.
     >>> NotFnS = lp.parse('-north_of(f, s)')  # [_goal]
     >>> SnF = lp.parse('north_of(s, f)')    # [_ass1]   
     >>> R = lp.parse('all x. all y. (north_of(x, y) -> -north_of(y, x))')  # [_ass2]
-    >>> prover = nltk.Prover9() # [_prove1]  # [_new-prover]
-    >>> prover.prove(NotFnS, [SnF, R]) # [_prove2]  # [_prove]
+    >>> prover = nltk.Prover9()   # [_new-prover]
+    >>> prover.prove(NotFnS, [SnF, R])  # [_prove]
     True
 
 Happily, the theorem prover agrees with us that the argument is valid.  By contrast,
@@ -1081,8 +1104,6 @@ tuple of values corresponding to (|tau|\ :sub:`1`,  ... |tau|\
 Individual Variables and Assignments
 ------------------------------------
 
-
-
 In our models, the counterpart of a context of use is a variable
 `assignment`:dt:. This is a mapping from individual variables to
 entities in the domain.  Assignments are created using the
@@ -1110,18 +1131,18 @@ to compute the truth value.
     >>> m.evaluate('see(olive, y)', g)
     True
 
-What's happening here? Essentially, we are evaluating the formula
-``see('o', 'c')`` just as in our earlier example.
-However, when the interpretation function encounters the variable ``'y'``,
+What's happening here? We are evaluating a formula which is similar to
+our earlier examplle, ``see(olive, cyril)``.
+However, when the interpretation function encounters the variable ``y``,
 rather than checking for a value in ``val``, it asks the variable
 assignment ``g`` to come up with a value:
     
     >>> g['y']
     'c'
 
-Since we already know that ``'o'`` and ``'c'`` stand in the `see`:mathit:
+Since we already know that individuals ``'o'`` and ``'c'`` stand in the `see`:mathit:
 relation, the value ``True`` is what we expected. In this case, we can
-say that assignment ``g`` `satisfies`:dt: the formula ``'see(olive, y)'``.
+say that assignment ``g`` `satisfies`:dt: the formula ``see(olive, y)``.
 By contrast, the following formula evaluates to ``False`` relative to
 ``g`` |mdash| check that you see why this is.
     
@@ -1286,7 +1307,7 @@ mapping diagram shown in ex-admire-mapping_.
 .. _ex-admire-mapping:
 .. ex::
    .. image:: ../images/models_admire.png
-      :scale: 15:100:15
+      :scale: 20:100:20
 
 In ex-admire-mapping_, an arrow between two individuals `x`:math: and
 `y`:math: indicates that `x`:math: admires
@@ -1296,8 +1317,8 @@ is true but ex-scope2b_ is false. One way of exploring these results is by
 using the ``satisfiers()`` method of ``Model`` objects.
 
     >>> dom2 = val2.domain
-    >>> m2 = nltk.sem.Model(dom2, val2)
-    >>> g2 = nltk.sem.Assignment(dom2)
+    >>> m2 = nltk.Model(dom2, val2)
+    >>> g2 = nltk.Assignment(dom2)
     >>> fmla4 = lp.parse('(person(x) -> exists y.(person(y) & admire(x, y)))')
     >>> m2.satisfiers(fmla4, 'x', g2)
     set(['a', 'c', 'b', 'e', 'j', 'm'])
@@ -1466,7 +1487,7 @@ like to build.
 
 .. _ex-sem3:
 .. ex::
-   .. tree:: (S[sem=\<\bark\(cyril\)\>](NP[sem=\<\(cyril\)\>] Cyril)(VP[sem=\<\bark\>] (V[sem=\<\bark\>] barks)))
+   .. tree:: (S[sem=\<\bark\(cyril\)\>](NP[sem=\<\(cyril\)\>] Cyril)(VP[sem=\<\bark\>] (IV[sem=\<\\x.bark(x)\>] barks)))
 
 In ex-sem3_, the ``sem`` value at the root node shows a semantic
 representation for the whole sentence, while the ``sem`` values at
@@ -1506,12 +1527,13 @@ rules shown below.
 
      VP[sem=?v] -> IV[sem=?v]
      NP[sem=<cyril>] -> 'Cyril'
-     IV[sem=<bark>] -> 'barks'
+     IV[sem=<\x.bark(x)>] -> 'barks'
 
 The ``VP`` rule says that the parent's semantics is the same as the
-head child's semantics. The two lexical rules just introduce non-logical
+head child's semantics. The two lexical rules provide non-logical
 constants to serve as the semantic values of `Cyril`:lx: and
-`barks`:lx: respectively. 
+`barks`:lx: respectively. There is an additional piece of notation in
+the entry for `barks`:lx: which we will explain shortly.
 
 Before launching into compositional semantic rules in more detail, we need to add a
 new tool to our kit, namely the |lambda| calculus. This provides us with an
@@ -1584,7 +1606,7 @@ expression: `λ abstraction`:dt:. When you first encounter
 |lambda|-abstracts, it can be hard to get an intuitive sense of their
 meaning. A couple of English glosses for ex-walk-chewgum12_ are: "be
 an `x`:math: such that `x`:math: walks and `x`:math: chews gum" or
-"have the property of walking and chewing gum".  It's often been suggested
+"have the property of walking and chewing gum".  It has often been suggested
 that |lambda|-abstracts are good representations for verb phrases (or
 subjectless clauses), particularly when these occur as arguments in
 their own right. This is illustrated in ex-walk-chewgum21_ and its
@@ -1742,7 +1764,7 @@ variables is known as `α-conversion`:dt:. When we test for equality of
      >>> e1 = lp.parse('exists x.P(x)')
      >>> print e1
      exists x.P(x)
-     >>> e2 = e1.alpha_convert(nltk.sem.Variable('z'))
+     >>> e2 = e1.alpha_convert(nltk.Variable('z'))
      >>> print e2
      exists z.P(z)
      >>> e1 == e2
@@ -1965,7 +1987,7 @@ in the list.
 
     >>> sents = ['Irene walks', 'Cyril bites an ankle']
     >>> grammar_file = 'grammars/book_grammars/simple-sem.fcfg' 
-    >>> for results in nltk.sem.batch_interpret(sents, grammar_file):
+    >>> for results in nltk.batch_interpret(sents, grammar_file):
     ...     for (synrep, semrep) in results:
     ...         print synrep
     (S[sem=<walk(irene)>]
@@ -2004,11 +2026,11 @@ variable assignment as parameters. The output is a triple  (*synrep*,
     ... see => {(b, o), (c, b), (o, c)}
     ... """
     >>> val = parse_valuation(v)
-    >>> g = nltk.sem.Assignment(val.domain)
-    >>> m = nltk.sem.Model(val.domain, val)
+    >>> g = nltk.Assignment(val.domain)
+    >>> m = nltk.Model(val.domain, val)
     >>> sent = 'Cyril sees every boy'
     >>> grammar_file = 'grammars/book_grammars/simple-sem.fcfg'
-    >>> results = nltk.sem.batch_evaluate([sent], grammar_file, m, g)[0]
+    >>> results = nltk.batch_evaluate([sent], grammar_file, m, g)[0]
     >>> for (syntree, semrel, value) in results:
     ...     print semrep
     ...     print value
