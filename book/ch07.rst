@@ -176,20 +176,28 @@ Entity Detection
 ----------------
 
 In `entity detection`:dt:, we search for and label mentions of
-entities that we might participate in interesting relations with one
-another.  Typically, these will be noun phrases such as "The
-Association of Computational Linguistics" or "The Knights Who Say Ni."
-We can either restrict their attention to `proper nouns`:dt:, which
-are typically easier to identify; or we can also consider pronouns and
-common nouns, in which case we may need to do some work to determine
-what they actually refer to.
+entities that might participate in interesting relations with one
+another.  Typically, these will be definite noun phrases such as  `the
+Knights Who Say Ni`:lx:, or proper names such as `Monty
+Python`:lx:. 
+
+.. XXX say something about the standard sorts of MUC entities
+
+In some tasks it is useful to also consider nouns or noun
+chunks without determiners, and these do not necessarily refer to
+entities in the same way as definite ``NP``\ s and proper names.
+
+.. XXX We can either restrict attention to `proper nouns`:dt:, which
+.. are typically easier to identify; or we can also consider pronouns
+.. and common nouns, in which case we may need to do some work to
+.. determine what they actually refer to.
 
 The basic technique we will use for entity detection is
 `chunking`:dt:, which finds and labels multi-token sequences, as
 illustrated in fig-chunk-segmentation_.  The smaller boxes show the
 word-level tokenization and part-of-speech tagging, while the large
 boxes show higher-level chunking.  Each of these larger boxes is
-called a `chunks`:dt:.
+called a `chunk`:dt:.
 
 .. _fig-chunk-segmentation:
 .. figure:: ../images/chunk-segmentation.png
@@ -211,10 +219,10 @@ evaluate chunkers using the CoNLL-2000 chunking corpus.
 Chunkers
 --------
 
-We will begin by considering the task of `noun-phrase chunking`:dt:,
+We will begin by considering the task of `noun phrase chunking`:dt:,
 or `NP-chunking`:dt:, where we search for chunks corresponding to
 individual noun phrases.  For example, here is some Wall Street
-Journal text with NP-chunks marked using brackets:
+Journal text with ``NP``\ -chunks marked using brackets:
 
 .. _ex-wsj-nx:
 .. ex::
@@ -223,22 +231,23 @@ Journal text with NP-chunks marked using brackets:
   enough/RB that/IN [ a/DT giant/NN ] such/JJ as/IN [ Computer/NNP
   Associates/NNPS ] should/MD do/VB well/RB there/RB ./.
 
-As we can see, NP-chunks are often smaller pieces than complete noun
-phrases.  For example, "the market for system-management software for
-Digital's hardware" is a single noun phrase (containing two nested
-noun phrases), but it is captured in NP-chunks by the simpler chunk
-"the market."  One of the motivations for this difference is that
-NP-chunks are defined to be non-overlapping.  Generally, any
-prepositional phrases or subordinate clauses that describe a noun
-phrase will not be included in the corresponding NP-chunk, since they
-might contain other noun phrases.
+As we can see, ``NP``\ -chunks are often smaller pieces than complete
+noun phrases.  For example, `the market for system-management software
+for Digital's hardware`:lx: is a single noun phrase (containing two
+nested noun phrases), but it is captured in ``NP``\ -chunks by the
+simpler chunk `the market`:lx:.  One of the motivations for this
+difference is that ``NP``\ -chunks are defined so as not contain
+other``NP``\ -chunks embedded within them.  Consequently, any
+prepositional phrases or subordinate clauses that modify a nominal
+will not be included in the corresponding ``NP``\ -chunk, since they
+almost certainly contain further noun phrases.
 
-One of the most useful sources of information for NP-chunking is
+One of the most useful sources of information for ``NP``\ -chunking is
 part-of-speech tags.  This is one of the main motivations for
 performing part-of-speech tagging in our information extraction
 system.  We demonstrate this approach using an example sentence that
 has been part-of-speech tagged in code-chunkex_.  In order to create an
-NP-chunker, we must first define a `grammar`:dt:, consisting of rules
+``NP``\ -chunker, we will first define a `grammar`:dt:, consisting of rules
 that indicate how sentences should be chunked.  In this case, we will
 define a very simple grammar with a single regular-expression rule
 chunkex-grammar_.  This rule says that an NP chunk should be formed
@@ -257,7 +266,7 @@ print chunkex-print_, or display graphically chunkex-draw_.
 
    >>> grammar = "NP: {<DT>?<JJ>*<NN>}" # [_chunkex-grammar]
 
-   >>> cp = nltk.RegexpParser("NP: ") # [_chunkex-cp]
+   >>> cp = nltk.RegexpParser(grammar) # [_chunkex-cp]
    >>> result = cp.parse(sentence) # [_chunkex-test]
    >>> print result # [_chunkex-print]
    (S
@@ -298,11 +307,12 @@ Journal::
 .. TODO: how are they to view this CoNLL data?
 
 We can match these using a slight refinement of the first tag pattern
-above: ``<DT>?<JJ.*>*<NN.*>+``.  This can be used to chunk any sequence
+above: ``<DT>?<JJ.*>*<NN.*>+``.  This will chunk any sequence
 of tokens beginning with an optional determiner ``DT``, followed by
 zero or more adjectives of any type ``JJ.*`` (including relative
 adjectives like ``earlier/JJR``), followed by one or more nouns of any
-type ``NN.*``.  It is easy to find many more difficult examples::
+type ``NN.*``.  However, it is easy to find many more difficult examples which
+this rule will not cover::
 
   his/PRP$ Mansion/NNP House/NNP speech/NN
   the/DT price/NN cutting/VBG
@@ -312,7 +322,7 @@ type ``NN.*``.  It is easy to find many more difficult examples::
   's/POS skill/NN
 
 .. note:: |TRY|
-   Try to come up with tag patterns to cover these cases.
+   Try to come up with tag patterns to cover these further cases.
    Now test them out using the graphical interface
    ``nltk.app.chunkparser()``.  Continue to refine your
    tag patterns with the help of the feedback given by
@@ -569,7 +579,7 @@ while the time taken to chunk a sentence only grows linearly.
 Representing Chunks: Tags vs Trees
 ----------------------------------
 
-As befits its intermediate status between tagging and parsing, chunk
+As befits their intermediate status between tagging and parsing, chunk
 structures can be represented using either tags or trees.  The most
 widespread file representation uses so-called `IOB tags`:dt:.  In this
 scheme, each token is tagged with one of three special chunk tags,
@@ -589,7 +599,7 @@ labeled ``O``. An example of this scheme is shown in fig-chunk-tagrep_.
 
 IOB tags have become the standard way to represent chunk structures in
 files, and we will also be using this format.  Here is an example of
-the file representation of the information in fig-chunk-tagrep_::
+how the information in fig-chunk-tagrep_ would appear in a file::
 
   We PRP B-NP
   saw VBD O
@@ -600,7 +610,7 @@ the file representation of the information in fig-chunk-tagrep_::
 
 .. Give example with a verb group?
 
-|nopar| In this representation, there is one token per line, each with
+In this representation, there is one token per line, each with
 its part-of-speech tag and its chunk tag.  We will see later that this
 format permits us to represent more than one chunk type, so long as
 the chunks do not overlap.  
@@ -780,7 +790,7 @@ below::
   position NN I-NP
   ...
 
-|nopar| A conversion function ``chunk.conllstr2tree()`` builds a tree
+A conversion function ``chunk.conllstr2tree()`` builds a tree
 representation from one of these multi-line strings.  Moreover, it
 permits us to choose any subset of the three chunk types to use.  The
 example below produces only ``NP`` chunks:
@@ -1450,7 +1460,6 @@ In |NLTK|, we create a tree by giving a node label and a list of children:
     >>> print tree2
     (NP the rabbit)
 
-|nopar|
 We can incorporate these into successively larger trees as follows:
 
     >>> tree3 = nltk.Tree('VP', ['chased', tree2])
@@ -1458,7 +1467,6 @@ We can incorporate these into successively larger trees as follows:
     >>> print tree4
     (S (NP Alice) (VP chased (NP the rabbit)))
 
-|nopar|
 Here are some of the methods available for tree objects:
 
     >>> print tree4[1]
@@ -1511,23 +1519,8 @@ we have used "duck typing" to detect that ``t`` is a tree (i.e.
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Named Entity Recognition
------------------------- 
+Entity Recognition
+------------------
 
 When performing information extraction, we're often most interested in
 `named entities`:dt:, proper noun phrases that denote specific types
@@ -1604,16 +1597,12 @@ Here is part of the CONLL 2002 (``conll2002``) Dutch training data::
     Hogeschool N B-ORG
     . Punc O
 
-|nopar| In this representation, there is one token
+In this representation, there is one token
 per line, each with its part-of-speech tag and its named entity tag.
 
 
 
 .. XXX ADD CLASSIFIER BASED NE HERE!!
-
-
-
-
 
 
 
