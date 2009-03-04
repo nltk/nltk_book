@@ -135,7 +135,7 @@ parent constituent.
     Det[SEM='SELECT'] -> 'Which' | 'What'
     N[SEM='City FROM city_table'] -> 'cities'
     IV[SEM=''] -> 'are'
-    A -> 'located'
+    A[SEM=''] -> 'located'
     P[SEM=''] -> 'in'
 
 This allows us to parse a query into SQL.
@@ -714,6 +714,7 @@ types`:dt: for function expressions. That is, given any types |sigma| and |tau|,
 truth values, namely unary predicates. The ``LogicParser`` can be
 invoked so that it carries out type checking. 
 
+.. doctest-ignore::
     >>> tlp = nltk.LogicParser(type_check=True)
     >>> parsed = tlp.parse('walk(angus)')
     >>> parsed.argument
@@ -735,6 +736,7 @@ the type-checker, we need to specify a `signature`:dt:, implemented as
 a dictionary that explicitly associates types with non-logical
 constants:
 
+.. doctest-ignore::
     >>> sig = {'walk': '<e, t>'}
     >>> parsed = tlp.parse('walk(angus)', sig)
     >>> parsed.function.type
@@ -749,7 +751,9 @@ translation of `Angus sees Cyril` will
 combine with its arguments to give the the result `see(angus, cyril)`:math:.
 
 In |FOL|, arguments of predicates can also be individual variables
-such as `x`:math:, `y`:math: and `z`:math:. Individual variables are similar to
+such as `x`:math:, `y`:math: and `z`:math:. In NLTK, we adopt the convention that
+variables of type *e* are all lowercase.
+Individual variables are similar to
 personal pronouns like `he`:lx:, `she`:lx: and `it`:lx:, in that we
 need to know about the context of use in order to figure out their
 denotation. 
@@ -1061,7 +1065,6 @@ We will use the utility function ``parse_valuation()`` to convert a
 list of strings of the form `symbol`:mathit: ``=>`` `value`:mathit:
 into a ``Valuation`` object.
 
-    >>> from nltk.sem import parse_valuation
     >>> v = """
     ... bertie => b
     ... olive => o
@@ -1072,7 +1075,7 @@ into a ``Valuation`` object.
     ... walk => {o, c}
     ... see => {(b, o), (c, b), (o, c)}
     ... """
-    >>> val = parse_valuation(v)
+    >>> val = nltk.parse_valuation(v)
     >>> print val
     {'bertie': 'b',
      'boy': set([('b',)]),
@@ -1297,7 +1300,6 @@ a model.
 In order to examine the ambiguity more closely, let's fix our
 valuation as follows:
 
-    >>> from nltk.sem import parse_valuation
     >>> v2 = """
     ... bruce => b
     ... cyril => c
@@ -1307,7 +1309,7 @@ valuation as follows:
     ... person => {b, e, j, m}
     ... admire => {(j, b), (b, b), (m, e), (e, m), (c, a)}
     ... """
-    >>> val2 = parse_valuation(v2)
+    >>> val2 = nltk.parse_valuation(v2)
 
 The `admire`:mathit: relation can be visualized using the
 mapping diagram shown in ex-admire-mapping_.
@@ -1599,6 +1601,7 @@ Remember that ``\`` is a special character in Python strings.
 We could escape it (with another ``\``), or else use "raw strings"
 (sec-regular-expressions-word-patterns_):
 
+    >>> lp = nltk.LogicParser()
     >>> e = lp.parse(r'\x.(walk(x) & chew_gum(x))')
     >>> e
     <LambdaExpression \x.(walk(x) & chew_gum(x))>
@@ -1701,7 +1704,8 @@ All our |lambda| abstracts so far have involved the familiar first order variabl
 
     \y.y(angus)(\x.walk(x))
 
-But ``\y.y(angus)`` only applies to arguments of type  *e*  while ``\x.walk(x)`` is
+But since the variable ``y`` is stipulated to be of type *e*,
+``\y.y(angus)`` only applies to arguments of type  *e*  while ``\x.walk(x)`` is
 of type |langle|\ *e*, *t*\ |rangle|! Instead, we need to allow
 abstraction over variables of higher type. Let's use ``P`` and ``Q`` as variables of
 type  |langle|\ *e*, *t*\ |rangle|, and then we can have an abstract such as
@@ -1934,8 +1938,7 @@ equivalent to ex-sem99_, which is what we wanted all along:
     >>> lp = nltk.LogicParser()
     >>> tvp = lp.parse(r'\X x.X(\y.chase(x,y))')
     >>> np = lp.parse(r'(\P.exists x.(dog(x) & P(x)))')
-    >>> from nltk.sem import ApplicationExpression
-    >>> vp = ApplicationExpression(tvp, np)
+    >>> vp = nltk.ApplicationExpression(tvp, np)
     >>> print vp
     (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
     >>> print vp.simplify()
@@ -2024,7 +2027,6 @@ variable assignment as parameters. The output is a triple  (*synrep*,
 *semrep* are as before, and *value* is a truth value. For simplicity,
 the following example only processes a single sentence.
 
-    >>> from nltk.sem import parse_valuation
     >>> v = """
     ... bertie => b
     ... olive => o
@@ -2035,7 +2037,7 @@ the following example only processes a single sentence.
     ... walk => {o, c}
     ... see => {(b, o), (c, b), (o, c)}
     ... """
-    >>> val = parse_valuation(v)
+    >>> val = nltk.parse_valuation(v)
     >>> g = nltk.Assignment(val.domain)
     >>> m = nltk.Model(val.domain, val)
     >>> sent = 'Cyril sees every boy'
@@ -2335,23 +2337,27 @@ that all the conditions are true in `s`:mathit: ; that is, **a** is named
 `Irene`:lx: and **c** bit **i**.
 
 In order to process |DRS|\ s computationally, we need to convert them
-into a linear format. We represent the general form of a |DRS| as follows:
+into a linear format. Here's an example, where the |DRS| is a pair consisting of a
+list of discourse of referents and a list of |DRS| conditions::
 
-::
 
-    ([x, y], [angus(x), dog(y), own(x ,y)])
+    ([x, y], [angus(x), dog(y), own(x,y)])
 
 The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
 string representation parse-drs_.
+
+    >>> dp = nltk.DrtParser()
+    >>> drs1 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])') # [_parse-drs]
+    >>> print drs1
+    ([x,y],[angus(x), dog(y), own(x,y)])
+
+.. XXX reinstated the split example since otherwise a bunch of subsequent doctests
+.. fail.
+
 We can use the ``draw()`` method draw-drs_
 to visualize the result, as shown in fig-drs-screenshot_.
 
 .. doctest-ignore::
-    >>> from nltk.sem import drt
-    >>> dp = drt.DrtParser()
-    >>> drs1 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])') # [_parse-drs]
-    >>> print drs1
-    ([x,y],[angus(x), dog(y), own(x,y)])
     >>> drs1.draw() # [_draw-drs]
 
 .. _fig-drs-screenshot:
@@ -2369,7 +2375,6 @@ implements this translation.
 
     >>> print drs1.fol()
     exists x y.((angus(x) & dog(y)) & own(x,y))
-
 
 In addition to the functionality available for |FOL|
 expressions, |DRT| ``Expression``\ s have a |DRS|\ -concatenation operator,
@@ -2396,10 +2401,6 @@ sub-\ |DRS|\ s, connected by an implication. Again, we can use
     all x.(dog(x) -> exists y.(ankle(y) & bite(x,y)))
 
 
-
-Anaphora Resolution
--------------------
-
 We pointed out earlier that |DRT| is designed to allow anaphoric pronouns to be
 interpreted by linking to existing discourse referents. |DRT| sets
 constraints on which discourse referents are "accessible" as possible
@@ -2413,7 +2414,7 @@ possible antecedents.
 
 
     >>> drs4 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])')
-    >>> drs5 = dp.parse('([u, z], [PRO(u), irene(z) ,bite(u, z)])')
+    >>> drs5 = dp.parse('([u, z], [PRO(u), irene(z), bite(u, z)])')
     >>> drs6 = drs4 + drs5
     >>> print drs6.simplify()
     ([x,y,u,z],[angus(x), dog(y), own(x,y), PRO(u), irene(z), bite(u,z)])
@@ -2426,9 +2427,9 @@ its own module, this facilitates swapping in alternative procedures
 which try to make more intelligent guesses about the correct
 antecedent.
 
-Since the treatment of |DRS|\ s in ``nltk.sem.drt`` is fully
+Our treatment of |DRS|\ s  is fully
 compatible with the existing machinery for handling |lambda|
-abstraction, it is straightforward to build compositional semantic
+abstraction, and consequently it is straightforward to build compositional semantic
 representations which are based on |DRT| rather than |FOL|. This
 technique is illustrated in the following rule for indefinites
 (which is part of the grammar ``drt.fcfg``). For ease of comparison,
@@ -2437,7 +2438,7 @@ we have added the parallel rule for indefinites from
 
 ::
 
-    Det[num=sg,SEM=<\P Q.(DRS([x],[]) + P(x) + Q(x))>] -> 'a'
+    Det[num=sg,SEM=<\P Q.([x],[]) + P(x) + Q(x)>] -> 'a'
     Det[num=sg,SEM=<\P Q. exists x.(P(x) & Q(x))>] -> 'a'
 
 
@@ -2457,11 +2458,11 @@ Q(x))``; after simplification, we get ``\Q.(([x],[dog(x)]) + Q(x))``
 as the representation for the ``NP`` as a whole.
 
 In order to parse with grammar ``drt.fcfg``, we specify in the call to
-``load_earley()`` that ``sem`` values in feature structures are to be
-parsed using ``drt.DrtParser`` in place of the default ``LogicParser``.
+``load_earley()`` that ``SEM`` values in feature structures are to be
+parsed using ``DrtParser`` in place of the default ``LogicParser``.
 
     >>> from nltk.parse import load_earley
-    >>> parser = load_earley('grammars/book_grammars/drt.fcfg', trace=0, logic_parser=drt.DrtParser())
+    >>> parser = load_earley('grammars/book_grammars/drt.fcfg', logic_parser=nltk.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
     >>> print trees[0].node['sem'].simplify()
     ([x,z2],[Angus(x), dog(z2), own(x,z2)])
@@ -2496,10 +2497,10 @@ ignores scope ambiguity.
 
     >>> dt = nltk.DiscourseTester(['A student dances', 'Every student is a person'])
     >>> dt.readings()
-    <BLANKLINE>
+
     s0 readings:
     s0-r0: exists x.(student(x) & dance(x))
-    <BLANKLINE>
+
     s1 readings:
     s1-r0: all x.(student(x) -> person(x))
 
@@ -2519,9 +2520,10 @@ of retracting the sentence in question.
     s0: A student dances
     s1: Every student is a person
 
-In a similar manner, we use ``informchk=True`` to check whether
-the new sentence is informative relative to the current discourse (by
-asking the theorem prover to derive it from the discourse).
+In a similar manner, we use ``informchk=True`` to check whether a new sentence |phi|
+is informative relative to the current discourse. The theorem prover treats existing
+sentences in the thread as assumptions and attempts to prove |phi|; it is informative
+if no such proof can be found.
 
     >>> dt.add_sentence('A person dances', informchk=True)
     Sentence 'A person dances' under reading 'exists x.(person(x) & dance(x))':
@@ -2549,12 +2551,12 @@ input (`Every dog chases a boy.  He runs`:lx:.) needs to be tagged as well as to
     >>> dt = nltk.DiscourseTester(['Every dog chases a boy', 'He runs'], rc)
     >>> dt.readings()
     s0 readings:
-    <BLANKLINE>
+
     s0-r0: ([],[(([x],[dog(x)]) -> ([z3],[boy(z3), chases(x,z3)]))])
     s0-r1: ([z4],[boy(z4), (([x],[dog(x)]) -> ([],[chases(x,z4)]))])
-    <BLANKLINE>
-     s1 readings:
-    <BLANKLINE>
+
+    s1 readings:
+
     s1-r0: ([x],[PRO(x), runs(x)])
 
 The first sentence of the discourse has two possible readings, depending on the
@@ -2564,8 +2566,8 @@ result:
 
     >>> dt.readings(show_thread_readings=True)
     d0: ['s0-r0', 's1-r0'] : INVALID: AnaphoraResolutionException
-    d1: ['s0-r1', 's1-r0'] : ([z8,z12],[boy(z8), (([x],[dog(x)]) -> 
-    ([],[chases(x,z8)])), (z12 = z8), runs(z12)])
+    d1: ['s0-r1', 's1-r0'] : ([z6,z10],[boy(z6), (([x],[dog(x)]) -> 
+    ([],[chases(x,z6)])), (z10 = z6), runs(z10)])
 
 When we examine threads ``d0`` and ``d1``, we see
 that reading ``s0-r0``, where `every dog`:lx: out-scopes
@@ -2578,8 +2580,8 @@ Inadmissible readings can be filtered out by passing the parameter
 ``filter=True``.
 
     >>> dt.readings(show_thread_readings=True, filter=True)
-    d1: ['s0-r1', 's1-r0'] : ([z14,z17],[boy(z14), (([x],[dog(x)]) ->
-    ([],[chases(x,z14)])), (z17 = z14), runs(z17)])
+    d1: ['s0-r1', 's1-r0'] : ([z12,z15],[boy(z12), (([x],[dog(x)]) ->
+    ([],[chases(x,z12)])), (z17 = z12), runs(z15)])
 
 
 Although this little discourse is extremely limited, it should give you a feel for
@@ -2776,10 +2778,9 @@ Exercises
 #. |easy| Consider the following statements:
 
    .. doctest-ignore::
-     >>> from nltk.sem import LogicParser, ApplicationExpression
-     >>> lp = LogicParser()
+     >>> lp = nltk.LogicParser()
      >>> e2 = lp.parse('pat')
-     >>> e3 = ApplicationExpression(e1, e2)
+     >>> e3 = nltk.ApplicationExpression(e1, e2)
      >>> print e3.simplify()
      exists y.love(pat, y)
 
@@ -2812,19 +2813,19 @@ Exercises
 
    .. doctest-ignore::
     >>> e2 = lp.parse('chase')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.all y.(dog(y) -> chase(x,pat))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('chase')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.exists y.(dog(y) & chase(pat,x))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('give')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x0 x1.exists y.(present(y) & give(x1,y,x0))
 
@@ -2833,19 +2834,19 @@ Exercises
 
    .. doctest-ignore::
     >>> e2 = lp.parse('bark')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     exists y.(dog(x) & bark(x))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('bark')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     bark(fido)
 
    .. doctest-ignore::
     >>> e2 = lp.parse('\\P. all x. (dog(x) -> P(x))')
-    >>> e3 = ApplicationExpression(e1, e2)
+    >>> e3 = nltk.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     all x.(dog(x) -> bark(x))
 
@@ -2875,10 +2876,10 @@ Exercises
 
 #. |hard| Carry out the preceding exercise, but use |DRT| as the meaning representation.
 
-#. |hard| Taking [WarrenPereira1982] as a starting point, develop a technique
+#. |hard| Taking [WarrenPereira1982]_ as a starting point, develop a technique
    for converting a natural language query into a form that can be
    evaluated more efficiently in a model. For example, given a query
-   of the form ``(P(x) & Q(x)``, convert it to ``(Q(x) & P(x)`` if
+   of the form ``(P(x) & Q(x))``, convert it to ``(Q(x) & P(x))`` if
    the extension of ``Q`` is smaller than the extension of 
    ``P``.
 
