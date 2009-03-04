@@ -11,6 +11,24 @@
 ===============================
 
 
+as x as y: ``http://acl.ldc.upenn.edu/P/P07/P07-1008.pdf``
+
+-------------------
+Regular Expressions
+-------------------
+
+http://www.regular-expressions.info/ is a useful online resource,
+providing a tutorial and references to tools and other sources of
+information.
+
+Unicode Regular Expressions:
+http://www.unicode.org/reports/tr18/
+
+Regex Library:
+http://regexlib.com/
+
+
+
 #. The above example of extracting (name, domain) pairs from
    text does not work when there is more than one email address
    on a line, because the ``+`` operator is "greedy" and consumes
