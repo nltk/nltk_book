@@ -66,194 +66,108 @@
 ==================================
 
 Natural languages have an extensive range of grammatical constructions which
-confound the simple methods described in chap-parse_.  When nouns are marked
-in some way |mdash| e.g. as plural, or feminine, or dative |mdash| other words
-in the sentence may need to match.  If we ignore these long-distance constraints
-in our formal grammars, they will produce the wrong syntactic structures leading
-to incorrect interpretations.
+are hard to handle with the simple methods described in chap-parse_. In order to gain
+more flexibility, we change our treatment of grammatical categories like ``S``,
+``NP`` and ``V``. In place of atomic labels, we decompose them structures like
+dictionaries, where features can take on a range of values.
 
 The goal of this chapter is to answer the following questions: 
 
-#. What are some important grammatical constructions that are difficult to analyze using our existing techniques?
+#. How can we extend the framework of context free grammars with features so as to
+  gain more fine-grained control over grammatical categories and productions?
 
-#. How can we extend formal grammars so that grammatical properties can be shared between non-adjacent constituents?
+#. What are the main formal properties of feature structures and how do we use them
+ computationally? 
 
-#. ??
+#. What kinds of linguistic patterns and grammatical constructions can we now capture
+ with feature based grammars?
 
 Along the way, we will cover more topics in English syntax, including phenomena such as
 agreement, subcategorization, and unbounded dependency constructions.
-We will also explore a technique for representing grammatical properties
-using a type of dictionary called a "feature structure" and a computational
-method for combining feature structures called "unification."
 
-.. XXX need a new name for the following section;
-   also I think it would be hard for newcomers to grasp
-   the significance of the two examples.
 
-------------
-Introduction
-------------
+--------------------
+Grammatical Features
+--------------------
 
-Imagine you are building a spoken dialogue
-system to answer queries about train schedules in Europe. ex-train0_
-illustrates one of the input
-sentences that the system should handle.
+chap-data-intensive_ described how classification relies on detecting features of
+text.  Such features may be quite simple, such as extracting the last letter of a
+word, or more complex, such as a part-of-speech tag which has itself been predicted
+by the classifier.  In this chapter, we will investigate the role of features in
+building rule-based grammars.  In contrast to feature extractors, which record
+features that have been automatically detected, we are now going to
+*declare* the features of words and phrases. We start off with a
+very simple example, using dictionaries to store features and their values.
 
-.. _ex-train0:
-.. ex::
-      Which *stations* does the 9.00 express from Amsterdam to Paris stop at?
+    >>> kim = {'CAT': 'NP', 'ORTH': 'Kim', 'REF': 'k'}
+    >>> chase = {'CAT': 'V', 'ORTH': 'chased', 'REL': 'chase'}
 
-The information that the customer is seeking is not exotic |mdash| the
-system back-end just needs to look up the list of stations on the
-route, and reel them off. But you have to be careful in giving the
-correct semantic interpretation to
-ex-train0_. You don't want to end up with the
-system trying to answer ex-train1_ instead: 
+The objects ``kim`` and ``chase`` both have a couple of shared features, ``CAT``
+(grammatical category) and ``ORTH`` (orthograpy, i.e., spelling). In addition, each
+has a more semantically-oriented feature: ``kim['REF']`` is intended to give the
+referent of ``kim``, while ``chase['REL']`` gives the relation expressed by
+``chase``.  In the context of rule-based grammars, such pairings of features and
+values are known as `feature structures`:dt:, and we will shortly see alternative
+notations for them.
 
-.. _ex-train1:
-.. ex::
-      Which *station* does the 9.00 express from Amsterdam terminate at?
+Feature structures contain various kinds of information about grammatical
+entities. The information need not be exhaustive, and we might want to add further
+properties. For example, in the case of a verb, it is often useful to know what
+"semantic role" is played by the arguments of the verb. In the case of `chase`:lx:,
+the subject plays the role of "agent", while the object has the role of
+"patient". Let's add this information, using ``'sbj'`` and ``'obj'`` as placeholders
+which will get filled once the verb combines with its grammatical arguments:
 
-.. XXX I was initially confused by this example given the most obvious
-   change (stop->terminate) and wrongly assumed this was making a point
-   about lexical semantics (stop means two things).  Can we have an
-   example that only changes number, not also the lexical item?
-   (cf German example)
+    >>> chase['AGT'] = 'sbj'
+    >>> chase['PAT'] = 'obj'
 
-Part of your solution might use domain knowledge to figure out that if
-a speaker knows that the train is a train to Paris, then she probably
-isn't asking about the terminating station in ex-train0_. But the
-solution will probably also involve recognizing the syntactic structure of the
-speaker's query.  In particular, your analyzer should recognize that
-there is a syntactic connection between the question phrase `which
-stations`:lx:, and the phrase `stop at`:lx: at the end ex-train0_. The
-required interpretation is made clearer in the "quiz question" version
-shown in ex-train2_, where the question phrase fills the "gap" that is
-implicit in ex-train0_:
+If we now process a sentence `Kim chased Lee`, we want to "bind" the verb's agent role to
+the subject and the patient role to the object. We do this by linking to the
+``REF`` feature of the relevant ``NP``. In the following example, we make the
+simple-minded assumption that the ``NP``\ s immediately to the left and right of the
+verb are the subject and object respectively. We also add a feature
+structure for `Lee`:lx: to complete the example.
 
-.. _ex-train2:
-.. ex::
-      The 9.00 express from Amsterdam to Paris stops at which stations?
+    >>> sent = "Kim chased Lee"
+    >>> tokens = sent.split()
+    >>> lee = {'CAT': 'NP', 'ORTH': 'Lee', 'REF': 'l'}
+    >>> def lex2fs(word):
+    ...     for fs in [kim, lee, chase]:
+    ...         if fs['ORTH'] == word:
+    ...             return fs
+    >>> subj, verb, obj = lex2fs(tokens[0]), lex2fs(tokens[1]), lex2fs(tokens[2])
+    >>> verb['AGT'] = subj['REF']
+    >>> verb['PAT'] = obj['REF']
+    >>> for k in ['ORTH', 'REL', 'AGT', 'PAT']:
+    ...     print "%-5s => %s" % (k, verb[k])
+    ORTH  => chased
+    REL   => chase
+    AGT   => k
+    PAT   => l 
 
-The `long-distance dependency`:dt: between an initial question phrase
-and the gap that it semantically connects to cannot be recognized by
-techniques we have presented in earlier chapters. For example, we
-can't use *n*-gram based language models; in practical terms, it is
-infeasible to observe the *n*-grams for a big enough value of
-*n*. Similarly, chunking grammars only attempt to capture local
-patterns, and therefore just don't "see" long-distance dependencies.
-In this chapter, we will see a simple yet effective technique for keeping track of
-long-distance dependencies in sentences.
+The same approach could be adopted for a different verb, say `surprise`:lx:, though in
+this case, the subject would play the role of "source" (``SRC``) and the object,
+the role of "experiencer" (``EXP``):
 
-.. XXX the following example is problematic since this agreement
-   is not a purely local dependency
+    >>> surprise = {'CAT': 'V', 'ORTH': 'surprised', 'REL': 'surprise', 
+    ...             'SRC': 'sbj', 'EXP': 'obj'}
 
-Features are helpful too for dealing with purely local dependencies.
-Consider the German questions ex-germanagr_:
-
-.. _ex-germanagr:
-.. ex::
-   .. _ex-germanagra:
-   .. gloss::
-      Welche  |  Studenten       | kennen  | Franz?
-      which   |  student.PL      | know.PL  | Franz
-      'which students know Franz?'               
-
-   .. _ex-germanagrb:
-   .. gloss::
-      Welche  |  Studenten       | kennt   | Franz?
-      which   |  student.PL      | know.SG  | Franz
-      'which students does Franz know?' 
-
-.. XXX the next paragraph seems inappropriate for setting the
-   stage in this chapter because it says the agreement phenomenon
-   is already covered in ch08, and the semantic constrast in
-   the above sentence will be covered in ch10.
-
-The only way of telling which noun phrase is the subject of
-`kennen`:lx: ('know') and which is the object is by looking at the
-agreement inflection on the verb |mdash| word order is no help to us
-here. Since verbs in German agree in number with their subjects, the
-plural form `kennen`:lx: requires `Welche Studenten`:lx: as subject,
-while the singular form `kennt`:lx: requires `Franz`:lx: as
-subject. The fact that subjects and verbs must agree in number can be
-expressed within the |CFG|\ s that we presented in
-chap-parse_. But capturing the fact that the interpretations of
-ex-germanagra_ and ex-germanagrb_ differ is more challenging. In this
-chapter, we will only examine the syntactic aspect of local
-dependencies such as number agreement. In chap-semantics_, we
-will demonstrate how feature based grammars can be extended so that
-they build a representation of meaning in parallel with a
-representation of syntactic structure.
-
--------------------------
-Why Grammatical Features?
--------------------------
-
-.. XXX we haven't used the term "grammatical feature" at all so far
-
-.. XXX how about calling them "grammatical properties" and using
-   Python dictionary notation?
-   
-.. XXX "of the rather general sort that are appealed to in the context of"
-
-We have already used the term `grammatical feature`:dt: a few times in
-this chapter, without saying what it means.  We need to
-clarify that we are not talking about features of the rather general
-sort that are appealed to in the context of machine learning
-(chap-data-intensive_). Instead, we focus on a more restricted notion
-of feature that plays a central role in building a certain class of
-formal grammars called `feature based grammars`:dt:.  What's special
-about these? The core ideas are probably already familiar to you. To
-make things concrete, let's look at the word `these`:lx:. We'll be
-modest, and assume that we do not know `everything`:em: about this
-word, but we can at least give a partial description. To signal that
-we are talking about the lexeme of the word (cf chap-words_), we use
-the label `these`:lex:. For example, we know that the orthography of
-`these`:lex: is `these`:lx:, its pronunciation is ``DH IY Z``
-(cf. the *Arpabet* mentioned in chap-corpora_), its part-of-speech is
-``Det``, and its number is plural. We use "dot notation" to record
-these observations:
-
-.. _ex-feat0:
-.. ex::
-   .. parsed-literal::
-
-      `these`:lex:.spelling = `these`:lx:
-      `these`:lex:.pron = DH IY Z
-      `these`:lex:.pos = Det
-      `these`:lex:.number = plural
-
-.. XXX second sentence below is too complex
-
-Thus ex-feat0_ is a `partial description` of a word; it lists some
-properties of the word, and declares their values. There
-are other properties that we might be interested in, which have not
-been specified; for example, in a given grammatical context, what head
-the word is dependent on (using the notion of dependency discussed in
-chap-parse_), and what the lemma of the word is. But the omission of
-some attributes is exactly what you would expect from a partial
-description!
-
-.. 
- The framework of context-free grammars that we presented in
- chap-parse_ describes syntactic constituents with the help of a
- limited set of category labels. These atomic labels are adequate for
- talking about the gross structure of sentences. But when we start to
- make finer grammatical distinctions it becomes awkward to enrich the
- set of categories in a systematic manner. In this chapter we will
- address this challenge by decomposing categories using features
- (somewhat similar to the key-value pairs of Python dictionaries). 
-
-We will start off this chapter by looking more closely at the
+Feature structures are pretty powerful, but the way
+in which we have manipulated them is extremely *ad hoc*. Our next task in this
+chapter is to show how the framework of context free grammar and parsing can be
+expanded to accommodate feature structures, so that we can build analyses like this
+in a more generic and principled way.
+We will start off by looking  at the
 phenomenon of syntactic agreement; we will show how agreement
 constraints can be expressed elegantly using features, and illustrate
-their use in a simple grammar. Feature structures are a general data
-structure for representing information of any kind; we will briefly
-look at them from a more formal point of view, and explain how to
-create feature structures in |NLTK|. In the final part of the chapter,
+their use in a simple grammar. 
+
+Since feature structures are a general data
+structure for representing information of any kind, we will briefly
+look at them from a more formal point of view, and illustrate the support for feature
+structures offered by |NLTK|. In the final part of the chapter,
 we demonstrate that the additional expressiveness of features opens
-out a wide spectrum of possibilities for describing sophisticated
+up a wide spectrum of possibilities for describing sophisticated
 aspects of linguistic structure.
 
 
