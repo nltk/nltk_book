@@ -5,7 +5,6 @@
 8. Analyzing Sentence Structure (Extras)
 ========================================
 
-
 -------------------
 Chunking vs Parsing
 -------------------
