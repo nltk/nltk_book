@@ -68,8 +68,8 @@ implicit in ex-train0_:
 The `long-distance dependency`:dt: between an initial question phrase
 and the gap that it semantically connects to cannot be recognized by
 techniques we have presented in earlier chapters. For example, we
-can't use *n*-gram based language models; in practical terms, it is
-infeasible to observe the *n*-grams for a big enough value of
+can't use n-gram based language models; in practical terms, it is
+infeasible to observe the n-grams for a big enough value of
 *n*. Similarly, chunking grammars only attempt to capture local
 patterns, and therefore just don't "see" long-distance dependencies.
 In this chapter, we will show how syntactic features can be used to
