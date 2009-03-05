@@ -366,3 +366,104 @@ Here is what it comes up with:
   VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
 
 This is 100% correct.
+
+
+Developing Chunkers
+-------------------
+
+Creating a good chunker usually requires several rounds of development
+and testing, during which existing rules are refined and new rules are added.
+In code-chunker2_, two chunk patterns are applied to the input
+sentence.  The first rule finds all sequences of three tokens whose
+tags are ``DT``, ``JJ``, and ``NN``, and the second rule finds any
+sequence of tokens whose tags are either ``DT`` or ``NN``.
+We set up two chunkers, one for each rule ordering,
+and test them on the same input.
+
+.. pylisting:: code-chunker2
+   :caption: Two Noun Phrase Chunkers Having Identical Rules in Different Orders
+
+   sentence = [("The", "DT"), ("enchantress", "NN"), ("clutched", "VBD"),
+                   ("the", "DT"), ("beautiful", "JJ"), ("hair", "NN")]
+   cp1 = nltk.RegexpParser(r"""
+     NP: {<DT><JJ><NN>}      # Chunk det+adj+noun
+         {<DT|NN>+}          # Chunk sequences of NN and DT
+     """)
+   cp2 = nltk.RegexpParser(r"""
+     NP: {<DT|NN>+}          # Chunk sequences of NN and DT
+         {<DT><JJ><NN>}      # Chunk det+adj+noun
+     """)
+
+   >>> print cp1.parse(sentence, trace=1)
+   # Input:
+    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
+   # Chunk det+adj+noun:
+    <DT>  <NN>  <VBD> {<DT>  <JJ>  <NN>}
+   # Chunk sequences of NN and DT:
+   {<DT>  <NN>} <VBD> {<DT>  <JJ>  <NN>}
+   (S
+     (NP The/DT enchantress/NN)
+     clutched/VBD
+     (NP the/DT beautiful/JJ hair/NN))
+   >>> print cp2.parse(sentence, trace=1)
+   # Input:
+    <DT>  <NN>  <VBD>  <DT>  <JJ>  <NN> 
+   # Chunk sequences of NN and DT:
+   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
+   # Chunk det+adj+noun:
+   {<DT>  <NN>} <VBD> {<DT>} <JJ> {<NN>}
+   (S
+     (NP The/DT enchantress/NN)
+     clutched/VBD
+     (NP the/DT)
+     beautiful/JJ
+     (NP hair/NN))
+
+Observe that when we chunk material that is already partly chunked,
+the chunker will only create chunks that do not partially overlap
+existing chunks.  In the case of ``cp2``, the second rule
+did not find any chunks, because all chunks that matched
+its tag pattern overlapped existing chunks.  As you can see,
+you need to be careful to put chunk rules in the right order. 
+
+You might want to test out some of your rules on a corpus. One option
+is to use the Brown corpus. However, you need to remember that the
+Brown tagset is different from the Penn Treebank tagset that we
+have been using for our examples so far in this chapter (see
+``nltk.help.brown_tagset()`` and ``nltk.help.upenn_tagset()``
+for details).  Because the Brown tagset
+uses ``NP`` for proper nouns, in this example we have followed Abney
+in labeling noun chunks as ``NX``.
+
+    >>> grammar = (r"""
+    ...    NX: {<AT|AP|PP\$>?<JJ.*>?<NN.*>}  # Chunk article/numeral/possessive+adj+noun
+    ...        {<NP>+}                       # Chunk one or more proper nouns                   
+    ... """)
+    >>> cp = nltk.RegexpParser(grammar)
+    >>> sent = nltk.corpus.brown.tagged_sents(categories='news')[112]
+    >>> print cp.parse(sent)
+    (S
+      (NX His/PP$ contention/NN)
+      was/BEDZ
+      denied/VBN
+      by/IN
+      (NX several/AP bankers/NNS)
+      ,/,
+      including/IN
+      (NX Scott/NP Hudson/NP)
+      of/IN
+      (NX Sherman/NP)
+      ,/,
+      (NX Gaynor/NP B./NP Jones/NP)
+      of/IN
+      (NX Houston/NP)
+      ,/,
+      (NX J./NP B./NP Brady/NP)
+      of/IN
+      (NX Harlingen/NP)
+      and/CC
+      (NX Howard/NP Cox/NP)
+      of/IN
+      (NX Austin/NP)
+      ./.)
+
