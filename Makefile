@@ -8,15 +8,17 @@
 
 PUBLISH = ../../doc
 
-NLTK_VERSION = $(shell python -c 'import nltk; print nltk.__version__')
-NLTK_URL = $(shell python -c 'import nltk; print nltk.__url__')
+PYTHON = python
+
+NLTK_VERSION = $(shell $(PYTHON) -c 'import nltk; print nltk.__version__')
+NLTK_URL = $(shell $(PYTHON) -c 'import nltk; print nltk.__url__')
 
 RST2HTML = rst2html.py
 
 STYLESHEET_PATH = .
 
 EPYDOC_OPTS = --name=nltk --navlink="nltk $(NLTK_VERSION)"\
-              --url=$(NLTK_URL) --inheritance=listed
+              --url=$(NLTK_URL) --inheritance=listed --debug
 RSYNC_OPTS = -lrtvz -e ssh --relative --cvs-exclude --omit-dir-times
 
 .SUFFIXES: .txt .html
@@ -63,7 +65,7 @@ publish-book:
 	cp default.css $(PUBLISH)
 	cp images/*.png $(PUBLISH)/images/
 	svn add $(PUBLISH)/default.css $(PUBLISH)/images/*
-	python ../tools/svnmime.py $(PUBLISH)/default.css $(PUBLISH)/images/*
+	$(PYTHON) ../tools/svnmime.py $(PUBLISH)/default.css $(PUBLISH)/images/*
 
 publish-howto:
 	$(MAKE) -C howto publish
@@ -71,4 +73,4 @@ publish-howto:
 publish-api:
 	cp api/* $(PUBLISH)/api
 	svn add $(PUBLISH)/api/*
-	python ../tools/svnmime.py $(PUBLISH)/api/*
+	$(PYTHON) ../tools/svnmime.py $(PUBLISH)/api/*
