@@ -109,8 +109,7 @@ clean_up:
 	$(RSTHACKS) --format=xml $<
 	$(RST2DOCBOOK) $(REF) `basename $< .rst`.rst2
 	(if [ "`grep -i 'preface::' $*.rst`" ]; then\
-	    sed -e "s/chapter>/preface>/" -i "" $*.xml;\
-	    sed -e "s/DOCTYPE chapter/DOCTYPE preface/" -i $*.xml;\
+	    sed -e "s/chapter>/preface>/" $*.xml | sed -e "s/DOCTYPE chapter/DOCTYPE preface/" > $*.tmp && mv $*.tmp $*.xml \
 	fi)
 #	$(XMLLINT) $@
 
