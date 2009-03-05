@@ -103,19 +103,19 @@ clean_up:
 
 %.html: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=html $<
-	$(RST2HTML) $(REF) `basename $< .rst`.rst2
+	$(RST2HTML) $(REF) $*.rst2
 
 %.xml: %.rst $(RST) ../docbook.py $(REF) revision.rst
 	$(RSTHACKS) --format=xml $<
-	$(RST2DOCBOOK) $(REF) `basename $< .rst`.rst2
+	$(RST2DOCBOOK) $(REF) $*.rst2
 	(if [ "`grep -i 'preface::' $*.rst`" ]; then\
-	    sed -e "s/chapter>/preface>/" $*.xml | sed -e "s/DOCTYPE chapter/DOCTYPE preface/" > $*.tmp && mv $*.tmp $*.xml \
+	    sed -e "s/chapter>/preface>/" $*.xml | sed -e "s/DOCTYPE chapter/DOCTYPE preface/" > $*.tmp && mv $*.tmp $*.xml; \
 	fi)
 #	$(XMLLINT) $@
 
 %.tex: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=latex $<
-	$(RST2LATEX) $(REF) `basename $< .rst`.rst2
+	$(RST2LATEX) $(REF) $*.rst2
 	$(LATEXHACKS) $@
 
 revision.rst: $(CHAPTERS)
@@ -168,8 +168,8 @@ book.pdf: book.bbl book.tex
 
 .rst.errs:
 	$(PYTHON) $(DOCTEST_SPLIT) $<
-	$(DOCTEST) `basename $< .rst`*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
-	rm -f `basename $< .rst`*.doctest
+	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
+	rm -f $*-*.doctest
 
 .rst.py:
 	$(PYTHON) $(EXAMPLES) $< > $@
