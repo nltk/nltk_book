@@ -27,8 +27,8 @@ following questions:
 
 3. Which corpora are appropriate for this work, and how do we use them for training and evaluating our models?
 
-Along the way, we'll see how we can do segmentation and labeling at the level of phrases.
-
+Along the way, we'll see how we can do segmentation and labeling to identify
+and categorize phrases, such as noun phrases and named entities.
 
 
 .. _sec-information-extraction:
@@ -39,9 +39,9 @@ Information Extraction
 
 Information comes in many shapes and sizes. One important form is
 `structured data`:dt:, where there is a regular and predictable
-organization of facts. For example, we might be interested in the
+organization of entities and relationships. For example, we might be interested in the
 relation between companies and locations. Given a particular company,
-we would like to be able to identify the locations in which it does
+we would like to be able to identify the locations where it does
 business; conversely, given a location, we would like to discover
 which companies do business in that location. If our data is in tabular
 form, such as the little example in tab-db-locations_, then
@@ -70,7 +70,7 @@ question ex-ie1_ can be translated into the SQL query ex-ie2_.
 
 .. _ex-ie2:
 .. ex:: 
-   ``"select OrgName from locations where LocationName = 'Atlanta'"``
+   ``select OrgName from locations where LocationName = 'Atlanta'``
 
 When executed, ex-ie2_ will return the required values:
 
@@ -88,7 +88,7 @@ When executed, ex-ie2_ will return the required values:
 
 Things are more tricky if we try to get similar information out of
 text. For example, consider the
-following snippet (extracted from the IEER corpus, document 'NYT19980315.0085').
+following snippet (from ``nltk.corpus.ieer``, for fileid ``NYT19980315.0085``).
 
 .. _ex-ie4:
 .. ex::
@@ -106,12 +106,14 @@ to answer ex-ie1_. But how do we get a machine to understand enough
 about ex-ie4_ to return the answers in tab-db-answers_?  This is
 obviously a much harder task. Unlike tab-db-locations_, ex-ie4_
 contains no structure that links organization names with
-location names. As we will see in chap-semantics_, one
-approach to this problem involves building a very general
-representation of meaning.  Here we take a different approach, and
-decide in advance that we are only going to look for very specific kinds of
-information in text, such as the relation between an organization and
-the locations it operates in. In other words, rather than trying to
+location names.
+
+One approach to this problem involves building a very general
+representation of meaning (chap-semantics_). 
+Here we take a different approach,
+deciding in advance that we will only look for very specific kinds of
+information in text, such as the relation between organizations and
+locations.  Rather than trying to
 use text like ex-ie4_ to answer ex-ie1_ directly, we first convert the `unstructured
 data`:dt: of natural language sentences into the structured data of
 tab-db-locations_. Then we reap the benefits of powerful query
@@ -131,7 +133,7 @@ Information Extraction Architecture
 
 fig-ie-architecture_ shows the architecture for a simple information
 extraction system.  It begins by processing a document using several
-of the procedures we discussed in chap-words_ and chap-tag_: first,
+of the procedures discussed in chap-words_ and chap-tag_: first,
 the raw text of the document is split into sentences, using a sentence
 segmenter; and each sentence is further subdivided into words using a
 tokenizer.  Next, each sentence is tagged with part-of-speech tags,
@@ -160,14 +162,12 @@ ie-segment_, word tokenizer ie-tokenize_, and part-of-speech tagger
 ie-postag_:
 
     >>> def ie_preprocess(document):
-    ...    # Segment the document into sentences.
     ...    sentences = nltk.sent_tokenize(document) # [_ie-segment]
-    ... 
-    ...    # Tokenize each sentence.
     ...    sentences = [nltk.word_tokenize(sent) for sent in sentences] # [_ie-tokenize]
-    ... 
-    ...    # Part-of-speech tag each sentence
     ...    sentences = [nltk.pos_tag(sent) for sent in sentences] # [_ie-postag]
+
+.. note:: Remember that our program samples assume you
+   begin your interactive session or your program with: ``import nltk, re, pprint``
 
 .. _sec-chunking:
 
@@ -193,7 +193,7 @@ entities in the same way as definite ``NP``\ s and proper names.
 .. determine what they actually refer to.
 
 The basic technique we will use for entity detection is
-`chunking`:dt:, which finds and labels multi-token sequences, as
+`chunking`:dt:, which segments and labels multi-token sequences as
 illustrated in fig-chunk-segmentation_.  The smaller boxes show the
 word-level tokenization and part-of-speech tagging, while the large
 boxes show higher-level chunking.  Each of these larger boxes is
@@ -205,11 +205,10 @@ called a `chunk`:dt:.
 
    Segmentation and Labeling at both the Token and Chunk Levels
 
-Like tokenization, chunking can skip over material in the input.
-Tokenization omits white space (and sometimes punctuation characters).
-Chunking uses only a subset of the tokens and leaves others out.  Also
-like tokenization, the sequences generated by a chunker may not
-overlap.
+Like tokenization, which omits whitespace and sometimes omits punctuation,
+chunking usually selects a subset of the tokens.
+Also like tokenization, the pieces produced by a chunker do not overlap
+in the source text.
 
 In the following sections we will explore chunking in some depth, beginning
 with the definition and representation of chunks.  We will see regular
@@ -237,22 +236,22 @@ for Digital's hardware`:lx: is a single noun phrase (containing two
 nested noun phrases), but it is captured in ``NP``\ -chunks by the
 simpler chunk `the market`:lx:.  One of the motivations for this
 difference is that ``NP``\ -chunks are defined so as not contain
-other``NP``\ -chunks embedded within them.  Consequently, any
+other ``NP``\ -chunks embedded within them.  Consequently, any
 prepositional phrases or subordinate clauses that modify a nominal
 will not be included in the corresponding ``NP``\ -chunk, since they
 almost certainly contain further noun phrases.
 
 One of the most useful sources of information for ``NP``\ -chunking is
-part-of-speech tags.  This is one of the main motivations for
+part-of-speech tags.  This is one of the motivations for
 performing part-of-speech tagging in our information extraction
 system.  We demonstrate this approach using an example sentence that
 has been part-of-speech tagged in code-chunkex_.  In order to create an
-``NP``\ -chunker, we will first define a `grammar`:dt:, consisting of rules
+``NP``\ -chunker, we will first define a `chunk grammar`:dt:, consisting of rules
 that indicate how sentences should be chunked.  In this case, we will
-define a very simple grammar with a single regular-expression rule
+define a simple grammar with a single regular-expression rule
 chunkex-grammar_.  This rule says that an NP chunk should be formed
-whenever the chunker finds an optional determiner (DT) followed by any
-number of adjectives (JJ) and then a noun (NN).  Using this grammar,
+whenever the chunker finds an optional determiner (``DT``) followed by any
+number of adjectives (``JJ``) and then a noun (``NN``).  Using this grammar,
 we create a chunk parser chunkex-cp_, and test it on our example
 sentence chunkex-test_.  The result is a tree, which we can either
 print chunkex-print_, or display graphically chunkex-draw_.
@@ -276,11 +275,8 @@ print chunkex-print_, or display graphically chunkex-draw_.
      (NP the/DT cat/NN))
    >>> result.draw() # [_chunkex-draw] # doctest: +SKIP
 
-   .. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
-              (VBD barked) (IN at) (NP (DT the) (NN cat)))
-
-.. note:: Remember that our program samples assume you
-   begin your interactive session or your program with: ``import nltk, re, pprint``
+.. tree:: (S (NP (DT the) (JJ little) (JJ yellow) (NN dog))
+          (VBD barked) (IN at) (NP (DT the) (NN cat)))
 
 Tag Patterns
 ------------
@@ -336,10 +332,10 @@ chunked.  Patterns are applied in turn, successively updating the
 chunk structure.  Once all of the patterns have been applied, the
 resulting chunk structure is returned.  code-chunker1_ shows a
 simple chunk grammar consisting of two patterns.  The first pattern
-matches an optional determiner or possessive pronoun (recall that
-``|`` indicates disjunction), zero or more adjectives, then a
-noun. The second rule matches one or more proper nouns.  We also
-define some tagged tokens to be chunked, and run the chunker on this input.
+matches an optional determiner or possessive pronoun,
+zero or more adjectives, then a noun.
+The second rule matches one or more proper nouns.
+We also define some tagged tokens to be chunked, and run the chunker on this input.
 
 .. pylisting:: code-chunker1
    :caption: Simple Noun Phrase Chunker
@@ -383,8 +379,9 @@ Exploring Text Corpora
 ----------------------
 
 In sec-tagged-corpora_ we saw how we could interrogate
-a tagged corpus.  We can use a chunker to do the same work with less
-effort, as follows:
+a tagged corpus to extract phrases matching a particular
+sequence of part-of-speech tags.  We can do the same work
+more easily with a chunker, as follows:
 
     >>> cp = nltk.RegexpChunker('CHUNK: {<V.*> <TO> <V.*>}')
     >>> brown = nltk.corpus.brown
@@ -404,9 +401,9 @@ effort, as follows:
     (CHUNK want/VB to/TO buy/VB)
 
 .. note:: |TRY|
-   Encapsulate the above example inside a function that takes a chunk
-   string such as ``'CHUNK: {<V.*> <TO> <V.*>}'`` as its parameter.
-   Now search for other patterns, such as four
+   Encapsulate the above example inside a function ``find_chunks()``
+   that takes a chunk string like ``'CHUNK: {<V.*> <TO> <V.*>}'`` as an argument.
+   Use it to search the corpus for several other patterns, such as four
    or more nouns in a row, e.g. ``'NOUNS: {<N.*>{4,}}``
 
 Chinking, Splitting and Merging
@@ -416,7 +413,7 @@ Sometimes it is easier to define what we *don't* want to include in a
 chunk than it is to define what we *do* want to include.  In these
 cases, it may be easier to build a chunker using a method called
 `chinking`:dt:.  We can define a `chink`:dt: to be a sequence
-of tokens that is not included in a chunk [Abney1996PST]_.
+of tokens that is not included in a chunk.
 In the following example, ``barked/VBD at/IN`` is a chink::
 
   [ the/DT little/JJ yellow/JJ dog/NN ] barked/VBD at/IN [ the/DT cat/NN ]
@@ -507,6 +504,8 @@ sentence that contains ``NP``, ``VP``, and ``PP`` chunk types.
 
 Now we can set up a multi-stage chunk grammar, as shown in
 code-multistage-chunker_.  It has a stage for each of the chunk types.
+We turn on tracing and see the input and output for each stage.
+The resulting tree has the expected ``NP``, ``VP`` and ``PP`` chunks.
 
 .. pylisting:: code-multistage-chunker
    :caption: A Multistage Chunker
@@ -546,17 +545,16 @@ code-multistage-chunker_.  It has a stage for each of the chunk types.
 Chunking vs Parsing
 -------------------
 
-Chunking is akin to parsing, which will be discussed in chap-parse_,
-in the sense that it can be used to build hierarchical structure over
-text.  There are several important differences, however.  First, as
-noted above, chunking is not exhaustive, and typically ignores some
-items in the surface string. In fact, chunking is sometimes called
-`partial parsing`:dt:. Second, where parsing constructs nested
-structures that are arbitrarily deep, chunking creates structures of
-fixed depth (typically depth 2).  These chunks often correspond to the
-lowest level of grouping identified in the full parse tree. This is
-illustrated in ex-parsing-chunking_ below, which shows an ``NP`` chunk
-structure and a completely parsed counterpart:
+Chunking is akin to parsing (chap-parse_) in the sense
+that it serves to build hierarchical structure over text.
+However, there are some important differences.
+Chunking is not exhaustive, and typically ignores some
+items in the input sequence (as already noted).
+Chunking creates structures of fixed depth (typically depth 2),
+instead of the arbitrarily deep trees created by a parser.
+In particular, ``NP`` chunks usually correspond to the
+lowest level of ``NP`` grouping identified in a full parse tree,
+as illustrated in ex-parsing-chunking_:
 
 .. _ex-parsing-chunking:
 .. ex::
@@ -568,9 +566,8 @@ structure and a completely parsed counterpart:
      .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
                      (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
 
-A significant motivation for chunking is its robustness and efficiency
-relative to parsing.  As we will see in chap-parse_, parsing has 
-problems with robustness,
+A significant motivation for chunking is its robustness and efficiency.
+As we will see in chap-parse_, parsing has problems with robustness,
 given the difficulty in gaining broad coverage while minimizing
 ambiguity.  Parsing is also relatively inefficient: the time taken to
 parse a sentence grows with the cube of the length of the sentence,
@@ -625,45 +622,22 @@ can be manipulated directly.  An example is shown in fig-chunk-treerep_.
 
    Tree Representation of Chunk Structures
 
-|nopar|
 |NLTK| uses trees for its internal representation of chunks, and
-provides methods for reading and writing such trees to the IOB
-format.  By now you should understand what chunks are, and how they
-are represented.  In the next section, you will see how to build a
-simple chunker.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+provides methods for reading and writing such trees to the IOB format.  
 
 ----------------------------------
 Developing and Evaluating Chunkers
 ----------------------------------
 
-Now you have a taste of what chunking can do, but we have not
-explained how to carry out a quantitative evaluation of chunkers.  For
-this, we need to get access to a corpus that has been annotated not
-only with parts-of-speech, but also with chunk information.  We will
-begin by looking at the mechanics of converting IOB format into an
+Now you have a taste of what chunking does, but we haven't
+explained how to carry out a quantitative evaluation of chunkers.
+As usual, this requires a suitably annotated corpus.
+We begin by looking at the mechanics of converting IOB format into an
 |NLTK| tree, then at how this is done on a larger scale using a
-chunked corpus directly.  We will see how to use the corpus to score
-the accuracy of a chunker, then look some more flexible ways to
-manipulate chunks.  Our focus throughout will be on scaling up the
-coverage of a chunker.
+chunked corpus directly.  We will see how to score
+the accuracy of a chunker relative to a corpus,
+then look some more flexible ways to manipulate chunks.
+Our focus throughout will be on expanding the coverage of a chunker.
 
 Developing Chunkers
 -------------------
@@ -849,7 +823,6 @@ example that reads the 100th sentence of the "train" portion of the corpus:
       ./.)
 
 
-|nopar|
 This  showed three chunk types, for ``NP``, ``VP`` and ``PP``.
 We can also select which chunk types to read:
 
@@ -932,7 +905,6 @@ regular expression chunker:
        grammar = 'NP: {<%s>+}' % '|'.join(chunk_tags)
        return nltk.RegexpParser(grammar)
 
-|nopar|
 The final step is to train this chunker and test its accuracy (this
 time on the "test" portion of the corpus, i.e., data not seen during training):
 
@@ -1630,7 +1602,7 @@ etc.).  Both chunkers can be accessed using the function
       (NE Brooke/NNP T./NNP Mossman/NNP)
       ...)
 
-|nopar| Both chunkers are trained based on the ACE-2 corpus.  This
+Both chunkers are trained based on the ACE-2 corpus.  This
 corpus is not freely available, but a licence to use the corpus can be
 purchased from the Linguistic Data Consortium (catalog id LDC2003T11).
 
@@ -1753,7 +1725,7 @@ than rule-based chunking, but creates large models and delivers few
 linguistic insights.
 
 Like tagging, chunking cannot be done perfectly.  For example, as
-pointed out by [Abney1996PST]_, we cannot correctly analyze the structure
+pointed out by Abney, we cannot correctly analyze the structure
 of the sentence *I turned off the spectroroute* without knowing the
 meaning of *spectroroute*; is it a kind of road or a type of device?
 Without knowing this, we cannot tell whether *off* is part of a
