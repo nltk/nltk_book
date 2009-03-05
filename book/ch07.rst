@@ -1528,9 +1528,9 @@ At the start of this chapter, we briefly introduced named entities
 (NEs). Named entities are associated with definite noun phrases that
 refer to specific types of individuals, such as organizations, persons,
 dates, and so on. tab-ne-types_ lists some of the more commonly used
-types of NEs. These should be self-explanatory, except for "GPE", 
-an abbreviation for geo-political entity e.g., city, state/province, or
-country.
+types of NEs. These should be self-explanatory, except for "Facility":
+human-made artifacts in the domains of architecture and civil
+engineering; and "GPE": geo-political entities such as city, state/province, and country.
 
 .. table:: tab-ne-types
 
@@ -1550,6 +1550,8 @@ country.
     |MONEY           |`175 million Candadian Dollars`:lx:, `GBP 10.40`:lx:    |
     +----------------+--------------------------------------------------------+
     |PERCENT         |`twenty pct`:lx:, `18.75 %`:lx:                         |
+    +----------------+--------------------------------------------------------+
+    |FACILITY        |`Washington Monument`:lx:, `Stonehenge`:lx:             |
     +----------------+--------------------------------------------------------+
     |GPE             | `South East Asia`:lx:, `Midlothian`:lx:                |
     +----------------+--------------------------------------------------------+
@@ -1662,7 +1664,9 @@ corpus, we can construct a tagger that can be used to label new
 sentences; and use the ``nltk.chunk.conlltags2tree()`` function to
 convert the tag sequences into a chunk tree.  
 
-NLTK provides a classifier that is trained to recognize named entitie,
+.. XXX do readers need to know that there ar two underlying chunkers?
+
+NLTK provides a classifier that has already been trained to recognize named entities,
 accessed with the function ``nltk.ne_chunk()``.  If we set the
 parameter ``binary=True`` binary-ne_, then named entities are just
 tagged as ``NE``; otherwise, the classifier adds category labels such
@@ -1695,8 +1699,12 @@ as PERSON, ORGANIZATION, and GPE.
 
 
 .. XXX the following wants a normal citation.  (Would we ever say that a
-   book was not freely available, but that you could buy it from XYZ publisher?)
+   book was not freely available, but that you could buy it from XYZ
+   publisher?)
 
+.. Overview of ACE here: http://www.nist.gov/speech/tests/ace/2000/doc/ace-tides00/
+
+.. XXX change to "the NE classifier is?
 Both chunkers are trained based on the ACE-2 corpus.  This
 corpus is not freely available, but a license to use the corpus can be
 purchased from the Linguistic Data Consortium (catalog id LDC2003T11).
@@ -1725,7 +1733,8 @@ of`:lx:, where `in`:lx: is followed by a gerundive verb.
 
     >>> IN = re.compile(r'.*\bin\b(?!\b.+ing)')
     >>> for doc in nltk.corpus.ieer.parsed_docs('NYT_19980315'):
-    ...     for rel in nltk.sem.extract_rels('ORG', 'LOC', doc, pattern = IN):
+    ...     for rel in nltk.sem.extract_rels('ORG', 'LOC', doc,
+    ...                                      corpus='ieer', pattern = IN):
     ...         print nltk.sem.show_raw_rtuple(rel)
     [ORG: 'WHYY'] 'in' [LOC: 'Philadelphia']
     [ORG: 'McGlashan &AMP; Sarrail'] 'firm in' [LOC: 'San Mateo']
@@ -1751,26 +1760,41 @@ excluding filler strings such as this.
 
 As shown above, the ``conll2002`` Dutch corpus contains not just named entity
 annotation but also part-of-speech tags. This allows us to devise
-patterns that are sensitive to these tags.
+patterns that are sensitive to these tags, as shown in the next
+example. The method ``show_clause()`` prints out the relations in a
+clausal form, where the binary relation symbol is specified as the
+value of parameter ``relsym`` relsym_. The 
 
 .. XXX what's the status of this example?  It doesn't show any output!
-   Do we want to keep it?
+   Do we want to keep it? 
 
-.. doctest-ignore::
-     >>> vnv = """
-     ... (
-     ... is/V|
-     ... was/V|
-     ... werd/V|
-     ... wordt/V
-     ... )
-     ... .*
-     ... van/Prep
-     ... """
-     >>> VAN = re.compile(vnv, re.VERBOSE)
-     >>> for r in nltk.sem.extract_rels('PER', 'ORG', corpus='conll2002-ned', pattern=VAN): 
-     ...     print show_tuple(r)
+.. XXX now fixed, and tested with doctest
 
+    >>> vnv = """
+    (
+    is/V|    # 3rd sing present and 
+    was/V|   # past forms of the verb zijn ('be')
+    werd/V|  # and also present 
+    wordt/V  # past of worden ('become)
+    )
+    .*       # followed by anything
+    van/Prep # followed by van ('of')
+    """
+    >>> VAN = re.compile(vnv, re.VERBOSE)
+    >>> for doc in conll2002.chunked_sents('ned.train'):
+    ...     for r in nltk.sem.extract_rels('PER', 'ORG', doc, corpus='conll2002', pattern=VAN): 
+    ...         print  nltk.sem.show_clause(r, relsym="VAN") # [_relsym]
+    VAN("cornet_d'elzius", 'buitenlandse_handel')
+    VAN('johan_rottiers', 'kardinaal_van_roey_instituut')
+    VAN('annie_lennox', 'eurythmics')
+
+.. note:: |TRY| Replace the last line relsym_, by ``print
+    show_raw_rtuple(rel, lcon=True, rcon=True)``. This will show you
+    the actual words that intervene between the two NEs and
+    also their left and right context, within a default 10-word
+    window. With the help of a Dutch dictionary, you might be able to
+    figure out why the result ``VAN('annie_lennox', 'eurythmics')`` is
+    a false hit.
 
 
 .. This is too weak to include:
