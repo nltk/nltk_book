@@ -1497,43 +1497,81 @@ we have used "duck typing" to detect that ``t`` is a tree (i.e.
 Named Entity Recognition
 ------------------------
 
-At the start of this chapter, we pointed out that the first step in information
-extraction is to identify phrases which described so-called named entities. Named
-entities are associated with definite noun phrases that denote specific types
-of individuals such as organizations, persons, dates, and so on. 
+At the start of this chapter, we briefly introduced named entities
+(NEs). Named entities are associated with definite noun phrases that
+refer to specific types of individuals, such as organizations, persons,
+dates, and so on. tab-ne-types_ lists some of the more commonly used
+types of NEs. These should be self-explanatory, except for "GPE", 
+an abbreviation for geo-political entity e.g., city, state/province, or
+country.
 
 .. table:: tab-ne-types
 
-  +----------------+-------------------------------------+
-  |ORGANIZATION    |`Georgia-Pacific Corp.`:lx:, `WHO`   |
-  +----------------+-------------------------------------+
-  |PERSON          |`Eddy Bonte`:lx:                     |
-  +----------------+-------------------------------------+
-  |LOCATION        |`Melbourne`:lx:                      |
-  +----------------+-------------------------------------+
-  |DATE            |`175 million Candadian Dollars`:lx:  |
-  +----------------+-------------------------------------+
-  |TIME            |`Mar 2009`:lx:, `1:30 p.m.`:lx:      |
-  +----------------+-------------------------------------+
-  |MONEY           |                                     |
-  +----------------+-------------------------------------+
-  |PERCENT         |                                     |
-  +----------------+-------------------------------------+
+    +----------------+--------------------------------------------------------+
+    | NE Type        |  Examples                                              |
+    +================+========================================================+
+    |ORGANIZATION    |`Georgia-Pacific Corp.`:lx:, `WHO`:lx:                  |
+    +----------------+--------------------------------------------------------+
+    |PERSON          |`Eddy Bonte`:lx:, `President Obama`:lx:                 |
+    +----------------+--------------------------------------------------------+
+    |LOCATION        |`Murray River`:lx:, `Mount Everest`:lx:                 |
+    +----------------+--------------------------------------------------------+
+    |DATE            |`June`:lx:, `2008-06-29`:lx:                            |
+    +----------------+--------------------------------------------------------+
+    |TIME            |`two fifty a m`:lx:, `1:30 p.m.`:lx:                    |
+    +----------------+--------------------------------------------------------+
+    |MONEY           |`175 million Candadian Dollars`:lx:, `GBP 10.40`:lx:    |
+    +----------------+--------------------------------------------------------+
+    |PERCENT         |`twenty pct`:lx:, `18.75 %`:lx:                         |
+    +----------------+--------------------------------------------------------+
+    |GPE             | `South East Asia`:lx:, `Midlothian`:lx:                |
+    +----------------+--------------------------------------------------------+
+
+    Commonly Used Types of Named Entity
 
 
-Thus,
-we might use the following |XML| annotations to mark-up the named
-entities in ex-ie5_:
+The goal of a `named entity recognition`:dt: (NER) system is to identify all
+textual mentions of the named entities. This can be broken down into
+two sub-tasks: identifying the boundaries of the NE, and identifying its
+type. 
+While named entity recognition is frequently a prelude to identifying
+relations in Information Extraction, it can also contribute to other
+tasks.  For example, in Question Answering (QA), we try to improve the
+precision of Information Retrieval by recovering not whole pages, but
+just those parts which contain an answer to the user's question. Most
+QA systems take the documents returned by standard Information
+Retrieval, and then attempt to isolate the minimal text snippet in the
+document containing the answer. Now suppose the question was `Who was
+the first President of the US?`:lx:, and one of the documents that was
+retrieved contained the following passage:
 
-.. ex::
-   .. _ex-ie5:
-   .. ex:: ... said William Gale, an economist at the Brookings Institution,
-      the research group in Washington. 
+.. ex:: The Washington Monument is the most prominent structure in
+    Washington, D.C. and one of the city's early attractions.  It was
+    built in honor of George Washington, who led the country to
+    independence and then became its first President.
 
-   .. _ex-ie6:
-   .. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
-      the <ne type='ORGANIZATION'>Brookings Institution</ne>,
-      the research group in <ne type='LOCATION'>Washington<ne>. 
+Analysis of the question leads us to expect that an answer should be
+of the form  `X ... was the first President of the US`:lx:, where `X`
+is not only a noun phrase, but also refers to a named entity of type
+``PER``. This should allow us to ignore the first sentence in the
+passage, since while it contains two occurences of `Washington`:lx:,
+named entity recognition should tell us that neither of them are of
+the correct type.
+
+.. XXX following text seems irrelevant / misleading
+    Thus,
+    we might use the following |XML| annotations to mark-up the named
+    entities in ex-ie5_:
+
+    .. ex::
+       .. _ex-ie5:
+       .. ex:: ... said William Gale, an economist at the Brookings Institution,
+	  the research group in Washington. 
+
+       .. _ex-ie6:
+       .. ex:: ... said <ne type='PERSON'>William Gale</ne>, an economist at
+	  the <ne type='ORGANIZATION'>Brookings Institution</ne>,
+	  the research group in <ne type='LOCATION'>Washington<ne>. 
 
 How do we go about identifying named entities?  One option would be
 to look up each word in an appropriate list of names.
@@ -1567,7 +1605,7 @@ likely to be of type ORGANIZATION. A term like `Yankee`:lx: will be
 ordinary modifier in some contexts, but will be marked as an entity of
 type ORGANIZATION in the phrase `Yankee infielders`:lx:.
 
-Another challenge is posed by multi-part names like 
+Further challenges are posed by multi-part names like 
 `Stanford University`:lx:, and by names that contain other names
 such as `Cecil H. Green Library`:lx: and `Escondido Village Conference
 Service Center`:lx:. In named entity recognition, therefore, we need
@@ -1595,14 +1633,25 @@ corpus, we can construct a tagger that can be used to label new
 sentences; and use the ``nltk.chunk.conlltags2tree()`` function to
 convert the tag sequences into a chunk tree.  
 
-NLTK provides two default named entity chunkers: one of which labels
-all named entities as ``NE``\ , and the other of which labels them
-with category labels such as PERSON, ORGANIZATION, and GPE (for
-"Geopolitical Entity," which includes countries, states, cities,
-etc.).  Both chunkers can be accessed using the function
-``nltk.ne_chunk()``:
+NLTK provides a classifier that is trained to recognize named entitie,
+accessed with the function ``nltk.ne_chunk()``.  If we set the
+parameter ``binary=True`` binary-ne, then named entities are just
+tagged as ``NE``; otherwise, the classifier adds category labels such
+as PERSON, ORGANIZATION, and GPE.
 
-    >>> sent = nltk.corpus.treebank.tagged_sents()[22]
+    >>> sent = nltk.corpus.treebank.tagged_sents()[22] 
+    >>> print nltk.ne_chunk(sent, binary=True) # doctest: +SKIP [_binary-ne]
+    (S
+      The/DT
+      (NE U.S./NNP)
+      is/VBZ
+      one/CD
+      ...
+      according/VBG
+      to/TO
+      (NE Brooke/NNP T./NNP Mossman/NNP)
+      ...)
+
     >>> print nltk.ne_chunk(sent) # doctest: +SKIP
     (S
       The/DT
@@ -1614,17 +1663,7 @@ etc.).  Both chunkers can be accessed using the function
       to/TO
       (PERSON Brooke/NNP T./NNP Mossman/NNP)
       ...)
-    >>> print nltk.ne_chunk(sent, binary=True) # doctest: +SKIP
-    (S
-      The/DT
-      (NE U.S./NNP)
-      is/VBZ
-      one/CD
-      ...
-      according/VBG
-      to/TO
-      (NE Brooke/NNP T./NNP Mossman/NNP)
-      ...)
+
 
 .. XXX the following wants a normal citation.  (Would we ever say that a
    book was not freely available, but that you could buy it from XYZ publisher?)
