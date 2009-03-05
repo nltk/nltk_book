@@ -17,6 +17,8 @@
 7. Extracting Information from Text
 ===================================
 
+.. XXX this introduction is out of date:
+
 Two fundamental tasks in language processing are segmentation and labeling.
 Recall that tokenization `segments`:em: a sequence of characters into tokens,
 while tagging `labels`:em: each token.  However, segmentation and labeling
@@ -157,11 +159,9 @@ interesting entities in each sentence.  Finally, we use `relation
 detection`:dt: to search for likely relations between different
 entities in the text.
 
-.. XXX check scale on this figure:
-
 .. _fig-ie-architecture:
 .. figure:: ../images/ie-architecture.png
-   :scale: 25:32:30
+   :scale: 25:32:32
 
    Simple Pipeline Architecture for an Information Extraction System.
    This system takes the raw text of a document as its input, and 
@@ -192,7 +192,7 @@ chunks, such as `every student` or `cats`,
 and these do not necessarily refer to
 entities in the same way as definite ``NP``\ s and proper names.
 
-.. XXX FINALLY, RELEXTRACT
+.. XXX add: FINALLY, RELEXTRACT
 
 .. _sec-chunking:
 
@@ -290,16 +290,11 @@ print chunkex-print_, or display graphically chunkex-draw_.
 Tag Patterns
 ------------
 
-A `tag pattern`:dt: is a sequence of part-of-speech tags delimited
-using angle brackets, e.g. ``<DT><JJ><NN>``.  Tag patterns are
-the same as the regular expression patterns we have already seen,
-except for two differences that make them easier to use for chunking.
-First, angle brackets group their contents into atomic
-units, so "``<NN>+``" matches one or more repetitions of the tag
-``NN``; and "``<NN|JJ>``" matches ``NN`` or ``JJ``.  Second, the period wildcard operator is
-constrained not to cross tag delimiters, so that "``<N.*>``" matches
-any single tag starting with ``N``, e.g. ``NN``, ``NNS``.
-
+The rules that make up a chunk grammar use `tag patterns`:dt: to
+describe the sequences of words that they should apply to.
+A tag pattern is a sequence of part-of-speech tags delimited
+using angle brackets, e.g. ``<DT>?<JJ>*<NN>``.  Tag patterns are
+similar to the regular expression patterns we have already seen.
 Now, consider the following noun phrases from the Wall Street
 Journal::
 
@@ -308,8 +303,6 @@ Journal::
   any/DT new/JJ policy/NN measures/NNS
   earlier/JJR stages/NNS
   Panamanian/JJ dictator/NN Manuel/NNP Noriega/NNP
-
-.. TODO: how are they to view this CoNLL data?
 
 We can match these using a slight refinement of the first tag pattern
 above: ``<DT>?<JJ.*>*<NN.*>+``.  This will chunk any sequence
@@ -336,15 +329,18 @@ this rule will not cover::
 Chunking with Regular Expressions
 ---------------------------------
 
-The chunker begins with a flat structure in which no tokens are
-chunked.  Patterns are applied in turn, successively updating the
-chunk structure.  Once all of the patterns have been applied, the
+To find the chunk structure for a given sentence, the ``RegexpParser``
+chunker begins with a flat structure in which no tokens are
+chunked.  The grammar rules are applied in turn, 
+successively updating the
+chunk structure.  Once all of the grammar rules have been applied, the
 resulting chunk structure is returned.  code-chunker1_ shows a
-simple chunk grammar consisting of two patterns.  The first pattern
+simple chunk grammar consisting of two rules.  The first rule
 matches an optional determiner or possessive pronoun,
 zero or more adjectives, then a noun.
 The second rule matches one or more proper nouns.
-We also define some tagged tokens to be chunked, and run the chunker on this input.
+We also define an example sentence to be chunked code-chunker1-ex_, 
+and run the chunker on this input code-chunker1-run_.
 
 .. pylisting:: code-chunker1
    :caption: Simple Noun Phrase Chunker
@@ -354,9 +350,10 @@ We also define some tagged tokens to be chunked, and run the chunker on this inp
          {<NNP>+}                # chunk sequences of proper nouns
    """
    cp = nltk.RegexpParser(grammar)
-   sentence = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"),
+   sentence = [("Rapunzel", "NNP"), ("let", "VBD"), ("down", "RP"), # [_code-chunker1-ex]
                     ("her", "PP$"), ("long", "JJ"), ("golden", "JJ"), ("hair", "NN")]
-   >>> print cp.parse(sentence)
+
+   >>> print cp.parse(sentence) # [_code-chunker1-run]
    (S
      (NP Rapunzel/NNP)
      let/VBD
@@ -420,8 +417,8 @@ more easily with a chunker, as follows:
    Use it to search the corpus for several other patterns, such as four
    or more nouns in a row, e.g. ``'NOUNS: {<N.*>{4,}}``
 
-Chinking, Splitting and Merging
--------------------------------
+Chinking
+--------
 
 Sometimes it is easier to define what we *don't* want to include in a
 chunk than it is to define what we *do* want to include.  In these
@@ -478,130 +475,23 @@ chunk, then excise the chink:
      barked/VBD
      at/IN
      (NP the/DT cat/NN))
+
+.. We haven't talked about using conll yet; and these results are
+   very far from impressive anyway: :)
+
    >>> from nltk.corpus import conll2000
    >>> test_sents = conll2000.chunked_sents('test.txt', chunk_types=('NP',))
    >>> print nltk.chunk.accuracy(cp, test_sents)
    0.581041433607
 
-.. XXX are splitting/merging worth mentioning here?  It feels like we're
-   spending a lot of real-estate describing something fairly nltk-specific,
-   and a somewhat toy system at that.
+.. XXX section: "Multiple Chunk Types" was here.  I moved it to
+   ch07-extras because I didn't see that it added much, and it didn't
+   feel very motivated.
 
-Two other operations that can be used
-for forming chunks are splitting and merging.
-A permissive chunking rule might put
-`the cat the dog chased`:lx: into a single ``NP`` chunk
-because it does not detect that determiners introduce new chunks.
-For this we would need a rule to split an ``NP`` chunk
-prior to any determiner, using a pattern like: ``"NP: <.*>}{<DT>"``.
-Conversely, we can craft rules to merge adjacent chunks under
-particular circumstances, e.g. ``"NP: <NN>{}<NN>"``.
-
-A chunk grammar can use any number of chunking, chinking, splitting
-and merging patterns in any order.
-
-Multiple Chunk Types
---------------------
-
-So far we have only developed ``NP`` chunkers.  However, it can also
-be useful to find other chunk types, including ``PP`` chunks, ``VP``
-chunks, and proper noun chunks.  Here is an example of a chunked
-sentence that contains ``NP``, ``VP``, and ``PP`` chunk types.
-
-    >>> print conll2000.chunked_sents('train.txt')[99]
-    (S
-      (PP Over/IN)
-      (NP a/DT cup/NN)
-      (PP of/IN)
-      (NP coffee/NN)
-      ,/,
-      (NP Mr./NNP Stone/NNP)
-      (VP told/VBD)
-      (NP his/PRP$ story/NN)
-      ./.)
-
-Now we can set up a multi-stage chunk grammar, as shown in
-code-multistage-chunker_.  It has a stage for each of the chunk types.
-We turn on tracing and see the input and output for each stage.
-The tracing output shows the rules that are applied,
-and inserts braces to identify the chunks that are created at each
-stage of processing.
-The resulting tree has the expected ``NP``, ``VP`` and ``PP`` chunks.
-
-.. pylisting:: code-multistage-chunker
-   :caption: A Multistage Chunker
-
-   cp = nltk.RegexpParser(r"""
-     NP: {<DT>?<JJ>*<NN.*>+}    # noun phrase chunks
-     VP: {<TO>?<VB.*>}          # verb phrase chunks
-     PP: {<IN>}                 # prepositional phrase chunks
-     """)
-   >>> from nltk.corpus import conll2000
-   >>> example = conll2000.chunked_sents('train.txt')[99]
-   >>> print cp.parse(example.flatten(), trace=1)
-   # Input:
-    <IN>  <DT>  <NN>  <IN>  <NN>  <,>  <NNP>  <NNP>  <VBD>  <PRP$>  <NN>  <.> 
-   # noun phrase chunks:
-    <IN> {<DT>  <NN>} <IN> {<NN>} <,> {<NNP>  <NNP>} <VBD>  <PRP$> {<NN>} <.> 
-   # Input:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VBD>  <PRP$>  <NP>  <.> 
-   # verb phrase chunks:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP> {<VBD>} <PRP$>  <NP>  <.> 
-   # Input:
-    <IN>  <NP>  <IN>  <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
-   # prepositional phrase chunks:
-   {<IN>} <NP> {<IN>} <NP>  <,>  <NP>  <VP>  <PRP$>  <NP>  <.> 
-   (S
-     (PP Over/IN)
-     (NP a/DT cup/NN)
-     (PP of/IN)
-     (NP coffee/NN)
-     ,/,
-     (NP Mr./NNP Stone/NNP)
-     (VP told/VBD)
-     his/PRP$
-     (NP story/NN)
-     ./.)
-
-Chunking vs Parsing
--------------------
-
-Chunking is akin to parsing (chap-parse_) in the sense
-that it serves to build hierarchical structure over text.
-However, there are some important differences.
-Chunking is not exhaustive, and typically ignores some
-items in the input sequence.
-Additionally,
-chunking creates structures of fixed depth (typically depth 2),
-instead of the arbitrarily deep trees created by a parser.
-In particular, ``NP`` chunks usually correspond to the
-lowest level of ``NP`` grouping identified in a full parse tree,
-as illustrated in ex-parsing-chunking_, where (a) shows the full parse
-and (b) shows the corresponding chunking:
-
-.. XXX check tree sizes here:
-
-.. _ex-parsing-chunking:
-.. ex::
-  .. ex::
-     .. tree:: (S (NP (CD one) (JJ congressional) (NN aide)) (WP who) (VBD attended)
-                     (NP (DT the) (JJ two-hour) (NN meeting)) (VBD said) \.\.\. )
-        :scale: 110:110:80
-
-  .. ex::
-     .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
-                     (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
-
-.. XXX there's a big space here in the (current) pdf, after the
-   example and before the note -- why?  Might go away with repagination.
-
-.. note::
-   A significant motivation for chunking is its robustness and efficiency.
-   As we will see in chap-parse_, parsing has problems with robustness,
-   given the difficulty in gaining broad coverage while minimizing
-   ambiguity.  Parsing is also relatively inefficient: the time taken to
-   parse a sentence grows with the cube of the length of the sentence,
-   while the time taken to chunk a sentence only grows linearly.
+.. XXX section" Chunking vs Parsing" was here.  I moved it to 
+   ch07-extras for now.  We might fold it back in later in the chapter,
+   or somewhere in the parsing chapter, but here seemed like an odd
+   place for it.
 
 Representing Chunks: Tags vs Trees
 ----------------------------------
@@ -635,8 +525,6 @@ how the information in fig-chunk-tagrep_ would appear in a file::
   yellow JJ I-NP
   dog NN I-NP
 
-.. Give example with a verb group?
-
 In this representation, there is one token per line, each with
 its part-of-speech tag and its chunk tag.  We will see later that this
 format permits us to represent more than one chunk type, so long as
@@ -652,12 +540,14 @@ can be manipulated directly.  An example is shown in fig-chunk-treerep_.
 
    Tree Representation of Chunk Structures
 
-|NLTK| uses trees for its internal representation of chunks, and
+|NLTK| uses trees for its internal representation of chunks, but
 provides methods for reading and writing such trees to the IOB format.  
 
 ----------------------------------
 Developing and Evaluating Chunkers
 ----------------------------------
+
+.. XXX this needs updating:
 
 Now you have a taste of what chunking does, but we haven't
 explained how to carry out a quantitative evaluation of chunkers.
@@ -842,11 +732,13 @@ example that reads the 100th sentence of the "train" portion of the corpus:
       (NP his/PRP$ story/NN)
       ./.)
 
+As you can see, the CoNLL 2000 corpus contains three chunk types:
+``NP`` chunks, which we have already seen; ``VP`` chunks, such as "has
+already delivered"; and ``PP`` chunks, such as "because of".  Since we
+are only interested in the ``NP`` chunks right now, we can use the 
+``chunk_types`` argument to select them:
 
-This  showed three chunk types, for ``NP``, ``VP`` and ``PP``.
-We can also select which chunk types to read:
-
-    >>> print conll2000.chunked_sents('train.txt', chunk_types=('NP',))[99]
+    >>> print conll2000.chunked_sents('train.txt', chunk_types=['NP'])[99]
     (S
       Over/IN
       (NP a/DT cup/NN)
@@ -868,290 +760,149 @@ We start off by establishing a baseline for the trivial chunk parser
 
     >>> from nltk.corpus import conll2000
     >>> cp = nltk.RegexpParser("")
-    >>> test_sents = conll2000.chunked_sents('test.txt', chunk_types=('NP',))
-    >>> print nltk.chunk.accuracy(cp, test_sents)
-    0.440845995079
+    >>> test_sents = conll2000.chunked_sents('test.txt', chunk_types=['NP'])
+    >>> print cp.evaluate(test_sents)
+    ChunkParse score:
+        IOB Accuracy:  43.4%
+        Precision:      0.0%
+        Recall:         0.0%
+        F-Measure:      0.0%
 
-This indicates that more than a third of the words are tagged with
-``O`` (i.e., not in an ``NP`` chunk).  Now let's try a naive regular
-expression chunker that looks for tags (e.g., ``CD``, ``DT``, ``JJ``,
-etc.) beginning with letters that are typical of noun phrase tags:
+The IOB tag accuracy indicates that more than a third of the words are
+tagged with ``O`` (i.e., not in an ``NP`` chunk).  However, since our
+tagger did not find *any* chunks, its precision, recall, and f-measure
+are all zero.  Now let's try a naive regular expression chunker that
+looks for tags (e.g., ``CD``, ``DT``, ``JJ``, etc.) beginning with
+letters that are typical of noun phrase tags:
 
     >>> grammar = r"NP: {<[CDJNP].*>+}"
     >>> cp = nltk.RegexpParser(grammar)
     >>> print nltk.chunk.accuracy(cp, test_sents)
-    0.874479872666
-
-.. XXX the source listing and doctest block in the following pylisting
-   are getting their callout numbers assigened separately.  As a result,
-   this turns out as gobbledygook.  I'll try to fix that in rst.py.
-   But I find this a bit hard to follow, anyway.
-
-As you can see, this approach achieves pretty good results. In
-order to develop a more data-driven approach, code-chunker3_
-defines a function ``chunked_tags()`` that takes some chunked data
-and sets up a conditional frequency distribution.
-For each tag, it counts up the number of times the tag
-occurs inside an ``NP`` chunk (the ``True`` case, where ``chtag`` is
-``B-NP`` or ``I-NP``), or outside a chunk (the ``False`` case, where
-``chtag`` is ``O``).  It returns a list of those tags that occur
-inside chunks more often than outside chunks inside-tags_.
-We see these tags at line chunked-tags_.
-The ``baseline_chunker()`` function obtains this list of tags and
-escapes any necessary characters re-escape_,
-and constructs a chunk grammar chunk-grammar_ having a single
-``NP`` rule whose right hand side is a disjunction of these tags.
-Finally, we train the chunker train-chunker_
-and test its accuracy test-chunker-accuracy_. 
-
-.. pylisting:: code-chunker3
-   :caption: Capturing the conditional frequency of NP Chunk Tags
-
-   def chunked_tags(train):
-       """Generate a list of tags that tend to appear inside chunks"""
-       cfdist = nltk.ConditionalFreqDist()
-       for t in train:
-           for word, tag, chtag in nltk.chunk.tree2conlltags(t):
-               if chtag == "O":
-                   cfdist[tag].inc(False)
-               else:
-                   cfdist[tag].inc(True)
-       return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True] # [_inside-tags]
-
-   def baseline_chunker(train):
-       chunk_tags = [re.escape(tag) # [_re-escape]
-                     for tag in chunked_tags(train)]
-       grammar = 'NP: {<%s>+}' % '|'.join(chunk_tags) # [_chunk-grammar]
-       return nltk.RegexpParser(grammar)
-
-   >>> train_sents = conll2000.chunked_sents('train.txt', chunk_types=('NP',))
-   >>> print chunked_tags(train_sents) # [_chunked-tags]
-   ['#', '$', 'CD', 'DT', 'EX', 'FW', 'JJ', 'JJR', 'JJS', 'NN', 'NNP', 'NNPS', 'NNS',
-   'PDT', 'POS', 'PRP', 'PRP$', 'RBS', 'WDT', 'WP', 'WP$']
-
-   >>> train_sents = conll2000.chunked_sents('train.txt', chunk_types=('NP',))
-   >>> test_sents  = conll2000.chunked_sents('test.txt', chunk_types=('NP',))
-   >>> cp = baseline_chunker(train_sents) # [_train-chunker]
-   >>> print nltk.chunk.accuracy(cp, test_sents) # [_test-chunker-accuracy]
-   0.914262194736
-
-
-Evaluating Chunk Parsers
-------------------------
-
-An easy way to evaluate a chunk parser is to take some already chunked
-text, strip off the chunks, rechunk it, and compare the result with
-the original chunked text.  The ``ChunkScore.score()`` function takes
-the correctly chunked sentence as its first argument, and the newly
-chunked version as its second argument, and compares them.  It reports
-the fraction of actual chunks that were found (recall), the fraction
-of hypothesized chunks that were correct (precision), and the
-F-score (see sec-evaluation_).
-
-During evaluation of a chunk parser, it is useful to flatten a chunk
-structure into a tree consisting only of a root node and leaves:
-
-    >>> correct = nltk.chunk.tagstr2tree(
-    ...    "[ the/DT little/JJ cat/NN ] sat/VBD on/IN [ the/DT mat/NN ]")
-    >>> print correct.flatten()
-    (S the/DT little/JJ cat/NN sat/VBD on/IN the/DT mat/NN)
-
-We run a chunker over this flattened data, and compare the
-resulting chunked sentences with the originals, as follows:
-
-
-    >>> grammar = r"NP: {<PRP|DT|POS|JJ|CD|N.*>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> sentence = [("the", "DT"), ("little", "JJ"), ("cat", "NN"),
-    ... ("sat", "VBD"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> guess = cp.parse(correct.flatten())
-    >>> chunkscore.score(correct, guess)
-    >>> print chunkscore
     ChunkParse score:
-        Precision: 100.0%
-        Recall:    100.0%
-        F-Measure: 100.0%
+        IOB Accuracy:  87.2%
+        Precision:     68.8%
+        Recall:        66.7%
+        F-Measure:     67.7%
 
-``ChunkScore`` is a class for scoring chunk parsers.  It can be used
-to evaluate the output of a chunk parser, using precision, recall,
-f-measure, missed chunks, and incorrect chunks.  It can also be used
-to combine the scores from the parsing of multiple texts.  This is
-quite useful if we are parsing a text one sentence at a time.  The
-following program listing shows a typical use of the ``ChunkScore``
-class.  In this example, ``chunkparser`` is being tested on each
-sentence from the Wall Street Journal tagged files.
+As you can see, this approach achieves decent results.  However, we
+can improve on it by adopting a more data-driven approach, where we
+use the training corpus to find the chunk tag (``I``, ``O``, or ``B``)
+that is most likely for each part-of-speech tag.  In other words, we
+can build a chunker using a *unigram tagger* (_sec-automatic-tagging).
+But rather than trying to determine the correct part-of-speech tag for
+each word, we are trying to determine the correct chunk tag, given
+each word's part-of-speech tag.  
 
-    >>> grammar = r"NP: {<DT|JJ|NN>+}"
-    >>> cp = nltk.RegexpParser(grammar)
-    >>> chunkscore = nltk.chunk.ChunkScore()
-    >>> for fileid in nltk.corpus.treebank_chunk.fileids()[:5]:
-    ...     for chunk_struct in nltk.corpus.treebank_chunk.chunked_sents(fileid):
-    ...         test_sent = cp.parse(chunk_struct.flatten())
-    ...         chunkscore.score(chunk_struct, test_sent)
-    >>> print chunkscore
+In code-unigram-chunker_, we define the ``UnigramChunker`` class, which
+uses a unigram tagger to label sentences with chunk tags.  Most of the
+code in this class is simply used to convert back and forth between
+the chunk tree representation used by NLTK's ``ChunkParserI``
+interface, and the IOB representation used by the embedded tagger.
+The class defines two methods: a constructor
+code-unigram-chunker-constructor_, which is called when we build a new
+UnigramChunker; and the ``parse`` method code-unigram-chunker-parse_,
+which is used to chunk new sentences.  
+
+.. pylisting:: code-unigram-chunker
+   :caption:
+      Noun Phrase Chunking with a Unigram Tagger
+
+   class UnigramChunker(nltk.ChunkParserI):
+       def __init__(self, train_sents): # [_code-unigram-chunker-constructor]
+           train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
+                         for sent in train_sents]
+           self.tagger = nltk.UnigramTagger(train_data) # [_code-unigram-chunker-buildit]
+           
+       def parse(self, sentence): # [_code-unigram-chunker-parse]
+           pos_tags = [pos for (word,pos) in sentence]
+           tagged_pos_tags = self.tagger.tag(pos_tags)
+           chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
+           conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
+                        in zip(sentence, chunktags)]
+           return nltk.chunk.conlltags2tree(conlltags)
+
+The constructor code-unigram-chunker-constructor_ expects a list of
+training sentences, which will be in the form of chunk trees.  It
+first converts training data to a form that suitable for training the
+tagger, using ``tree2conlltags`` to map each chunk tree to a list of
+``word,tag,chunk`` triples.  It then uses that converted training data
+to train a unigram tagger, and stores it in ``self.tagger`` for later
+use.
+
+The ``parse`` method code-unigram-chunker-parse_ takes a tagged sentence
+as its input, and begins by extracting the part of speech tags from
+that sentence.  It then tags the part of speech tags with IOB chunk
+tags, using the tagger ``self.tagger`` that was trained in the
+constructor.  Next, it extracts the chunk tags, and combines them with
+the original sentence, to yield ``conlltags``.  Finally, it uses
+``conlltags2tree`` to convert the result back into a chunk tree.
+
+Now that we have ``UnigramChunker``, we can train it using the CoNLL
+2000 corpus, and test its resulting performance:
+
+    >>> unigram_chunker = UnigramChunker(train_sents)
+    >>> print unigram_chunker.evaluate(test_sents)
+        IOB Accuracy:  92.9%
+        Precision:     79.9%
+        Recall:        86.8%
+        F-Measure:     83.2%
+
+This chunker does reasonably well, achieving an overall f-measure
+score of 83%.  Let's take a look at what it's learned, by using its
+unigram tagger to assign a tag to each of the part-of-speech tags that
+appear in the corpus:
+
+    >>> postags = sorted(set(pos for sent in train_sents
+    ...                      for (word,pos) in sent.leaves()))
+    >>> print unigram_chunker.tagger.tag(postags)
+    [('#', 'B-NP'), ('$', 'B-NP'), ("''", 'O'), ('(', 'O'), (')', 'O'), 
+     (',', 'O'), ('.', 'O'), (':', 'O'), ('CC', 'O'), ('CD', 'I-NP'), 
+     ('DT', 'B-NP'), ('EX', 'B-NP'), ('FW', 'I-NP'), ('IN', 'O'), 
+     ('JJ', 'I-NP'), ('JJR', 'B-NP'), ('JJS', 'I-NP'), ('MD', 'O'), 
+     ('NN', 'I-NP'), ('NNP', 'I-NP'), ('NNPS', 'I-NP'), ('NNS', 'I-NP'), 
+     ('PDT', 'B-NP'), ('POS', 'B-NP'), ('PRP', 'B-NP'), ('PRP$', 'B-NP'), 
+     ('RB', 'O'), ('RBR', 'O'), ('RBS', 'B-NP'), ('RP', 'O'), ('SYM', 'O'), 
+     ('TO', 'O'), ('UH', 'O'), ('VB', 'O'), ('VBD', 'O'), ('VBG', 'O'),
+     ('VBN', 'O'), ('VBP', 'O'), ('VBZ', 'O'), ('WDT', 'B-NP'), 
+     ('WP', 'B-NP'), ('WP$', 'B-NP'), ('WRB', 'O'), ('``', 'O')]
+
+It has discovered that most punctuation marks occur outside of NP
+chunks, with the exception of ``#`` and ``$``, both of which are used
+as currency markers.  It has also found that determiners (``DT``) and
+possives (``PRP$`` and ``WP$``) occur at the beginnings of NP chunks,
+while noun types (``NN``, ``NNP``, ``NNPS``, ``NNS``) mostly occur
+inside of NP chunks.
+
+.. Commented out because we use it but don't bother to define it in
+   the text of the book, since it's trivial:
+
+   class BigramChunker(nltk.ChunkParserI):
+       def __init__(self, train_sents):
+           train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
+                         for sent in train_sents]
+           self.tagger = nltk.BigramTagger(train_data)
+           
+       def parse(self, sentence):
+           pos_tags = [pos for (word,pos) in sentence]
+           tagged_pos_tags = self.tagger.tag(pos_tags)
+           chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
+           conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
+                        in zip(sentence, chunktags)]
+           return nltk.chunk.conlltags2tree(conlltags)
+
+Having built a unigram chunker, it is quite easy to build a bigram
+chunker: we simply change the class name to ``BigramChunker``, and
+modify line code-unigram-chunker-buildit_ to construct a
+``BigramTagger`` rather than a ``UnigramTagger``.  The resulting
+chunker performs slightly higher performance than the unigram chunker:
+
+    >>> unigram_chunker = UnigramChunker(train_sents)
+    >>> print unigram_chunker.evaluate(test_sents)
     ChunkParse score:
-        Precision:  42.3%
-        Recall:     29.9%
-        F-Measure:  35.0%
-
-The overall results of the evaluation can be viewed by printing the
-``ChunkScore``.  Each evaluation metric is also returned by an
-accessor method: ``precision()``, ``recall``, ``f_measure``,
-``missed``, and ``incorrect``.  The ``missed`` and ``incorrect``
-methods can be especially useful when trying to improve the
-performance of a chunk parser.  Here are the missed chunks:
-
-.. doctest-ignore::
-    >>> from random import shuffle
-    >>> missed = chunkscore.missed()
-    >>> shuffle(missed)
-    >>> print missed[:10]
-    [(('A', 'DT'), ('Lorillard', 'NNP'), ('spokeswoman', 'NN')),
-     (('even', 'RB'), ('brief', 'JJ'), ('exposures', 'NNS')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('30', 'CD'), ('years', 'NNS')),
-     (('workers', 'NNS'),),
-     (('preliminary', 'JJ'), ('findings', 'NNS')),
-     (('Medicine', 'NNP'),),
-     (('Consolidated', 'NNP'), ('Gold', 'NNP'), ('Fields', 'NNP'), ('PLC', 'NNP')),
-     (('its', 'PRP$'), ('Micronite', 'NN'), ('cigarette', 'NN'), ('filters', 'NNS')),
-     (('researchers', 'NNS'),)]
-
-Here are the incorrect chunks:
-
-.. doctest-ignore::
-    >>> incorrect = chunkscore.incorrect()
-    >>> shuffle(incorrect)
-    >> print incorrect[:10]
-    [(('New', 'JJ'), ('York-based', 'JJ')),
-     (('Micronite', 'NN'), ('cigarette', 'NN')),
-     (('a', 'DT'), ('forum', 'NN'), ('likely', 'JJ')),
-     (('later', 'JJ'),),
-     (('preliminary', 'JJ'),),
-     (('New', 'JJ'), ('York-based', 'JJ')),
-     (('resilient', 'JJ'),),
-     (('group', 'NN'),),
-     (('the', 'DT'),),
-     (('Micronite', 'NN'), ('cigarette', 'NN'))]
-
-.. Note: By default, only the first 100 missed chunks and the first
-   100 incorrect chunks will be remembered by the ``ChunkScore``.  You
-   can tell ``ChunkScore`` to record more chunk examples with the
-   ``max_fp_examples`` (maximum false positive examples) and the
-   ``max_fn_examples`` (maximum false negative examples) keyword
-   arguments to the ``ChunkScore`` constructor:
-
-    >>> chunkscore = nltk.chunk.ChunkScore(max_fp_examples=1000,
-    ...                                    max_fn_examples=1000)
-
-Training N-Gram Chunkers
-------------------------
-
-Our approach to chunking has been to try to detect structure based on
-the part-of-speech tags.  We have seen that the IOB format represents
-this extra structure using another kind of tag.  The question arises
-as to whether we could use the same n-gram tagging methods we saw in
-chap-tag_, applied to a different vocabulary. In this case,
-rather than trying to determine the correct part-of-speech tag, given
-a word, we are trying to determine the correct chunk tag, given a
-part-of-speech tag.
-
-The first step is to get the ``word,tag,chunk`` triples from the
-CoNLL 2000 corpus and map these to ``tag,chunk`` pairs:
-
-    >>> from nltk.corpus import conll2000
-    >>> chunk_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(chtree)]
-    ...              for chtree in conll2000.chunked_sents('train.txt')]
-
-We will now train two n-gram taggers over this data.  To start off,
-we train and score a `unigram chunker`:dt: on the above data, just as
-if it was a tagger:
-
-    >>> train_set, test_set = chunk_data[200:], chunk_data[:200]
-    >>> unigram_chunker = nltk.UnigramTagger(train_set)
-    >>> print 'Accuracy:', unigram_chunker.evaluate(test_set)
-    Accuracy: 0.749227373068
-
-This score reflects the tagging accuracy of our chunker |mdash| i.e.,
-the percentage of IOB tags that the tagger correctly predicted.  To
-find the f-measure score for this n-gram chunker, we can use a
-``ChunkScore`` object, as shown in code-unigram-chunkscore_
-
-.. XXX this uses nltk.chunk.conlltags2tree() which is not defined
-
-.. pylisting:: code-unigram-chunkscore
-    :caption:
-        A function used to evaluate the n-gram chunkers, by 
-        constructing an appropriate ``ChunkScore`` object.  Before
-        the sentences can be scored, they must be converted from
-        tagged sequences to chunk trees, on lines unigram-chunkscore1_
-        and unigram-chunkscore2_.
-
-    def eval_tagging_chunker(chunker):
-        chunkscore = nltk.chunk.ChunkScore()
-        for test_sent in test_set:
-            guess_sent = chunker.tag(nltk.tag.untag(test_sent))
-            chunkscore.score(nltk.chunk.conlltags2tree(test_sent), # [_unigram-chunkscore1]
-                             nltk.chunk.conlltags2tree(guess_sent)) # [_unigram-chunkscore2]
-        print 'Accuracy: %.1f%%' % (100*chunker.evaluate(test_set))
-        print chunkscore
-
-    >>> eval_tagging_chunker(unigram_chunker)
-    Accuracy: 74.9%
-    ChunkParse score:
-        Precision:  73.0%
-        Recall:     86.2%
-        F-Measure:  79.1%
-
-This chunker does reasonably well, achieving an
-overall f-measure score of 79%.  Let's look at some of 
-the errors it makes.  Consider the opening phrase of the first
-sentence of the CONLL chunking data, here shown with part-of-speech
-tags:
-
-  Confidence/NN in/IN the/DT pound/NN is/VBZ widely/RB expected/VBN
-  to/TO take/VB another/DT sharp/JJ dive/NN
-
-We can try out the unigram chunker on this first sentence by creating
-some "tokens" using ``[t for t,c in chunk_data[0]]``, then running
-our chunker over them using ``list(unigram_chunker.tag(tokens))``.
-The unigram chunker only looks at the tags, and tries to add chunk
-tags.  Here is what it comes up with:
-
-  NN/I-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/O VBN/I-VP TO/B-PP
-  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
-
-Notice that it tags all instances of ``NN`` with ``I-NP``, because
-nouns usually do not appear at the beginning of noun phrases in
-the training data.  Thus, the first noun ``Confidence/NN`` is
-tagged incorrectly.  However, ``pound/NN`` and ``dive/NN`` are
-correctly tagged as ``I-NP``; they are not in the initial position
-that should be tagged ``B-NP``.  The chunker incorrectly tags
-``widely/RB`` as ``O``, and it incorrectly tags the
-infinitival ``to/TO`` as ``B-PP``, as if it was a preposition starting a
-prepositional phrase.
-
-.. [Why these problems might go away if we look at the previous chunk tag?]
-
-Now let's run a bigram chunker:
-
-    >>> bigram_chunker = nltk.BigramTagger(chunk_data, backoff=unigram_chunker)
-    >>> eval_tagging_chunker(bigram_chunker)
-    Accuracy: 87.6%
-    ChunkParse score:
-        Precision:  80.6%
-        Recall:     87.3%
-        F-Measure:  83.8%
-
-We can run the bigram chunker over the same sentence as before
-using ``list(bigram_chunker.tag(tokens))``.
-Here is what it comes up with:
-
-  NN/B-NP IN/B-PP DT/B-NP NN/I-NP VBZ/B-VP RB/I-VP VBN/I-VP TO/I-VP
-  VB/I-VP DT/B-NP JJ/I-NP NN/I-NP
-
-This is 100% correct.
+        IOB Accuracy:  93.3%
+        Precision:     82.3%
+        Recall:        86.8%
+        F-Measure:     84.5%
 
 Training Classifier-Based Chunkers
 ----------------------------------
