@@ -47,7 +47,7 @@ relation between companies and locations. Given a particular company,
 we would like to be able to identify the locations where it does
 business; conversely, given a location, we would like to discover
 which companies do business in that location. If our data is in tabular
-form, such as the little example in tab-db-locations_, then
+form, such as the example in tab-db-locations_, then
 answering these queries is straightforward.
 
 .. table:: tab-db-locations
@@ -64,8 +64,12 @@ answering these queries is straightforward.
 
    Locations data
 
-Assuming the data in  ``Locations`` is a table within a relational database,  the
-question ex-ie1_ can be translated into the SQL query ex-ie2_.
+.. XXX the brief mention/use of SQL seems odd here.  I added a python
+   translation.  Should we just get rid of the SQL version?
+
+Assuming the data in ``Locations`` is a table within a relational
+database, the question ex-ie1_ can be translated into the SQL query
+ex-ie2_.
 
 .. _ex-ie1:
 .. ex::
@@ -88,6 +92,13 @@ When executed, ex-ie2_ will return the required values:
    +--------------------+
 
    Companies that operate in Atlanta
+
+If instead the location data were stored in Python as a list of tuples
+``(entity, relation, entity)``, then question ex-ie1_ could be
+translated as follows:
+
+    >>> print [org for (e1, rel, e2) if rel=='IN' and e2=='Atlanta'] # doctest: +SKIP
+    ['BBDO South', 'Georgia-Pacific']
 
 Things are more tricky if we try to get similar information out of
 text. For example, consider the
@@ -113,7 +124,7 @@ location names.
 
 One approach to this problem involves building a very general
 representation of meaning (chap-semantics_). 
-Here we take a different approach,
+In this chapter we take a different approach,
 deciding in advance that we will only look for very specific kinds of
 information in text, such as the relation between organizations and
 locations.  Rather than trying to
@@ -172,25 +183,22 @@ ie-postag_:
 .. note:: Remember that our program samples assume you
    begin your interactive session or your program with: ``import nltk, re, pprint``
 
-Entity Detection
-----------------
-
-In named entity detection, we search for and label mentions of
+Next, in named entity detection, we search for and label mentions of
 entities that might participate in interesting relations with one
-another.  Typically, these will be definite noun phrases such as  `the
-Knights Who Say Ni`:lx:, or proper names such as `Monty
-Python`:lx:. 
-
-.. XXX say something about the standard sorts of MUC entities
-
-In some tasks it is useful to also consider nouns or noun
-chunks without determiners, and these do not necessarily refer to
+another.  Typically, these will be definite noun phrases such as `the
+knights who say "ni"`:lx:, or proper names such as `Monty Python`:lx:.
+In some tasks it is useful to also consider indefinitie nouns or noun
+chunks, such as `every student` or `cats`, 
+and these do not necessarily refer to
 entities in the same way as definite ``NP``\ s and proper names.
 
-.. XXX We can either restrict attention to `proper nouns`:dt:, which
-.. are typically easier to identify; or we can also consider pronouns
-.. and common nouns, in which case we may need to do some work to
-.. determine what they actually refer to.
+.. XXX FINALLY, RELEXTRACT
+
+.. _sec-chunking:
+
+--------
+Chunking
+--------
 
 The basic technique we will use for entity detection is
 `chunking`:dt:, which segments and labels multi-token sequences as
@@ -198,6 +206,10 @@ illustrated in fig-chunk-segmentation_.  The smaller boxes show the
 word-level tokenization and part-of-speech tagging, while the large
 boxes show higher-level chunking.  Each of these larger boxes is
 called a `chunk`:dt:.
+Like tokenization, which omits whitespace,
+chunking usually selects a subset of the tokens.
+Also like tokenization, the pieces produced by a chunker do not overlap
+in the source text.
 
 .. _fig-chunk-segmentation:
 .. figure:: ../images/chunk-segmentation.png
@@ -205,23 +217,15 @@ called a `chunk`:dt:.
 
    Segmentation and Labeling at both the Token and Chunk Levels
 
-Like tokenization, which omits whitespace and sometimes omits punctuation,
-chunking usually selects a subset of the tokens.
-Also like tokenization, the pieces produced by a chunker do not overlap
-in the source text.
-
-The next section will explore chunking in some depth, beginning
+In this section, we will explore chunking in some depth, beginning
 with the definition and representation of chunks.  We will see regular
 expression and n-gram approaches to chunking, and will develop and
 evaluate chunkers using the CoNLL-2000 chunking corpus. We will then return in
-sec-ner_ to the task of named entity recognition and relation extraction.
+sec-ner_ and sec-relextract_ 
+to the tasks of named entity recognition and relation extraction.
 
-.. _sec-chunking:
-
-
---------
-Chunkers
---------
+Noun Phrase Chunking
+--------------------
 
 We will begin by considering the task of `noun phrase chunking`:dt:,
 or `NP-chunking`:dt:, where we search for chunks corresponding to
@@ -439,7 +443,7 @@ remains.  These three possibilities are illustrated in tab-chinking-example_.
 .. table:: tab-chinking-example
 
    ============  ===================  ==================  ================
-                 Entire chunk         Middle of a chunk   End of a chunk
+   ` `           Entire chunk         Middle of a chunk   End of a chunk
    ============  ===================  ==================  ================
    *Input*       [a/DT little/JJ      [a/DT little/JJ     [a/DT little/JJ
                  dog/NN]              dog/NN]             dog/NN]
@@ -479,7 +483,12 @@ chunk, then excise the chink:
    >>> print nltk.chunk.accuracy(cp, test_sents)
    0.581041433607
 
-Two other rules for forming chunks are splitting and merging.
+.. XXX are splitting/merging worth mentioning here?  It feels like we're
+   spending a lot of real-estate describing something fairly nltk-specific,
+   and a somewhat toy system at that.
+
+Two other operations that can be used
+for forming chunks are splitting and merging.
 A permissive chunking rule might put
 `the cat the dog chased`:lx: into a single ``NP`` chunk
 because it does not detect that determiners introduce new chunks.
@@ -561,22 +570,30 @@ Chunking is akin to parsing (chap-parse_) in the sense
 that it serves to build hierarchical structure over text.
 However, there are some important differences.
 Chunking is not exhaustive, and typically ignores some
-items in the input sequence (as already noted).
-Chunking creates structures of fixed depth (typically depth 2),
+items in the input sequence.
+Additionally,
+chunking creates structures of fixed depth (typically depth 2),
 instead of the arbitrarily deep trees created by a parser.
 In particular, ``NP`` chunks usually correspond to the
 lowest level of ``NP`` grouping identified in a full parse tree,
-as illustrated in ex-parsing-chunking_:
+as illustrated in ex-parsing-chunking_, where (a) shows the full parse
+and (b) shows the corresponding chunking:
+
+.. XXX check tree sizes here:
 
 .. _ex-parsing-chunking:
 .. ex::
   .. ex::
      .. tree:: (S (NP (CD one) (JJ congressional) (NN aide)) (WP who) (VBD attended)
                      (NP (DT the) (JJ two-hour) (NN meeting)) (VBD said) \.\.\. )
+        :scale: 110:110:80
 
   .. ex::
      .. tree:: (S (NP (CD one) (NBAR (NBAR (JJ congressional) (NN aide)) (SBAR (WP who) (VP (VBD attended)
                      (NP (DT the) (JJ two-hour) (NN meeting)))))) (VP (VBD said) \.\.\.) )
+
+.. XXX there's a big space here in the (current) pdf, after the
+   example and before the note -- why?  Might go away with repagination.
 
 .. note::
    A significant motivation for chunking is its robustness and efficiency.
@@ -865,6 +882,11 @@ etc.) beginning with letters that are typical of noun phrase tags:
     >>> print nltk.chunk.accuracy(cp, test_sents)
     0.874479872666
 
+.. XXX the source listing and doctest block in the following pylisting
+   are getting their callout numbers assigened separately.  As a result,
+   this turns out as gobbledygook.  I'll try to fix that in rst.py.
+   But I find this a bit hard to follow, anyway.
+
 As you can see, this approach achieves pretty good results. In
 order to develop a more data-driven approach, code-chunker3_
 defines a function ``chunked_tags()`` that takes some chunked data
@@ -876,7 +898,7 @@ occurs inside an ``NP`` chunk (the ``True`` case, where ``chtag`` is
 inside chunks more often than outside chunks inside-tags_.
 We see these tags at line chunked-tags_.
 The ``baseline_chunker()`` function obtains this list of tags and
-backslash-escapes any non-word characters backslash-escape-ch7_,
+escapes any necessary characters re-escape_,
 and constructs a chunk grammar chunk-grammar_ having a single
 ``NP`` rule whose right hand side is a disjunction of these tags.
 Finally, we train the chunker train-chunker_
@@ -897,7 +919,7 @@ and test its accuracy test-chunker-accuracy_.
        return [tag for tag in cfdist.conditions() if cfdist[tag].max() == True] # [_inside-tags]
 
    def baseline_chunker(train):
-       chunk_tags = [re.sub(r'(\W)', r'\\\1', tag) # [_backslash-escape-ch7]
+       chunk_tags = [re.escape(tag) # [_re-escape]
                      for tag in chunked_tags(train)]
        grammar = 'NP: {<%s>+}' % '|'.join(chunk_tags) # [_chunk-grammar]
        return nltk.RegexpParser(grammar)
@@ -1328,6 +1350,11 @@ sentences.
 This is a four-stage chunk grammar, and can be used to create
 structures having a depth of at most four.
 
+.. XXX these examples are confusing because there is the top-level
+   'S' automatically supplied by the chunker, vs the 'S' supplied
+   by the grammar.  Maybe change this second 'S' to 'CLAUSE' or
+   something to make it more clear what's going on here?
+
 .. pylisting:: code-cascaded-chunker
    :caption: A Chunker that Handles NP, PP, VP and S
 
@@ -1573,10 +1600,11 @@ the correct type.
 	  the <ne type='ORGANIZATION'>Brookings Institution</ne>,
 	  the research group in <ne type='LOCATION'>Washington<ne>. 
 
-How do we go about identifying named entities?  One option would be
-to look up each word in an appropriate list of names.
-For example, in the case of locations, we could use the
-Alexandria Gazetteer or the Getty Gazetteer.  However, doing this
+How do we go about identifying named entities?  One option would be to
+look up each word in an appropriate list of names.  
+For example, in the case of locations, we could use a `gazetteer`:dt:,
+or geographical dictionary, such as the Alexandria Gazetteer or the
+Getty Gazetteer.  However, doing this 
 blindly runs into problems, as shown in fig-locations_.
 
 .. _fig-locations:
@@ -1586,7 +1614,8 @@ blindly runs into problems, as shown in fig-locations_.
    Location Detection by Simple Lookup for a News Story
 
 Observe that the gazetteer has good coverage of locations in many countries,
-and incorrectly finds locations like Sanchez in the Dominican Republic.
+and incorrectly finds locations like Sanchez in the Dominican Republic
+and On in Vitenam.
 Of course we could omit such locations from the gazetteer, but then we won't
 be able to identify them when they do appear in a document.
 
@@ -1605,7 +1634,7 @@ likely to be of type ORGANIZATION. A term like `Yankee`:lx: will be
 ordinary modifier in some contexts, but will be marked as an entity of
 type ORGANIZATION in the phrase `Yankee infielders`:lx:.
 
-Further challenges are posed by multi-part names like 
+Further challenges are posed by multi-word names like 
 `Stanford University`:lx:, and by names that contain other names
 such as `Cecil H. Green Library`:lx: and `Escondido Village Conference
 Service Center`:lx:. In named entity recognition, therefore, we need
@@ -1672,13 +1701,15 @@ Both chunkers are trained based on the ACE-2 corpus.  This
 corpus is not freely available, but a license to use the corpus can be
 purchased from the Linguistic Data Consortium (catalog id LDC2003T11).
 
+.. _sec-relextract:
+
 -------------------
 Relation Extraction
 -------------------
 
 .. XXX next para introduces regexp zero-width assertions
 
-When named entities have been identified in a text, we then want to extract
+Once named entities have been identified in a text, we then want to extract
 relations that hold between them. As indicated earlier, we will
 typically be looking for relations between specified types of
 named entity. One way of approaching this task is to initially look for all
@@ -1710,7 +1741,7 @@ of`:lx:, where `in`:lx: is followed by a gerundive verb.
     [ORG: 'BBDO South'] 'in' [LOC: 'Atlanta']
     [ORG: 'Georgia-Pacific'] 'in' [LOC: 'Atlanta']
 
-Searching for the keyword works `in`:lx: reasonably well,
+Searching for the keyword `in`:lx: works reasonably well,
 though it will also retrieve false positives such as ``[ORG: House
 Transportation Committee] , secured the most money in the [LOC: New
 York]``; there is unlikely to be simple string-based method of
@@ -1719,8 +1750,11 @@ excluding filler strings such as this.
 .. TODO fix processing of tagged corpora
 
 As shown above, the ``conll2002`` Dutch corpus contains not just named entity
-annotation but also part-of-speech tags. In principle, this allows us to devise
+annotation but also part-of-speech tags. This allows us to devise
 patterns that are sensitive to these tags.
+
+.. XXX what's the status of this example?  It doesn't show any output!
+   Do we want to keep it?
 
 .. doctest-ignore::
      >>> vnv = """
