@@ -1,5 +1,34 @@
 
+From: Information Extraction
+----------------------------
 
+Assuming the data in ``Locations`` is a table within a relational
+database, the question ex-ie1_ can be translated into the SQL query
+ex-ie2_.
+
+.. _ex-ie1:
+.. ex::
+   Which organizations operate in Atlanta?
+
+.. _ex-ie2:
+.. ex:: 
+   ``select OrgName from locations where LocationName = 'Atlanta'``
+
+When executed, ex-ie2_ will return the required values:
+
+.. table:: tab-db-answers
+
+   +--------------------+
+   | OrgName            |
+   +====================+
+   |BBDO South          |
+   +--------------------+
+   |Georgia-Pacific     |
+   +--------------------+
+
+   Companies that operate in Atlanta
+
+If instead 
 
 From: Tag Patterns
 ------------------
