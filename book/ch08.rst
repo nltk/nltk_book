@@ -389,7 +389,7 @@ simple sentence admitted by the grammar.
      P -> "in" | "on" | "by" | "with"
      """)
    >>> sent = "Mary saw Bob".split()
-   >>> rd_parser = nltk.RecursiveDescentParser(grammar)
+   >>> rd_parser = nltk.RecursiveDescentParser(grammar1)
    >>> for tree in rd_parser.nbest_parse(sent):
    ...      print tree
    (S (NP Mary) (VP (V saw) (NP Bob)))
@@ -476,6 +476,7 @@ find it helpful to create and edit your grammar in a text
 file, say ``mygrammar.cfg``. You can then load it into |NLTK| and
 parse with it as follows:
 
+.. doctest-ignore::
     >>> grammar1 = nltk.data.load('file:mygrammar.cfg')
     >>> sent = "Mary saw Bob".split()
     >>> rd_parser = nltk.RecursiveDescentParser(grammar1)
@@ -832,7 +833,7 @@ Each time a production is considered by the parser, it checks that the
 next input word is compatible with at least one of the pre-terminal
 categories in the left-corner table.
 
-[TODO: *explain how this effects the action of the parser, and why this solves the problem.*]
+.. XXX explain how this effects the action of the parser, and why this solves the problem
 
 
 Well-Formed Substring Tables
@@ -867,7 +868,7 @@ structure known as a `chart`:dt:.
 
 .. _fig-chart-positions1:
 .. figure:: ../images/chart_positions1.png
-   :scale: 25:100:90
+   :scale: 25:100:100
 
    The Chart Data Structure: words are the edge labels of a linear graph structure.
 
@@ -988,7 +989,7 @@ For example, this says that since we found ``Det`` at
 
 .. _fig-chart-positions2:
 .. figure:: ../images/chart_positions2.png
-   :scale: 25:100:90
+   :scale: 25:100:100
 
    The Chart Data Structure: non-terminals are represented as extra edges in the chart.
 
@@ -1309,11 +1310,8 @@ with realistic corpora of language?  In this section we will
 see how to access treebanks, and look at the challenge of developing
 broad-coverage grammars.
 
-.. note:: Authors' note:
-   *This section is incomplete.*
-
-Treebanks
----------
+Treebanks and Grammars
+----------------------
 
 The ``corpus`` module defines the ``treebank`` corpus reader,
 which contains a 10% sample of the Penn Treebank corpus.
@@ -1339,41 +1337,12 @@ which contains a 10% sample of the Penn Treebank corpus.
       (. .))
 
 
-
-NLTK also includes a sample from the *Sinica Treebank Corpus*,
-consisting of 10,000 parsed sentences drawn from the
-*Academia Sinica Balanced Corpus of Modern Chinese*.
-Here is a code fragment to read and display one of the trees in this corpus.
-
-    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
-
-
-.. _ex-sinica-tree:
-.. ex::
-    .. image:: ../images/sinica-tree.png
-       :scale: 60
-
-[MORE: PE08 corpus]
-
-
-Larger Grammars
----------------
-
-A collection of larger grammars has been prepared for the purpose of
-comparing different parsers, which can be obtained by downloading
-the ``large_grammars`` package 
-(e.g. ``python -m nltk.downloader large_grammars``).
-
-Grammar Development Strategies
-------------------------------
-
-[Test suites, intertwined analyses of phenomena...]
-
-[Writing programs to interrogate a treebank]
-
+We can use this data to help develop a grammar.
 For example, the program in code-sentential-complement_
-uses a simple filter to find all verbs that take
-sentential complements.
+uses a simple filter to find verbs that take sentential complements.
+Assuming we already have a production of the form ``VP -> Vs S``,
+this information enables us to identify particular verbs
+that would be included in the expansion of ``Vs``.
         
 .. pylisting:: code-sentential-complement
    :caption: Searching a Treebank to find Sentential Complements
@@ -1383,26 +1352,17 @@ sentential complements.
                       if isinstance(child, nltk.Tree)]
        return  (tree.node == 'VP') and ('S' in child_nodes)
 
-   >>> treebank = nltk.corpus.treebank
-   >>> for tree in treebank.parsed_sents()[:5]:
-   ...     for subtree in tree.subtrees(filter):
-   ...         print subtree
-   (VP
-     (VBN named)
-     (S
-       (NP-SBJ (-NONE- *-1))
-       (NP-PRD
-         (NP (DT a) (JJ nonexecutive) (NN director))
-         (PP
-           (IN of)
-           (NP (DT this) (JJ British) (JJ industrial) (NN conglomerate))))))
-
-.. SB: NB a later discussion of XML will include XPath, another method for tree search
-
-
-The Prepositional Phrase Attachment Corpus is source of information
-about the valency of particular verbs.  We illustrate a powerful
-technique for mining this corpus.
+   >>> from nltk.corpus import treebank
+   >>> [subtree for tree in treebank.parsed_sents()
+   ...          for subtree in tree.subtrees(filter)]
+    [Tree('VP', [Tree('VBN', ['named']), Tree('S', [Tree('NP-SBJ', ...]), ...]), ...]
+    
+The Prepositional Phrase Attachment Corpus, ``nltk.corpus.ppattach``
+is another source of information about the valency of particular verbs.
+Here we illustrate a technique for mining this corpus.
+It finds pairs of prepositional phrases where the preposition
+and noun are fixed, but where the choice of verb determines whether
+the prepositional phrase is attached to the ``VP`` or to the ``NP``.
 
 .. doctest-ignore::
     >>> entries = nltk.corpus.ppattach.attachments('training')
@@ -1418,8 +1378,29 @@ technique for mining this corpus.
 Amongst the output lines of this program we find 
 ``offer-from-group N: ['rejected'] V: ['received']``,
 which indicates that `received`:lx: expects a separate
-``PP`` complement, while `rejected`:lx: does not.
-This information can help in developing a grammar.
+``PP`` complement attached to the ``VP``, while `rejected`:lx: does not.
+As before, we can use this information to help construct the grammar.
+
+The |NLTK| corpus collection includes data from the PE08
+Cross-Framework and Cross Domain Parser Evaluation Shared Task. 
+A collection of larger grammars has been prepared for the purpose of
+comparing different parsers, which can be obtained by downloading
+the ``large_grammars`` package 
+(e.g. ``python -m nltk.downloader large_grammars``).
+
+The |NLTK| corpus collection also includes a sample from the *Sinica Treebank Corpus*,
+consisting of 10,000 parsed sentences drawn from the
+*Academia Sinica Balanced Corpus of Modern Chinese*.
+Let's load and display one of the trees in this corpus.
+
+    >>> nltk.corpus.sinica_treebank.parsed_sents()[3450].draw()               # doctest: +SKIP
+
+
+.. _ex-sinica-tree:
+.. ex::
+    .. image:: ../images/sinica-tree.png
+       :scale: 60
+
 
 Pernicious Ambiguity
 --------------------
