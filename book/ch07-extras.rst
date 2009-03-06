@@ -496,3 +496,61 @@ in labeling noun chunks as ``NX``.
       (NX Austin/NP)
       ./.)
 
+
+----------
+Conclusion
+----------
+
+In this chapter we have explored efficient and robust methods that can
+identify linguistic structures in text.  Using only part-of-speech
+information for words in the local context, a "chunker" can
+successfully identify simple structures such as noun phrases and verb
+groups.  We have seen how chunking methods extend the same lightweight
+methods that were successful in tagging.  The resulting structured
+information is useful in information extraction tasks and in the
+description of the syntactic environments of words.  The latter will
+be invaluable as we move to full parsing.
+
+There are a surprising number of ways to chunk a sentence using
+regular expressions.  The patterns can add, shift and remove chunks in
+many ways, and the patterns can be sequentially ordered in many ways.
+One can use a small number of very complex rules, or a long sequence
+of much simpler rules.  One can hand-craft a collection of rules, and
+one can write programs to analyze a chunked corpus to help in the
+development of such rules.  The process is painstaking, but generates
+very compact chunkers that perform well and that transparently encode
+linguistic knowledge.
+
+It is also possible to chunk a sentence using the techniques of n-gram
+tagging.  Instead of assigning part-of-speech tags to words, we assign
+IOB tags to the part-of-speech tags.  Bigram tagging turned out to be
+particularly effective, as it could be sensitive to the chunk tag on
+the previous word.  This statistical approach requires far less effort
+than rule-based chunking, but creates large models and delivers few
+linguistic insights.
+
+Like tagging, chunking cannot be done perfectly.  For example, as
+pointed out by Abney, we cannot correctly analyze the structure
+of the sentence *I turned off the spectroroute* without knowing the
+meaning of *spectroroute*; is it a kind of road or a type of device?
+Without knowing this, we cannot tell whether *off* is part of a
+prepositional phrase indicating direction (tagged ``B-PP``), or
+whether *off* is part of the verb-particle construction *turn off*
+(tagged ``I-VP``).
+
+A recurring theme of this chapter has been `diagnosis`:dt:.  The simplest
+kind is manual, when we inspect the tracing output of a chunker and
+observe some undesirable behavior that we would like to fix.
+Sometimes we discover cases where we cannot hope to get the correct
+answer because the part-of-speech tags are too impoverished and do not
+give us sufficient information about the lexical item.  A second
+approach is to write utility programs to analyze the training data,
+such as counting the number of times a given part-of-speech tag occurs
+inside and outside an ``NP`` chunk.  A third approach is to evaluate the
+system against some gold standard data to obtain an overall
+performance score.  We can even use this to parameterize the system,
+specifying which chunk rules are used on a given run, and tabulating
+performance for different parameter combinations.  Careful use of
+these diagnostic methods permits us to optimize the performance of our
+system.  We will see this theme emerge again later in chapters dealing
+with other topics in natural language processing.

@@ -7,9 +7,9 @@
     >>> import nltk, re, pprint
 
 
-.. XXX is it part of speech tag, or part-of-speech tag
-.. XXX still has some doctest errors
 .. XXX variety in using nltk.foo vs nltk.chunk.foo for chunk functions
+.. XXX mention somewhere that for IE precision is often more important 
+   than recall?
 
 .. _chap-chunk:
 
@@ -17,24 +17,31 @@
 7. Extracting Information from Text
 ===================================
 
-.. XXX this introduction is out of date:
+For any given question, it's likely that someone has written the
+answer down somewhere.  The amount of natural langauge text that is
+available in electronic form is truely staggering, and is increasing
+every day.  However, the complexity of natural language can make it
+very difficult to access the information in that text.  
+The state of the art in language processing technology is still very
+far from being able to build general meaning representations from
+unrestricted text.  
 
-Two fundamental tasks in language processing are segmentation and labeling.
-Recall that tokenization `segments`:em: a sequence of characters into tokens,
-while tagging `labels`:em: each token.  However, segmentation and labeling
-are generic operations and can be used for a variety of more sophisticated
-language processing tasks.  The goal of this chapter is to answer the
-following questions:
+But if we instead focus our efforts on a limited set of questions or
+relations, such as "where are different facilities located," or "who
+is employed by what company," we can make significant progress.  The
+goal of this chapter is to answer the following questions:
 
-1. How can we use segmentation and labeling to probe the structure and meaning of text?
+1. How can we build a system that extracts structured data, such as
+   tables, from unstructured text?
 
-2. What are some robust methods for identifying the entities and relationships described in a text?
+2. What are some robust methods for identifying the entities and 
+   relationships described in a text?
 
-3. Which corpora are appropriate for this work, and how do we use them for training and evaluating our models?
+3. Which corpora are appropriate for this work, and how do we use 
+   them for training and evaluating our models?
 
-Along the way, we'll see how we can do segmentation and labeling to identify
-and categorize phrases, such as noun phrases and named entities.
-
+.. XXX Add an "along the way.." type paragraph here?  What are we doing
+   along the way?  NP chunking?
 
 .. _sec-information-extraction:
 
@@ -44,7 +51,8 @@ Information Extraction
 
 Information comes in many shapes and sizes. One important form is
 `structured data`:dt:, where there is a regular and predictable
-organization of entities and relationships. For example, we might be interested in the
+organization of entities and relationships. For example, 
+we might be interested in the
 relation between companies and locations. Given a particular company,
 we would like to be able to identify the locations where it does
 business; conversely, given a location, we would like to discover
@@ -365,7 +373,7 @@ a tagged corpus to extract phrases matching a particular
 sequence of part-of-speech tags.  We can do the same work
 more easily with a chunker, as follows:
 
-    >>> cp = nltk.RegexpChunker("CHUNK: {<V.*> <TO> <V.*>}")
+    >>> cp = nltk.RegexpParser('CHUNK: {<V.*> <TO> <V.*>}')
     >>> brown = nltk.corpus.brown
     >>> for sent in brown.tagged_sents():
     ...     tree = cp.parse(sent)
@@ -649,10 +657,10 @@ looks for tags beginning with letters that are characteristic of noun phrase tag
     >>> cp = nltk.RegexpParser(grammar)
     >>> print cp.evaluate(test_sents)
     ChunkParse score:
-        IOB Accuracy:  87.2%
-        Precision:     68.8%
-        Recall:        66.7%
-        F-Measure:     67.7%
+        IOB Accuracy:  87.7%
+        Precision:     70.6%
+        Recall:        67.8%
+        F-Measure:     69.2%
 
 As you can see, this approach achieves decent results.  However, we
 can improve on it by adopting a more data-driven approach, where we
@@ -710,8 +718,11 @@ the original sentence, to yield ``conlltags``.  Finally, it uses
 Now that we have ``UnigramChunker``, we can train it using the CoNLL
 2000 corpus, and test its resulting performance:
 
+    >>> test_sents = conll2000.chunked_sents('test.txt', chunk_types=['NP'])
+    >>> train_sents = conll2000.chunked_sents('train.txt', chunk_types=['NP'])
     >>> unigram_chunker = UnigramChunker(train_sents)
     >>> print unigram_chunker.evaluate(test_sents)
+    ChunkParse score:
         IOB Accuracy:  92.9%
         Precision:     79.9%
         Recall:        86.8%
@@ -746,19 +757,19 @@ inside of NP chunks.
 .. Commented out because we use it but don't bother to define it in
    the text of the book, since it's trivial:
 
-   class BigramChunker(nltk.ChunkParserI):
-       def __init__(self, train_sents):
-           train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
-                         for sent in train_sents]
-           self.tagger = nltk.BigramTagger(train_data)
-           
-       def parse(self, sentence):
-           pos_tags = [pos for (word,pos) in sentence]
-           tagged_pos_tags = self.tagger.tag(pos_tags)
-           chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
-           conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
-                        in zip(sentence, chunktags)]
-           return nltk.chunk.conlltags2tree(conlltags)
+   >>> class BigramChunker(nltk.ChunkParserI):
+   ...     def __init__(self, train_sents):
+   ...         train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
+   ...                       for sent in train_sents]
+   ...         self.tagger = nltk.BigramTagger(train_data)
+   ...         
+   ...     def parse(self, sentence):
+   ...         pos_tags = [pos for (word,pos) in sentence]
+   ...         tagged_pos_tags = self.tagger.tag(pos_tags)
+   ...         chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
+   ...         conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
+   ...                      in zip(sentence, chunktags)]
+   ...         return nltk.chunk.conlltags2tree(conlltags)
 
 Having built a unigram chunker, it is quite easy to build a bigram
 chunker: we simply change the class name to ``BigramChunker``, and
@@ -766,8 +777,8 @@ modify line code-unigram-chunker-buildit_ in code-unigram-chunker_
 to construct a ``BigramTagger`` rather than a ``UnigramTagger``.
 The resulting chunker has slightly higher performance than the unigram chunker:
 
-    >>> unigram_chunker = UnigramChunker(train_sents)
-    >>> print unigram_chunker.evaluate(test_sents)
+    >>> bigram_chunker = BigramChunker(train_sents)
+    >>> print bigram_chunker.evaluate(test_sents)
     ChunkParse score:
         IOB Accuracy:  93.3%
         Precision:     82.3%
@@ -850,7 +861,13 @@ tagger back into a chunk tree.
            self.tagger = ConsecutiveNPChunkTagger(tagged_sents)
    
        def parse(self, sentence):
-           return nltk.chunk.conlltags2tree(self.tagger.tag(sentence))
+           tagged_sents = self.tagger.tag(sentence)
+           conlltags = [(w,t,c) for ((w,t),c) in tagged_sents]
+           return nltk.chunk.conlltags2tree(conlltags)
+
+.. Pre-load megam, so we won't get random trace output when it's loaded:
+    >>> nltk.classify.config_megam()
+    [Found megam: ...]
 
 The only piece left to fill in is the feature extractor.  We begin by
 defining a simple feature extractor which just provides the
@@ -861,17 +878,13 @@ reflected in its performance:
     >>> def npchunk_features(sentence, i, history):
     ...     word, pos = sentence[i]
     ...     return {"pos": pos}
-    >>> def score_chunker(chunker):
-    ...     chunkscore = nltk.chunk.ChunkScore()
-    ...     for test_sent in test_sents:
-    ...         guess_sent = chunker.parse(test_sent.leaves())
-    ...         chunkscore.score(test_sent, guess_sent)
-    ...     print chunkscore
-    >>> score_chunker(ConsecutiveNPChunker(train_sents))
+    >>> chunker = ConsecutiveNPChunker(train_sents)
+    >>> print chunker.evaluate(test_sents)
     ChunkParse score:
-        Precision:  77.6%
-        Recall:     85.3%
-        F-Measure:  81.2%
+        IOB Accuracy:  92.9%
+        Precision:     79.9%
+        Recall:        86.7%
+        F-Measure:     83.2%
 
 We can also add a feature for the previous part-of-speech tag.  Adding this
 feature allows the classifier to model interactions between adjacent
@@ -885,17 +898,19 @@ chunker.
     ...     else:
     ...         prevword, prevpos = sentence[i-1]
     ...     return {"pos": pos, "prevpos": prevpos}
-    >>> score_chunker(ConsecutiveNPChunker(train_sents))
+    >>> chunker = ConsecutiveNPChunker(train_sents)
+    >>> print chunker.evaluate(test_sents)
     ChunkParse score:
-        Precision:  79.5%
-        Recall:     85.5%
-        F-Measure:  82.4%
+        IOB Accuracy:  93.6%
+        Precision:     81.9%
+        Recall:        87.1%
+        F-Measure:     84.4%
 
 Next, we'll try adding a feature for the current word, since we
 hypothesized that word content should be useful for chunking.  We find
-that this feature does indeed improve the chunker's performance, by
-over 2.5 percentage points (which corresponds to a 7% reduction in the
-error rate).
+that this feature does indeed improve the chunker's performance,
+by about 1.5 percentage points (which corresponds to about a 10% 
+reduction in the error rate).
 
     >>> def npchunk_features(sentence, i, history):
     ...     word, pos = sentence[i]
@@ -904,11 +919,13 @@ error rate).
     ...     else:
     ...         prevword, prevpos = sentence[i-1]
     ...     return {"pos": pos, "word": word, "prevpos": prevpos}
-    >>> score_chunker(ConsecutiveNPChunker(train_sents))
+    >>> chunker = ConsecutiveNPChunker(train_sents)
+    >>> print chunker.evaluate(test_sents)
     ChunkParse score:
-        Precision:  81.2%
-        Recall:     87.1%
-        F-Measure:  84.1%
+        IOB Accuracy:  94.2%
+        Precision:     83.4%
+        Recall:        88.6%
+        F-Measure:     85.9%
 
 Finally, we can try extending the feature extractor with a variety of
 additional features, such as lookahead features chunk-fe-lookahead_,
@@ -923,11 +940,15 @@ encountered since the most recent determiner.
     ...         prevword, prevpos = "<START>", "<START>"
     ...     else:
     ...         prevword, prevpos = sentence[i-1]
+    ...     if i == len(sentence)-1:
+    ...         nextword, nextpos = "<END>", "<END>"
+    ...     else:
+    ...         nextword, nextpos = sentence[i+1]
     ...     return {"pos": pos, 
     ...             "word": word, 
     ...             "prevpos": prevpos,
     ...             "nextpos": nextpos, # [_chunk-fe-lookahead]
-    ...             "prevpos+pos": ""%s+%s" % (prevpos, pos),  # [_chunk-fe-paired]
+    ...             "prevpos+pos": "%s+%s" % (prevpos, pos),  # [_chunk-fe-paired]
     ...             "pos+nextpos": "%s+%s" % (pos, nextpos),
     ...             "tags-since-dt": tags_since_dt(sentence, i)}  # [_chunk-fe-complex]
 
@@ -940,11 +961,13 @@ encountered since the most recent determiner.
     ...             tags.add(pos)
     ...     return '+'.join(sorted(tags))
 
-    >>> score_chunker(ConsecutiveNPChunker(train_sents))
+    >>> chunker = ConsecutiveNPChunker(train_sents)
+    >>> print chunker.evaluate(test_sents)
     ChunkParse score:
-        Precision:  86.6%
-        Recall:     89.3%
-        F-Measure:  87.9%
+        IOB Accuracy:  95.9%
+        Precision:     88.3%
+        Recall:        90.7%
+        F-Measure:     89.5%
 
 .. note:: |TRY|
    Try adding different features to the feature extractor function
@@ -979,10 +1002,10 @@ structures having a depth of at most four.
    :caption: A Chunker that Handles NP, PP, VP and S
 
    grammar = r"""
-     NP: {<DT|JJ|NN.*>+}       # Chunk sequences of DT, JJ, NN
-     PP: {<IN><NP>}            # Chunk prepositions followed by NP
-     VP: {<VB.*><NP|PP|S>+$}   # Chunk rightmost verbs and arguments/adjuncts
-     CLAUSE: {<NP><VP>}        # Chunk NP, VP
+     NP: {<DT|JJ|NN.*>+}          # Chunk sequences of DT, JJ, NN
+     PP: {<IN><NP>}               # Chunk prepositions followed by NP
+     VP: {<VB.*><NP|PP|CLAUSE>+$} # Chunk verbs and their arguments
+     CLAUSE: {<NP><VP>}           # Chunk NP, VP
      """
    cp = nltk.RegexpParser(grammar)
    sentence = [("Mary", "NN"), ("saw", "VBD"), ("the", "DT"), ("cat", "NN"),
@@ -1375,16 +1398,17 @@ example. The method ``show_clause()`` prints out the relations in a
 clausal form, where the binary relation symbol is specified as the
 value of parameter ``relsym`` relsym_. 
 
+    >>> from nltk.corpus import conll2002
     >>> vnv = """
-    (
-    is/V|    # 3rd sing present and 
-    was/V|   # past forms of the verb zijn ('be')
-    werd/V|  # and also present 
-    wordt/V  # past of worden ('become)
-    )
-    .*       # followed by anything
-    van/Prep # followed by van ('of')
-    """
+    ... (
+    ... is/V|    # 3rd sing present and 
+    ... was/V|   # past forms of the verb zijn ('be')
+    ... werd/V|  # and also present 
+    ... wordt/V  # past of worden ('become)
+    ... )
+    ... .*       # followed by anything
+    ... van/Prep # followed by van ('of')
+    ... """
     >>> VAN = re.compile(vnv, re.VERBOSE)
     >>> for doc in conll2002.chunked_sents('ned.train'):
     ...     for r in nltk.sem.extract_rels('PER', 'ORG', doc, corpus='conll2002', pattern=VAN): 
@@ -1423,63 +1447,42 @@ value of parameter ``relsym`` relsym_.
 
 .. XXX there shouldn't be a conclusion here, but a bulletted summary
 
-----------
-Conclusion
-----------
+-------
+Summary
+-------
 
-In this chapter we have explored efficient and robust methods that can
-identify linguistic structures in text.  Using only part-of-speech
-information for words in the local context, a "chunker" can
-successfully identify simple structures such as noun phrases and verb
-groups.  We have seen how chunking methods extend the same lightweight
-methods that were successful in tagging.  The resulting structured
-information is useful in information extraction tasks and in the
-description of the syntactic environments of words.  The latter will
-be invaluable as we move to full parsing.
+* Information extraction systems search large bodies of unrestricted
+  text for specific types of entities and relations, and use them to
+  populate well-organized databases.  These databases can then be used
+  to find answers for specific questions.
 
-There are a surprising number of ways to chunk a sentence using
-regular expressions.  The patterns can add, shift and remove chunks in
-many ways, and the patterns can be sequentially ordered in many ways.
-One can use a small number of very complex rules, or a long sequence
-of much simpler rules.  One can hand-craft a collection of rules, and
-one can write programs to analyze a chunked corpus to help in the
-development of such rules.  The process is painstaking, but generates
-very compact chunkers that perform well and that transparently encode
-linguistic knowledge.
+* The typical architecture for an information extraction system begins
+  by segmenting, tokenizing, and part-of-speech tagging the text.
+  The resulting data is then searched for specific types of entity.
+  Finally, the information extraction system looks at entities that
+  are mentioned near one another in the text, and tries to determine
+  whether specific relationships hold between those entities.
 
-It is also possible to chunk a sentence using the techniques of n-gram
-tagging.  Instead of assigning part-of-speech tags to words, we assign
-IOB tags to the part-of-speech tags.  Bigram tagging turned out to be
-particularly effective, as it could be sensitive to the chunk tag on
-the previous word.  This statistical approach requires far less effort
-than rule-based chunking, but creates large models and delivers few
-linguistic insights.
+* Entity recognition is often performed using chunkers, which 
+  segment multi-token sequences, and label them with the appropriate
+  entity type.  Common entity types include ORGANIZATION, PERSON,
+  LOCATION, DATE, TIME, MONEY, and GPE (geo-political entity).
 
-Like tagging, chunking cannot be done perfectly.  For example, as
-pointed out by Abney, we cannot correctly analyze the structure
-of the sentence *I turned off the spectroroute* without knowing the
-meaning of *spectroroute*; is it a kind of road or a type of device?
-Without knowing this, we cannot tell whether *off* is part of a
-prepositional phrase indicating direction (tagged ``B-PP``), or
-whether *off* is part of the verb-particle construction *turn off*
-(tagged ``I-VP``).
+* Chunkers can be constructed using rule-based systems, such as the
+  ``RegexpParser`` class provided by NLTK; or using machine learning
+  techniques, such as the ``ConsecutiveNPChunker`` presented in this
+  chapter.  In either case, part-of-speech tags are often a very 
+  important feature when searching for chunks.
 
-A recurring theme of this chapter has been `diagnosis`:dt:.  The simplest
-kind is manual, when we inspect the tracing output of a chunker and
-observe some undesirable behavior that we would like to fix.
-Sometimes we discover cases where we cannot hope to get the correct
-answer because the part-of-speech tags are too impoverished and do not
-give us sufficient information about the lexical item.  A second
-approach is to write utility programs to analyze the training data,
-such as counting the number of times a given part-of-speech tag occurs
-inside and outside an ``NP`` chunk.  A third approach is to evaluate the
-system against some gold standard data to obtain an overall
-performance score.  We can even use this to parameterize the system,
-specifying which chunk rules are used on a given run, and tabulating
-performance for different parameter combinations.  Careful use of
-these diagnostic methods permits us to optimize the performance of our
-system.  We will see this theme emerge again later in chapters dealing
-with other topics in natural language processing.
+* Although chunkers are specialized to create relatively flat
+  data structures, where no two chunks are allowed to overlap,
+  they can be cascaded together to build nested structures.
+
+* Relation extraction can be performed using either rule-based
+  systems, which typically look for specific patterns in the
+  text connecting entities and the intervening words; or using
+  machine-learning systems, which typically attempt to learn
+  these patterns automatically from a training corpus.
 
 ---------------
 Further Reading
