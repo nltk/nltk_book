@@ -376,7 +376,7 @@ add an edge if the terminal corresponds to the current input symbol.
 .. _ex-top-down-match-rule:
 .. ex:: `Top-Down Match Rule`:dt: For each incomplete edge
    [*A* |rarr| |alpha|\ |dot|\ w\ :subscript:`j` |beta|\ , (*i*, *j*\ )], 
-   where w\ :subscript:`j` is the *j* :sup:`th` word of the input,
+   where w\ :subscript:`j` is the *j* :sup:`th` word of the input (counting from zero),
    add a new complete edge [`w`:subscript:`j` |rarr| |dot|\ , (*j*, *j*\ +1)]
 
    |chart_td_ex3|
@@ -444,6 +444,7 @@ which *P* dominates *w*. More precisely:
 .. ex:: `Scanner Rule`:dt: For each incomplete edge of the form
    [*A* |rarr| |alpha| |dot|\ *P*\ |beta|\ , (*i*, *j*)] where
    *w*\ :subscript:`j` is the *j*\ :sup:`th` word of the input
+   (counting from zero)
    and *P* is a valid part of speech for *w*\ :subscript:`j`,
    add the new complete edges
    [*P* |rarr| *w*\ :subscript:`j`\ |dot|\ , (*j*, *j*\ +1)] and
