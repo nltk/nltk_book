@@ -767,7 +767,7 @@ approximate that probability.
 
 **Best-First Search:**
 This method sorts the edge queue in descending order of the edges'
-span, no the assumption that edges having a larger span are more likely
+span, on the assumption that edges having a larger span are more likely
 to form part of a complete parse.  This is a `best-first search strategy`:dt:,
 since it inserts the edges that are closest to producing
 complete parses before trying any other edges.  However, best-first search is
