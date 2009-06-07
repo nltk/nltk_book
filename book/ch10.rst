@@ -140,8 +140,8 @@ parent constituent.
 
 This allows us to parse a query into SQL.
 
-    >>> from nltk.parse import load_earley
-    >>> cp = load_earley('grammars/book_grammars/sql0.fcfg')
+    >>> from nltk.parse import load_parser
+    >>> cp = load_parser('grammars/book_grammars/sql0.fcfg')
     >>> query = 'What cities are located in China'
     >>> trees = cp.nbest_parse(query.split())
     >>> answer = trees[0].node['sem']
@@ -151,7 +151,7 @@ This allows us to parse a query into SQL.
 
 .. note:: |TRY|
    Run the parser with maximum tracing on, i.e.,
-   ``cp = load_earley('grammars/book_grammars/sql0.fcfg', trace=3)``, and examine
+   ``cp = load_parser('grammars/book_grammars/sql0.fcfg', trace=3)``, and examine
    how the values of ``sem`` are built up as complete edges are added
    to the chart.
 
@@ -1443,13 +1443,14 @@ to ``a``. Moreover, we didn't specify that ``man`` and ``woman``
 denote disjoint sets, so the model builder lets their denotations overlap. This
 illustrates quite dramatically the implicit knowledge that we bring to
 bear in interpreting our scenario, but which the model builder knows
-nothing about. So let's add some more background knowledge. The
-resulting model is more in accord with our intuitions about the situation.
+nothing about.
+So let's add a new assumption which makes the sets of men and women disjoint. The model builder
+still produces a countermodel, but this time it is more in accord with our intuitions
+about the situation:
 
-    >>> a7 = lp.parse('-(adam = eve)')
-    >>> a8 = lp.parse('all x. (man(x) -> -woman(x))')
+    >>> a7 = lp.parse('all x. (man(x) -> -woman(x))')
     >>> g = lp.parse('love(adam,eve)')
-    >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6, a7, a8])
+    >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6, a7])
     >>> mc.build_model()
     True
     >>> print mc.valuation
@@ -1458,8 +1459,13 @@ resulting model is more in accord with our intuitions about the situation.
      'eve': 'b',
      'love': set([('a', 'c')]),
      'man': set([('a',)]),
-     'woman': set([('c',), ('b',)])}
+     'woman': set([('b',), ('c',)])}
 
+On reflection, we can see that there is nothing in our premises which says that
+Eve is the only woman in the domain of discourse, so the countermodel in fact
+is acceptable. If we wanted to rule it out, we would have to add a further
+assumption such as ``exists y. all x. (woman(x) -> (x = y))`` to ensure that
+there is only one woman in the model.
 
 .. _sec-evaluating-english-sentences:
 
@@ -1477,8 +1483,6 @@ time, rather than constructing an SQL query, we will build a logical
 form. One of our guiding ideas for designing such grammars is the
 `Principle of Compositionality`:dt:.  (Also known as Frege's
 Principle; see [Partee1995LSC]_ for the formulation given below.)
-
-.. XXX previous format for this next paragraph broke docbook processing
 
 **Principle of Compositionality:**
 The meaning of a whole is a function of the meanings of the parts
@@ -1985,8 +1989,8 @@ The grammar ``simple-sem.fcfg`` contains a small set of rules for parsing
 and translating simple examples of the kind that we have been looking
 at. Here's a slightly more complicated example.
 
-    >>> from nltk.parse import load_earley
-    >>> parser = load_earley('grammars/book_grammars/simple-sem.fcfg', trace=0)
+    >>> from nltk.parse import load_parser
+    >>> parser = load_parser('grammars/book_grammars/simple-sem.fcfg', trace=0)
     >>> sentence = 'Angus gives a bone to every dog'
     >>> tokens = sentence.split()
     >>> trees = parser.nbest_parse(tokens)
@@ -2463,11 +2467,11 @@ Q(x))``; after simplification, we get ``\Q.(([x],[dog(x)]) + Q(x))``
 as the representation for the ``NP`` as a whole.
 
 In order to parse with grammar ``drt.fcfg``, we specify in the call to
-``load_earley()`` that ``SEM`` values in feature structures are to be
+``load_parser()`` that ``SEM`` values in feature structures are to be
 parsed using ``DrtParser`` in place of the default ``LogicParser``.
 
-    >>> from nltk.parse import load_earley
-    >>> parser = load_earley('grammars/book_grammars/drt.fcfg', logic_parser=nltk.DrtParser())
+    >>> from nltk.parse import load_parser
+    >>> parser = load_parser('grammars/book_grammars/drt.fcfg', logic_parser=nltk.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
     >>> print trees[0].node['sem'].simplify()
     ([x,z2],[Angus(x), dog(z2), own(x,z2)])

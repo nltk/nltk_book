@@ -491,8 +491,8 @@ invoke the Earley chart parser.
    :caption: Trace of Feature-Based Chart Parser
 
     >>> tokens = 'Kim likes children'.split()
-    >>> from nltk.parse import load_earley
-    >>> cp = load_earley('grammars/book_grammars/feat0.fcfg', trace=2)
+    >>> from nltk.parse import load_parser
+    >>> cp = load_parser('grammars/book_grammars/feat0.fcfg', trace=2)
     >>> trees = cp.nbest_parse(tokens)
               |.K.l.c.|
     Processing queue 0
