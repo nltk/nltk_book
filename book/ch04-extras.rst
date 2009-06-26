@@ -712,7 +712,7 @@ Duck Typing
 [to be written]
 
 
-[Hunt2000PP]_
+[Hunt2000]_
 
 
 .. include:: footer.rst
