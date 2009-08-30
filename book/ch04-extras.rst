@@ -103,7 +103,7 @@ Although the program in code-check-parens_ is a useful illustration of stacks,
 it is overkill because we could have done a direct count:
 ``phrase.count('(') == phrase.count(')')``.  However, we
 can use stacks for more sophisticated processing of strings
-containing nested structure, as shown in convert-parens_.
+containing nested structure, as shown in code-convert-parens_.
 Here we build a (potentially deeply-nested) list of lists.
 Whenever a token other than a parenthesis is encountered,
 we add it to a list at the appropriate level of nesting.
@@ -112,7 +112,7 @@ the fact that the item at the top of the stack is actually shared with a
 more deeply nested item.  (Hint: add diagnostic print statements to
 the function to help you see what it is doing.)
 
-.. pylisting:: convert-parens
+.. pylisting:: code-convert-parens
    :caption: Convert a nested phrase into a nested list using a stack
 
    def convert_parens(tokens):
@@ -558,7 +558,7 @@ Hill-Climbing Search
 Starting from a given location in the search space, evaluate nearby locations and move to
 a new location only if it is an improvement on the current location.
 
-.. pylisting:: hill-climb
+.. pylisting:: code-hill-climb
    :caption: Hill-Climbing Search
 
    def flip(segs, pos):
