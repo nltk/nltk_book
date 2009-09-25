@@ -45,7 +45,6 @@
   .. |ndash| unicode:: U+02013 .. en dash (for numeric ranges)
   .. |tilde| unicode:: U+007E
   
-  
   .. exercise meta-tags
   
   .. |easy| unicode:: U+263C .. sun
