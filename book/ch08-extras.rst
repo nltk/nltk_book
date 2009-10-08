@@ -434,43 +434,6 @@ rules used by the Earley algorithm.
 
     Terminology for rules in the Earley algorithm
 
-Let's look in more detail at the Scanner Rule. Suppose the chart
-contains an incomplete edge with a lexical category *P* immediately after
-the dot,  the next word in the input is *w*, *P* is a part-of-speech
-label for *w*. Then the Scanner Rule admits a new complete edge in
-which *P* dominates *w*. More precisely:
-
-.. _scanner-rule:
-.. ex:: `Scanner Rule`:dt: For each incomplete edge of the form
-   [*A* |rarr| |alpha| |dot|\ *P*\ |beta|\ , (*i*, *j*)] where
-   *w*\ :subscript:`j` is the *j*\ :sup:`th` word of the input
-   (counting from zero)
-   and *P* is a valid part of speech for *w*\ :subscript:`j`,
-   add the new complete edges
-   [*P* |rarr| *w*\ :subscript:`j`\ |dot|\ , (*j*, *j*\ +1)] and
-   [*w*\ :subscript:`j` |rarr| |dot|\ , (*j*, *j*\ +1)]  
-
-To illustrate, suppose the input is of the form 
-`I saw ...`:lx:, and the chart already contains the edge 
-[``VP`` |rarr|  |dot| ``V`` ..., (1, 1)]. Then the Scanner Rule will add to 
-the chart the edges [``V`` |rarr| 'saw', (1, 2)]
-and ['saw'|rarr| |dot|\ , (1, 2)]. So in effect the Scanner Rule packages up a
-sequence of three rule applications: the Bottom-Up Initialization Rule for 
-[*w* |rarr| |dot|\ , (*j*, *j*\ +1)],
-the Top-Down Expand Rule for [*P* |rarr| |dot| *w*\ :subscript:`j`, (*j*, *j*)], and 
-the Fundamental Rule for [*P* |rarr| *w*\ :subscript:`j` |dot|\ , (*j*,
-*j*\ +1))]. This is considerably more efficient than the Top-Down Strategy, that
-adds a new edge of the form [*P* |rarr| |dot| *w* , (*j*, *j*)] for
-`every`:em: lexical rule *P* |rarr| *w*, regardless of whether *w* can
-be found in the input.
-By contrast with Bottom-Up Initialization, however, the
-Earley algorithm proceeds strictly left-to-right through the input,
-applying all applicable rules at that point in the chart, and never backtracking.
-
-.. note:: |TRY|
-   The |NLTK| chart parser demo, ``nltk.app.chartparser()``, allows the option of
-   parsing according to the Earley algorithm.
-
 Chart Parsing in NLTK
 ---------------------
 
