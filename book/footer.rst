@@ -2,7 +2,7 @@
 
 .. admonition:: About this document...
 
-   This chapter is a draft from *Natural Language Processing*,
+   This is a chapter from *Natural Language Processing with Python*,
    by |StevenBird|, |EwanKlein| and |EdwardLoper|,
    Copyright |copy| 2009 the authors.
    It is distributed with the *Natural Language Toolkit* [|NLTK-URL|],
