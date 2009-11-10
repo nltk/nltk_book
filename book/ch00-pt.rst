@@ -79,11 +79,6 @@ programas que analisam a linguagem escrita, independente de experiências anterio
     a apreciar a adequação da linguagem para essa área. O índice da linguagem irá ajudá-lo a
     localizar discussões relevantes no livro.
 
-:Already dreaming in Python?:  Skim the Python examples
-    and dig into the interesting language analysis
-    material that starts in chap-introduction_.
-    You'll soon be applying your skills to this fascinating domain.
-
 :Já sonhando em Python?: Pule os exemplos de Python e imerja-se no interessante material
     de análise linguística que inicia no chap-introduction_. Você logo estará pondo em prática
     seus conhecimentos neste fascinante domínio.
