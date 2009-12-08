@@ -1780,7 +1780,7 @@ variables is known as `α-conversion`:dt:. When we test for equality of
      >>> e1 = lp.parse('exists x.P(x)')
      >>> print e1
      exists x.P(x)
-     >>> e2 = e1.alpha_convert(nltk.Variable('z'))
+     >>> e2 = e1.alpha_convert(nltk.sem.Variable('z'))
      >>> print e2
      exists z.P(z)
      >>> e1 == e2
@@ -1949,7 +1949,7 @@ equivalent to ex-sem99_, which is what we wanted all along:
     >>> lp = nltk.LogicParser()
     >>> tvp = lp.parse(r'\X x.X(\y.chase(x,y))')
     >>> np = lp.parse(r'(\P.exists x.(dog(x) & P(x)))')
-    >>> vp = nltk.ApplicationExpression(tvp, np)
+    >>> vp = nltk.sem.ApplicationExpression(tvp, np)
     >>> print vp
     (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
     >>> print vp.simplify()
@@ -1995,7 +1995,7 @@ at. Here's a slightly more complicated example.
     >>> tokens = sentence.split()
     >>> trees = parser.nbest_parse(tokens)
     >>> for tree in trees:
-    ...     print tree.node['sem']
+    ...     print tree.node['SEM']
     all z2.(dog(z2) -> exists z1.(bone(z1) & give(angus,z1,z2)))
 
 |NLTK| provides some utilities to make it easier to derive and inspect
@@ -2014,18 +2014,19 @@ in the list.
     ...     for (synrep, semrep) in results:
     ...         print synrep
     (S[SEM=<walk(irene)>]
-      (NP[-loc, num='sg', SEM=<\P.P(irene)>]
-        (PropN[-loc, num='sg', SEM=<\P.P(irene)>] Irene))
-      (VP[num='sg', SEM=<\x.walk(x)>]
-        (IV[num='sg', SEM=<\x.walk(x)>, tns='pres'] walks)))
+      (NP[-LOC, NUM='sg', SEM=<\P.P(irene)>]
+        (PropN[-LOC, NUM='sg', SEM=<\P.P(irene)>] Irene))
+      (VP[NUM='sg', SEM=<\x.walk(x)>]
+        (IV[NUM='sg', SEM=<\x.walk(x)>, TNS='pres'] walks)))
     (S[SEM=<exists z3.(ankle(z3) & bite(cyril,z3))>]
-      (NP[-loc, num='sg', SEM=<\P.P(cyril)>]
-        (PropN[-loc, num='sg', SEM=<\P.P(cyril)>] Cyril))
-      (VP[num='sg', SEM=<\x.exists z3.(ankle(z3) & bite(x,z3))>]
-        (TV[num='sg', SEM=<\X x.X(\y.bite(x,y))>, tns='pres'] bites)
-        (NP[num='sg', SEM=<\Q.exists x.(ankle(x) & Q(x))>]
-          (Det[num='sg', SEM=<\P Q.exists x.(P(x) & Q(x))>] an)
-          (Nom[num='sg', SEM=<ankle>] (N[num='sg', SEM=<ankle>] ankle)))))
+      (NP[-LOC, NUM='sg', SEM=<\P.P(cyril)>]
+        (PropN[-LOC, NUM='sg', SEM=<\P.P(cyril)>] Cyril))
+      (VP[NUM='sg', SEM=<\x.exists z3.(ankle(z3) & bite(x,z3))>]
+        (TV[NUM='sg', SEM=<\X x.X(\y.bite(x,y))>, TNS='pres'] bites)
+        (NP[NUM='sg', SEM=<\Q.exists x.(ankle(x) & Q(x))>]
+          (Det[NUM='sg', SEM=<\P Q.exists x.(P(x) & Q(x))>] an)
+          (Nom[NUM='sg', SEM=<\x.ankle(x)>]
+            (N[NUM='sg', SEM=<\x.ankle(x)>] ankle)))))
 
 We have seen now how to convert English sentences into logical forms, and
 earlier we saw how logical forms could be checked as true or false in a
@@ -2234,7 +2235,7 @@ forms. First, we construct a ``CooperStore`` instance, and inspect its
     >>> from nltk.sem import cooper_storage as cs
     >>> sentence = 'every girl chases a dog'
     >>> trees = cs.parse_with_bindops(sentence, grammar='grammars/book_grammars/storage.fcfg')
-    >>> semrep = trees[0].node['sem']
+    >>> semrep = trees[0].node['SEM']
     >>> cs_semrep = cs.CooperStore(semrep)
     >>> print cs_semrep.core
     chase(z1,z2)
@@ -2473,7 +2474,7 @@ parsed using ``DrtParser`` in place of the default ``LogicParser``.
     >>> from nltk import load_parser
     >>> parser = load_parser('grammars/book_grammars/drt.fcfg', logic_parser=nltk.DrtParser())
     >>> trees = parser.nbest_parse('Angus owns a dog'.split())
-    >>> print trees[0].node['sem'].simplify()
+    >>> print trees[0].node['SEM'].simplify()
     ([x,z2],[Angus(x), dog(z2), own(x,z2)])
 
 
@@ -2508,9 +2509,11 @@ ignores scope ambiguity.
     >>> dt.readings()
 
     s0 readings:
+
     s0-r0: exists x.(student(x) & dance(x))
 
     s1 readings:
+
     s1-r0: all x.(student(x) -> person(x))
 
 When a new sentence is added to the current discourse, setting the
@@ -2521,9 +2524,9 @@ of retracting the sentence in question.
 
     >>> dt.add_sentence('No person dances', consistchk=True)
     Inconsistent discourse d0 ['s0-r0', 's1-r0', 's2-r0']:
-    s0-r0: exists x.(student(x) & dance(x))
-    s1-r0: all x.(student(x) -> person(x))
-    s2-r0: -exists x.(person(x) & dance(x))
+      s0-r0: exists x.(student(x) & dance(x))
+      s1-r0: all x.(student(x) -> person(x))
+      s2-r0: -exists x.(person(x) & dance(x))
     >>> dt.retract_sentence('No person dances', verbose=True)
     Current sentences are 
     s0: A student dances
@@ -2559,6 +2562,7 @@ input (`Every dog chases a boy.  He runs`:lx:.) needs to be tagged as well as to
     >>> rc = nltk.DrtGlueReadingCommand(depparser=nltk.MaltParser(tagger=tagger))
     >>> dt = nltk.DiscourseTester(['Every dog chases a boy', 'He runs'], rc)
     >>> dt.readings()
+    
     s0 readings:
 
     s0-r0: ([],[(([x],[dog(x)]) -> ([z3],[boy(z3), chases(x,z3)]))])
@@ -2792,7 +2796,7 @@ Exercises
    .. doctest-ignore::
      >>> lp = nltk.LogicParser()
      >>> e2 = lp.parse('pat')
-     >>> e3 = nltk.ApplicationExpression(e1, e2)
+     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
      >>> print e3.simplify()
      exists y.love(pat, y)
 
@@ -2825,19 +2829,19 @@ Exercises
 
    .. doctest-ignore::
     >>> e2 = lp.parse('chase')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.all y.(dog(y) -> chase(x,pat))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('chase')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x.exists y.(dog(y) & chase(pat,x))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('give')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     \x0 x1.exists y.(present(y) & give(x1,y,x0))
 
@@ -2846,19 +2850,19 @@ Exercises
 
    .. doctest-ignore::
     >>> e2 = lp.parse('bark')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     exists y.(dog(x) & bark(x))
 
    .. doctest-ignore::
     >>> e2 = lp.parse('bark')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     bark(fido)
 
    .. doctest-ignore::
     >>> e2 = lp.parse('\\P. all x. (dog(x) -> P(x))')
-    >>> e3 = nltk.ApplicationExpression(e1, e2)
+    >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print e3.simplify()
     all x.(dog(x) -> bark(x))
 
