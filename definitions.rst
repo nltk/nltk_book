@@ -142,6 +142,7 @@
   .. |vee| unicode:: U+2228 .. or
   .. |wedge| unicode:: U+2227 .. and
   .. |prod| replace:: Prod
+  .. |minus| unicode:: U+2212 .. minus
   
   .. sets
   .. |cup| unicode:: U+0222A .. union 
