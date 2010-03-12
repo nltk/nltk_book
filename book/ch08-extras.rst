@@ -644,7 +644,7 @@ a parse that is assigned low probability by the parser might still have the
 best overall probability.
 
 For example, a probabilistic parser might decide that the most likely
-parse for "I saw John with the cookie" is is the structure with the
+parse for "I saw John with the cookie" is the structure with the
 interpretation "I used my cookie to see John"; but that parse would be
 assigned a low probability by a semantic system.  Combining the
 probability estimates from the parser and the semantic system, the
