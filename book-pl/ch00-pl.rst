@@ -11,39 +11,36 @@ Przedmowa
 =========
 
 |nopar|
-Ten podręcznik wprowadzi Cię w świat analizy języka naturalnego (ang. *Natural Language Processing* |mdash| *NLP*).
-Określenie "język naturalny" odnosi się do dowolnego języka, którym ludzie posługują się w procesie
-komunikacji, np. angielskiego, hindi czy portugalskiego. W przeciwieństwie do języków sztucznych,
+Tematem niniejszego podręcznika jest analiza języka naturalnego (ang. *Natural Language Processing* |mdash| *NLP*).
+Określenie |bdquo| język naturalny |rdquo| odnosi się do dowolnego języka, np. angielskiego, hindi czy portugalskiego,
+służącego ludziom w procesie komunikacji. W przeciwieństwie do języków sztucznych,
 takich jak choćby języki programowania czy zapisy matematyczne, języki naturalne ewoluują
-z pokolenia na pokolenie, przez co m.in. trudno jest w sposób jednoznaczny uchwycić rządzące nimi zasady.
-Analizę języka naturalnego (|NLP|) będziemy w tym podręczniku rozumieć jako zestaw operacji komputerowych
-wykonywanych na dowolnym języku naturalnym. Mogą one służyć realizacji prostych zadań, jak choćby zliczanie częstotliwości słów,
+z każdym, kolejnym pokoleniem władających nimi osób, przez co trudno jest m.in. w sposób jednoznaczny uchwycić rządzące nimi zasady.
+Analizę języka naturalnego (oznaczaną skrótem |NLP|) będziemy w tym podręczniku rozumieć jako ogół technik komputerowych
+mających na celu manipulację i operowanie danymi opartymi na języku naturalnym (mówionym lub pisanym).
+NLP może służyć realizacji prostych zadań, jak choćby zliczanie częstotliwości słów,
 mające na celu porównanie różnorodnych stylów. Z drugiej strony |NLP|, jako dziedzina, podejmuje również złożone wyzwania,
 np. |bdquo| rozumienie |rdquo| kompletnych, autentycznych wypowiedzi celem udzielenia użytecznych odpowiedzi na zadane przez użytkownika pytanie.
 
-Technologies based on |NLP|
-are becoming increasingly widespread. For example, phones and handheld computers
-support predictive text and handwriting recognition;  web
-search engines give access to information locked up in unstructured
-text; machine translation allows us to retrieve texts written in
-Chinese and read them in Spanish.  By providing more natural human-machine interfaces, and more
-sophisticated access to stored information, language processing has
-come to play a central role in the multilingual information society.
+Technologie oparte na analizie języka naturalnego
+stają się coraz bardziej obecne. Przykładowo telefony komórkowe oraz przenośne komputery (smartfony, urządzenia typu PDA tudzież palmtopy)
+wyposaża się w funkcje przewidywania wprowadzanego tekstu (np. tzw. słowniki T9 |mdash| przyp. tłum.) oraz rozpoznawania pisma odręcznego;
+wyszukiwarki internetowe umożliwiają dostęp do informacji zagnieżdzonych w teście nieustrukturyzowanym;
+tłumaczenie maszynowe pozwala na wyszukiwanie tekstów napisanych w języku chińskim, a następnie odczytanie ich po hiszpańsku.
+Dzięki zastosowaniu bardziej naturalnych interfejsów człowiek-maszyna (ang. *human-machine interface* |mdash| *HMI*) oraz zaawansowanych
+metod dostępu do zapisanych informacji, przetwarzanie danych językowych zaczęło pełnić kluczową rolę w wielokulturowym społeczeństwie informacyjnym.
 
-This book provides a highly accessible introduction to the field of |NLP|.
-It can be used for individual study or as the textbook for a course
-on natural language processing or computational linguistics,
-or as a supplement to courses in artificial intelligence,
-text mining, or corpus linguistics.
-The book is intensely practical, containing 
-hundreds of fully-worked examples and graded exercises.
+Ta książka stanowi wprowadzenie do świata analizy języka naturalnego.
+Może być z powodzeniem stosowana do samodzielnej nauki, jako podręcznik stosowany podczas kursu/zajęć
+związanych z tematyką |NLP| lub lingwistyką informatyczną, ewentualnie jako źródło uzupełniające
+do zajęć ze sztucznej inteligencji, analizy zawartości dokumentów tekstowych (ang. *text mining*) czy językoznawstwa korpusowego.
+Książka skupia się na praktycznym wykorzystaniu dostępnej wiedzy, oferując setki w pełni funkcjonalnych przykładów oraz ćwiczeń o różnym stopniu trudności.
 
-The book is based on the Python programming language together with an open source
-library called the *Natural Language Toolkit* (|NLTK|).
-|NLTK| includes extensive software, data, and documentation, all freely downloadable from |NLTK-URL|.
-Distributions are provided for Windows, Macintosh and Unix platforms.
-We strongly encourage you to download Python and |NLTK|, and try out the
-examples and exercises along the way.
+Podręcznik opiera się na języku programowania Python oraz rozprowadzanej na licencji open-source pakiecie *Natural Language Toolkit* (|NLTK|). 
+Na |NLTK| składa się obszerny wybór bibliotek programistycznych oraz bogate towarzyszące zasoby danych |mdash| wszystko opatrzone stosowną dokumentacją
+i dostępne bezpłatnie pod adresem internetowym |NLTK-URL|.
+Dostępne są dystrybucje dla systemów Windows, Macintosh i platform Unixowych.
+Gorąco zachęcamy do pobrania języka programowania Python oraz pakietu |NLTK| oraz wypróbowania przykładów i ćwiczeń towarzyszących poszczególnym partiom materiału.
 
 --------
 Audience
