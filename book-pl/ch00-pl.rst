@@ -42,172 +42,152 @@ i dostępne bezpłatnie pod adresem internetowym |NLTK-URL|.
 Dostępne są dystrybucje dla systemów Windows, Macintosh i platform Unixowych.
 Gorąco zachęcamy do pobrania języka programowania Python oraz pakietu |NLTK| oraz wypróbowania przykładów i ćwiczeń towarzyszących poszczególnym partiom materiału.
 
---------
-Audience
---------
+--------------------------------------
+Dla kogo przeznaczona jest ta książka?
+--------------------------------------
 
-|NLP| is important for scientific, economic, social, and cultural reasons.
-|NLP| is experiencing rapid growth as its theories and methods are deployed in
-a variety of new language technologies.  For this reason it is
-important for a wide range of people to have a working knowledge of |NLP|.
-Within industry, this includes people in
-human-computer interaction, business information analysis,
-and web software development.
-Within academia, it includes people in areas from
-humanities computing and corpus linguistics
-through to computer science and artificial intelligence.
-(To many people in academia, |NLP| is known by the name of
-"Computational Linguistics.")
+Analiza języka naturalnego jest dziedziną istotną ze względów naukowych, ekonomicznych, społecznych oraz kulturowych.
+|NLP| przeżywa aktualnie gwałtowny rozwój |mdash| powiązane teorie i metody znajdują zastosowanie w ramach różnorodnych technologii językowych.
+Z tego względu praktyczna znajomość podstaw |NLP| ma zasadnicze znaczenie dla szerokiego spektrum odbiorców.
+W sektorze komercyjnym wiedza ta przyda się osobom zaangażowanym w projektowanie systemów interakcji człowiek-maszyna, analizę informacji biznesowych,
+oraz rozwój oprogramowania i technologii internetowych.
+Natomiast w środowisku akademickim, krąg odbiorców będzie obejmował osoby zajmujące się naukami humanistycznymi w kontekście informatycznym (ang. *humanities computing*) i językoznawstwem korpusowym, jak również informatyków i badaczy sztucznej inteligencji. 
+Dla wielu osób z kręgów akademickich, |NLP| funkcjonuje jako lingwistyka informatyczna (ang. |bdquo| computational linguistics |rdquo|).
 
-This book is intended for a diverse range of people who want to
-learn how to write programs that analyze written language,
-regardless of previous programming experience:
+Podręcznik skierowany jest do szerokiego grona osób, które chcą
+nauczyć się pisać programy analizujące język pisany,
+bez wględu na wcześniejsze doświadczenie związane z programowaniem.
 
-:New to programming?:  The early chapters of the book are suitable
-    for readers with no prior knowledge of programming, so long as you
-    aren't afraid to tackle new concepts and develop new computing skills.
-    The book is full of examples that you can copy and
-    try for yourself, together with hundreds of graded exercises.
-    If you need a more general introduction to Python, see the
-    list of Python resources at ``http://docs.python.org/``.
+:Brak doświadczenia w programowaniu?:  Wczesne rozdziały książki są przeznaczone
+    dla czytelników nieposiadających wiedzy programistycznej, otwarych na poznawanie
+    nowych koncepcji i pragnących rozwinąć umiejętności programistyczne.
+    Podręcznik zawiera dużo przykładów, które można powielić i wypróbować samemu,
+    a poszczególnym partiom materiału towarzyszą ćwiczenia o zróżnicowanym poziomie zaawansowania.
+    Jeżeli potrzebują Państwo bardziej ogólnego wprowadzenia do programowania w Pythonie,
+    warto zapoznać się z materiałami dostępnymi na stronie ``http://docs.python.org/``.
 
-:New to Python?:  Experienced programmers can quickly learn enough
-    Python using this book to get immersed in natural language processing.
-    All relevant Python features are carefully explained and exemplified,
-    and you will quickly come to appreciate Python's suitability for this
-    application area.  The language index will help you locate relevant
-    discussions in the book.
+:Pierwszy kontakt z Pythonem?:  Doświadczeni programiści mogą dzięki tej książce szybko poznać
+    podstawy Pythona, aby rozpocząć prace związane z analizą języka naturalnego.
+    Podręcznik tłumaczy wszystkie istotne elementy języka programowania, bogato ilustrując je przykładami.
+    W ten sposób można docenić przystępność Pythona w zastosowaniach NLP.
+    Indeks rzeczowy pomoże odnaleźć fragmenty zawierające omówienia poszukiwanych pojęć.
 
-:Already dreaming in Python?:  Skim the Python examples
-    and dig into the interesting language analysis
-    material that starts in chap-introduction_.
-    You'll soon be applying your skills to this fascinating domain.
+:Programujesz w Pythonie?:  Pomiń przykłady wprowadzające do Pythona
+    i rozpocznij czytanie od materiału otwierającego tematykę analizy językowej
+    który znajduje się w rozdziale chap-introduction_.
+    Wkrótce będziesz mógł wykorzystać swoje umiejętności w tej nowej, fascynującej dziedzinie.
 
---------
-Emphasis
---------
+-----------
+Cel książki
+-----------
 
-This book is a *practical* introduction to |NLP|.  You will learn by
-example, write real programs, and grasp the value of being able to
-test an idea through implementation.  If you haven't learnt already,
-this book will teach you *programming*.  Unlike other programming
-books, we provide extensive illustrations and exercises from |NLP|.  The
-approach we have taken is also *principled*, in that we cover the
-theoretical underpinnings and don't shy away from careful linguistic
-and computational analysis.  We have tried to be *pragmatic* in
-striking a balance between theory and application, identifying the
-connections and the tensions.  Finally, we recognize that you
-won't get through this unless it is also *pleasurable*, so we have
-tried to include many applications and examples that are interesting
-and entertaining, sometimes whimsical.
+Niniejszy podręcznik stanowi przede wszystkim *praktyczne* wprowadzenie do tematyki |NLP|.
+Nauka następuje poprzez rozliczne przykłady i pisanie autentycznych programów, dzięki czemu użytkownik uczy się, jak
+przetestować pomysł poprzez jego implementację. Jeżeli wcześniej dostatecznie tego nie podkreślono,
+zadaniem książki jest nauka *programowania*.  W przeciwieństwie do innych podręczników programowania
+przedstawione przykłady ilustrujące oraz ćwiczenia skupiają się na zadaniach związanych z |NLP|.
+Książka przedstawia *teorie* zasadnicze dla omawianego materiału, nie unikając
+szczegółowych analiz lingwistycznych czy informatycznych poszczególnych kwestii.
+Autorzy starali się zachować *praktyczny* charakter podręcznika,
+zachowując równowagę pomiędzy wiedzą teoretyczną a jej zastosowaniem, przedstawiając istniejące
+zbieżności i problemy. Co jednak najważniejsze, trudno byłoby przebrnąć przez cały materiał,
+gdyby nie był on dostatecznie *atrakcyjny*, dlatego też
+w treści przedstawiono wiele zastosowań i przykładów, które są interesujące, zabawne, czasem wręcz dziwaczne.
 
-Note that this book is not a reference work.  Its coverage of Python
-and |NLP| is selective, and presented in a tutorial style.  For
-reference material, please consult the substantial quantity of
-searchable resources available at |PYTHON-URL| and |NLTK-URL|.
+Warto podkreślić, iż opracowanie nie ma charakteru encyklopedycznego. Omówienie zarówno programowania w Pythonie, jak i tematyki związanej z |NLP|
+jest wybiórcze i przedstawione w formie podręcznika do samodzielnej nauki. Szczegółową dokumentację można odnaleźć przeszukując materiały dostępne odpowiednio na |PYTHON-URL| oraz |NLTK-URL|.
 
-This book is not an advanced computer science text.
-The content ranges from introductory to intermediate, and is
-directed at readers who want to learn how to analyze
-text using Python and the Natural Language Toolkit.
-To learn about advanced algorithms implemented in |NLTK|,
-you can examine the Python code linked from |NLTK-URL|,
-and consult the other materials cited in this book.
+Książka nie stanowi zaawansowanego podręcznika z zakresu informatyki.
+Poziom prezentowanego materiału waha się pomiędzy poziomem początkującym a średniozaawansowanym, z racji iż
+jest on skierowany do czytelników pragnących nauczyć się, jak analizować
+tekst przy użyciu języka programowania Python oraz pakietu Natural Language Toolkit.
+Zainteresowanym bardziej zaawansowanym poznaniem algorytmów wykorzystanych w |NLTK|,
+proponujemy przestudiowanie sekcji dotyczącej kodu na stronie |NLTK-URL|.
+Warto również zapoznać się z pozostałym materiałami i źródłami cytowanymi w podręczniku.
 
--------------------
-What You Will Learn
--------------------
+-----------------------
+Czego można się nauczyć
+-----------------------
 
-By digging into the material presented here, you will learn:
+Studiując zawarty materiał, czytelnik dowiaduje się:
 
-* How simple programs can help you manipulate and analyze
-  language data, and how to write these programs
-* How key concepts from |NLP| and linguistics are used to describe and
-  analyse language
-* How data structures and algorithms are used in |NLP|
-* How language data is stored in standard formats, and how data can
-  be used to evaluate the performance of |NLP| techniques
+* w jaki sposób proste programy mogą pomóc przy manipulacji i analizie
+  danych językowych oraz, co najważniejsze, jak pisać takie aplikacje;
+* jak koncepcje lingwistyczne oraz związane z dziedziną |NLP| mogą posłużyć w opisie
+  i badaniu języka;
+* jak korzystać z algorytmów i struktur danych w zadaniach związanych z |NLP|;
+* w jaki sposób zapisywać informacje językowe w standardowych formatach oraz jak wykorzystać dane
+  do oszacowania skuteczności technik |NLP|.
 
-Depending on your background, and your motivation for being interested in |NLP|,
-you will gain different kinds of skills and knowledge from this book, as set out
-in tab-goals_.
+W zależności od wcześniejszych doświadczeń, nabytego wykształcenia oraz rodzaju motywacji związanej z poznaniem dziedziny, jaką jest |NLP|,
+czytelnik może z pomocą tej książki nabyć różne umiejętności oraz wiedzę teoretyczną, co przedstawiono w tab-goals_.
 
 .. table:: tab-goals
 
-    ===================  =================================  =====================================
-    Goals                Background in arts and humanities  Background in science and engineering
-    ===================  =================================  =====================================
-    Language analysis    Manipulating large corpora,        Using techniques in data modeling,
-                         exploring linguistic models,       data mining, and knowledge discovery
-                         and testing empirical claims.      to analyze natural language.
-    -------------------  ---------------------------------  -------------------------------------
-    Language technology  Building robust systems to         Using linguistic algorithms and
-                         perform linguistic tasks           data structures in robust
-                         with technological applications.   language processing software.
-    ===================  =================================  =====================================
+    ====================  ==================================  =============================================================================
+    Cel nauki             Wykształcenie humanistyczne         Wykształcenie ścisłe/techniczne
+    ====================  ==================================  =============================================================================
+    Analiza językowa      Operacje na dużych korpusach,       Wykorzystanie technik z zakresu modelowania danych,
+                          badanie modeli lingwistycznych,     eksploracji danych (ang. *data mining*) czy
+                          testowanie założeń empirycznych.    odkrywania wiedzy (ang. *knowledge discovery*) w analizie języka naturalnego.
+    --------------------  ----------------------------------  -----------------------------------------------------------------------------
+    Technologie językowe  Budowanie efektywnych systemów      Wykorzystanie algorytmów lingwistycznych
+                          wykonujących zadania lingwistyczne  oraz struktur danych w projektowaniu efektywnego
+                          za pomocą aplikacji komputerowych.  oprogramowania służącego do przetwarzania języka naturalnego.
+    ====================  ==================================  =============================================================================
 
-    Skills and knowledge to be gained from reading this book, depending on readers' goals and background
+    Umiejętności i wiedza, które czytelnik nabywa wraz lekturą książki zależą od wyznaczonych celów i kierunku kształcenia.
 
-------------
-Organization
-------------
+-----------------
+Struktura książki
+-----------------
 
-The early chapters are organized in order of conceptual difficulty,
-starting with a practical introduction to language processing
-that shows how to explore interesting bodies of text using
-tiny Python programs (Chapters 1-3).  This is followed by
-a chapter on structured programming (Chapter 4) that consolidates the
-programming topics scattered across the preceding chapters.
-After this, the pace picks up, and we move
-on to a series of chapters covering fundamental topics in
-language processing:
-tagging, classification, and information extraction (Chapters 5-7).
-The next three chapters look at ways to parse a sentence, recognize
-its syntactic structure, and construct representations of meaning (Chapters 8-10).
-The final chapter is devoted to linguistic data and how it can
-be managed effectively (Chapter 11).  The book concludes with an
-Afterword, briefly discussing the past and future of the field.
+Wczesne rozdziały uporządkowano według skali trudności wprowadzanych pojęć,
+zaczynając od praktycznego wprowadzenia do |NLP|, w ramach którego
+przedstawiono, jak za pomocą niewielkich programów w napisanych Pythonie łatwo
+wykonać proste zadania analityczne oparte na ciekawych materiałach tekstowych (rozdziały 1-3).
+Rozdział czwarty omawia podstawy programowania strukturalnego,
+co ma na celu zebranie tematów i pojęć związanych z programowaniem
+rozproszonych w trzech poprzedzających rozdziałach.
+W dalszej części podręcznika ilość wprowadzanego materiału wzrasta, a kolejne rozdziały
+poświęcone są omówieniu zasadniczych tematów związanych z przetwarzaniem danych językowych:
+oznaczaniu części mowy (tagowaniu), klasyfikacji tekstu oraz ekstrakcji informacji (rozdziały 5-7).
+Kolejne trzy rozdziały przedstawiają techniki parsowania (rozbioru gramatycznego) zdań,
+rozpoznawania ich budowy składniowej oraz konstruowania reprezentacji semantycznych (znaczeniowych)(rozdziały 8-10).
+Ostatni rozdział skupia się na efektywnym zarządzaniu danymi językowymi (rozdział 11).
+Podręcznik zawiera również posłowie rozważające rozwój historyczny oraz przyszłość |NLP|.
 
-Within each chapter, we switch between different styles of presentation.
-In one style, natural language is the driver.  We analyze language,
-explore linguistic concepts, and use programming examples to support
-the discussion.  We often employ Python constructs that have
-not been introduced systematically, so you can see their purpose
-before delving into the details of how and why they work.
-This is just like learning idiomatic expressions in a foreign language:
-you're able to buy a nice pastry without first having learnt
-the intricacies of question formation.
-In the other style of presentation, the programming language will be the driver.
-We'll analyze programs, explore algorithms, and the linguistic examples
-will play a supporting role.
+W treści poszczególnych rozdziałów na przemian występują dwa style prezentacji.
+W pierwszym z nich centrum stanowi język naturalny. Jest on poddawany analizie,
+badane są różne koncepcje lingwistyczne, a przykładowe programy funkcjonują jako narzędzia pomocne w dyskusji.
+Pojawiają się elementy Pythona, które nie zostały uprzednio wprowadzone w sposób systematyczny, aby czytelnik
+mógł zrozumieć cel ich zastosowania, zanim zagłębi się w szczegóły techniczne.
+Przypomina to naukę formułek w języku obcym |mdash| można np. skutecznie spytać o drogę, nie znając teoretycznych zasad rządzących tworzeniem zdań pytających.
+Drugi styl prezentacji skupia się na zadach rządzących językiem programowania.
+Analizujemy programy, badamy algorytmy, natomiast przykłady językowe odgrywają rolę pomocniczą.
 
-Each chapter ends with a series of graded exercises,
-which are useful for consolidating the material.
-The exercises are graded according to the following scheme:
-|easy| is for easy exercises that involve minor modifications
-to supplied code samples or other simple activities;
-|soso| is for intermediate exercises that explore an aspect
-of the material in more depth, requiring careful analysis and design;
-|hard| is for difficult, open-ended tasks that will challenge your
-understanding of the material and force you to think independently
-(readers new to programming should skip these).
+Każdy rozdział zawiera zestaw ćwiczeń o zróżnicowanym poziomie zaawansowania,
+które służą jako podsumowanie materiału.
+Zastosowano następujący podział zadań ze względu na ich trudność:
+|easy| łatwe ćwiczenia wymagające drobnych modyfikacji przedstawionych przykładów lub inne proste zadania;
+|soso| ćwiczenia o średnim stopniu trudności, w których materiał jest badany dokładniej |mdash| wymagają one uważnej analizy i przemyślanych rozwiązań;
+|hard| ćwiczenia zaawansowane o charakterze otwartym, stanowiące wyzwanie dla czytelnika, weryfikujące pełne zrozumienie przedstawianej treści oraz wymagające nieszablonowego myślenia.
+(niezalecane dla rozpoczynających przygodę z programowaniem).
 
-Each chapter has a further reading section and an online "extras"
-section at |NLTK-URL|, with pointers to more advanced materials and
-online resources.  Online versions of all the code examples are also
-available there.
+Ponadto każdy z rozdziałów zawiera listę polecanych publikacji oraz internetową sekcję |bdquo| materiały uzupełniające |rdquo|,
+dostępną na stronie |NLTK-URL|, przedstawiającą bardziej zaawansowane źródła wiedzy oraz powiązane witryny internetowe. Na stronie można również znaleźć wszystkie fragmenty kodu przedstawione w danym rozdziale.
 
------------
-Why Python?
------------
+----------------
+Dlaczego Python?
+----------------
 
-Python is a simple yet powerful programming language with excellent
-functionality for processing linguistic data.  Python can be
-downloaded for free from ``http://www.python.org/``.
-Installers are available for all platforms.
+Python jest prostym w nauce, potężnym językiem programowania, oferującym duże możliwości
+w zakresie przetwarzania danych językowych. 
+Jest on dostępny bezpłatnie na stronie internetowej ``http://www.python.org/``.
+Wersje instalacyjne są dostępne dla wszystkich popularnych systemów operacyjnych.
 
-Here is a five-line Python program that processes ``file.txt``
-and prints all the words ending in ``ing``:
+Poniżej przedstawiamy pięciolinijkowy program w Pythonie, który przetwarza plik ``file.txt``,
+a następnie wypisuje wszystkie słowa zakończone końcówką ``ing``:
 
 .. doctest-ignore::
     >>> for line in open("file.txt"):
@@ -215,298 +195,273 @@ and prints all the words ending in ``ing``:
     ...         if word.endswith('ing'):
     ...             print word
 
-This program illustrates some of the main features of Python.  First,
-whitespace is used to *nest* lines of code, thus the line starting
-with ``if`` falls inside the scope of the previous line starting with
-``for``; this ensures that the ``ing`` test is performed for each
-word.  Second, Python is *object-oriented*; each variable is an entity
-that has certain defined attributes and methods.  For example, the
-value of the variable ``line`` is more than a sequence of characters.
-It is a string object that has a "method" (or operation) called
-``split()`` that we can use to break a line into its words.  To apply
-a method to an object, we write the object name, followed by a period,
-followed by the method name, i.e. ``line.split()``.  Third, methods
-have *arguments* expressed inside parentheses.  For instance, in the
-example, ``word.endswith('ing')`` had the argument ``'ing'`` to
-indicate that we wanted words ending with `ing`:lx: and not something else. 
-Finally |mdash| and most importantly |mdash|
-Python is highly readable, so much so that it is fairly easy to guess
-what the program does even if you have never written a program
-before.
+Powyższy przykład ilustruje kilka podstawowych elementów programowania w Pythonie.
+Odstępy służą *zagnieżdżaniu* fragmentów kodu, dlatego wiersz rozpoczynający się od ``if``
+znajduje się w obszarze działania instrukcji wyrażonej w poprzedniej linii zaczynającej się od ``for``.
+W tym wypadku gwarantuje to, iż test na obecność końcówki ``ing`` zostanie wykonany dla każdego słowa.
+Po drugie Python jest językiem *zorientowanym obiektowo* |mdash| każda zmienna stanowi obiekt
+posiadający określone atrybuty (właśności) i metody. Przykładowo wartość zmiennej ``line``
+jest czymś więcej niż tylko sekwencją znaków. W istocie reprezentuje ona obiekt typu string (łańcuch),
+który posiada m.in. metodę (operację) ``split()``, która wyodrębnia słowa z linii tekstu.
+Chcąc zastosować metodę dla danego obiektu, należy wpisać nazwę obiektu, a następnie nazwę metody poprzedzoną kropką, np. ``line.split()``.
+Po trzecie metody mogą posiadać *argumenty* wyrażane w nawiasach. Na przykład w przedstawionych programie metoda  ``endswith`` zawiera argument ``'ing'``
+wskazujący, że poszukiwane są tylko słowa zakończone na `ing`:lx:. 
+Co jednak najważniejsze, Python jest językiem o czytelnym zapisie,
+w związku z czym nietrudno domyślić się, jakie zadanie pełni dany ciąg instrukcji,
+nawet bez doświadczenia w programowaniu.
 
-We chose Python because it has a shallow learning curve,
-its syntax and semantics are transparent,
-and it has good string-handling functionality.  As an interpreted
-language, Python facilitates interactive exploration.  As an
-object-oriented language, Python permits data and methods to be
-encapsulated and re-used easily.  As a dynamic language, Python
-permits attributes to be added to objects on the fly, and permits
-variables to be typed dynamically, facilitating rapid development.
-Python comes with an extensive
-standard library, including components for graphical programming,
-numerical processing, and web connectivity.
+Wybraliśmy język programowania Python ze względu na łatwość przyswajania obowiązujący w nim zasad,
+nieskomplikowaną składnię i semantykę, jak również szerokie możliwości przetwarzania łańcuchów tekstowych.
+Jako język interpretowany, Python ułatwia interaktywne eksperymentowanie.
+Będąc językiem zorientowanym obiektowo, pozwala on na prostą hermetyzację
+i wielokrotne wykorzystanie danych i metod. Python jest również dynamiczny |mdash|
+umożliwia dodawanie własciwości do obiektów na bieżąco, natomiast typy zmiennych są
+przydzielane w dynamicznie, ułatwiając szybki rozwój aplikacji.
+Warto także wspomnieć, że język ten zawiera obszerny zestaw bibliotek standardowych,
+w tym komponenty umożliwiające programowanie elementów graficznych, przetwarzanie danych numerycznych
+oraz łączność z siecią internet.
 
-Python is heavily used in industry, scientific research, and education
-around the world.  Python is often praised for the way it facilitates
-productivity, quality, and maintainability of software.  A collection of
-Python success stories is posted at ``http://www.python.org/about/success/``.
+Python jest szeroko wykorzystywany w sektorze komercyjnym i badaniach naukowych, a w edukacji jego popularność ma skalę międzynarodową.
+Programiści często chwalą go jako środek do osiągnięcia zwiększonej produktywności, jakości oraz obsługiwalności projektowanego oprogramowania.
+O historiach udanych projektów opartych na Pythonie można poczytać na stronie internetowej ``http://www.python.org/about/success/``.
 
-|NLTK| defines an infrastructure that can be used to build |NLP|
-programs in Python.  It provides
-basic classes for representing data relevant to natural language processing;
-standard interfaces for performing tasks such as
-part-of-speech tagging, syntactic parsing, and text classification;
-and standard implementations for each task which can be combined to solve complex problems.
+Pakiet |NLTK| stanowi infrastrukturę, która może służyć konstruowaniu programów związanych z |NLP|
+w Pythonie. Zawiera on podstawowe klasy dla reprezentacji danych związanych z przetwarzaniem języka naturalnego;
+standardowe interfejsy umożliwiające wykonywanie zadań, takich jak: oznaczanie części mowy (ang. *part-of-speech tagging*),
+parsowanie (rozbiór) składniowe, czy klasyfikację tekstu; a także standardowe implementacje dla każdego typu zadań.
+Łącząc wymienione elementy, można w sposób efektywny rozwiązać nawet bardzo złożone problemy.
 
-|NLTK| comes with extensive documentation. In addition to this 
-book, the website at |NLTK-URL| provides API documentation
-that covers every module, class and function in the toolkit,
-specifying parameters and giving examples of usage. 
-The website also provides many HOWTOs with extensive
-examples and test cases, intended for users, developers and instructors.
+|NLTK| zawiera obszerną dokumentację. Poza niniejszym podręcznikiem
+można skorzystać ze strony internetowej |NLTK-URL|, na której dostępna jest dokumentacja API
+szczegółowo opisująca każdy moduł, klasę oraz funkję stanowiące elementy pakietu, wyszczególniając
+odpowiednie parametry oraz przedstawiając przykłady użycia.
+Na stronie można również odnaleźć wiele samouczków popartych licznymi przykładami i zadaniami przeznaczonymi dla
+użytkowników, programistów i instruktorów.
 
----------------------
-Software Requirements
----------------------
+-----------------------
+Wymagane oprogramowanie
+-----------------------
 
-To get the most out of this book, you should install several free software packages.
-Current download pointers and instructions are available at |NLTK-URL|.
+Chcąc w pełni korzystać z możliwości opisanych w podręczniku, należy zainstalować kilka bezpłatnych pakietów oprogramowania.
+Aktualne odnośniki do plików instalacyjnych oraz odpowiednie instrukcje znajdują się na stronie |NLTK-URL|.
 
 :Python:
-    The material presented in this book assumes that you are using Python version 2.4 or 2.5.
-    We are committed to porting |NLTK| to Python 3.0 once the libraries that
-    |NLTK| depends on have been ported.
+    Materiał prezentowany w książce zakłada, że czytelnik posiada zainstalowany język programowania Python w wersji 2.4 lub 2.5.
+    Postaramy się dostosować |NLTK| do Pythona w wersji 3.0, jak tylko powiązane biblioteki zostaną stosownie zmodyfikowane.
 
 :NLTK:
-    The code examples in this book use |NLTK| version 2.0.  Subsequent releases of |NLTK|
-    will be backward-compatible.
+    Przykłady zawarte w podręczniku opierają się na pakiecie |NLTK| w wersji 2.0.  Późniejsze edycje |NLTK| są zgodne z poprzednimi wersjami.
 
 :NLTK-Data:
-    This contains the linguistic corpora that are analyzed and processed in the book.
+    Korpusy językowe analizowane i przetwarzane w podręczniku.
 
-:NumPy: (recommended)
-    This is a scientific computing library with support for multidimensional arrays and
-    linear algebra, required for certain probability, tagging, clustering, and classification
-    tasks.
+:NumPy: (zalecane)
+    Biblioteka wykorzystywana do wykonywania obliczeń naukowych, wspierająca tablice wielowymiarowe i algebrę liniową,
+    wymagana przy niektórych zadaniach związanych z obliczaniem prawdopodobieństwa, oznaczaniem części mowy, grupowaniem, clustering czy klasyfikacją tekstu.
 
-:Matplotlib: (recommended)
-    This is a 2D plotting library for data visualization,
-    and is used in some of the book's code samples that produce line graphs and bar charts.
+:Matplotlib: (zalecane)
+    Biblioteka wspomagająca tworzenie dwuwymiarowych obrazów służących do wizualizacji danych,
+    wykorzystywana w niektórych fragmentach kodu wyświetlających wykresy liniowe lub słupkowe.
 
-:NetworkX: (optional)
-    This is a library for storing and manipulating network structures consisting of
-    nodes and edges.  For visualizing semantic networks, also install the *Graphviz* library.
+:NetworkX: (opcjonalne)
+    Biblioteka służąca do przechowywania i wykonywania operacji na grafach, składających się z
+    węzłów i krawędzi. Dla wizualizacji sieci semantycznych, warto również zainstalować bibliotekę *Graphviz*.
 
-:Prover9: (optional)
-    This is an automated theorem prover for first-order and equational logic, used
-    to support inference in language processing.
+:Prover9: (opcjonalne)
+    Biblioteka zajmująca się automatycznym dowodzeniem twierdzeń dla logiki pierwszego rzędu oraz logiki równościowej, wykorzystywana
+    do wnioskowania w analizie językowej.
 
 
 -------------------------------
 Natural Language Toolkit (NLTK)
 -------------------------------
 
-|NLTK| was originally created in 2001 as part of a computational linguistics
-course in the Department of Computer and Information Science at the
-University of Pennsylvania.  Since then it has been developed
-and expanded with the help of dozens of contributors.  It has now been
-adopted in courses in dozens of universities, and serves as the basis
-of many research projects.  See tab-modules_ for a list of the most
-important |NLTK| modules.
+|NLTK| powstał w 2001 roku jako element zajęć z lingwistyki informatycznej
+na wydziale informatyki Uniwersytetu Pensylwanii.
+Od tego czasu jest on stale rozwijany i wzbogacany przy współpracy kilkudziesięciu osób.
+Pakiet został wdrożony w programach ćwiczeń na wielu uczelniach wyższych i stanowi podstawę
+wielu projektów badawczych. W tab-modules_ zawarto listę najważniejszych modułów wchodzących w skład pakietu |NLTK|.
 
 .. table:: tab-modules
 
-   ===========================  ===========================  ============================================================
-   Language processing task     NLTK modules                 Functionality
-   ===========================  ===========================  ============================================================
-   Accessing corpora            nltk.corpus                  standardized interfaces to corpora and lexicons
-   String processing            nltk.tokenize, nltk.stem     tokenizers, sentence tokenizers, stemmers
-   Collocation discovery        nltk.collocations            t-test, chi-squared, point-wise mutual information 
-   Part-of-speech tagging       nltk.tag                     n-gram, backoff, Brill, HMM, TnT
-   Classification               nltk.classify, nltk.cluster  decision tree, maximum entropy, naive Bayes, EM, k-means  
-   Chunking                     nltk.chunk                   regular expression, n-gram, named-entity
-   Parsing                      nltk.parse                   chart, feature-based, unification, probabilistic, dependency
-   Semantic interpretation      nltk.sem, nltk.inference     lambda calculus, first-order logic, model checking
-   Evaluation metrics           nltk.metrics                 precision, recall, agreement coefficients
-   Probability and estimation   nltk.probability             frequency distributions, smoothed probability distributions
-   Applications                 nltk.app, nltk.chat          graphical concordancer, parsers, WordNet browser, chatbots
-   Linguistic fieldwork         nltk.toolbox                 manipulate data in SIL Toolbox format
-   ===========================  ===========================  ============================================================
+   ================================  ===========================  =================================================================================================
+   Rodzaj zadania                    Moduł NLTK                   Funkcje
+   ================================  ===========================  =================================================================================================
+   dostęp do korpusów                nltk.corpus                  ujednolicone interfejsy dla korpusów i zasobów leksykalnych
+   przetwarzanie łańcuchów           nltk.tokenize, nltk.stem     tokenizery, tokenizery zdaniowe, stemmery
+   znajdowanie kolokacji             nltk.collocations            test t Welcha, test zgodności chi-kwadrat, punktowa informacja wzajemna 
+   oznaczanie części mowy            nltk.tag                     tagery: n-gram, backoff, Brill, ukryte modele Markowa (HMM), TnT
+   klasyfikacja tekstu               nltk.classify, nltk.cluster  drzewa decyzyjne, maksymalna entropia, naiwny klasyfikator Bayesa, algorytm EM, metoda k-średnich
+   chunking                          nltk.chunk                   wyrażenia regularne, n-gramy, jednostki nazewnicze
+   parsowanie                        nltk.parse                   tablicowe, oparte na atrybutach, unifikacyjne, probabilistyczne, zależnościowe
+   interpretacja semantyczna         nltk.sem, nltk.inference     rachunek lambda, logika pierwszego rzędu, wyryfikacja modelu
+   ocena efektywności przetwarzania  nltk.metrics                 dokładność, pełność, współczynniki zgodności
+   prawdopodobieństwo i szacowanie   nltk.probability             rozkład częstości, wygładzony rozkład probabilistyczny
+   aplikacje                         nltk.app, nltk.chat          graficzny interfejs konkordacyjny, parsery, przeglądarka bazy WordNet, chatboty
+   badania lingwistyczne             nltk.toolbox                 manipulacja danymi zapisanymi w formacie SIL Toolbox
+   ================================  ===========================  =================================================================================================
 
-   Language processing tasks and corresponding NLTK modules with examples of functionality
+   Zadania związane z przetwarzaniem języka, odpowiadające im moduły pakietu NLTK oraz przykładowe funkcje
 
-|NLTK| was designed with four primary goals in mind:
+Pakiet |NLTK| zaprojektowano pod kątem realizacji czterech podstawowych celów:
 
-:Simplicity: To provide an intuitive framework along with
-    substantial building blocks, giving users a practical
-    knowledge of |NLP| without getting bogged down in the tedious
-    house-keeping usually associated with processing annotated
-    language data
-:Consistency: To provide a uniform framework with consistent
-    interfaces and data structures, and easily-guessable method names
-:Extensibility: To provide a structure into which new software
-    modules can be easily accommodated, including alternative
-    implementations and competing approaches to the same task
-:Modularity: To provide components that can be used
-    independently without needing to understand the rest of
-    the toolkit
+:Prostota: Intuicyjna struktura wraz z licznymi
+    elementami konstrukcyjnymi, zapewniająca użytkownikom nabycie praktycznej
+    wiedzy w zakresie |NLP| bez niepotrzebnego angażowania się w monotonne rutyny
+    typowe dla przetwarzania oznaczonych danych językowych.
+:Konsekwencja: Ujednolicona platforma z konsekwetnie zaprojektowanymi
+    interfejsami i strukturami danych oraz łatwymi do odgadnięcia nazwami metod.
+:Możliwości rozbudowy: Struktura, do której łatwo dołączyć nowe moduły programowe, łącznie z
+    alternatywnymi implementacjami i konkurencyjnymi rozwiązaniami tych samych problemów.
+:Modułowość: Komponenty umożliwiające ich niezależne wykorzystanie bez potrzeby zrozumienia
+    pozostałych elementów pakietu
 
-Contrasting with these goals are three non-requirements |mdash|
-potentially useful qualities that we have deliberately avoided.  First,
-while the toolkit provides a wide range of functions, it is not
-encyclopedic; it is a toolkit, not a system, and it will
-continue to evolve with the field of |NLP|. 
-Second, while the toolkit is efficient enough to support
-meaningful tasks, it is not highly optimized for runtime performance;
-such optimizations often involve more complex algorithms,
-or implementations in lower-level programming languages such as C or C++.
-This would make the software less readable and more difficult to install.
-Third, we have tried to avoid clever programming tricks,
-since we believe that clear implementations are preferable
-to ingenious yet indecipherable ones.
+Powyższe cele są w opozycji do trzech potencjalnie użytecznych cech, których
+celowo starano się unikać podczas projektowania i rozwoju elementów |NLTK|.
+Po pierwsze, pomimo, iż pakiet oferuje szeroki zakres funkcji, nie ma on
+natury encyklopedycznej |mdash| |NLTK| jest pakietem narzędzi, a nie systemem;
+jego dalszy rozwój będzie zależał od ewolucji dziedziny, jaką jest |NLP|. 
+Po drugie, pakiet jest wystarczająco wydajny, aby radzić sobie z autentycznymi zadaniami,
+jednakże nie został on zoptymalizowany pod kątem szybkości działania,
+co wymagałoby zastosowania dużo bardziej złożonych algorytmów lub
+implementacji w językach programowania niskiego poziomu, np. C czy C++.
+W efekcie kod stałby się mniej czytelny, a oprogramowanie trudniejsze w instalacji.
+Po trzecie, autorzy starali się unikać wyszukanych sztuczek programistycznych,
+kierując się przekonaniem, że jasne implementacje mają przewagę nad
+tymi bardziej efektywnymi lecz trudnymi do odszyfrowania.
 
 
 ---------------
-For Instructors
+Dla nauczycieli
 ---------------
 
-Natural Language Processing is often taught within the
-confines of a single-semester course at advanced undergraduate level
-or postgraduate level.  Many instructors have found that it is
-difficult to cover both the theoretical and practical sides of the
-subject in such a short span of time.  Some courses focus on theory to
-the exclusion of practical exercises, and deprive students of the
-challenge and excitement of writing programs to automatically process
-language.  Other courses are simply designed to teach programming for
-linguists, and do not manage to cover any significant |NLP| content.
-|NLTK| was originally developed to address this problem,
-making it feasible to cover a substantial amount of theory and
-practice within a single-semester course, even if students have no
-prior programming experience.
+Analiza języka naturalnego stanowi najczęściej przedmiot zajęć prowadzonych
+w ramach jednego semestru studiów licencjackich, inżynierskich lub uzupełniających magisterskich.
+Wielu wykładowców zauważa, iż trudno jest omówić zarówno teoretyczne, jak i praktyczne elementy
+związane z tematem w tak krótkim czasie. Niektóre zajęcia skupiają się na teorii, wykluczając tym samym
+elementy praktyczne i pozbawiając studentów wyzwań i pasji płynących z samodzielnego pisania programów
+służących do przetwarzania języka. W innych przypadkach, program nauczania ma na celu jedynie przedstawienie
+elementów programowania dla lingwistów, bez przykładania uwagi do treści związanych z |NLP|.
+Pakiet |NLTK| powstał, aby zaradzić tego typu problemom i umożliwić omówienie znacznej ilości teorii oraz
+materiału praktycznego w ramach jednosemestralnego kursu, nawet jeśli studenci nie posiadają doświadczenia w programowaniu.
     
-A significant fraction of any |NLP| syllabus deals with
-algorithms and data structures.  On their own these can be rather
-dry, but |NLTK| brings them to life with the help of  
-interactive graphical user interfaces that make it possible
-to view algorithms step-by-step.  Most |NLTK| components include
-a demonstration that performs an interesting task without
-requiring any special input from the user.
-An effective way to deliver the materials is through interactive
-presentation of the examples in this book, entering them in a Python session,
-observing what they do, and modifying them to explore some empirical
-or theoretical issue.
+Znaczna część dowolnego programu nauczania związanego z |NLP| przedstawia
+różne algorytmy i struktury danych. Same w sobie stanowią nieatrakcyjną teorię,
+natomiast z pomocą pakietu |NLTK| nabierają życia dzięki
+interaktywnym interfejsom użytkownika, umożliwiającym podgląd działania algorytmów krok po kroku.
+Większość komponentów |NLTK| zawiera demonstracje przedstawiające wykonanie interesującego zadania
+bez potrzeby wprowadzania danych przez użytkownika.
+Interaktywna prezentacja oparta na przykładach z podręcznika stanowi efektowny sposób prezentacji materiału.
+Demonstracje można uruchomić w środowisku Pythona, zaobserwować czym się one zajmują, a następnie zmodyfikować je, aby
+dogłębniej zbadać dany temat praktyczny lub teoretyczny.
 
-This book contains hundreds of exercises that can be used
-as the basis for student assignments.  The simplest exercises involve
-modifying a supplied program fragment in a specified way in order to
-answer a concrete question.  At the other end of the spectrum, |NLTK|
-provides a flexible framework for graduate-level research projects,
-with standard implementations of all the basic data structures
-and algorithms, interfaces to dozens of widely used datasets (corpora),
-and a flexible and extensible architecture.  Additional support for
-teaching using |NLTK| is available on the |NLTK| website.
+Podręcznik zawiera setki ćwiczeń, które mogą posłużyć
+jako podstawa oceny pracy studentów. Najprostsze z nich wymagają jedynie
+zmodyfikowania przedstawionego w części teoretycznej programu, aby móc
+odpowiedzieć na zadane pytanie. Z drugiej strony pakiet |NLTK|
+może posłużyć jako elastyczna platforma programistyczna dla wielu projektów dyplomowych,
+dzięki przygotowanym standardowym implementacjom wszystkich podstawowych struktur danych
+i algorytmów, interfejsom dla kilkudziesięciu popularnych zbiorów danych (korpusów), a także
+elastycznej architekturze umożliwiającej wprowadzanie dalszych rozszerzeń. Dodatkowe informacje
+dla nauczycieli posługujących się |NLTK| jest dostępne na stronie pakietu.
 
 |nopar|  
-We believe this book is unique in providing a comprehensive
-framework for students to learn about |NLP| in the context of learning
-to program.  What sets these
-materials apart is the tight coupling of the chapters
-and exercises with |NLTK|, giving students |mdash| even those with
-no prior programming experience |mdash| a practical introduction to
-|NLP|.  After completing these materials, students will be ready to
-attempt one of the more advanced textbooks, such as *Speech and
-Language Processing*, by Jurafsky and Martin (Prentice Hall, 2008).
+Autorzy wyrażają przekonanie, iż ta książka w wyjątkowy sposób pozwoli studentom
+pozyskanie spójnej architektury do nauki przetwarzania języka naturalnego w kontekście programistycznym.
+To co wyróżnia przedstawiony materiał, to silne zespolenie treści i ćwiczeń z elementami pakietu |NLTK|,
+zapewnienie studentom |mdash| nawet tym bez doświadczenia w programowaniu |mdash|
+praktycznego wstępu do dziedziny, jaką jest |NLP|.
+Po przerobieniu całego kursu studenci będą w stanie przejść
+do bardziej zaawansowanych podręczników, np. *Speech and
+Language Processing* autorstwa Jurafsky'ego i Martina (wydawn. Prentice Hall, 2008).
 
-This book presents programming concepts in an unusual order, beginning
-with a non-trivial data type |mdash| lists of strings |mdash| then introducing
-non-trivial control structures such as comprehensions and conditionals.
-These idioms permit us to do useful language processing from the start.
-Once this motivation is in place, we return to a systematic presentation
-of fundamental concepts such as strings, loops, files, and so forth.
-In this way, we cover the same ground as more conventional approaches,
-without expecting readers to be interested in the programming
-language for its own sake.
+Niniejsza książka przedstawia koncepcje związane z programowaniem w dość nietypowej kolejności, zaczynając
+od nietrywialnego typu danych, jakim są listy łańcuchów, a następnie wprowadzając
+nietrywialne struktury sterujące wykonaniem programu, takie jak wyrażenia listowe oraz instrukcje warunkowe.
+Dzięki znajomości tych wyrażeń można od razu zająć się praktycznym przetwarzaniem języka.
+Dopiero kiedy jest to konieczne, powracamy do systematycznej prezentacji
+podstawowych pojęć, jak łańcuchy, pętle, pliki itd.
+W ten sposób omawiamy taką samą porcję materiału jak w bardziej konwencjonalnych podręcznikach,
+nie stawiając jednak wymogu, aby czytelnicy byli przede wszystkim zainteresowani nauką języka programowania.
 
-Two possible course plans are illustrated in tab-course-plans_.  The first
-one presumes an arts/humanities audience, whereas the second one presumes
-a science/engineering audience.  Other course plans could cover the first
-five chapters, then devote the remaining time of time to a single area,
-such as text classification (Chapters 6-7), syntax (Chapters 8-9),
-semantics (Chapter 10), or linguistic data management (Chapter 11).
+Poniższa tabela przedstawia dwa przykładowe, możliwe rozkłady zajęć dydaktycznych.
+Pierwszy z nich skonstruowano pod kątem studentów kierunków humanistycznych, natomiast drugi
+pasuje bardziej do kierunków ścisłych i technicznych. Można przygotować własny plan, przedstawiając pierwszych pięć
+tematów, a następnie poświęcając pozostały, dostępny czas na omówienie wybranej tematyki, np.
+klasyfikacji tekstu (rozdziały 6-7), składni (rozdziału 8-9),
+semantyki (rozdział 10) czy zarządzania danymi językowymi (rozdział 11).
 
 .. table:: tab-course-plans
 
-   ===============================================  ===================  =======================
-   Chapter                                          Arts and Humanities  Science and Engineering
-   ===============================================  ===================  =======================
-   1  Language Processing and Python                2-4                  2
-   2  Accessing Text Corpora and Lexical Resources  2-4                  2
-   3  Processing Raw Text                           2-4                  2
-   4  Writing Structured Programs                   2-4                  1-2
-   5  Categorizing and Tagging Words                2-4                  2-4
-   6  Learning to Classify Text                     0-2                  2-4
-   7  Extracting Information from Text              2                    2-4
-   8  Analyzing Sentence Structure                  2-4                  2-4
-   9  Building Feature Based Grammars               2-4                  1-4
-   10 Analyzing the Meaning of Sentences            1-2                  1-4
-   11 Managing Linguistic Data                      1-2                  1-4
-   Total                                            18-36                18-36
-   ===============================================  ===================  =======================
+   ===============================================  ====================  =========================
+   Rozdział                                         Profil humanistyczny  Nauki ścisłe i techniczne
+   ===============================================  ====================  =========================
+   1  Przetwarzanie języka w Pythonie               2-4                   2
+   2  Dostęp do korpusów i zasobów leksykalnych     2-4                   2
+   3  Przetwarzanie tekstu niesformatowanego        2-4                   2
+   4  Programowanie strukturalne                    2-4                   1-2
+   5  Kategoryzacja i oznaczanie słów               2-4                   2-4
+   6  Nauka klasyfikacji tekstu                     0-2                   2-4
+   7  Ekstrakcja informacji z tekstu                2                     2-4
+   8  Analiza składniowa zdań                       2-4                   2-4
+   9  Budowanie gramatyk atrybutywnych              2-4                   1-4
+   10 Analiza znaczeniowa zdań                      1-2                   1-4
+   11 Zarządzanie danymi językowymi                 1-2                   1-4
+   Razem                                            18-36                 18-36
+   ===============================================  ====================  =========================
 
-   Suggested course plans; approximate number of lectures per chapter
+   Sugerowany rozkład zajęć dydaktycznych; szacunkowa liczba godzin przypadająca na rozdział
 
 -----------------------------
-Conventions Used in This Book
+Konwencje użyte w podręczniku
 -----------------------------
  
-The following typographical conventions are used in this book: 
+W podręczniku obowiązują następujące konwencje związane z prezentacją materiału: 
 
-`Bold`:dt: -- Indicates new terms. 
+`Pogrubienie`:dt: -- oznacza nowy termin. 
 
-*Italic* -- Used within paragraphs to refer to linguistic examples,
-the names of texts, and URLs; also used for filenames and file extensions. 
+*Kursywa* -- w treści odnosi się do przykładów językowych,
+tytułów tekstów i adresów internetowych; stosowana także przy podawaniu nazw i rozszerzeń plików. 
 
-``Constant width`` -- Used for program listings,
-as well as within paragraphs to refer to program elements 
-such as variable or function names, statements, and keywords;
-also used for program names.
+``Test o stałej szerokości`` -- w listingach programów,
+a także w treści, odnosząc się do elementów programistycznych, 
+jak np. nazwy funkcji lub zmiennych, deklaracji lub słów kluczowych Pythona;
+stosowany także w odniesieniu do nazw programów.
  
-``Constant width bold`` -- Shows commands or other text that should
-be typed literally by the user.
+``Tekst pogrubiony o stałej szerokości`` -- polecenia lub inny tekst, który wymaga ręcznego
+wprowadzenia przez użytkownika.
  
-``Constant width italic`` -- Shows text that should be
-replaced with user-supplied values or by values
-determined by context; also used for metavariables within program code examples. 
+``Kursywa o stałej szerokości`` -- tekst, który powinien zostać zastąpiony wartościami
+wprowadzonymi przez użytkownika lub określonymi z kontekstu; używana także dla metazmiennych w przykładowych programach.
 
-.. note:: This icon signifies a tip, suggestion, or general note. 
+.. note:: Ta ikona oznacza poradę, sugestię lub ogólną uwagę.
 
-.. caution:: This icon indicates a warning or caution.
+.. caution:: Ta ikona oznacza ostrzeżenie lub sugeruje zachowanie ostrożności.
 
--------------------
-Using Code Examples
--------------------
+------------------------------
+Wykorzystanie załączonego kodu
+------------------------------
 
-This book is here to help you get your job done. In general, you may use the code in
-this book in your programs and documentation. You do not need to contact us for
-permission unless youŐre reproducing a significant portion of the code. For example,
-writing a program that uses several chunks of code from this book does not require
-permission. Selling or distributing a CD-ROM of examples from OŐReilly books does
-require permission. Answering a question by citing this book and quoting example
-code does not require permission. Incorporating a significant amount of example code
-from this book into your productŐs documentation does require permission.
+Podręcznik ma służyć jako narzędzie w realizacji założonych celów. Dlatego też, można generalnie
+wykorzystać fragmenty kodu zawartego w książce we własnych programach i dokumentach. Nie jest wymagana
+specjalna zgoda, z wyjątkiem sytuacji, kiedy wykorzystane są znaczne ilości kodu. Na przykład,
+pisząc program, który wykorzystuje kilka fragmentów kodu z tego podręcznika, pozwolenie nie jest konieczne.
+Natomiast sprzedaż lub rozprowadzanie płyt CD-ROM z przykładami z tej książki lub innych publikacji wydawnictwa
+O'Reilly wymaga stosownej zgody. Odpowiedź na pytanie wyrażona cytatem z podręcznika i fragmentem kodu
+nie wymaga pozwolenia, podczas gdy załączanie znacznej liczby przykładów z książki we własnych produktach
+lub dokumentacji wymaga otrzymania zgody.
 
-We appreciate, but do not require, attribution. An attribution usually includes the title,
-author, publisher, and ISBN. For example: ŇNatural Language Processing with Python,
-by Steven Bird, Ewan Klein, and Edward Loper.  O'Reilly Media, 978-0-596-51649-9.Ó
-If you feel your use of code examples falls outside fair use or the permission given above,
-feel free to contact us at *permissions@oreilly.com*.
+Jesteśmy wdzięczni za podawanie źródeł, choć nie jest to wymagane. Odnośnik zwykle zawiera tytuł źródła,
+autorów, wydawcę oraz numer ISBN. Na przykład: ŇPrzetwarzanie języka naturalnego w Pythonie,
+Steven Bird, Ewan Klein i Edward Loper.  Wydawn. O'Reilly Media, 978-0-596-51649-9.Ó
+Jeżeli uważasz, że sposób wykorzystania przykładów wykracza poza udzielone pozwolenie,
+skontaktuj się z wydawcą pod adresem e-mail *permissions@oreilly.com*.
 
-----------------
-Acknowledgments
-----------------
+--------------
+Wyrazy uznania
+--------------
 
-The authors are indebted to the following people for feedback on
-earlier drafts of this book:
+Autorzy składają podziękowania za okazane wsparcie i wyrażone opinie dotyczące wcześniejszych wersji dokumentu:
 Doug Arnold,
 Michaela Atterer,
 Greg Aumann,
@@ -526,25 +481,23 @@ Peter Ljunglöf,
 Stefan M\ |uumlaut|\ ller,
 Robin Munn,
 Joel Nothman,
-Adam Przepiorkowski,
+Adam Przepiórkowski,
 Brandon Rhodes,
 Stuart Robinson,
 Jussi Salmela,
 Kyle Schlansker,
 Rob Speer, and
 Richard Sproat.
-We are thankful to many students and colleagues for their comments on
-the class materials that evolved into these chapters,
-including participants at |NLP| and linguistics summer schools
-in Brazil, India, and the USA.
-This book would not exist without the members of the ``nltk-dev``
-developer community, named on the |NLTK| website,
-who have given so freely of their time and expertise in building and extending |NLTK|. 
+Dziękujemy również za komentarze studentom i współpracownikom,
+a szczególnie uczestnikom letnich kursów |NLP| i lingwistyki w Brazylii, Indiach i w Stanach zjednoczonych,
+dzięki którym materiały dydaktyczne mogły rozwinąć się do postaci pełnych rozdziałów.
+Ta książka nie mogłaby powstać bez udziału członków społeczności ``nltk-dev``,
+wymienionej na stronie internetowej pakietu |NLTK|;
+którzy poświęcili swoją wiedzę i czas dla budowy i rozwoju modułów |NLTK|. 
 
-We are grateful to the U.S. National Science Foundation, the Linguistic Data Consortium,
-an Edward Clarence Dyason Fellowship,
-and the Universities of Pennsylvania, Edinburgh, and Melbourne for supporting our work
-on this book.
+Przekazujemy wyrazy wdzięczności dla U.S. Narodowej Fundacji na rzecz Nauki, Konsorcjum Danych Lingwistycznych i
+Edward Clarence Dyason Fellowship, jak również dla Uniwersytetów Pensylwanii, Edynburga i Melbourne za wspieranie prac nad rozwojem podręcznika.
+Edward Clarence Dyason Fellowship, jak również dla Uniwersytetów Pensylwanii, Edynburga i Melbourne za wspieranie prac nad rozwojem podręcznika.
 
 We thank Julie Steele, Abby Fox, Loranah Dimant, and the rest of the O'Reilly team, for
 organizing comprehensive reviews of our drafts from people across the |NLP|
@@ -558,62 +511,58 @@ catch our enthusiasm for language and computation from these pages.
 
 .. LSA 325: Anna Asbury, Dustin Bowers
 
------------------
-About the Authors
------------------
+----------
+O autorach
+----------
 
-**Steven Bird** is Associate Professor in the
-Department of Computer Science and Software Engineering
-at the University of Melbourne, and Senior Research Associate in the
-Linguistic Data Consortium at the University of Pennsylvania.
-He completed a PhD on computational phonology at the University of
-Edinburgh in 1990, supervised by Ewan Klein.
-He later moved to Cameroon to conduct linguistic fieldwork on the
-Grassfields Bantu languages under the auspices of the Summer Institute
-of Linguistics.  More recently, he spent
-several years as Associate Director of the Linguistic Data Consortium
-where he led an R&D team to create models and tools for large
-databases of annotated text.  At Melbourne University,
-he established a language technology research group and has
-taught at all levels of the undergraduate computer science curriculum.
-In 2009, Steven is President of the Association for Computational Linguistics.
+**Steven Bird** jest profesorem nadzwyczajnym
+na wydziale informatyki i inżynierii programowania
+Uniwersytetu Melbourne oraz adiunktem w 
+Konsorcjum Danych Lingwistycznych przy Uniwesytecia Pensylwanii.
+Obronił tytuł doktora z fonologii informatycznej na Uniwersytecie w Edynburgu
+w roku 1990, jego promotorem był Ewan Klein (współautor podręcznika |mdash| przyp. tłum.).
+W późniejszym czasie przeniósł się do Kamerunu, aby prowadzić terenowe badania lingwistyczne związane z
+językami plemion Bantu pod patronatem Summer Institute
+of Linguistics. Spędził kilka lat
+jako wicedyrektor Konsorcjum Danych Lingwistycznych,
+gdzie prowadził zespół badawczo-rozwojowy tworzący modele i narzędzia
+dla rozbudowanych baz danych zawierających oznaczone dane tekstowe.
+Utworzył grupę badawczą zajmującą się technologią badań językowych na Uniwesytecie Melbourne,
+gdzie prowadzi również zajęcia na wszystkich poziomach studiów informatycznych pierwszego stopnia.
+W roku 2009 Steven pełnił rolę prezesa Stowarzyszenia lingwistyki informatycznej (Association for Computational Linguistics, ACL |mdash| przyp. tłum|).
 
-**Ewan Klein** is Professor of Language Technology in the School of
-Informatics at the University of Edinburgh. He completed a PhD on
-formal semantics at the University of Cambridge in 1978. After some
-years working at the Universities of Sussex and Newcastle upon Tyne,
-Ewan took up a teaching position at Edinburgh. He was involved in the
-establishment of Edinburgh's Language Technology Group in 1993, and has
-been closely associated with it ever since.  From 2000\ |ndash|\ 2002,
-he took leave from the University to act as Research Manager for the
-Edinburgh-based Natural Language Research Group of Edify Corporation,
-Santa Clara, and was responsible for spoken dialogue processing.  Ewan
-is a past President of the European Chapter of the Association for
-Computational Linguistics and was a founding member and Coordinator of
-the European Network of Excellence in Human Language Technologies
-(ELSNET). 
+**Ewan Klein** jest profesorem technologii językowych w Instytucie Informatyki
+na Uniwesytecie w Edynburgu. Obronił rozprawę doktorską
+z semantyki formalnej na Uniwersytecie Cambridge w roku 1978. Po kilku latach
+pracy na Uniwersytetch Sussex i Newcastle upon Tyne, Ewan objął pozycję wykładowcy
+w Edynburgu. W 19993 współuczestniczył w tworzeniu grupy badawczej Language Technology Group w Edynburgu, z którą
+pozostał związany do dziś. W latach 2000\ |ndash|\ 2002 
+pracował poza uniwersytetem jako kierownik badań  dla Edify Corporation z siedzibą w Santa Clara w Kaliforni
+w ramach działającej w Edynburgu Natural Language Research Group, gdzie był odpowiedzialny za przetwarzania dialogów ustnych.
+Ewan jest byłym prezesem Europejskiej Sekcji Stowarzyszenia Lingwistyki Informatycznej (European Chapter of the Association for
+Computational Linguistics) oraz współzałożycielem i koordynatorem European Network of Excellence in Human Language Technologies
+(ELSNET).
 
-**Edward Loper** has recently completed a PhD
-on machine learning for natural language processing
-at the the University of Pennsylvania.
-Edward was a student in Steven's graduate course on
-computational linguistics in the fall of 2000, and
-went on to be a TA and share in the development of
-NLTK.  In addition to |NLTK|, he has
-helped develop two packages for documenting and
-testing Python software, ``epydoc`` and ``doctest``.
+**Edward Loper** niedawno obronił rozprawę doktorską na Uniwesytecie Pensylwanii związaną z
+tematyką uczenia maszynowego (ang. machine learning) w kontekście
+przetwarzania języka naturalnego.
+Wcześniej, w trakcie studiów magisterskich Edward był studentem w grupie Stevena Birda
+na zajęciach z lingwistyki informatycznej w semestrze zimowym 2000;
+pozostał na uczelni jako asystent i wziął czynny udział w rozwoju pakietu |NLTK|.  Ponadto pomógł w tworzeniu
+dwóch pakietów służacych do dokumentacji i testowania
+programów w Pythonie: ``epydoc`` oraz ``doctest``.
 
----------
-Royalties
----------
+--------
+Tantiemy
+--------
 
-Royalties from the sale of this book are being used to support
-the development of the Natural Language Toolkit.
+Zysk ze sprzedaży książki zostanie wykorzystany do dalszego rozwoju
+pakietu Natural Language Toolkit.
 
 .. figure:: ../images/authors.png
    :scale: 250:100:330
 
-   Edward Loper, Ewan Klein, and Steven Bird, Stanford, July 2007 
+   Edward Loper, Ewan Klein i Steven Bird, Stanford, lipiec 2007 
 
 --------------------------------------------------------------------------
 
