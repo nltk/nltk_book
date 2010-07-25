@@ -4,7 +4,7 @@
 
   .. def:: definitions
 
-  .. |version| replace:: 2.0b8
+  .. |version| replace:: 2.0b9
   .. |copyrightinfo| replace:: 2001-2010 the authors
   .. |license| replace:: Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License
 
