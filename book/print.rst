@@ -18,24 +18,21 @@ Natural Language Processing
    :depth: 2
 
 .. preface::
-..     ch00.rst
+.. include:: ch00.rst
 
-.. toctree::
-   :maxdepth: 2
-    
-   ch00
-   ch01
-   ch02
-   ch03
-   ch04
-   ch05
-   ch06
-   ch07
-   ch08
-   ch09
-   ch10
-   ch11
-   ch12
+.. body::
+.. include:: ch01.rst
+.. include:: ch02.rst
+.. include:: ch03.rst
+.. include:: ch04.rst
+.. include:: ch05.rst
+.. include:: ch06.rst
+.. include:: ch07.rst
+.. include:: ch08.rst
+.. include:: ch09.rst
+.. include:: ch10.rst
+.. include:: ch11.rst
+.. include:: ch12.rst
 
 .. index::
 
