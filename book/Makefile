@@ -1,130 +1,185 @@
-# Makefile for Sphinx documentation
+# Tutorial Makefile
 #
+# Copyright (C) 2001-2012 NLTK Project
+# Author: Steven Bird <sb@csse.unimelb.edu.au>
+#         Edward Loper <edloper@gradient.cis.upenn.edu>
+# URL: <http://www.nltk.org/>
+# For license information, see LICENSE.TXT
 
-# You can set these variables from the command line.
-SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
-PAPER         =
-BUILDDIR      = _build
+PAPER_SIZE = a4
 
-# Internal variables.
-PAPEROPT_a4     = -D latex_paper_size=a4
-PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
+CHAPTERS = ch00.rst ch01.rst ch02.rst ch03.rst ch04.rst ch05.rst ch06.rst\
+           ch07.rst ch08.rst ch09.rst ch10.rst ch11.rst ch12.rst\
+           ch00-pt.rst
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest
+EXTRAS = ch00-extras.rst ch01-extras.rst ch02-extras.rst ch04-extras.rst ch08-extras.rst ch10-extras.rst
 
-help:
-	@echo "Please use \`make <target>' where <target> is one of"
-	@echo "  html       to make standalone HTML files"
-	@echo "  dirhtml    to make HTML files named index.html in directories"
-	@echo "  singlehtml to make a single large HTML file"
-	@echo "  pickle     to make pickle files"
-	@echo "  json       to make JSON files"
-	@echo "  htmlhelp   to make HTML files and a HTML help project"
-	@echo "  qthelp     to make HTML files and a qthelp project"
-	@echo "  devhelp    to make HTML files and a Devhelp project"
-	@echo "  epub       to make an epub"
-	@echo "  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
-	@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
-	@echo "  text       to make text files"
-	@echo "  man        to make manual pages"
-	@echo "  changes    to make an overview of all changed/added/deprecated items"
-	@echo "  linkcheck  to check all external links for integrity"
-	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
+CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
-clean:
-	-rm -rf $(BUILDDIR)/*
+REF_EXTENSION = .ref
 
-html:
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+PUBLISH = ../../../doc
 
-dirhtml:
-	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
-	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
+PDF := $(CONTENT:.rst=.pdf)
+TEX := $(CONTENT:.rst=.tex)
+HTML := $(CONTENT:.rst=.html)
+ERRS := $(CONTENT:.rst=.errs)
 
-singlehtml:
-	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(BUILDDIR)/singlehtml
-	@echo
-	@echo "Build finished. The HTML page is in $(BUILDDIR)/singlehtml."
+XML := $(CHAPTERS:.rst=.xml)
+REF := $(CHAPTERS:.rst=$(REF_EXTENSION))
+PY := $(CHAPTERS:.rst=.py)
 
-pickle:
-	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) $(BUILDDIR)/pickle
-	@echo
-	@echo "Build finished; now you can process the pickle files."
+BIBTEX_FILE = ../refs.bib
 
-json:
-	$(SPHINXBUILD) -b json $(ALLSPHINXOPTS) $(BUILDDIR)/json
-	@echo
-	@echo "Build finished; now you can process the JSON files."
+PYTHON = python
+PDFLATEX = TEXINPUTS=".:..:ucs:" pdflatex -halt-on-error
+EXAMPLES = ../examples.py
+LATEXHACKS = ../latexhacks.py
+DOCTEST_SPLIT = ../doctest_split.py 
 
-htmlhelp:
-	$(SPHINXBUILD) -b htmlhelp $(ALLSPHINXOPTS) $(BUILDDIR)/htmlhelp
-	@echo
-	@echo "Build finished; now you can run HTML Help Workshop with the" \
-	      ".hhp project file in $(BUILDDIR)/htmlhelp."
+RST = ../rst.py
+NLTK_INDEX = ../../tools/nltk_term_index.py
+XINCLUDER = ../xincluder.py
+RST2REF = $(RST) --ref
+RST2HTML = $(RST) --html
+RST2DOCBOOK = $(RST) --docbook
+RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
+DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk/test/doctest_driver.py
+BIBTEX = bibtex -terse
+XSLT = java org.apache.xalan.xslt.Process
+#get from environment
+#DOCBOOKDTD = /sw/share/xml/dtd/docbookx/4.4.0/docbookx.dtd
+#DOCBOOKDTD = /opt/local/share/xml/docbook/4.4/docbookx.dtd
+XMLLINT = xmllint --noout --dtdvalid $(DOCBOOKDTD)
 
-qthelp:
-	$(SPHINXBUILD) -b qthelp $(ALLSPHINXOPTS) $(BUILDDIR)/qthelp
-	@echo
-	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
-	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/NLTKBook.qhcp"
-	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/NLTKBook.qhc"
 
-devhelp:
-	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
-	@echo
-	@echo "Build finished."
-	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/NLTKBook"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/NLTKBook"
-	@echo "# devhelp"
+# <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
+BIB2XHTML = bib2xhtml -s named
+LATEX_STYLESHEET_PATH = ../definitions.sty
+RSTHACKS = python ../rsthacks.py
 
-epub:
-	$(SPHINXBUILD) -b epub $(ALLSPHINXOPTS) $(BUILDDIR)/epub
-	@echo
-	@echo "Build finished. The epub file is in $(BUILDDIR)/epub."
+.SUFFIXES: .rst .rst2 .html .pdf .errs .py
 
-latex:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
-	@echo
-	@echo "Build finished; the LaTeX files are in $(BUILDDIR)/latex."
-	@echo "Run \`make' in that directory to run these through (pdf)latex" \
-	      "(use \`make latexpdf' here to do that automatically)."
+help: usage
+usage:
+	@echo "Usage:"
+	@echo "    make all         -- Build HTML & PDF output"
+	@echo "    make html        -- Build HTML output"
+	@echo "    make pdf         -- Build PDF output"
+	@echo "    make xml         -- Build XML output"
+	@echo "    make errs        -- Run doctest to generate .errs files"
+	@echo "    make clean       -- Remove all built files"
 
-latexpdf:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
-	@echo "Running LaTeX files through pdflatex..."
-	$(MAKE) -C $(BUILDDIR)/latex all-pdf
-	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
+all: html examples clean_up  # pdf
+html: $(HTML) bibliography.html 
+pdf: $(PDF)
+xml: $(XML)
+	$(PYTHON) $(NLTK_INDEX)
 
-text:
-	$(SPHINXBUILD) -b text $(ALLSPHINXOPTS) $(BUILDDIR)/text
-	@echo
-	@echo "Build finished. The text files are in $(BUILDDIR)/text."
+xmllint:
+	$(PYTHON) $(XINCLUDER) book.xml
+	$(XMLLINT) book-flat.xml
 
-man:
-	$(SPHINXBUILD) -b man $(ALLSPHINXOPTS) $(BUILDDIR)/man
-	@echo
-	@echo "Build finished. The manual pages are in $(BUILDDIR)/man."
+examples: $(PY)
+book: book.pdf book.html
+book.rst: $(CHAPTERS) $(REF)
+book.html: book.rst
+book.tex: book.rst
 
-changes:
-	$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(BUILDDIR)/changes
-	@echo
-	@echo "The overview file is in $(BUILDDIR)/changes."
+errs: $(ERRS)
+	ls -l $(ERRS)
 
-linkcheck:
-	$(SPHINXBUILD) -b linkcheck $(ALLSPHINXOPTS) $(BUILDDIR)/linkcheck
-	@echo
-	@echo "Link check complete; look for any errors in the above output " \
-	      "or in $(BUILDDIR)/linkcheck/output.txt."
+clean:	clean_up
+	rm -f $(PDF) $(HTML) $(ERRS) $(REF) $(PY) $(TEX)
+	rm -f book.pdf book.html book.tex bibliography.html *.rst2
+	rm -rf tree_images
 
-doctest:
-	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
-	@echo "Testing of doctests in the sources finished, look at the " \
-	      "results in $(BUILDDIR)/doctest/output.txt."
+clean_up:
+	rm -f *.log *.aux *.out *.errs *~ *.idx *.ilg *.ind *.toc *.blg
+
+.PRECIOUS: $(REF)
+
+%$(REF_EXTENSION): %.rst
+	$(RST2REF) $<
+
+%.html: %.rst $(REF) revision.rst
+	$(RSTHACKS) --format=html $<
+	$(RST2HTML) $(REF) $*.rst2
+
+%.xml: %.rst $(RST) ../docbook.py $(REF) revision.rst
+	$(RSTHACKS) --format=xml $<
+	$(RST2DOCBOOK) $(REF) $*.rst2
+	(if [ "`grep -i 'preface::' $*.rst`" ]; then\
+	    sed -e "s/chapter>/preface>/" $*.xml | sed -e "s/DOCTYPE chapter/DOCTYPE preface/" > $*.tmp && mv $*.tmp $*.xml; \
+	fi)
+#	$(XMLLINT) $@
+
+%.tex: %.rst $(REF) revision.rst
+	$(RSTHACKS) --format=latex $<
+	$(RST2LATEX) $(REF) $*.rst2
+	$(LATEXHACKS) $@
+
+revision.rst: $(CHAPTERS)
+	echo "This document is" > revision.rst
+	svn info | grep Revision >> revision.rst
+	date >> revision.rst
+
+%.bbl: %.tex $(BIBTEX_FILE)
+	rm -f $*.bbl
+	@echo "pdflatex $< -> $*.pdf (for bibtex)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+	         (cat $*.log && rm -f $*.pdf && false)
+	@echo $(BIBTEX) $*
+	@(true | $(BIBTEX) $* || (rm -f $*.pdf $*.bbl && false))
+
+bibliography.html: $(BIBTEX_FILE) bib_template.html
+	cp bib_template.html $@
+	$(BIB2XHTML) $< $@
+
+# bibliography.xml: bibliography.html bibliography.xsl
+#	$(XSLT) -in bibliography.html -xsl bibliography.xsl > bibliography.xml
+
+# This fairly complex target here will cause pdflatex to only generate
+# output if it fails; and to clean up after itself if it fails.  Also,
+# it will only run a second pass if it detects that it's necessary (by
+# scanning the log file for a warning message).
+%.pdf: %.tex
+	rm -f $*.ind
+	@echo "pdflatex $< -> $*.pdf (first pass)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+	         (cat $*.log && rm -f $*.pdf && false)
+	@if [ "`grep -i 'Warning.*Rerun' $*.log`" ]; \
+	    then \
+	        echo "pdflatex $< -> $*.pdf (second pass)";\
+	        (true | $(PDFLATEX) $< >/dev/null) || \
+	        (cat $*.log && rm -f $*.pdf && false);\
+	    fi
+	@(if [ -e $*.idx ]; \
+	    then \
+	        echo "makeindex $*.idx"; makeindex $*.idx; \
+	    fi)
+	@echo "pdflatex $< -> $*.pdf (last pass)"
+	@(true | $(PDFLATEX) $< >/dev/null) || \
+	         (cat $*.log && rm -f $*.pdf && false)
+	@echo "cleaning up latex temp files..."
+	rm -f $*.log $*.aux $*.out $*.errs $*.bbl 
+	rm -f $*.idx $*.ilg $*.ind $*.toc $*.blg
+
+book.pdf: book.bbl book.tex
+
+.rst.errs:
+	$(PYTHON) $(DOCTEST_SPLIT) $<
+	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
+	rm -f $*-*.doctest
+
+.rst.py:
+	$(PYTHON) $(EXAMPLES) $< > $@
+
+publish:
+	find . \( -name '*.html' -or -name '*.py' -or -name '*.png' \) -print |\
+	        cpio -padu $(PUBLISH)/book/
+	svn add $(PUBLISH)/book/*
+	svn add $(PUBLISH)/book/tree_images/*
+	svn add $(PUBLISH)/book/pylisting/*
+	python ../../tools/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
+	echo Note that "make -C book publish" omits images and stylesheets
