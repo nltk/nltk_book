@@ -46,6 +46,8 @@ from docutils.transforms import Transform
 import docutils.writers.html4css1
 from doctest import DocTestParser
 import docutils.statemachine
+try: import PIL.Image
+except: pass
 
 LATEX_VALIGN_IS_BROKEN = True
 """Set to true to compensate for a bug in the latex writer.  I've
@@ -108,7 +110,7 @@ REF_EXTENSION = '.ref'
 """File extension for reference files."""
 
 # needs to include "../doc" so it works in /doc_contrib
-CSS_STYLESHEET = '../../doc/nltkdoc.css'
+CSS_STYLESHEET = '../nltkdoc.css'
 
 ######################################################################
 #{ Reference files
@@ -773,6 +775,8 @@ class ResolveExternalCrossrefs(Transform):
                 warning('%s does not exist' % (basename+REF_EXTENSION))
             else:
                 ref_info = read_ref_file(basename)
+                #print basename
+                #print ref_info.keys()
                 for ref in ref_info['targets']:
                     label = ref_info['reference_labels'].get(ref)
                     ref_dict[ref] = (uri, label)
@@ -960,8 +964,8 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
     def visit_document(self, node):
         if (len(node)>0 and isinstance(node[0], docutils.nodes.title) and
             isinstance(node[0].children[0], docutils.nodes.Text) and
-            re.match(r'(\d+(.\d+)*)\.?\s+', node[0].children[0].data)):
-                node['sectnum'] = node[0].children[0].data.split()[0]
+            re.match(r'(\d+(.\d+)*)\.?\s+', node[0].children[0])):
+                node['sectnum'] = node[0].children[0].split()[0]
                 for node_id in node.get('ids', []):
                     self.reference_labels[node_id] = '%s' % node['sectnum']
 
@@ -981,12 +985,12 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         # If a section number is given explicitly as part of the
         # title, then it overrides our counter.
         if isinstance(title.children[0], docutils.nodes.Text):
-            m = re.match(r'(\d+(.\d+)*)\.?\s+', title.children[0].data)
+            m = re.match(r'(\d+(.\d+)*)\.?\s+', title.children[0])
             if m:
                 pieces = [int(n) for n in m.group(1).split('.')]
                 if len(pieces) == len(self.section_num):
                     self.section_num = pieces
-                    title.children[0].data = title.children[0].data[m.end():]
+                    title.children[0] = docutils.nodes.Text(title.children[0][m.end():])
                 else:
                     warning('Explicit section number (%s) does not match '
                          'current section depth' % m.group(1))
@@ -1207,11 +1211,11 @@ def expand_reference_text(node):
     if node_index > 0:
         prev_node = node.parent.children[node_index-1]
         if (isinstance(prev_node, docutils.nodes.Text)):
-            m = _EXPAND_REF_RE.match(prev_node.data)
+            m = _EXPAND_REF_RE.match(prev_node)
             if m:
-                prev_node.data = m.group(1)
+                prev_node = m.group(1)
                 link = node.children[0]
-                link.data = '%s %s' % (m.group(2), link.data)
+                link = '%s %s' % (m.group(2), link)
                 node['expanded_ref'] = True
 
 # Handle the anchor text of references.
@@ -1238,7 +1242,7 @@ def process_reference_text(node, node_id):
         if node_index > 0:
             prev_node = node.parent.children[node_index-1]
             if (isinstance(prev_node, docutils.nodes.Text)):
-                m = _EXPAND_REF_RE.match(prev_node.data)
+                m = _EXPAND_REF_RE.match(prev_node)
                 if m:
                     print "Warning: '%s' citation has '%s' on its left" % (node_id, m.group(2))
 
@@ -1247,7 +1251,7 @@ def process_reference_text(node, node_id):
         if '-' in node_id:
             reftype = node_id.split('-', 1)[0]
             if reftype in _EXPAND_REF_DICT:
-                link.data = _EXPAND_REF_DICT[reftype] + ' ' + link.data
+                link = _EXPAND_REF_DICT[reftype] + ' ' + link
             else:
                 print "Warning: '%s' reference text not expanded" % node_id
         else:
@@ -1574,7 +1578,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
     def visit_literal(self, node):
         """Process text to prevent tokens from wrapping."""
         text = ''.join(('%s' % c) for c in node)
-        text = text.decode('latin1')
+        #text = text.decode('latin1')
         colorizer = HTMLDoctestColorizer(self.encode)
         pysrc = colorizer.colorize_inline(text)#.strip()
         #pysrc = colorize_doctestblock(text, self._markup_pysrc, True)
@@ -2311,9 +2315,9 @@ class LaTeXDoctestColorizer(DoctestColorizer):
         if tag == 'output':
             s = CALLOUT_RE.sub(self._callout, s)
             
-        if self.wrap and '\255' not in s:
-            s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
-            s = self.encode(s).replace('\255', '{\linebreak[0]}')
+        if self.wrap and u'\255' not in s:
+            s = re.sub(ur'(\W|\w\b)(?=.)', u'\\1\255', s)
+            s = self.encode(s).replace(u'\255', u'{\linebreak[0]}')
         else:
             if self.wrap: warning('Literal contains char \\255')
             s = self.encode(s)
@@ -2648,7 +2652,8 @@ def main():
     if not os.path.exists(TREE_IMAGE_DIR):
         os.mkdir(TREE_IMAGE_DIR)
 
-    if docutils.writers.html4css1.Image is None:
+    if (getattr(docutils.writers.html4css1, 'PIL', None) is None and
+        getattr(docutils.writers.html4css1, 'Image', None) is None):
         warning('Cannot scale images in HTML unless Python '
              'Imaging\n         Library (PIL) is installed!')
 
