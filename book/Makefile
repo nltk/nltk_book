@@ -120,8 +120,7 @@ clean_up:
 	$(LATEXHACKS) $@
 
 revision.rst: $(CHAPTERS)
-	echo "This document is" > revision.rst
-	#svn info | grep Revision >> revision.rst
+	echo "This document was built on" > revision.rst
 	date >> revision.rst
 
 %.bbl: %.tex $(BIBTEX_FILE)
