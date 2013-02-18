@@ -18,7 +18,7 @@ CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../../doc
+PUBLISH = ../../nltk.github.com/book
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
@@ -38,13 +38,15 @@ LATEXHACKS = ../latexhacks.py
 DOCTEST_SPLIT = ../doctest_split.py 
 
 RST = ../rst.py
-NLTK_INDEX = ../../tools/nltk_term_index.py
+NLTK_SRC = ../../nltk
+TOOLS = $(NLTK_SRC)/tools
+NLTK_INDEX = $(TOOLS)/nltk_term_index.py
 XINCLUDER = ../xincluder.py
 RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
-DOCTEST = PYTHONPATH=../.. $(PYTHON) ../../nltk/test/doctest_driver.py
+DOCTEST = PYTHONPATH=../.. $(PYTHON) $(NLTK_SRC)/nltk/test/doctest_driver.py
 BIBTEX = bibtex -terse
 XSLT = java org.apache.xalan.xslt.Process
 #get from environment
@@ -180,5 +182,5 @@ publish:
 	svn add $(PUBLISH)/book/*
 	svn add $(PUBLISH)/book/tree_images/*
 	svn add $(PUBLISH)/book/pylisting/*
-	python ../../tools/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
+	python $(NLTK_TOOLS)/svnmime.py $(PUBLISH)/book/* $(PUBLISH)/book/*/*
 	echo Note that "make -C book publish" omits images and stylesheets
