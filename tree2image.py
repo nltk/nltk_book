@@ -38,7 +38,7 @@ Requires Imagemagick C{convert}.
 """
 
 import re, sys, os
-import tkFont
+import tkinter.font
 import tempfile
 import pickle
 from nltk.draw.util import SequenceWidget, TextWidget, SpaceWidget, CanvasFrame
@@ -54,7 +54,7 @@ if '/sw/bin' not in os.environ['PATH']:
 def tokenize(s, regexp):
     pos = 0
     for m in re.finditer(regexp, s):
-        if m.start() != pos: raise ValueError, 'tokenization error'
+        if m.start() != pos: raise ValueError('tokenization error')
         pos = m.end()
         yield m.group()
 
@@ -84,7 +84,7 @@ def tree_to_widget(s, canvas):
             stack[-1].append(leaf)
 
     if not len(stack) == 1 and len(stack[0])==1:
-        raise ValueError, 'unbalanced parens?'
+        raise ValueError('unbalanced parens?')
     return stack[0][0]
 
 def parse_word(s):
@@ -99,24 +99,24 @@ def parse_word(s):
             piece = ''
         elif tok == '_{':
             yield italic, subscript, piece
-            if subscript: raise ValueError, 'nested italics?'
+            if subscript: raise ValueError('nested italics?')
             subscript = True
             piece = ''
         elif tok.startswith('_'):
             yield italic, subscript, piece
-            if subscript: raise ValueError, 'nested italics?'
+            if subscript: raise ValueError('nested italics?')
             yield italic, True, tok[1]
             piece = ''
         elif tok == '}':
             yield italic, subscript, piece
-            if not subscript: raise ValueError, '} needs backslash'
+            if not subscript: raise ValueError('} needs backslash')
             subscript = False
             piece = ''
         else:
             piece += tok
 
-    if italic: raise ValueError, 'expected * to close italics'
-    if subscript: raise ValueError, 'expected }'
+    if italic: raise ValueError('expected * to close italics')
+    if subscript: raise ValueError('expected }')
     yield italic, subscript, piece
 
 metrics = {}
@@ -138,7 +138,7 @@ def word_to_widget(s, canvas, basefont='helvetica', fontsize=12,
         if subscript: size = size*2/3
         slant = italic and 'italic' or 'roman'
         weight = bold and 'bold' or 'normal'
-        font = tkFont.Font(family=basefont, size=size, weight=weight,
+        font = tkinter.font.Font(family=basefont, size=size, weight=weight,
                            slant=slant)
         # Create the widget.
         textwidgets.append(TextWidget(canvas, text, font=font, color=color))
@@ -249,9 +249,9 @@ def tree_to_image(s, outfile, density=72):
 
 def cli():
     if len(sys.argv) != 3:
-        print 'Usage: %s <infile> <outfile>' % sys.argv[0]
+        print('Usage: %s <infile> <outfile>' % sys.argv[0])
         sys.exit(-1)
-    print '%s -> %s' % (sys.argv[1], sys.argv[2])
+    print('%s -> %s' % (sys.argv[1], sys.argv[2]))
     tree_to_image(open(sys.argv[1]).read(), sys.argv[2])
 
 if __name__ == '__main__':

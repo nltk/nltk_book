@@ -216,7 +216,7 @@ def tree_directive(name, arguments, options, content, lineno,
     try:
         filename = os.path.join(TREE_IMAGE_DIR, filename)
         tree_to_image(text, filename, density)
-    except Exception, e:
+    except Exception as e:
         raise
         warning('Error parsing tree: %s\n%s\n%s' % (e, text, filename))
         return [example(text, text)]
@@ -244,7 +244,7 @@ def avm_directive(name, arguments, options, content, lineno,
         # pass through for now
         elif OUTPUT_FORMAT == 'docbook':
             return [docutils.nodes.literal_block('', textwrap.dedent(text))]
-    except ValueError, e:
+    except ValueError as e:
         if isinstance(e.args[0], int):
             warning('Error parsing avm on line %s' % (lineno+e.args[0]))
         else:
@@ -493,7 +493,7 @@ def gloss_directive(name, arguments, options, content, lineno,
     # Transform into a table.
     lines = list(content)
     maxlen = max(len(line) for line in lines)
-    lines = [('|%-'+`maxlen`+'s|') % line for line in lines]
+    lines = [('|%-%ds|') % (line, maxlen) for line in lines]
     tablestr = ''
     prevline = ''
     for line in (lines+['']):
@@ -1006,7 +1006,7 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
             (OUTPUT_FORMAT != 'latex') and
             not (self.section_context == 'preface' and
                  self.no_section_numbers_in_preface)):
-            label = docutils.nodes.generated('', node['sectnum']+u'\u00a0'*3,
+            label = docutils.nodes.generated('', node['sectnum']+'\u00a0'*3,
                                              classes=['sectnum'])
             title.insert(0, label)
             title['auto'] = 1
@@ -1125,17 +1125,17 @@ class NumberingVisitor(docutils.nodes.NodeVisitor):
         if node_index>0 and isinstance(node.parent[node_index-1],
                                        docutils.nodes.target):
             target = node.parent[node_index-1]
-            if target.has_key('refid'):
+            if 'refid' in target:
                 refid = target['refid']
                 target['ids'] = [refid]
                 del target['refid']
                 return [refid]
-            elif target.has_key('ids'):
+            elif 'ids' in target:
                 return target['ids']
             else:
                 warning('unable to find id for %s' % target)
                 return []
-        elif node.parent.has_key('ids'):
+        elif 'ids' in node.parent:
             # Sometimes a table is inside another node who's id is the
             # reference.
             return node.parent['ids']
@@ -1244,7 +1244,7 @@ def process_reference_text(node, node_id):
             if (isinstance(prev_node, docutils.nodes.Text)):
                 m = _EXPAND_REF_RE.match(prev_node)
                 if m:
-                    print "Warning: '%s' citation has '%s' on its left" % (node_id, m.group(2))
+                    print("Warning: '%s' citation has '%s' on its left" % (node_id, m.group(2)))
 
         # Add the extra term
         link = node.children[0]
@@ -1253,9 +1253,9 @@ def process_reference_text(node, node_id):
             if reftype in _EXPAND_REF_DICT:
                 link = _EXPAND_REF_DICT[reftype] + ' ' + link
             else:
-                print "Warning: '%s' reference text not expanded" % node_id
+                print("Warning: '%s' reference text not expanded" % node_id)
         else:
-            print "Warning: '%s' reference not hyphenated" % node_id
+            print("Warning: '%s' reference not hyphenated" % node_id)
         node['expanded_ref'] = True
 
 ######################################################################
@@ -1295,7 +1295,7 @@ class AVM:
         return ident + '\\[\n' + ' \\\\\n'.join(lines) + '\\]\n'
 
     def _entry(self, val, cls):
-        if isinstance(val, basestring):
+        if isinstance(val, str):
             return docutils.nodes.entry('',
                 docutils.nodes.paragraph('', val), classes=[cls])
         else:
@@ -1315,13 +1315,13 @@ class AVM:
             val = self.vals[key]
             key_node = self._entry(key, 'avm-key')
             if isinstance(val, AVMPointer):
-                eq_node = self._entry(u'\u2192', 'avm-eq') # right arrow
+                eq_node = self._entry('\u2192', 'avm-eq') # right arrow
                 val_node = self._entry(self._pointer(val.ident), 'avm-val')
             elif isinstance(val, AVM):
                 eq_node = self._entry('=', 'avm-eq')
                 val_node = self._entry(val.as_table(), 'avm-val')
             else:
-                value = ('%s' % val.val).replace(' ', u'\u00a0') # =nbsp
+                value = ('%s' % val.val).replace(' ', '\u00a0') # =nbsp
                 eq_node = self._entry('=', 'avm-eq')
                 val_node = self._entry(value, 'avm-val')
                 
@@ -1332,15 +1332,15 @@ class AVM:
             elif key == self.keys[0]: vpos = 'top'
             elif key == self.keys[-1]: vpos = 'bot'
             else: vpos = ''
-            rows[-1].insert(0, self._entry(u'\u00a0', 'avm-%sleft' % vpos))
-            rows[-1].append(self._entry(u'\u00a0', 'avm-%sright' % vpos))
+            rows[-1].insert(0, self._entry('\u00a0', 'avm-%sleft' % vpos))
+            rows[-1].append(self._entry('\u00a0', 'avm-%sright' % vpos))
 
             # Add id:
             if key == self.keys[0] and self.ident:
                 rows[-1].append(self._entry(self._pointer(self.ident),
                                             'avm-ident'))
             else:
-                rows[-1].append(self._entry(u'\u00a0', 'avm-ident'))
+                rows[-1].append(self._entry('\u00a0', 'avm-ident'))
 
         colspecs = [docutils.nodes.colspec(colwidth=1) for i in range(6)]
 
@@ -1484,7 +1484,7 @@ class CustomizedHTMLWriter(HTMLWriter):
 class CustomizedHTMLTranslator(HTMLTranslator):
     def __init__(self, document):
         HTMLTranslator.__init__(self, document)
-        print document.settings.__class__
+        print(document.settings.__class__)
         self.head_prefix.append(COPY_CLIPBOARD_JS)
 
     def visit_pylisting(self, node):
@@ -1509,9 +1509,9 @@ class CustomizedHTMLTranslator(HTMLTranslator):
             try:
                 pysrc = colorizer.colorize_doctest(text)
             except:
-                print '='*70
-                print text
-                print '='*70
+                print('='*70)
+                print(text)
+                print('='*70)
                 raise
 
         if node.get('is_codeblock'): typ = 'codeblock' 
@@ -1827,7 +1827,7 @@ class CustomizedDocBookTranslator(DocBookTranslator):
     # This is just a typo in the original (node.SkipNode should be
     # nodes.SkipNode)
     def visit_raw(self, node):
-        if node.has_key('format') and node['format'] == 'docbook':
+        if 'format' in node and node['format'] == 'docbook':
             self.body.append(node.astext())
         raise docutils.nodes.SkipNode
 
@@ -2177,7 +2177,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
             self.active_table._latex_type = self._orig_table_type
 
     def visit_callout_marker(self, node):
-        self.body.append(self.encode(unichr(0x2460+node['number']-1)))
+        self.body.append(self.encode(chr(0x2460+node['number']-1)))
         raise docutils.nodes.SkipNode()
 
     def visit_pylisting(self, node):
@@ -2225,7 +2225,7 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
 #         raise docutils.nodes.SkipNode() # Content already processed
 
     def circledigit(self, n):
-        return docutils.nodes.Text(unichr(0x2460+n-1))
+        return docutils.nodes.Text(chr(0x2460+n-1))
 
     # Unfortunately, parbox doesn't interact well with alltt.  As a result,
     # any doctest or pysrc blocks inside an adominition get wrapped oddly.
@@ -2304,7 +2304,7 @@ class LaTeXDoctestColorizer(DoctestColorizer):
     def _callout(self, m):
         callout_id = m.group(1)
         callout_num = self.callouts[callout_id]
-        return self.encode(unichr(0x2460+int(callout_num)-1))
+        return self.encode(chr(0x2460+int(callout_num)-1))
     def markup(self, s, tag):
         if tag == 'output':
             s = re.sub(r'(?m)^[ \t]*<BLANKLINE>[ \t]*$', '', s)
@@ -2315,9 +2315,9 @@ class LaTeXDoctestColorizer(DoctestColorizer):
         if tag == 'output':
             s = CALLOUT_RE.sub(self._callout, s)
             
-        if self.wrap and u'\255' not in s:
-            s = re.sub(ur'(\W|\w\b)(?=.)', u'\\1\255', s)
-            s = self.encode(s).replace(u'\255', u'{\linebreak[0]}')
+        if self.wrap and '\255' not in s:
+            s = re.sub(r'(\W|\w\b)(?=.)', '\\1\255', s)
+            s = self.encode(s).replace('\255', '{\linebreak[0]}')
         else:
             if self.wrap: warning('Literal contains char \\255')
             s = self.encode(s)
@@ -2538,7 +2538,7 @@ try:
     from epydoc.log import DEBUG, ERROR, WARNING
     logger = ConsoleLogger(0)
     #def log(msg): logger.progress(0, msg)
-except Exception, e:
+except Exception as e:
     DEBUG = ERROR = WARNING = 0
     class FakeLogger:
         def __getattr__(self, a):
@@ -2738,7 +2738,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except docutils.utils.SystemMessage, e:
-        print 'Fatal error encountered!', e
+    except docutils.utils.SystemMessage as e:
+        print('Fatal error encountered!', e)
         raise
         sys.exit(-1)
