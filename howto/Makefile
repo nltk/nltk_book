@@ -7,9 +7,9 @@
 # For license information, see LICENSE.TXT
 
 # File locations:
-DOCTEST_SRC = ../../nltk/test
+DOCTEST_SRC = ../../nltk/nltk/test
 DOCTESTS = $(wildcard $(DOCTEST_SRC)/*.doctest)
-PYSRC = $(shell find ../../nltk -name '*.py')
+PYSRC = $(shell find ../../nltk/nltk -name '*.py')
 HTML = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.html)
 ERRS = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.errs)
 COVERAGE = $(DOCTESTS:$(DOCTEST_SRC)/%.doctest=%.coverage)
