@@ -18,7 +18,7 @@ CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../nltk.github.com/book
+PUBLISH = ../../nltk.github.com/book3
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
@@ -46,7 +46,7 @@ RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
-DOCTEST = PYTHONPATH=../.. $(PYTHON) $(NLTK_SRC)/nltk/test/doctest_driver.py
+DOCTEST = PYTHONPATH=..: $(PYTHON) ../doctest_driver.py
 BIBTEX = bibtex -terse
 XSLT = java org.apache.xalan.xslt.Process
 #get from environment
