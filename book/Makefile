@@ -36,6 +36,7 @@ PDFLATEX = TEXINPUTS=".:..:ucs:" pdflatex -halt-on-error
 EXAMPLES = ../examples.py
 LATEXHACKS = ../latexhacks.py
 DOCTEST_SPLIT = ../doctest_split.py 
+RUNTESTS = ../../nltk/nltk/test/runtests.py
 
 RST = ../rst.py
 NLTK_SRC = ../../nltk
@@ -170,7 +171,8 @@ book.pdf: book.bbl book.tex
 
 .rst.errs:
 	$(PYTHON) $(DOCTEST_SPLIT) $<
-	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
+	$(PYTHON) $(RUNTESTS) $*-*.doctest 2>&1 |tee $@
+#	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
 	rm -f $*-*.doctest
 
 .rst.py:
