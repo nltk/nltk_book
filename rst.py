@@ -2010,39 +2010,39 @@ class CustomizedLaTeXTranslator(LaTeXTranslator):
         # This needs to go before the \usepackage{inputenc}:
         self.head_prefix.insert(1, '\\usepackage[cjkgb,postscript]{ucs}\n')
         # Make sure we put these *before* the stylesheet include line.
-        self.head_prefix.insert(-2, textwrap.dedent("""\
+        self.head_prefix.insert(-2, textwrap.dedent(r"""
             % Unicode font:
             \usepackage{ttfucs}
             \DeclareTruetypeFont{cyberbit}{cyberbit}
             % Index:
-            \\usepackage{makeidx}
-            \\makeindex
+            \usepackage{makeidx}
+            \makeindex
             % Environment for source code listings:
-            \\usepackage{float}
-            \\floatstyle{ruled}
-            \\newfloat{pylisting}{thp}{lop}[chapter]
-            \\floatname{pylisting}{Listing}
+            \usepackage{float}
+            \floatstyle{ruled}
+            \newfloat{pylisting}{thp}{lop}[chapter]
+            \floatname{pylisting}{Listing}
             % For Python source code:
-            \\usepackage{alltt}
+            \usepackage{alltt}
             % Python source code: Prompt
-            \\newcommand{\\pysrcprompt}[1]{\\textbf{#1}}
-            \\newcommand{\\pysrcmore}[1]{\\textbf{#1}}
+            \newcommand{\pysrcprompt}[1]{\textbf{#1}}
+            \newcommand{\pysrcmore}[1]{\textbf{#1}}
             % Python source code: Source code
-            \\newcommand{\\pysrckeyword}[1]{\\textbf{#1}}
-            \\newcommand{\\pysrcbuiltin}[1]{\\textbf{#1}}
-            \\newcommand{\\pysrcstring}[1]{\\textit{#1}}
-            \\newcommand{\\pysrcother}[1]{\\textbf{#1}}
-            \\newcommand{\\pysrcdefname}[1]{\\textbf{#1}}
+            \newcommand{\pysrckeyword}[1]{\textbf{#1}}
+            \newcommand{\pysrcbuiltin}[1]{\textbf{#1}}
+            \newcommand{\pysrcstring}[1]{\textit{#1}}
+            \newcommand{\pysrcother}[1]{\textbf{#1}}
+            \newcommand{\pysrcdefname}[1]{\textbf{#1}}
             % Python source code: Comments
-            \\newcommand{\\pysrccomment}[1]{\\textrm{#1}}
+            \newcommand{\pysrccomment}[1]{\textrm{#1}}
             % Python interpreter: Traceback message
-            \\newcommand{\\pysrcexcept}[1]{\\textbf{#1}}
+            \newcommand{\pysrcexcept}[1]{\textbf{#1}}
             % Python interpreter: Output
-            \\newcommand{\\pysrcoutput}[1]{#1}\n"""))
+            \newcommand{\pysrcoutput}[1]{#1}\n"""))
         # Tabularx conflicts with the avm package:
         self.head_prefix = [l for l in self.head_prefix
                             if ('{tabularx}' not in l and
-                                '{\\extrarowheight}' not in l)]
+                                r'{\extrarowheight}' not in l)]
 
     def bookmark(self, node):
         # this seems broken; just use the hyperref package's
