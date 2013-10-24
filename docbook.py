@@ -20,15 +20,13 @@ of DocBook.
 __docformat__ = 'reStructuredText'
 
 import re
-import string
 import textwrap
 from docutils import writers, nodes, languages
-from types import ListType
-import Image
+from PIL import Image
 
 # XML entity definitions are similar to HTML ones. we use them to
 # escape special charicters.
-import htmlentitydefs
+import html.entities
 
 class Writer(writers.Writer):
 
@@ -157,17 +155,16 @@ class DocBookTranslator(nodes.NodeVisitor):
         references of the same a  footnote with 
         ``footnoteref`` elements.
         """
-        for (footnote_id,refs) in self.footnote_map.items():
+        for (footnote_id,refs) in list(self.footnote_map.items()):
             ref_id, context, pos = refs[0]
             context[pos] = ''.join(self.footnotes[footnote_id])
             for ref_id, context, pos in refs[1:]:
                 context[pos] = '<footnoteref linkend="%s"/>' \
                     % (footnote_id,)
 
-    def attval(self, text,
-               transtable=string.maketrans('\n\r\t\v\f', '     ')):
+    def attval(self, text, transtable=None):
         """Cleanse, encode, and return attribute value text."""
-        return self.encode(text.translate(transtable))
+        return self.encode(re.sub(r'\n\r\t\v\f', text))
 
     def starttag(self, node, tagname, suffix='\n', infix='', **attributes):
         """
@@ -176,14 +173,14 @@ class DocBookTranslator(nodes.NodeVisitor):
         and optional attributes.
         """
         atts = {}
-        for (name, value) in attributes.items():
+        for (name, value) in list(attributes.items()):
             atts[name.lower()] = value
 
         for att in ('xml:id',):             # node attribute overrides
             if att in node:
                 atts[att] = node[att]
 
-        attlist = atts.items()
+        attlist = list(atts.items())
         attlist.sort()
         parts = [tagname.lower()]
         for name, value in attlist:
@@ -192,13 +189,13 @@ class DocBookTranslator(nodes.NodeVisitor):
                 # apply here, as an element with no attribute
                 # isn't well-formed XML.
                 parts.append(name.lower())
-            elif isinstance(value, ListType):
+            elif isinstance(value, list):
                 values = [str(v) for v in value]
                 parts.append('%s="%s"' % (name.lower(),
                                           self.attval(' '.join(values))))
             else:
                 name = self.encodeattr(name.lower())
-                value = str(self.encodeattr(unicode(value)))
+                value = str(self.encodeattr(str(value)))
                 value = self.attval(value)
                 parts.append('%s="%s"' % (name,value))
 
@@ -488,13 +485,13 @@ class DocBookTranslator(nodes.NodeVisitor):
             elif isinstance(n, nodes.field):
                 # XXX
                 import sys
-                print >> sys.stderr, "I don't do 'field' yet"
-                print n.astext()
+                print("I don't do 'field' yet", file=sys.stderr)
+                print(n.astext())
             # since all child nodes are handled here raise an exception
             # if node is not handled, so it doesn't silently slip through.
             else:
-                print dir(n)
-                print n.astext()
+                print(dir(n))
+                print(n.astext())
                 raise self.unimplemented_visit(n)
 
         # can only add author if name is present
@@ -556,24 +553,24 @@ class DocBookTranslator(nodes.NodeVisitor):
 
         def replace_html_entity(c):
             try:
-                return unicode("&%s;" % htmlentitydefs.codepoint2name[ord(c)])
+                return str("&%s;" % html.entities.codepoint2name[ord(c)])
             except KeyError:
                 return c
 
         def create_anchors(text, callouts):
-            for name, line in callouts.items():
-                text = re.sub(u"# *\[_%s\]" % name, 
-                              u"<co id=\"ref-%s\"/>" % name, 
+            for name, line in list(callouts.items()):
+                text = re.sub("# *\[_%s\]" % name, 
+                              "<co id=\"ref-%s\"/>" % name, 
                               text)
             return text
 
         self.body.append('\n<programlisting>')
 
-        text = ''.join(unicode(c).encode('utf8') for c in node)
+        text = ''.join(str(c).encode('utf8') for c in node)
         text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
         text = text.decode('utf8')
-        text = u''.join(map(replace_html_entity, text))
+        text = ''.join(map(replace_html_entity, text))
         text = create_anchors(text, node['callouts'])
         
         self.body.append(text)
@@ -598,9 +595,9 @@ class DocBookTranslator(nodes.NodeVisitor):
     def visit_entry(self, node):
         tagname = 'entry'
         atts = {}
-        if node.has_key('morerows'):
+        if 'morerows' in node:
             atts['morerows'] = node['morerows']
-        if node.has_key('morecols'):
+        if 'morecols' in node:
             atts['namest'] = self.colnames[self.entry_level]
             atts['nameend'] = self.colnames[self.entry_level \
                 + node['morecols']]
@@ -719,7 +716,7 @@ class DocBookTranslator(nodes.NodeVisitor):
         self._body = None
 
     def visit_footnote_reference(self, node):
-        if node.has_key('refid'):
+        if 'refid' in node:
             refid = node['refid']
         else:
             refid = self.document.nameids[node['refname']]
@@ -959,7 +956,7 @@ class DocBookTranslator(nodes.NodeVisitor):
     visit_problematic = depart_problematic = lambda self, node: None
 
     def visit_raw(self, node):
-        if node.has_key('format') and node['format'] == 'docbook':
+        if 'format' in node and node['format'] == 'docbook':
             self.body.append(node.astext())
         raise node.SkipNode
 
@@ -1018,7 +1015,7 @@ class DocBookTranslator(nodes.NodeVisitor):
             # and only keep the user-supplied id
             if 'ids' in node.attributes and len(node.attributes['ids']) > 1:
                 atts['id'] = node.attributes['ids'][1]
-            section_tag = 'sect' + `self.section`
+            section_tag = 'sect' + repr(self.section)
             if self.section > 1:  # don't number subsections
                 section_tag = 'simplesect'
                 if 'id' in atts:
@@ -1239,11 +1236,11 @@ class DocBookTranslator(nodes.NodeVisitor):
             self.context.append('section')
         else:
             # XXX DEBUG CODE
-            print 'class:', node.get('class')
-            print node.__class__.__name__
-            print node
-            print `node`
-            print dir(node)
+            print('class:', node.get('class'))
+            print(node.__class__.__name__)
+            print(node)
+            print(repr(node))
+            print(dir(node))
             self.unimplemented_visit(node)
 
     def depart_topic(self, node):
@@ -1296,7 +1293,7 @@ def node_to_str(node):
     """
 
     if node.children:
-        return u'%s%s%s' % (node.starttag(),
+        return '%s%s%s' % (node.starttag(),
                             ''.join([node_to_str(c) for c in node.children]),
                             node.endtag())
     else:

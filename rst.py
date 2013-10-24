@@ -2556,7 +2556,7 @@ def _new_RSTState_section(self, title, source, style, lineno, messages):
     progress = 0.5 * lineno / numlines
     global _section
     if style == ('=','='): _section = title
-    _section = _section.encode('ascii', 'replace')
+#    _section = _section.encode('ascii', 'replace')
     logger.progress(progress, '%s -- line %d/%d' % (_section,lineno,numlines))
     _old_RSTState_section(self, title, source, style, lineno, messages)
 RSTState.section = _new_RSTState_section
