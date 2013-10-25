@@ -4,17 +4,17 @@
 from optparse import OptionParser
 import re
 
-_SCALE_RE = r'(:scale:\s+)(\d+):(\d+):(\d+)'
+_SCALE_RE = b'(:scale:\s+)(\d+):(\d+):(\d+)'
 
 def process(file, format):
-    contents = open(file).read()
+    contents = open(file, 'rb').read()
     if format == "html":
         contents = re.sub(_SCALE_RE, r'\1\2', contents)
     elif format == "latex":
         contents = re.sub(_SCALE_RE, r'\1\3', contents)
     elif format == "xml":
         contents = re.sub(_SCALE_RE, r'\1\4', contents)
-    open(file + "2", 'w').write(contents)
+    open(file + "2", 'wb').write(contents)
 
 parser = OptionParser()
 parser.add_option("-f", "--format", dest="format",
