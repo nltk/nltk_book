@@ -215,7 +215,7 @@ def tree_to_image(s, outfile, density=72):
                              'treecache.pickle')
     if os.path.exists(cachefile):
         try:
-            cache = pickle.load(open(cachefile, 'r'))
+            cache = pickle.load(open(cachefile, 'rb'))
             if cache.get(outfile, None) == (s, density):
                 return
         except:
@@ -243,7 +243,7 @@ def tree_to_image(s, outfile, density=72):
 
     # Update the cache
     cache[outfile] = (s, density)
-    out = open(cachefile, 'w')
+    out = open(cachefile, 'wb')
     pickle.dump(cache, out)
     out.close()
 
