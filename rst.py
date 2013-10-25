@@ -122,13 +122,13 @@ def read_ref_file(basename=None):
         warning('File %r does not exist!' %
                 (basename + REF_EXTENSION))
         return dict(targets=(),terms={},reference_labes={})
-    f = open(basename + REF_EXTENSION)
+    f = open(basename + REF_EXTENSION, 'rb')
     ref_info = pickle.load(f)
     f.close()
     return ref_info
 
 def write_ref_file(ref_info):
-    f = open(OUTPUT_BASENAME + REF_EXTENSION, 'w')
+    f = open(OUTPUT_BASENAME + REF_EXTENSION, 'wb')
     pickle.dump(ref_info, f)
     f.close()
 
@@ -493,7 +493,8 @@ def gloss_directive(name, arguments, options, content, lineno,
     # Transform into a table.
     lines = list(content)
     maxlen = max(len(line) for line in lines)
-    lines = [('|%-%ds|') % (line, maxlen) for line in lines]
+    format = '%%-%ds' % maxlen
+    lines = [format % line for line in lines]
     tablestr = ''
     prevline = ''
     for line in (lines+['']):
@@ -1484,7 +1485,7 @@ class CustomizedHTMLWriter(HTMLWriter):
 class CustomizedHTMLTranslator(HTMLTranslator):
     def __init__(self, document):
         HTMLTranslator.__init__(self, document)
-        print(document.settings.__class__)
+        # print(document.settings.__class__)
         self.head_prefix.append(COPY_CLIPBOARD_JS)
 
     def visit_pylisting(self, node):
@@ -1499,7 +1500,7 @@ class CustomizedHTMLTranslator(HTMLTranslator):
         text = ''.join(('%s' % c) for c in node)
         text = textwrap.dedent(text)
         text = strip_doctest_directives(text)
-        text = text.decode('latin1')
+        # text = text.decode('latin1')
 
         # Colorize the contents of the doctest block.
         colorizer = HTMLDoctestColorizer(self.encode, node['callouts'])
