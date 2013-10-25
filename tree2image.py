@@ -70,10 +70,10 @@ def tree_to_widget(s, canvas):
         if tok.strip() == '':
             pass
         elif tok[:1] in '(<':
-            node = word_to_widget(tok[1:].strip(), canvas,
+            label = word_to_widget(tok[1:].strip(), canvas,
                                   color='#004080', bold=True)
             roof = (tok[:1] == '<')
-            stack[-1].append(dict(canvas=canvas, node=node, roof=roof))
+            stack[-1].append(dict(canvas=canvas, label=label, roof=roof))
             stack.append([])
         elif tok[:1] in ')>':
             subtrees = stack.pop()
