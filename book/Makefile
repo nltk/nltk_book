@@ -181,7 +181,5 @@ book.pdf: book.bbl book.tex
 publish:
 	find . \( -name '*.html' -or -name '*.py' -or -name '*.png' \) -print |\
 	        cpio -padu $(PUBLISH)/
-	git add $(PUBLISH)/*
-	git add $(PUBLISH)/tree_images/*
-	git add $(PUBLISH)/pylisting/*
+	echo Now cd $(PUBLISH) and push
 	echo Note that "make -C book publish" omits images and stylesheets
