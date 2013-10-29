@@ -2,7 +2,7 @@
 
 .. def:: definitions
 
-.. |version| replace:: 2.0.1rc1
+.. |version| replace:: 3.0
 .. |copyrightinfo| replace:: 2001-2012 the authors
 .. |license| replace:: Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License
 
