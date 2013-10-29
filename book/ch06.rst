@@ -155,11 +155,10 @@ a list of examples and corresponding
 class labels.
 
     >>> from nltk.corpus import names
+    >>> labeled_names = ([(name, 'male') for name in names.words('male.txt')] + 
+    ... [(name, 'female') for name in names.words('female.txt')])
     >>> import random
-    >>> names = ([(name, 'male') for name in names.words('male.txt')] + 
-    ...          [(name, 'female') for name in names.words('female.txt')])
-    >>> import random
-    >>> random.shuffle(names)
+    >>> random.shuffle(labeled_names)
 
 .. XXX say something about what featuresets are 
 
@@ -168,7 +167,7 @@ divide the resulting list of feature sets into a `training set`:dt:
 and a `test set`:dt:.  The training set is used to train a new 
 "naive Bayes" classifier.
 
-    >>> featuresets = [(gender_features(n), g) for (n,g) in names]
+    >>> featuresets = [(gender_features(n), gender) for (n, gender) in labeled_names]
     >>> train_set, test_set = featuresets[500:], featuresets[:500]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
 
@@ -264,8 +263,8 @@ code-gender-features-overfitting_.
 
    def gender_features2(name):
        features = {} 
-       features["firstletter"] = name[0].lower()
-       features["lastletter"] = name[-1].lower()
+       features["first_letter"] = name[0].lower()
+       features["last_letter"] = name[-1].lower()
        for letter in 'abcdefghijklmnopqrstuvwxyz':
            features["count(%s)" % letter] = name.lower().count(letter)
            features["has(%s)" % letter] = (letter in name.lower())
@@ -287,7 +286,7 @@ relatively small training set, resulting in a system whose accuracy
 is about 1% lower than the accuracy of a classifier that only
 pays attention to the final letter of each name:
 
-    >>> featuresets = [(gender_features2(n), g) for (n,g) in names]
+    >>> featuresets = [(gender_features2(n), gender) for (n, gender) in names]
     >>> train_set, test_set = featuresets[500:], featuresets[:500]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
     >>> print(nltk.classify.accuracy(classifier, test_set))
@@ -329,9 +328,9 @@ Having divided the corpus into appropriate datasets, we train a model
 using the training set err-analysis-train_, and then run it on the
 devtest set err-analysis-run_.  
 
-    >>> train_set = [(gender_features(n), g) for (n,g) in train_names]
-    >>> devtest_set = [(gender_features(n), g) for (n,g) in devtest_names]
-    >>> test_set = [(gender_features(n), g) for (n,g) in test_names]
+    >>> train_set = [(gender_features(n), gender) for (n, gender) in train_names]
+    >>> devtest_set = [(gender_features(n), gender) for (n, gender) in devtest_names]
+    >>> test_set = [(gender_features(n), gender) for (n, gender) in test_names]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set) # [_err-analysis-train]
     >>> print(nltk.classify.accuracy(classifier, devtest_set)) # [_err-analysis-run]
     0.765
@@ -383,11 +382,11 @@ suffixes:
     ...             'suffix2': word[-2:]}
 
 Rebuilding the classifier with the new feature extractor, we see that
-the performance on the dev-test dataset improves by almost 3
+the performance on the dev-test dataset improves by almost 2
 percentage points (from 76.5% to 78.2%):
 
-    >>> train_set = [(gender_features(n), g) for (n,g) in train_names]
-    >>> devtest_set = [(gender_features(n), g) for (n,g) in devtest_names]
+    >>> train_set = [(gender_features(n), gender) for (n, gender) in train_names]
+    >>> devtest_set = [(gender_features(n), gender) for (n, gender) in devtest_names]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
     >>> print(nltk.classify.accuracy(classifier, devtest_set))
     0.782
@@ -681,7 +680,7 @@ classifier.
 .. It would be nice to actually show this (using 
    show_most_informative_features or something):
 
-Its clear that exploiting contextual features improves the performance
+It is clear that exploiting contextual features improves the performance
 of our part-of-speech tagger.  For example, the classifier learns
 that a word is likely to be a noun if it comes immediately after the
 word "large" or the word "gubernatorial".  However, it is unable to
@@ -842,7 +841,7 @@ extracting features:
     >>> tokens = []
     >>> boundaries = set()
     >>> offset = 0
-    >>> for sent in nltk.corpus.treebank_raw.sents():
+    >>> for sent in sents:
     ...     tokens.extend(sent)
     ...     offset += len(sent)
     ...     boundaries.add(offset-1)
@@ -855,7 +854,7 @@ indicates a sentence-boundary:
 
     >>> def punct_features(tokens, i):
     ...     return {'next-word-capitalized': tokens[i+1][0].isupper(),
-    ...             'prevword': tokens[i-1].lower(),
+    ...             'prev-word': tokens[i-1].lower(),
     ...             'punct': tokens[i],
     ...             'prev-word-is-one-char': len(tokens[i-1]) == 1}
 
@@ -1175,7 +1174,7 @@ Accuracy
 The simplest metric that can be used to evaluate a classifier,
 `accuracy`:dt:, measures the percentage of inputs in the test
 set that the classifier correctly labeled.  For example, a name gender
-classifier that predicts the correct name 60 times in an test
+classifier that predicts the correct name 60 times in a test
 set containing 80 names would have an accuracy of 60/80 = 75%.  The
 function ``nltk.classify.accuracy()`` will calculate the
 accuracy of a classifier model on a given test set:
@@ -1263,9 +1262,9 @@ be informative to subdivide the errors made by the model based on
 which types of mistake it made.  A `confusion matrix`:dt: is a table
 where each cell |ij| indicates how often label `j`:math: was
 predicted when the correct label was `i`:math:.  Thus, the diagonal
-entries (i.e., cells |ij|) indicate labels that were
+entries (i.e., cells |ii|) indicate labels that were
 correctly predicted, and the off-diagonal entries indicate errors.  In
-the following example, we generate a confusion matrix for the unigram
+the following example, we generate a confusion matrix for the bigram
 tagger developed in sec-automatic-tagging_:
 
     >>> def tag_list(tagged_sents):
@@ -1283,14 +1282,16 @@ tagger developed in sec-automatic-tagging_:
      NN | <11.8%>  0.0%      .   0.2%      .   0.0%      .   0.3%   0.0% |
      IN |   0.0%  <9.0%>     .      .      .   0.0%      .      .      . |
      AT |      .      .  <8.6%>     .      .      .      .      .      . |
-     JJ |   1.6%      .      .  <4.0%>     .      .      .   0.0%   0.0% |
+     JJ |   1.7%      .      .  <3.9%>     .      .      .   0.0%   0.0% |
       . |      .      .      .      .  <4.8%>     .      .      .      . |
     NNS |   1.5%      .      .      .      .  <3.2%>     .      .   0.0% |
       , |      .      .      .      .      .      .  <4.4%>     .      . |
      VB |   0.9%      .      .   0.0%      .      .      .  <2.4%>     . |
-     NP |   1.0%      .      .   0.0%      .      .      .      .  <1.9%>|
+     NP |   1.0%      .      .   0.0%      .      .      .      .  <1.8%>|
     ----+----------------------------------------------------------------+
     (row = reference; col = test)
+    <BLANKLINE>
+
 The confusion matrix indicates that common errors include a
 substitution of ``NN`` for ``JJ`` (for 1.6% of words), and of ``NN`` for ``NNS`` (for
 1.5% of words).  Note that periods (``.``) indicate cells
@@ -1472,7 +1473,7 @@ of a list of labels.
    import math
    def entropy(labels):
        freqdist = nltk.FreqDist(labels)
-       probs = [freqdist.freq(l) for l in nltk.FreqDist(labels)]
+       probs = [freqdist.freq(l) for l in freqdist]
        return -sum([p * math.log(p,2) for p in probs])
 
    >>> print(entropy(['male', 'male', 'male', 'male'])) # doctest: +SKIP
@@ -2162,18 +2163,18 @@ interchangeable: we say `absolutely adore`:lx: not `definitely
 adore`:lx:, and `definitely prefer`:lx: not `absolutely prefer`:lx:.
 In contrast, explanatory models attempt to capture properties and
 relationships that cause the linguistic patterns.  For example, we
-might introduce the abstract concept of "polar adjective", as one that
-has an extreme meaning, and categorize some adjectives like
+might introduce the abstract concept of "polar verb", as one that
+has an extreme meaning, and categorize some verb like
 `adore`:lx: and `detest`:lx: as polar.  Our explanatory model would
 contain the constraint that `absolutely`:lx: can only combine with
-polar adjectives, and `definitely`:lx: can only combine with non-polar
-adjectives.  In summary, descriptive models provide information about
+polar verbs, and `definitely`:lx: can only combine with non-polar
+verbs.  In summary, descriptive models provide information about
 correlations in the data, while explanatory models go further to
 postulate causal relationships.
 
 Most models that are automatically constructed from a corpus are
 descriptive models; in other words, they can tell us what features are
-relevant to a given patterns or construction, but they can't
+relevant to a given pattern or construction, but they can't
 necessarily tell us how those features and patterns relate to one
 another.  If our goal is to understand the linguistic patterns, then
 we can use this information about which features are related as a
