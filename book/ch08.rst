@@ -149,11 +149,13 @@ Ubiquitous Ambiguity
 A well-known example of ambiguity is shown in ex-marx-elephant_,
 from the Groucho Marx movie, *Animal Crackers* (1930):
 
+.. http://www.youtube.com/watch?v=NfN_gcjGoJo
+
 .. _ex-marx-elephant:
 .. ex::
 
    While hunting in Africa, I shot an elephant in my pajamas.
-   How an elephant got into my pajamas I'll never know.
+   How he got into my pajamas, I don't know.
 
 Let's take a closer look at the ambiguity in the phrase:
 `I shot an elephant in my pajamas`:lx:.  First we
@@ -432,7 +434,7 @@ righthand side, shown by the ``|`` and is an abbreviation for the two production
    a recursive descent parser as it grows the parse tree and matches it against
    the input words.
 
-.. note |TRY|
+.. note:: |TRY|
    Try developing a simple grammar of your own, using the
    recursive descent parser application, ``nltk.app.rdparser()``,
    shown in fig-parse-rdparsewindow_.
@@ -551,7 +553,7 @@ while ex-recsentences_ contains nested sentences.
          (VP (V said)
              (S (NP (PropN Buster))
                 (VP (V thought)
-                    (S (NP (Det the) (N tree))
+                    (S (NP (Det the) (Nom (N tree)))
                              (VP (V was)(Adj tall)))))))
 
 
@@ -748,9 +750,9 @@ most one parse, even if more parses exist.  We can provide an
 optional ``trace`` parameter that controls how verbosely the
 parser reports the steps that it takes as it parses a text: 
 
-    >>> sr_parse = nltk.ShiftReduceParser(grammar1)
+    >>> sr_parser = nltk.ShiftReduceParser(grammar1)
     >>> sent = 'Mary saw a dog'.split()
-    >>> print(sr_parse.parse(sent))
+    >>> print(sr_parser.parse(sent))
       (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
 
 .. note:: |TRY|
@@ -802,18 +804,15 @@ Mary`:lx:\ :
        (VP (V saw)
           (NP Mary)))
 
-.. XXX the following example is stale; the grammar it refers to does not
-   have these productions; also the formatting with rarr is stale.
-
 Recall that the grammar (defined in code-cfg2_) has the following productions for expanding ``NP``\ :
 
 .. ex::
    .. _ex-r1:
-   .. ex:: ``NP`` |rarr| ``dt nom``   (stale!)
+   .. ex:: ``NP -> Det N``   
    .. _ex-r2:
-   .. ex:: ``NP`` |rarr| ``dt nom pp``  (stale!)
+   .. ex:: ``NP -> Det N PP`` 
    .. _ex-r3:
-   .. ex:: ``NP`` |rarr| ``propn``  (stale!)
+   .. ex:: ``NP -> "John" | "Mary" | "Bob"``
 
 .. XXX Following notation with DoubleRightArrow wrongly assumes
    this relation has been defined.
@@ -907,9 +906,9 @@ To simplify this presentation, we will assume each word has a unique
 lexical category, and we will store this (not the word) in the matrix.
 So cell (1, 2) will contain the entry ``V``.
 More generally, if our input string is
-`a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`, and our grammar
+`a`:sub:`0`\ `a`:sub:`1` ... `a`:sub:`n`, and our grammar
 contains a production of the form *A* |rarr| `a`:sub:`i`, then we add *A* to
-the cell (`i`-1, `i`).
+the cell (`i`, `i`+1).
 
 So, for every word in ``text``, we can look up in our grammar what
 category it belongs to.
@@ -984,7 +983,9 @@ Returning to our tabular representation, given that we have ``Det``
 in cell (2, 3) for the word `an`:lx:, and ``N`` in cell (3, 4) for the
 word `elephant`:lx:, what should we put into cell (2, 4) for `an elephant`:lx:?
 We need to find a production of the form *A* |rarr| ``Det N``.
-Consulting the grammar, we know that we can enter ``NP`` in cell (0,2).
+Consulting the grammar, we know that we can enter ``NP`` in cell (2, 4).
+
+.. XXX overuse of 'more generally'? Maybe say: 'To summarise'?
 
 More generally, we can enter *A* in `(i, j)`:math: if there
 is a production *A* |rarr| *B* *C*, and we find
@@ -1030,6 +1031,8 @@ We've implemented a complete, primitive chart parser from the ground up!
 .. XXX distinction between recognition and parsing should be explained
    more carefully or else dropped.
 
+
+
 |WFST|\ 's have several shortcomings.
 First, as you can see, the |WFST| is not itself a parse tree, so the technique is
 strictly speaking `recognizing`:dt: that a sentence is admitted by a
@@ -1041,9 +1044,11 @@ Third, as a bottom-up approach it is potentially wasteful, being
 able to propose constituents in locations that would not be licensed by
 the grammar.
 
+.. XXX is this correct? There isn't an NP -> NP PP edge in the table
+
 Finally, the |WFST| did not represent the structural ambiguity in
 the sentence (i.e. the two verb phrase readings).  The ``VP``
-in cell (`2,8`) was actually entered twice, once for a ``V NP``
+in cell (1, 7) was actually entered twice, once for a ``V NP``
 reading, and once for a ``VP PP`` reading.  These are different
 hypotheses, and the second overwrote the first (as it happens this didn't
 matter since the left hand side was the same.)
@@ -1200,7 +1205,7 @@ These possibilities correspond to the following productions:
     | ``VP -> V NP PP``  |  `put`:lx:         |
     +--------------------+--------------------+
 
-    Missing Caption
+    VP productions and their lexical heads
 
 .. XXX above table is missing a caption, required for formal tables
 
@@ -1450,7 +1455,7 @@ Here is a toy grammar for the "fish" sentences.
 Now we can try parsing a longer sentence, `fish fish fish fish
 fish`:lx:, which amongst other things, means 'fish that other fish
 fish are in the habit of fishing fish themselves'. We use the |NLTK|
-chart parser, which is presented later on in this chapter.  This
+chart parser, which was mentioned earlier in this chapter.  This
 sentence has two readings.
 
     >>> tokens = ["fish"] * 5
@@ -1510,7 +1515,7 @@ nouns designating coordinates, as shown in fig-are_.
    the top left cell is the `a`:em: "are" of column `I`:em: (after Abney).
 
 |nopar|
-Even though this phrase is unlikely, it is still grammatical and a
+Even though this phrase is unlikely, it is still grammatical and
 a broad-coverage parser should be able to construct a parse tree
 for it.  Similarly, sentences that seem to be
 unambiguous, such as `John saw Mary`:lx:, turn out to have other
@@ -1736,7 +1741,7 @@ unbounded dependency constructions.  The most widely used
 term in linguistics for formal grammar is `generative grammar`:dt:,
 though it has nothing to do with generation [Chomsky1965]_.
 
-[BurtonRoberts1997AS]_ is practically oriented textbook on how to
+[BurtonRoberts1997AS]_ is a practically oriented textbook on how to
 analyze constituency in English, with extensive exemplification and
 exercises. [Huddleston2002CGE]_ provides an up-to-date and comprehensive analysis of
 syntactic phenomena in English.
@@ -1833,7 +1838,7 @@ Exercises
 
 #. |soso| You can modify the grammar in the recursive descent parser demo
    by selecting *Edit Grammar*  in the *Edit* menu. Change
-   the first expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
+   the second expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
    PP``. Using the *Step* button, try to build a parse tree. What happens?
 
 #. |soso| Extend the grammar in ``grammar2`` with productions that expand prepositions as
