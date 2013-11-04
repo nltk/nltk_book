@@ -83,25 +83,25 @@ and we can access it as follows.
 
     >>> from urllib import request
     >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
-    >>> raw = request.urlopen(url).read().decode('utf8')
+    >>> response = request.urlopen(url)
+    >>> raw = response.read().decode('utf8')
     >>> type(raw)
-    <type 'str'>
+    <class 'str'>
     >>> len(raw)
-    1176831
+    1176893
     >>> raw[:75]
     'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
 
 .. note::
    The ``read()`` process will take a few seconds as it downloads this large book.
    If you're using an internet proxy which is not correctly detected by Python,
-   you may need to specify the proxy manually as follows:
+   you may need to specify the proxy manually, before using ``urlopen``, as follows:
    
     .. doctest-ignore::
        >>> proxies = {'http': 'http://www.someproxy.com:3128'}
        >>> request.ProxyHandler(proxies)
-       >>> raw = request.urlopen(url).read().decode('utf8')
    
-The variable ``raw`` contains a string with 1,176,831 characters.
+The variable ``raw`` contains a string with 1,176,893 characters.
 (We can see that it is a string, using ``type(raw)``.)
 This is the raw content of the book,
 including many details we are not interested in such as
@@ -116,7 +116,7 @@ and punctuation.
 
     >>> tokens = nltk.word_tokenize(raw)
     >>> type(tokens)
-    <type 'list'>
+    <class 'list'>
     >>> len(tokens)
     255809
     >>> tokens[:10]
@@ -131,7 +131,7 @@ like slicing:
 
     >>> text = nltk.Text(tokens)
     >>> type(text)
-    <type 'nltk.text.Text'>
+    <class 'nltk.text.Text'>
     >>> text[1020:1060]
     ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
     'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
@@ -281,24 +281,22 @@ of a blog, as shown below:
     >>> import feedparser
     >>> llog = feedparser.parse("http://languagelog.ldc.upenn.edu/nll/?feed=atom")
     >>> llog['feed']['title']
-    u'Language Log'
+    'Language Log'
     >>> len(llog.entries)
     15
     >>> post = llog.entries[2]
     >>> post.title
-    u"He's My BF"
+    "He's My BF"
     >>> content = post.content[0].value
     >>> content[:70]
-    u'<p>Today I was chatting with three of our visiting graduate students f'
+    '<p>Today I was chatting with three of our visiting graduate students f'
     >>> nltk.word_tokenize(nltk.clean_html(content))
     >>> nltk.word_tokenize(nltk.clean_html(llog.entries[2].content[0].value))
-    [u'Today', u'I', u'was', u'chatting', u'with', u'three', u'of', u'our', u'visiting',
-    u'graduate', u'students', u'from', u'the', u'PRC', u'.', u'Thinking', u'that', u'I',
-    u'was', u'being', u'au', u'courant', u',', u'I', u'mentioned', u'the', u'expression',
-    u'DUI4XIANG4', u'\u5c0d\u8c61', u'("', u'boy', u'/', u'girl', u'friend', u'"', ...]
+    ['Today', 'I', 'was', 'chatting', 'with', 'three', 'of', 'our', 'visiting',
+    'graduate', 'students', 'from', 'the', 'PRC', '.', 'Thinking', 'that', 'I',
+    'was', 'being', 'au', 'courant', ',', 'I', 'mentioned', 'the', 'expression',
+    'DUI4XIANG4', '\u5c0d\u8c61', '("', 'boy', '/', 'girl', 'friend', '"', ...]
 
-Note that the resulting strings have a ``u`` prefix to indicate that they are Unicode strings
-(see sec-unicode_).
 With some further work, we can write programs to create a small corpus of blog posts,
 and use this as the basis for our |NLP| work.
 
@@ -460,20 +458,20 @@ we are dealing with strings, Python's ``<str>`` data type
 
     >>> raw = open('document.txt').read()
     >>> type(raw)
-    <type 'str'>
+    <class 'str'>
 
 When we tokenize a string we produce a list (of words), and this is Python's ``<list>``
 type.  Normalizing and sorting lists produces other lists:
 
     >>> tokens = nltk.word_tokenize(raw)
     >>> type(tokens)
-    <type 'list'> 
+    <class 'list'> 
     >>> words = [w.lower() for w in tokens]
     >>> type(words)
-    <type 'list'>
+    <class 'list'>
     >>> vocab = sorted(set(words))
     >>> type(vocab)
-    <type 'list'>
+    <class 'list'>
 
 The type of an object determines what operations you can perform on it.
 So, for example, we can append to a list but not to a string:
@@ -942,14 +940,25 @@ For a list of encoding parameters allowed by ``codecs``, see
 Note that we can write unicode-encoded data to a
 file using ``f = codecs.open(path, 'w', encoding='utf-8')``.
 
-Text read from the file object ``f`` will be returned in Unicode. As
-we pointed out earlier, in order to view this text on a terminal, we
-need to encode it, using a suitable encoding.  The Python-specific
-encoding ``unicode_escape`` is a dummy encoding that converts all
-non-ASCII characters into their ``\u``\ *XXXX* representations.  Code
-points above the ASCII 0-127 range but below 256 are represented in
-the two-digit form ``\x``\ *XX*.
+Text read from the file object ``f`` will be returned in Unicode.
+Let's inspect the contents of the file:
 
+    >>> for line in f:
+    ...    line = line.strip()
+    ...    print(line)
+    Pruska Biblioteka Państwowa. Jej dawne zbiory znane pod nazwą
+    "Berlinka" to skarb kultury i sztuki niemieckiej. Przewiezione przez
+    Niemców pod koniec II wojny światowej na Dolny Śląsk, zostały
+    odnalezione po 1945 r. na terytorium Polski. Trafiły do Biblioteki
+    Jagiellońskiej w Krakowie, obejmują ponad 500 tys. zabytkowych
+    archiwaliów, m.in. manuskrypty Goethego, Mozarta, Beethovena, Bacha.
+
+If this does not display correctly on your terminal, or if we want
+to see the underlying numerical values (or "codepoints") of the characters,
+then we can convert all non-ASCII characters into their two-digit ``\x``\ *XX*
+and four-digit ``\u``\ *XXXX* representations:
+
+    >>> f = codecs.open(path, encoding='latin2')
     >>> for line in f:
     ...     line = line.strip()
     ...     print(line.encode('unicode_escape'))
@@ -967,53 +976,42 @@ Unicode character will be dislayed on the screen as the glyph
 ``\xf3``, which corresponds to the glyph |oacute|, and is within the
 128-255 range.
 
-In Python, a Unicode string literal can be specified by
-preceding an ordinary string literal with a ``u``, as in
-``u'hello'``. Arbitrary Unicode characters are defined using the
-``\u``\ *XXXX* escape sequence inside a Unicode string literal.
+In Python 3, source code is encoded using utf-8 by default, and you can
+include Unicode characters in strings if you are using IDLE or another program editor
+that supports Unicode.
+ Arbitrary Unicode characters can be included using the
+``\u``\ *XXXX* escape sequence.
 We find the integer ordinal of a character using ``ord()``. For example:
 
-    >>> ord('a')
-    97
+    >>> ord('ń')
+    324
 
-The hexadecimal 4 digit notation for 97 is 0061, so we can define a
-Unicode string literal with the appropriate escape sequence:
+The hexadecimal 4 digit notation for 324 is 0144 (type ``hex(324)`` to discover this),
+and we can define a string with the appropriate escape sequence.
 
-    >>> a = u'\u0061'
-    >>> a
-    u'a'
-    >>> print(a)
-    a
-
-Notice that the Python ``print`` statement is assuming a default encoding of the
-Unicode character, namely ASCII. However, |nacute| is outside the
-ASCII range, so cannot be printed unless we specify an encoding. In
-the following example, we have specified that ``print`` should use the
-``repr()`` of the string, which outputs the UTF-8 escape sequences
-(of the form ``\x``\ *XX*) rather than trying to render the glyphs.
-
-    >>> nacute = u'\u0144'
+    >>> nacute = '\u0144'
     >>> nacute
-    u'\u0144'
-    >>> nacute_utf = nacute.encode('utf8')
-    >>> print(repr(nacute_utf))
-    '\xc5\x84'
-
-If your operating system and locale are set up to render UTF-8 encoded
-characters, you ought to be able to give the Python command
-``print(nacute_utf)`` and see |nacute| on your screen.
+    'ń'
 
 .. Note::
    There are many factors determining what glyphs are rendered
    on your screen. If you are sure that you have the correct encoding,
    but your Python code is still failing to produce the glyphs you
    expected, you should also check that you have the necessary fonts
-   installed on your system.
+   installed on your system. It may be necessary to configure your locale
+   to render UTF-8 encoded characters, then use ``print(nacute.encode('utf8'))``
+   in order to see the |nacute| displayed in your terminal.
+
+We can also see how this character is represented as a sequence of bytes inside
+a text file:
+
+    >>> nacute.encode('utf8')
+    b'\xc5\x84'
 
 The module ``unicodedata`` lets us inspect the properties of Unicode
 characters. In the following example, we select all characters in the
 third line of our Polish text outside the ASCII range and print their
-UTF-8 escaped value, followed by their code point integer using the
+UTF-8 byte sequence, followed by their code point integer using the
 standard Unicode convention (i.e., prefixing the hex digits with
 ``U+``), followed by their Unicode name.
 
@@ -1021,15 +1019,15 @@ standard Unicode convention (i.e., prefixing the hex digits with
     >>> lines = codecs.open(path, encoding='latin2').readlines()
     >>> line = lines[2]
     >>> print(line.encode('unicode_escape'))
-    Niemc\xf3w pod koniec II wojny \u015bwiatowej na Dolny \u015al\u0105sk, zosta\u0142y\n
+    b'Niemc\\xf3w pod koniec II wojny \\u015bwiatowej na Dolny \\u015al\\u0105sk, zosta\\u0142y\\n'
     >>> for c in line:
     ...     if ord(c) > 127:
     ...         print('%r U+%04x %s' % (c.encode('utf8'), ord(c), unicodedata.name(c)))
-    '\xc3\xb3' U+00f3 LATIN SMALL LETTER O WITH ACUTE
-    '\xc5\x9b' U+015b LATIN SMALL LETTER S WITH ACUTE
-    '\xc5\x9a' U+015a LATIN CAPITAL LETTER S WITH ACUTE
-    '\xc4\x85' U+0105 LATIN SMALL LETTER A WITH OGONEK
-    '\xc5\x82' U+0142 LATIN SMALL LETTER L WITH STROKE
+    b'\xc3\xb3' U+00f3 LATIN SMALL LETTER O WITH ACUTE
+    b'\xc5\x9b' U+015b LATIN SMALL LETTER S WITH ACUTE
+    b'\xc5\x9a' U+015a LATIN CAPITAL LETTER S WITH ACUTE
+    b'\xc4\x85' U+0105 LATIN SMALL LETTER A WITH OGONEK
+    b'\xc5\x82' U+0142 LATIN SMALL LETTER L WITH STROKE
 
 If you replace the ``%r`` (which yields the ``repr()`` value) by
 ``%s`` in the format string of the code sample above, and if your system supports UTF-8,
@@ -1045,24 +1043,26 @@ Alternatively, you may need to replace the encoding ``'utf8'`` in the
 example by ``'latin2'``, again depending on the details of your system.
 
 The next examples illustrate how Python string methods and the ``re``
-module accept Unicode strings.
+module can work with Unicode characters. (We will take a close look at
+the ``re`` module in the following section.)
 
-    >>> line.find(u'zosta\u0142y')
+    >>> line.find('zosta\u0142y')
     54
     >>> line = line.lower()
-    >>> print(line.encode('unicode_escape'))
-    niemc\xf3w pod koniec ii wojny \u015bwiatowej na dolny \u015bl\u0105sk, zosta\u0142y\n
+    >>> line
+    'niemców pod koniec ii wojny światowej na dolny śląsk, zostały\n'
+    >>> line.encode('unicode_escape')
+    b'niemc\\xf3w pod koniec ii wojny \\u015bwiatowej na dolny \\u015bl\\u0105sk, zosta\\u0142y\\n'
     >>> import re
-    >>> m = re.search(u'\u015b\w*', line)
+    >>> m = re.search('\u015b\w*', line)
     >>> m.group()
-    u'\u015bwiatowej'
+    '\u015bwiatowej'
 
 |NLTK| tokenizers allow Unicode strings as input, and
 correspondingly yield Unicode strings as output.
 
     >>> nltk.word_tokenize(line)  # doctest: +NORMALIZE_WHITESPACE
-    [u'niemc\xf3w', u'pod', u'koniec', u'ii', u'wojny', u'\u015bwiatowej',
-    u'na', u'dolny', u'\u015bl\u0105sk', u'zosta\u0142y']
+    ['niemców', 'pod', 'koniec', 'ii', 'wojny', 'światowej', 'na', 'dolny', 'śląsk', ',', 'zostały']
 
 Using your local encoding in Python
 -----------------------------------
