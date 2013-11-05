@@ -32,6 +32,11 @@ the following ways:
       multiple times.
 """
 
+# compat hack:
+import operator, numbers, collections
+operator.isNumberType = lambda x:isinstance(x, numbers.Number)
+operator.isSequenceType = lambda x:isinstance(x, collections.Sequence)
+
 import re, os.path, textwrap, sys, pickle
 from optparse import OptionParser
 from tree2image import tree_to_image

@@ -31,14 +31,14 @@ PY := $(CHAPTERS:.rst=.py)
 
 BIBTEX_FILE = ../refs.bib
 
-PYTHON = python
+PYTHON = python3
 PDFLATEX = TEXINPUTS=".:..:ucs:" pdflatex -halt-on-error
 EXAMPLES = ../examples.py
 LATEXHACKS = ../latexhacks.py
 DOCTEST_SPLIT = ../doctest_split.py 
 RUNTESTS = ../../nltk/nltk/test/runtests.py
 
-RST = ../rst.py
+RST = $(PYTHON) ../rst.py
 NLTK_SRC = ../../nltk
 TOOLS = $(NLTK_SRC)/tools
 NLTK_INDEX = $(TOOLS)/nltk_term_index.py
@@ -47,7 +47,7 @@ RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
-DOCTEST = PYTHONPATH=..: $(PYTHON) ../doctest_driver.py
+DOCTEST = PYTHONPATH=..:../../nltk $(PYTHON) ../doctest_driver.py
 BIBTEX = bibtex -terse
 XSLT = java org.apache.xalan.xslt.Process
 #get from environment
@@ -59,7 +59,7 @@ XMLLINT = xmllint --noout --dtdvalid $(DOCBOOKDTD)
 # <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
 BIB2XHTML = bib2xhtml -s named
 LATEX_STYLESHEET_PATH = ../definitions.sty
-RSTHACKS = python ../rsthacks.py
+RSTHACKS = $(PYTHON) ../rsthacks.py
 
 .SUFFIXES: .rst .rst2 .html .pdf .errs .py
 
@@ -120,7 +120,7 @@ clean_up:
 %.tex: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=latex $<
 	$(RST2LATEX) $(REF) $*.rst2
-	$(LATEXHACKS) $@
+	$(PYTHON) $(LATEXHACKS) $@
 
 revision.rst: $(CHAPTERS)
 	echo "This document was built on" > revision.rst
@@ -171,8 +171,8 @@ book.pdf: book.bbl book.tex
 
 .rst.errs:
 	$(PYTHON) $(DOCTEST_SPLIT) $<
-	$(PYTHON) $(RUNTESTS) $*-*.doctest 2>&1 |tee $@
-#	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
+#	$(PYTHON) $(RUNTESTS) $*-*.doctest 2>&1 |tee $@
+	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
 	rm -f $*-*.doctest
 
 .rst.py:
