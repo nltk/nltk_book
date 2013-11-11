@@ -3,7 +3,7 @@
 .. def:: definitions
 
 .. |version| replace:: 3.0
-.. |copyrightinfo| replace:: 2001-2012 the authors
+.. |copyrightinfo| replace:: 2001-2013 the authors
 .. |license| replace:: Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License
 
 .. CAP abbreviations (map to small caps in LaTeX)
