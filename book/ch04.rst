@@ -709,17 +709,18 @@ and its purpose is instantly recognizable:
 Another case where a loop counter seems to be necessary is for printing
 a counter with each line of output.  Instead, we can use ``enumerate()``, which
 processes a sequence ``s`` and produces a tuple of the form ``(i, s[i])`` for each
-item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the keys of the
-frequency distribution, and capture the integer-string pair in the variables ``rank``
-and ``word``.  We print ``rank+1`` so that the counting appears to start from ``1``,
+item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the key-value pairs of the
+frequency distribution, resulting in nested tuples ``(rank, (word, count))``.
+We print ``rank+1`` so that the counting appears to start from ``1``,
 as required when producing a list of ranked items.
 
     >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
     >>> cumulative = 0.0
-    >>> for rank, word in enumerate(fd):
-    ...     cumulative += fd[word] * 100 / fd.N()
-    ...     print("%3d %6.2f%% %s" % (rank+1, cumulative, word))
-    ...     if cumulative > 25:
+    >>> most_common_words = [word for (word, count) in fd.most_common()]
+    >>> for rank, word in enumerate(most_common_words):
+    ...     cumulative += fd.freq(word)
+    ...     print("%3d %6.2f%% %s" % (rank + 1, cumulative * 100, word))
+    ...     if cumulative > 0.25:
     ...         break
     ...
       1   5.40% the
@@ -1143,10 +1144,12 @@ passed in as a parameter, and it also prints a list of the
    from urllib import request
 
    def freq_words(url, freqdist, n):
-       text = nltk.clean_url(url)
-       for word in word_tokenize(text):
-           freqdist.inc(word.lower())
-       print(freqdist.keys()[:n])
+       response = request.urlopen(url)
+       html = response.read().decode('utf8')
+       raw = BeautifulSoup(html).get_text()
+       for word in word_tokenize(raw):
+           freqdist[word.lower()] += 1
+       print(freqdist.most_common(n))
 
    >>> constitution = "http://www.archives.gov/national-archives-experience" \
    ...                "/charters/constitution_transcript.html"
@@ -1506,7 +1509,7 @@ progress if a ``verbose`` flag is set:
     ...     if verbose: print("Read in %d characters" % len(file))
     ...     for word in word_tokenize(text):
     ...         if len(word) >= min:
-    ...             freqdist.inc(word)
+    ...             freqdist[word] += 1
     ...             if verbose and freqdist.N() % 100 == 0: print(".")
     ...     if verbose: print
     ...     return freqdist.keys()[:num]
@@ -2318,7 +2321,7 @@ format.  The output is shown in fig-modal-genre_ (a color figure in the graphica
       for genre in genres:
           for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
               if tag == t:
-                   cfdist[genre].inc(word.lower())
+                   cfdist[genre][word.lower()] += 1
       return cfdist
     
 
