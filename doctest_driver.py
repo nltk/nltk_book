@@ -767,6 +767,7 @@ class MyDocTestRunner(DocTestRunner):
         save_stderr = sys.stderr
         #sys.stderr = _SpoofOut()
 
+        fails = tries = 0
         if self._verbosity > 0:
             print((
                 self._stderr_term.CYAN+self._stderr_term.BOLD+
