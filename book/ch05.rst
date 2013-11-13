@@ -312,8 +312,10 @@ category of the Brown corpus:
     >>> from nltk.corpus import brown
     >>> brown_news_tagged = brown.tagged_words(categories='news', tagset='universal')
     >>> tag_fd = nltk.FreqDist(tag for (word, tag) in brown_news_tagged)
-    >>> list(tag_fd)
-    ['N', 'P', 'DET', 'NP', 'V', 'ADJ', ',', '.', 'CNJ', 'PRO', 'ADV', 'VD', ...]
+    >>> tag_fd.most_common()
+    [('NOUN', 30640), ('VERB', 14399), ('ADP', 12355), ('.', 11928), ('DET', 11389),
+     ('ADJ', 6706), ('ADV', 3349), ('CONJ', 2717), ('PRON', 2535), ('PRT', 2264),
+     ('NUM', 2166), ('X', 92), ('UNK', 14)]
 
 .. note:: |TRY|
    Plot the above frequency distribution using ``tag_fd.plot(cumulative=True)``.
@@ -358,7 +360,9 @@ of bigrams whose members are themselves word-tag pairs such as
 Then we construct a ``FreqDist`` from the tag parts of the bigrams.
 
     >>> word_tag_pairs = nltk.bigrams(brown_news_tagged)
-    >>> list(nltk.FreqDist(a[1] for (a, b) in word_tag_pairs if b[1] == 'N'))
+    >>> noun_preceders = [a[1] for (a, b) in word_tag_pairs if b[1] == 'NOUN']
+    >>> fdist = nltk.FreqDist(noun_preceders)
+    >>> [tag for (tag, _) in fdist.most_common()]
     ['DET', 'ADJ', 'N', 'P', 'NP', 'NUM', 'V', 'PRO', 'CNJ', '.', ',', 'VG', 'VN', ...]
 
 This confirms our assertion that nouns occur after determiners and
@@ -391,11 +395,11 @@ What are the most common verbs in news text?  Let's sort all the verbs by freque
 
     >>> wsj = nltk.corpus.treebank.tagged_words(tagset='universal')
     >>> word_tag_fd = nltk.FreqDist(wsj)
-    >>> [word + "/" + tag for (word, tag) in word_tag_fd if tag.startswith('V')]
-    ['is/V', 'said/VD', 'was/VD', 'are/V', 'be/V', 'has/V', 'have/V', 'says/V',
-    'were/VD', 'had/VD', 'been/VN', "'s/V", 'do/V', 'say/V', 'make/V', 'did/VD',
-    'rose/VD', 'does/V', 'expected/VN', 'buy/V', 'take/V', 'get/V', 'sell/V',
-    'help/V', 'added/VD', 'including/VG', 'according/VG', 'made/VN', 'pay/V', ...]
+    >>> [wt[0] for (wt, _) in word_tag_fd.most_common() if wt[1] == 'VERB']
+    ['is', 'said', 'was', 'are', 'be', 'has', 'have', 'will', 'says', 'would',
+     'were', 'had', 'been', 'could', "'s", 'can', 'do', 'say', 'make', 'may',
+     'did', 'rose', 'made', 'does', 'expected', 'buy', 'take', 'get', 'might',
+     'sell', 'added', 'sold', 'help', 'including', 'should', 'reported', ...]
 
 Note that the items being counted in the frequency distribution are word-tag pairs.
 Since words and tags are paired, we can treat the word as a condition and the tag
@@ -403,10 +407,10 @@ as an event, and initialize a conditional frequency distribution with a list of
 condition-event pairs.  This lets us see a frequency-ordered list of tags given a word:
 
     >>> cfd1 = nltk.ConditionalFreqDist(wsj)
-    >>> list(cfd1['yield'])
-    ['V', 'N']
-    >>> list(cfd1['cut'])
-    ['V', 'VD', 'N', 'VN']
+    >>> cfd1['yield'].most_common()
+    ['VERB', 'NOUN']
+    >>> cfd1['cut'].most_common()
+    ['VERB', 'NOUN']
 
 We can reverse the order of the pairs, so that the tags are the conditions, and the
 words are the events.  Now we can see likely words for a given tag:
@@ -821,19 +825,19 @@ Default Dictionaries
 If we try to access a key that is not in a dictionary, we get an error.
 However, its often useful if a dictionary can automatically create
 an entry for this new key and give it a default value, such as zero or
-the empty list.  Since Python 2.5, a special kind of dictionary
-called a ``defaultdict`` has been available.  (It is provided
-as ``nltk.defaultdict`` for the benefit of readers who are using Python 2.4).
+the empty list.  For this reason, a special kind of dictionary
+called a ``defaultdict`` is available.
 In order to use it, we have to supply a parameter which can be used to
 create the default value, e.g. ``int``, ``float``, ``str``, ``list``, ``dict``,
 ``tuple``.
 
-    >>> frequency = nltk.defaultdict(int)
+    >>> from collections import defaultdict
+    >>> frequency = defaultdict(int)
     >>> frequency['colorless'] = 4
     >>> frequency['ideas']
     0
-    >>> pos = nltk.defaultdict(list)
-    >>> pos['sleep'] = ['N', 'V']
+    >>> pos = defaultdict(list)
+    >>> pos['sleep'] = ['NOUN', 'VERB']
     >>> pos['ideas']
     []
 
@@ -852,12 +856,12 @@ whose default value for any entry is ``'N'`` default-noun_.
 When we access a non-existent entry non-existent_,
 it is automatically added to the dictionary automatically-added_.
 
-    >>> pos = nltk.defaultdict(lambda: 'N') # [_default-noun]
+    >>> pos = defaultdict(lambda: 'NOUN') # [_default-noun]
     >>> pos['colorless'] = 'ADJ'
     >>> pos['blog'] # [_non-existent]
-    'N'
-    >>> pos.items()
-    [('blog', 'N'), ('colorless', 'ADJ')] # [_automatically-added]
+    'NOUN'
+    >>> list(pos.items())
+    [('blog', 'NOUN'), ('colorless', 'ADJ')] # [_automatically-added]
 
 .. note::
    The above example used a `lambda expression`:em:, introduced in
@@ -865,13 +869,13 @@ it is automatically added to the dictionary automatically-added_.
    parameters, so we call it using parentheses with no arguments.
    Thus, the definitions of ``f`` and ``g`` below are equivalent:
 
-      >>> f = lambda: 'N'
+      >>> f = lambda: 'NOUN'
       >>> f()
-      'N'
+      'NOUN'
       >>> def g():
-      ...     return 'N'
+      ...     return 'NOUN'
       >>> g()
-      'N'
+      'NOUN'
 
 Let's see how default dictionaries could be used in a more substantial
 language processing task.
@@ -888,8 +892,8 @@ Everything else will be mapped to ``UNK``.
 
     >>> alice = nltk.corpus.gutenberg.words('carroll-alice.txt')
     >>> vocab = nltk.FreqDist(alice)
-    >>> v1000 = list(vocab)[:1000]
-    >>> mapping = nltk.defaultdict(lambda: 'UNK')
+    >>> v1000 = [word for (word, _) in vocab.most_common(1000)]
+    >>> mapping = defaultdict(lambda: 'UNK')
     >>> for v in v1000:
     ...     mapping[v] = v
     ... 
@@ -924,7 +928,8 @@ we increment its count using the ``+=`` operator.
 .. pylisting:: code-dictionary
    :caption: Incrementally Updating a Dictionary, and Sorting by Value
 
-    >>> counts = nltk.defaultdict(int)
+    >>> from collections import defaultdict
+    >>> counts = defaultdict(int)
     >>> from nltk.corpus import brown
     >>> for (word, tag) in brown.tagged_words(categories='news'):
     ...     counts[tag] += 1
@@ -961,13 +966,13 @@ There's a second useful programming idiom at the beginning of
 code-dictionary_, where we initialize a ``defaultdict`` and then use a
 ``for`` loop to update its values. Here's a schematic version:
 
-|    ``>>> my_dictionary = nltk.defaultdict(``\ *function to create default value*\ ``)``
+|    ``>>> my_dictionary = defaultdict(``\ *function to create default value*\ ``)``
 |    ``>>> for`` *item* ``in`` *sequence*\ ``:``
 |    ``...      my_dictionary[``\ *item_key*\ ``]`` *is updated with information about item*
 
 Here's another instance of this pattern, where we index words according to their last two letters:
 
-    >>> last_letters = nltk.defaultdict(list)
+    >>> last_letters = defaultdict(list)
     >>> words = nltk.corpus.words.words('en')
     >>> for word in words:
     ...     key = word[-2:]
@@ -982,7 +987,7 @@ Here's another instance of this pattern, where we index words according to their
 The following example uses the same pattern to create an anagram dictionary.
 (You might experiment with the third line to get an idea of why this program works.)
 
-    >>> anagrams = nltk.defaultdict(list)
+    >>> anagrams = defaultdict(list)
     >>> for word in words:
     ...     key = ''.join(sorted(word))
     ...     anagrams[key].append(word)
@@ -1012,7 +1017,7 @@ Let's study the range of possible tags for a word, given the
 word itself, and the tag of the previous word.  We will see
 how this information can be used by a POS tagger.
 
-    >>> pos = nltk.defaultdict(lambda: nltk.defaultdict(int))
+    >>> pos = defaultdict(lambda: defaultdict(int))
     >>> brown_news_tagged = brown.tagged_words(categories='news', tagset='universal')
     >>> for ((w1, t1), (w2, t2)) in nltk.bigrams(brown_news_tagged): # [_processing-pairs]
     ...     pos[(t1, w2)][t2] += 1 # [_tag-word-update]
@@ -1039,7 +1044,7 @@ any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
 immediately obtain the value.  Finding a key given a value is slower and more
 cumbersome:
 
-    >>> counts = nltk.defaultdict(int)
+    >>> counts = defaultdict(int)
     >>> for word in nltk.corpus.gutenberg.words('milton-paradise.txt'):
     ...     counts[word] += 1
     ...
@@ -1067,7 +1072,7 @@ not?).  Instead, we have to use ``append()`` to accumulate the words
 for each part-of-speech, as follows:
 
     >>> pos.update({'cats': 'N', 'scratch': 'V', 'peacefully': 'ADV', 'old': 'ADJ'})
-    >>> pos2 = nltk.defaultdict(list)
+    >>> pos2 = defaultdict(list)
     >>> for key, value in pos.items():
     ...     pos2[value].append(key)
     ... 
