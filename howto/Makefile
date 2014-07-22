@@ -22,15 +22,15 @@ RST2HTML = $(RST) --html --css ../nltkdoc.css
 
 # Testing:
 PYTHON = python
-DOCTEST = $(PYTHON) ../../nltk/test/doctest_driver.py
+DOCTEST = $(PYTHON) ../../nltk/nltk/test/doctest_driver.py
 DOCTEST_FLAGS = --udiff
 
-PUBLISH = ../../../doc
+PUBLISH = ../../nltk.github.com
 
 .PHONY: all html coverage
 
-all: html errs coverage index.html
-html: $(HTML)
+#all: html errs coverage
+html: $(HTML) index.html
 errs: $(ERRS)
 	@echo Failed doctests:
 	@grep 'FAILED (failures' *.errs |sed 's/\(.*\)\.errs:.*/  - \1/'
@@ -54,26 +54,23 @@ coverage-list.txt: $(COVERAGE) ./show_coverage.py
 $(DOCTEST_SRC)/%.doctest: $(DOCTEST_SRC)/%.doctest_latin1
 	iconv -f iso8859-1 -t utf8 $< > $@
 
-index.html: index.txt test-list.txt
+index.html: index.txt #test-list.txt
 	$(RST2HTML) index.txt
-	cat index.txt |sed s/test-list.txt/test-list-sort-title.txt/ \
-		>sort-title.txt
-	cat index.txt |sed s/test-list.txt/test-list-sort-lines.txt/ \
-		>sort-lines.txt
-	cat index.txt |sed s/test-list.txt/test-list-sort-tests.txt/ \
-		>sort-tests.txt
-	cat index.txt |sed s/test-list.txt/test-list-sort-outcome.txt/ \
-		>sort-outcome.txt
-	$(RST2HTML) sort-title.txt
-	$(RST2HTML) sort-lines.txt
-	$(RST2HTML) sort-tests.txt
-	$(RST2HTML) sort-outcome.txt
+#	cat index.txt |sed s/test-list.txt/test-list-sort-title.txt/ \
+#		>sort-title.txt
+#	cat index.txt |sed s/test-list.txt/test-list-sort-lines.txt/ \
+#		>sort-lines.txt
+#	cat index.txt |sed s/test-list.txt/test-list-sort-tests.txt/ \
+#		>sort-tests.txt
+#	cat index.txt |sed s/test-list.txt/test-list-sort-outcome.txt/ \
+#		>sort-outcome.txt
+#	$(RST2HTML) sort-title.txt
+#	$(RST2HTML) sort-lines.txt
+#	$(RST2HTML) sort-tests.txt
+#	$(RST2HTML) sort-outcome.txt
 
 test-list.txt: update_list.py $(ERRS)
 	python update_list.py
-
-rsync: html errs coverage index.html
-	rsync $(RSYNC_OPTS) . $(WEB)/doc/guides/
 
 clean:
 	rm -f `find . -name '*.html'`
@@ -83,6 +80,5 @@ clean_up:
 	true # nothing to do.
 
 publish:
-	cp *.html *.errs *.coverage $(PUBLISH)/howto/
-	svn add $(PUBLISH)/howto/*
-	python ../../tools/svnmime.py $(PUBLISH)/howto/*
+	#cp *.html *.errs *.coverage $(PUBLISH)/howto/
+	cp *.html $(PUBLISH)/howto/
