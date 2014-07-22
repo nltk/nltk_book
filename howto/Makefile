@@ -30,7 +30,7 @@ PUBLISH = ../../nltk.github.com
 .PHONY: all html coverage
 
 #all: html errs coverage
-html: $(HTML) index.html
+html: $(HTML) #index.html
 errs: $(ERRS)
 	@echo Failed doctests:
 	@grep 'FAILED (failures' *.errs |sed 's/\(.*\)\.errs:.*/  - \1/'
