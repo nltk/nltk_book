@@ -18,7 +18,7 @@ CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../nltk.github.com/book3
+PUBLISH = ../../nltk.github.com/book
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
@@ -73,7 +73,7 @@ usage:
 	@echo "    make errs        -- Run doctest to generate .errs files"
 	@echo "    make clean       -- Remove all built files"
 
-all: html examples clean_up  # pdf
+#all: html examples clean_up  # pdf
 html: $(HTML) bibliography.html 
 pdf: $(PDF)
 xml: $(XML)
