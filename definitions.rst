@@ -184,13 +184,13 @@
 .. |ren2| unicode:: U+4EBA .. zh ren (person)
   
 .. URLs
-.. |StevenBird| replace:: `Steven Bird <http://www.csse.unimelb.edu.au/~sb/>`__
-.. |EwanKlein| replace:: `Ewan Klein <http://www.ltg.ed.ac.uk/~ewan/>`__
-.. |EdwardLoper| replace:: `Edward Loper <http://www.cis.upenn.edu/~edloper/>`__
+.. |StevenBird| replace:: `Steven Bird <http://estive.net/>`__
+.. |EwanKlein| replace:: `Ewan Klein <http://homepages.inf.ed.ac.uk/ewan/>`__
+.. |EdwardLoper| replace:: `Edward Loper <http://ed.loper.org/>`__
 .. |PYTHON-URL| replace:: ``http://python.org/``
 .. |PYTHON-DOCS| replace:: ``http://docs.python.org/``
-.. |NLTK-URL| replace:: ``http://www.nltk.org/``
-.. |NLTK-HOWTO-URL| replace:: ``http://www.nltk.org/howto``
+.. |NLTK-URL| replace:: ``http://nltk.org/``
+.. |NLTK-HOWTO-URL| replace:: ``http://nltk.org/howto``
 .. |OLAC-URL| replace:: ``http://www.language-archives.org/``
   
 .. Python example - a snippet of code in running text
