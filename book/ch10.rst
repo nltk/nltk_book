@@ -143,7 +143,7 @@ This allows us to parse a query into SQL.
     >>> from nltk import load_parser
     >>> cp = load_parser('grammars/book_grammars/sql0.fcfg')
     >>> query = 'What cities are located in China'
-    >>> trees = cp.nbest_parse(query.split())
+    >>> trees = list(cp.parse(query.split()))
     >>> answer = trees[0].label()['SEM']
     >>> answer = [s for s in answer if s]
     >>> q = ' '.join(answer)
@@ -474,17 +474,17 @@ corresponds to `The moon is made of green cheese`:lx:) and ``Q`` is
 true (say ``Q`` corresponds to `Two plus two equals four`:lx:) then ``P
 -> Q`` will come out true.
 
-|NLTK|\ s ``LogicParser()`` parses logical expressions into
+|NLTK|\ s ``Expression`` object can process logical expressions into
 various subclasses of ``Expression``:
 
-    >>> lp = nltk.LogicParser()
-    >>> lp.parse('-(P & Q)')
+    >>> lexpr = nltk.sem.Expression.fromstring
+    >>> lexpr('-(P & Q)')
     <NegatedExpression -(P & Q)>
-    >>> lp.parse('P & Q')
+    >>> lexpr('P & Q')
     <AndExpression (P & Q)>
-    >>> lp.parse('P | (R -> Q)')
+    >>> lexpr('P | (R -> Q)')
     <OrExpression (P | (R -> Q))>
-    >>> lp.parse('P <-> -- P')
+    >>> lexpr('P <-> -- P')
     <IffExpression (P <-> --P)>
 
 From a computational perspective, logics give us an important tool for performing
@@ -551,12 +551,12 @@ Arguments can be tested for "syntactic validity" by using a proof system.  We wi
 say a little bit more about this later on in sec-fol_.  Logical proofs can be carried out with
 |NLTK|\ 's ``inference`` module, for example *via* an interface to the
 third-party theorem prover Prover9. The inputs to the inference mechanism first have to
-be parsed into logical expressions by ``LogicParser()``. 
+be converted into logical expressions.
 
-    >>> lp = nltk.LogicParser()
-    >>> SnF = lp.parse('SnF')
-    >>> NotFnS = lp.parse('-FnS')
-    >>> R = lp.parse('SnF -> -FnS')
+    >>> lp = nltk.sem.Expression.fromstring
+    >>> SnF = lexpr('SnF')
+    >>> NotFnS = lexpr('-FnS')
+    >>> R = lexpr('SnF -> -FnS')
     >>> prover = nltk.Prover9()
     >>> prover.prove(NotFnS, [SnF, R])
     True
@@ -877,23 +877,23 @@ In general, an occurrence of a variable ``x`` in a formula |phi| is `free`:dt: i
 ``all x.``\ |phi| and ``exists x.``\ |phi|. If all variable occurrences in a formula are bound, the formula is said
 to be `closed`:dt:. 
 
-We mentioned before that the ``parse()`` method of
-|nltk|\ 's ``LogicParser`` returns objects of class ``Expression``. Each
+We mentioned before that the ``Expression`` object can process
+strings, and returns objects of class ``Expression``. Each
 instance ``expr`` of this class comes with a method ``free()`` which returns the set
 of variables that are free in ``expr``.
 
-    >>> lp = nltk.LogicParser()
-    >>> lp.parse('dog(cyril)').free()
+    >>> lexpr = nltk.sem.Expression.fromstring
+    >>> lexpr('dog(cyril)').free()
     set()
-    >>> lp.parse('dog(x)').free()
+    >>> lexpr('dog(x)').free()
     {Variable('x')}
-    >>> lp.parse('own(angus, cyril)').free()
+    >>> lexpr('own(angus, cyril)').free()
     set()
-    >>> lp.parse('exists x.dog(x)').free()
+    >>> lexpr('exists x.dog(x)').free()
     set()
-    >>> lp.parse('((some x. walk(x)) -> sing(x))').free()
+    >>> lexpr('((some x. walk(x)) -> sing(x))').free()
     {Variable('x')}
-    >>> lp.parse('exists x.own(y, x)').free()
+    >>> lexpr('exists x.own(y, x)').free()
     {Variable('y')}
 
 
@@ -929,9 +929,9 @@ proof goal goal_ and the two assumptions ass1_ ass2_. Then we create a ``Prover9
 instance new-prover_, and call its ``prove()`` method on the goal, given the list of
 assumptions prove_.
 
-    >>> NotFnS = lp.parse('-north_of(f, s)')  # [_goal]
-    >>> SnF = lp.parse('north_of(s, f)')    # [_ass1]   
-    >>> R = lp.parse('all x. all y. (north_of(x, y) -> -north_of(y, x))')  # [_ass2]
+    >>> NotFnS = lexpr('-north_of(f, s)')  # [_goal]
+    >>> SnF = lexpr('north_of(s, f)')    # [_ass1]   
+    >>> R = lexpr('all x. all y. (north_of(x, y) -> -north_of(y, x))')  # [_ass2]
     >>> prover = nltk.Prover9()   # [_new-prover]
     >>> prover.prove(NotFnS, [SnF, R])  # [_prove]
     True
@@ -940,7 +940,7 @@ Happily, the theorem prover agrees with us that the argument is valid.  By contr
 it concludes that it is not possible to infer ``north_of(f, s)`` from our
 assumptions:
 
-    >>> FnS = lp.parse('north_of(f, s)')
+    >>> FnS = lexpr('north_of(f, s)')
     >>> prover.prove(FnS, [SnF, R])
     False
 
@@ -1225,13 +1225,13 @@ returns a set of all the individuals that satisfy an open formula. The
 method parameters are a parsed formula, a variable, and an
 assignment. Here are a few examples:
 
-    >>> fmla1 = lp.parse('girl(x) | boy(x)')
+    >>> fmla1 = lexpr('girl(x) | boy(x)')
     >>> m.satisfiers(fmla1, 'x', g)
     {'b', 'o'}
-    >>> fmla2 = lp.parse('girl(x) -> walk(x)')
+    >>> fmla2 = lexpr('girl(x) -> walk(x)')
     >>> m.satisfiers(fmla2, 'x', g)
     {'c', 'b', 'o'}
-    >>> fmla3 = lp.parse('walk(x) -> girl(x)')
+    >>> fmla3 = lexpr('walk(x) -> girl(x)')
     >>> m.satisfiers(fmla3, 'x', g)
     {'b', 'o'}
 
@@ -1329,7 +1329,7 @@ using the ``satisfiers()`` method of ``Model`` objects.
     >>> dom2 = val2.domain
     >>> m2 = nltk.Model(dom2, val2)
     >>> g2 = nltk.Assignment(dom2)
-    >>> fmla4 = lp.parse('(person(x) -> exists y.(person(y) & admire(x, y)))')
+    >>> fmla4 = lexpr('(person(x) -> exists y.(person(y) & admire(x, y)))')
     >>> m2.satisfiers(fmla4, 'x', g2)
     {'e', 'b', 'm', 'j'}
 
@@ -1337,7 +1337,7 @@ This shows that ``fmla4`` holds of every individual in the domain.
 By contrast, consider the formula ``fmla5`` below; this has no
 satisfiers for the variable ``y``.
 
-    >>> fmla5 = lp.parse('(person(y) & all x.(person(x) -> admire(x, y)))')
+    >>> fmla5 = lexpr('(person(y) & all x.(person(x) -> admire(x, y)))')
     >>> m2.satisfiers(fmla5, 'y', g2)
     set()
 
@@ -1345,7 +1345,7 @@ That is, there is no person that is admired by everybody. Taking a
 different open formula, ``fmla6``, we can verify that there is a
 person, namely Bruce, who is admired by both Julia and Bruce.
 
-    >>> fmla6 = lp.parse('(person(y) & all x.((x = bruce | x = julia) -> admire(x, y)))')
+    >>> fmla6 = lexpr('(person(y) & all x.((x = bruce | x = julia) -> admire(x, y)))')
     >>> m2.satisfiers(fmla6, 'y', g2)
     {'b'}
 
@@ -1373,9 +1373,9 @@ goal unspecified.  The following interaction shows how both
 in building a model for each of them, while ``[c1, c2]`` is
 inconsistent.
 
-    >>> a3 = lp.parse('exists x.(man(x) & walks(x))')
-    >>> c1 = lp.parse('mortal(socrates)')
-    >>> c2 = lp.parse('-mortal(socrates)')
+    >>> a3 = lexpr('exists x.(man(x) & walks(x))')
+    >>> c1 = lexpr('mortal(socrates)')
+    >>> c2 = lexpr('-mortal(socrates)')
     >>> mb = nltk.Mace(5)
     >>> print(mb.build_model(None, [a3, c1]))
     True
@@ -1406,10 +1406,10 @@ model in which the premises are true but the conclusion is false? In
 the following code, we use ``MaceCommand()`` which will let us inspect
 the model that has been built.
 
-    >>> a4 = lp.parse('exists y. (woman(y) & all x. (man(x) -> love(x,y)))')
-    >>> a5 = lp.parse('man(adam)')
-    >>> a6 = lp.parse('woman(eve)')
-    >>> g = lp.parse('love(adam,eve)')
+    >>> a4 = lexpr('exists y. (woman(y) & all x. (man(x) -> love(x,y)))')
+    >>> a5 = lexpr('man(adam)')
+    >>> a6 = lexpr('woman(eve)')
+    >>> g = lexpr('love(adam,eve)')
     >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6])
     >>> mc.build_model()
     True
@@ -1448,8 +1448,8 @@ So let's add a new assumption which makes the sets of men and women disjoint. Th
 still produces a countermodel, but this time it is more in accord with our intuitions
 about the situation:
 
-    >>> a7 = lp.parse('all x. (man(x) -> -woman(x))')
-    >>> g = lp.parse('love(adam,eve)')
+    >>> a7 = lexpr('all x. (man(x) -> -woman(x))')
+    >>> g = lexpr('love(adam,eve)')
     >>> mc = nltk.MaceCommand(g, assumptions=[a4, a5, a6, a7])
     >>> mc.build_model()
     True
@@ -1605,13 +1605,13 @@ Remember that ``\`` is a special character in Python strings.
 We could escape it (with another ``\``), or else use "raw strings"
 (sec-regular-expressions-word-patterns_):
 
-    >>> lp = nltk.LogicParser()
-    >>> e = lp.parse(r'\x.(walk(x) & chew_gum(x))')
+    >>> lexpr = nltk.sem.Expression.fromstring
+    >>> e = lexpr(r'\x.(walk(x) & chew_gum(x))')
     >>> e
     <LambdaExpression \x.(walk(x) & chew_gum(x))>
     >>> e.free()
     set()
-    >>> print(lp.parse(r'\x.(walk(x) & chew_gum(y))'))
+    >>> print(lexpr(r'\x.(walk(x) & chew_gum(y))'))
     \x.(walk(x) & chew_gum(y))
 
 .. XXX next sentence has a bad linebreak: ab-straction (tweak?)
@@ -1677,7 +1677,7 @@ values as |alpha|\ [|beta|\ `/x`:math:]. This is indeed true, subject to a sligh
 complication that we will come to shortly.  In order to carry of |beta|-reduction of
 expressions in |NLTK|, we can call the ``simplify()`` method simplify_.
 
-    >>> e = lp.parse(r'\x.(walk(x) & chew_gum(x))(gerald)')
+    >>> e = lexpr(r'\x.(walk(x) & chew_gum(x))(gerald)')
     >>> print(e)
     \x.(walk(x) & chew_gum(x))(gerald)
     >>> print(e.simplify()) # [_simplify]
@@ -1696,9 +1696,9 @@ ex-double-lambda_ works like a binary predicate: it can be applied directly to
 two arguments dbl-lambda_. The ``LogicParser`` allows nested |lambda|\ s  such as ``\x.\y.`` to be
 written in the abbreviated form ``\x y.`` dbl-lambda_.
 
-    >>> print(lp.parse(r'\x.\y.(dog(x) & own(y, x))(cyril)').simplify())
+    >>> print(lexpr(r'\x.\y.(dog(x) & own(y, x))(cyril)').simplify())
     \y.(dog(cyril) & own(y,cyril))
-    >>> print(lp.parse(r'\x y.(dog(x) & own(y, x))(cyril, angus)').simplify()) # [_dbl-lambda]
+    >>> print(lexpr(r'\x y.(dog(x) & own(y, x))(cyril, angus)').simplify()) # [_dbl-lambda]
     (dog(cyril) & own(angus,cyril))
 
 All our |lambda| abstracts so far have involved the familiar first order variables:
@@ -1777,7 +1777,7 @@ variables is known as `α-conversion`:dt:. When we test for equality of
 ``VariableBinderExpression``\s in the ``logic`` module (i.e., using
 ``==``), we are in fact testing for |alpha|-equivalence:
 
-     >>> e1 = lp.parse('exists x.P(x)')
+     >>> e1 = lexpr('exists x.P(x)')
      >>> print(e1)
      exists x.P(x)
      >>> e2 = e1.alpha_convert(nltk.sem.Variable('z'))
@@ -1798,7 +1798,7 @@ carry on with the reduction. This relabeling is carried out
 automatically by the |beta|\ -reduction code in ``logic``, and the
 results can be seen in the following example. 
 
-     >>> e3 = lp.parse('\P.(exists x.P(x))(\y.see(y, x))')
+     >>> e3 = lexpr('\P.(exists x.P(x))(\y.see(y, x))')
      >>> print(e3)
      (\P.exists x.P(x))(\y.see(y,x))
      >>> print(e3.simplify())
@@ -1946,9 +1946,9 @@ giving `chases`:lx: the semantic representation shown in ex-sem12_.
 If ex-sem12_ is applied to ex-sem7_, the result after |beta|-reduction is
 equivalent to ex-sem99_, which is what we wanted all along:
 
-    >>> lp = nltk.LogicParser()
-    >>> tvp = lp.parse(r'\X x.X(\y.chase(x,y))')
-    >>> np = lp.parse(r'(\P.exists x.(dog(x) & P(x)))')
+    >>> lexpr = nltk.sem.Expression.fromstring
+    >>> tvp = lexpr(r'\X x.X(\y.chase(x,y))')
+    >>> np = lexpr(r'(\P.exists x.(dog(x) & P(x)))')
     >>> vp = nltk.sem.ApplicationExpression(tvp, np)
     >>> print(vp)
     (\X x.X(\y.chase(x,y)))(\P.exists x.(dog(x) & P(x)))
@@ -1993,8 +1993,7 @@ at. Here's a slightly more complicated example.
     >>> parser = load_parser('grammars/book_grammars/simple-sem.fcfg', trace=0)
     >>> sentence = 'Angus gives a bone to every dog'
     >>> tokens = sentence.split()
-    >>> trees = parser.nbest_parse(tokens)
-    >>> for tree in trees:
+    >>> for tree in parser.parse(tokens):
     ...     print(tree.label()['SEM'])
     all z2.(dog(z2) -> exists z1.(bone(z1) & give(angus,z1,z2)))
 
@@ -2356,8 +2355,8 @@ list of discourse of referents and a list of |DRS| conditions::
 The easiest way to build a ``DRS`` object in |NLTK| is by parsing a
 string representation parse-drs_.
 
-    >>> dp = nltk.DrtParser()
-    >>> drs1 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])') # [_parse-drs]
+    >>> dexpr = nltk.sem.DrtExpression.fromstring
+    >>> drs1 = dexpr('([x, y], [angus(x), dog(y), own(x, y)])') # [_parse-drs]
     >>> print(drs1)
     ([x,y],[angus(x), dog(y), own(x,y)])
 
@@ -2392,7 +2391,7 @@ is a single |DRS| containing the merged discourse referents and the
 conditions from both arguments.  |DRS|\ -concatenation automatically
 |alpha|\ -converts bound variables to avoid name-clashes. 
 
-    >>> drs2 = dp.parse('([x], [walk(x)]) + ([y], [run(y)])')
+    >>> drs2 = dexpr('([x], [walk(x)]) + ([y], [run(y)])')
     >>> print(drs2)
     (([x],[walk(x)]) + ([y],[run(y)]))
     >>> print(drs2.simplify())
@@ -2405,7 +2404,7 @@ discourse referents, and the sole condition is made up of two
 sub-\ |DRS|\ s, connected by an implication. Again, we can use
 ``fol()`` to get a handle on the truth conditions.
 
-    >>> drs3 = dp.parse('([], [(([x], [dog(x)]) -> ([y],[ankle(y), bite(x, y)]))])')
+    >>> drs3 = dexpr('([], [(([x], [dog(x)]) -> ([y],[ankle(y), bite(x, y)]))])')
     >>> print(drs3.fol())
     all x.(dog(x) -> exists y.(ankle(y) & bite(x,y)))
 
@@ -2422,8 +2421,8 @@ condition of the form ``x = [...]``, where ``[...]`` is a list of
 possible antecedents.
 
 
-    >>> drs4 = dp.parse('([x, y], [angus(x), dog(y), own(x, y)])')
-    >>> drs5 = dp.parse('([u, z], [PRO(u), irene(z), bite(u, z)])')
+    >>> drs4 = dexpr('([x, y], [angus(x), dog(y), own(x, y)])')
+    >>> drs5 = dexpr('([u, z], [PRO(u), irene(z), bite(u, z)])')
     >>> drs6 = drs4 + drs5
     >>> print(drs6.simplify())
     ([u,x,y,z],[angus(x), dog(y), own(x,y), PRO(u), irene(z), bite(u,z)])
@@ -2472,7 +2471,7 @@ parsed using ``DrtParser`` in place of the default ``LogicParser``.
 
     >>> from nltk import load_parser
     >>> parser = load_parser('grammars/book_grammars/drt.fcfg', logic_parser=nltk.DrtParser())
-    >>> trees = parser.nbest_parse('Angus owns a dog'.split())
+    >>> trees = list(parser.parse('Angus owns a dog'.split()))
     >>> print(trees[0].label()['SEM'].simplify())
     ([x,z2],[Angus(x), dog(z2), own(x,z2)])
 
@@ -2794,8 +2793,8 @@ Exercises
 #. |easy| Consider the following statements:
 
    .. doctest-ignore::
-     >>> lp = nltk.LogicParser()
-     >>> e2 = lp.parse('pat')
+     >>> lexpr = nltk.sem.Expression.fromstring
+     >>> e2 = lexpr('pat')
      >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
      >>> print(e3.simplify())
      exists y.love(pat, y)
@@ -2828,19 +2827,19 @@ Exercises
    results equivalent to those shown below.
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('chase')
+    >>> e2 = lexpr('chase')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     \x.all y.(dog(y) -> chase(x,pat))
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('chase')
+    >>> e2 = lexpr('chase')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     \x.exists y.(dog(y) & chase(pat,x))
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('give')
+    >>> e2 = lexpr('give')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     \x0 x1.exists y.(present(y) & give(x1,y,x0))
@@ -2849,19 +2848,19 @@ Exercises
    results equivalent to those shown below.
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('bark')
+    >>> e2 = lexpr('bark')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     exists y.(dog(x) & bark(x))
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('bark')
+    >>> e2 = lexpr('bark')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     bark(fido)
 
    .. doctest-ignore::
-    >>> e2 = lp.parse('\\P. all x. (dog(x) -> P(x))')
+    >>> e2 = lexpr('\\P. all x. (dog(x) -> P(x))')
     >>> e3 = nltk.sem.ApplicationExpression(e1, e2)
     >>> print(e3.simplify())
     all x.(dog(x) -> bark(x))
