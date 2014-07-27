@@ -63,6 +63,8 @@ RSTHACKS = $(PYTHON) ../rsthacks.py
 
 .SUFFIXES: .rst .rst2 .html .pdf .errs .py
 
+html: $(HTML) bibliography.html 
+
 help: usage
 usage:
 	@echo "Usage:"
@@ -74,7 +76,6 @@ usage:
 	@echo "    make clean       -- Remove all built files"
 
 #all: html examples clean_up  # pdf
-html: $(HTML) bibliography.html 
 pdf: $(PDF)
 xml: $(XML)
 	$(PYTHON) $(NLTK_INDEX)
