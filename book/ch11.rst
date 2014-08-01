@@ -664,12 +664,11 @@ the index entries, to write out the lines in the required format required-format
     ...                  for (lexeme, defn) in pairs # [_lexical-entry]
     ...                  for defn_word in nltk.word_tokenize(defn) # [_definition-text]
     ...                  if len(defn_word) > 3) # [_short-words]
-    >>> idx_file = open("dict.idx", "w")
-    >>> for word in sorted(idx):
-    ...     idx_words = ', '.join(idx[word])
-    ...     idx_line = "{}: {}\n".format(word, idx_words) # [_required-format]
-    ...     idx_file.write(idx_line)
-    >>> idx_file.close()
+    >>> with open("dict.idx", "w") as idx_file:
+    ...     for word in sorted(idx):
+    ...         idx_words = ', '.join(idx[word])
+    ...         idx_line = "{}: {}\n".format(word, idx_words) # [_required-format]
+    ...         idx_file.write(idx_line)
 
 The resulting file ``dict.idx`` contains the following lines.  (With a larger
 dictionary we would expect to find multiple lexemes listed for each index entry.)
@@ -927,7 +926,7 @@ simple interface to the user:
     >>> fuzzy_spell('ebsekwieous')
     ['obsequious']
     >>> fuzzy_spell('nucular')
-    ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
+    ['anicular', 'inocular', 'nucellar', 'nuclear', 'unocular', 'uniocular', 'unicolor']
 
 This is just one illustration where a simple program can facilitate access to lexical
 data in a context where the writing system of a language may not be standardized, or
@@ -1196,8 +1195,9 @@ Instead of navigating each step of the way down the hierarchy, we can search for
 particular embedded elements.  For example, let's examine the sequence of speakers.
 We can use a frequency distribution to see who has the most to say:
 
+    >>> from collections import Counter
     >>> speaker_seq = [s.text for s in merchant.findall('ACT/SCENE/SPEECH/SPEAKER')]
-    >>> speaker_freq = nltk.FreqDist(speaker_seq)
+    >>> speaker_freq = Counter(speaker_seq)
     >>> top5 = speaker_freq.most_common(5)
     >>> top5
     [('PORTIA', 117), ('SHYLOCK', 79), ('BASSANIO', 73),
@@ -1209,11 +1209,11 @@ to a manageable size first, using the method described in
 sec-dictionaries_.
 
     >>> from collections import defaultdict
-    >>> mapping = defaultdict(lambda: 'OTH')
+    >>> abbreviate = defaultdict(lambda: 'OTH')
     >>> for speaker, _ in top5:
-    ...     mapping[s] = speaker[:4]
+    ...     abbreviate[speaker] = speaker[:4]
     ...
-    >>> speaker_seq2 = [mapping[s] for s in speaker_seq]
+    >>> speaker_seq2 = [abbreviate[speaker] for speaker in speaker_seq]
     >>> cfd = nltk.ConditionalFreqDist(nltk.bigrams(speaker_seq2))
     >>> cfd.tabulate()
          ANTO BASS GRAT  OTH PORT SHYL
@@ -1226,7 +1226,7 @@ sec-dictionaries_.
 
 Ignoring the entries for exchanges between people
 other than the top 5 (labeled ``OTH``), the largest value suggests
-that Portia and Bassanio have the most significant interactions.
+that Portia and Bassanio have the most frequent interactions.
 
 Using ElementTree for Accessing Toolbox Data
 --------------------------------------------
@@ -1277,9 +1277,11 @@ displayed on the screen, we can use a special pre-defined file object
 called ``stdout`` sys-stdout_ (standard output), defined in Python's ``sys`` module.
 
     >>> import sys
+    >>> from nltk.util import elementtree_indent
     >>> from xml.etree.ElementTree import ElementTree
+    >>> elementtree_indent(lexicon)
     >>> tree = ElementTree(lexicon[3])
-    >>> tree.write(sys.stdout) # [_sys-stdout]
+    >>> tree.write(sys.stdout, encoding='unicode') # [_sys-stdout]
     <record>
       <lx>kaa</lx>
       <ps>N</ps>
@@ -1411,23 +1413,23 @@ Many lexicons in Toolbox format do not conform to any particular schema.
 Some entries may include extra fields, or may order existing fields
 in a new way.  
 Manually inspecting thousands of lexical entries is not practicable.
-However, we can easily identify frequent vs exceptional field sequences,
-with the help of a ``FreqDist``:
+However, we can easily identify frequent field sequences,
+with the help of a ``Counter``:
 
-    >>> fd = nltk.FreqDist(':'.join(field.tag for field in entry) for entry in lexicon)
-    >>> fd.most_common()
+    >>> from collections import Counter
+    >>> field_sequences = Counter(':'.join(field.tag for field in entry) for entry in lexicon)
+    >>> field_sequences.most_common()
     [('lx:ps:pt:ge:tkp:dt:ex:xp:xe', 41), ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe', 37),
-    ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe', 27), ('lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe', 20),
-    ..., ('lx:alt:rt:ps:pt:ge:eng:eng:eng:tkp:tkp:dt:ex:xp:xe:ex:xp:xe:ex:xp:xe', 1)]
+    ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe', 27), ('lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe', 20), ...]
 
-After inspecting the high-frequency field sequences we could devise a context
+After inspecting these field sequences we could devise a context
 free grammar for lexical entries.  The grammar in code-toolbox-validation_
 uses the CFG format we saw in chap-parse_.  Such a grammar models the implicit
-nested structure of Toolbox entries, building a tree structure, where the
-leaves of the tree are individual field names.  We iterate
+nested structure of Toolbox entries, and builds a tree structure in which the
+leaves of the tree are individual field names.  Finally, we iterate
 over the entries and report their conformance with the grammar, as
 shown in code-toolbox-validation_.
-Those that are accepted by the grammar prefixed with a ``'+'`` accepted-entries_,
+Those that are accepted by the grammar are prefixed with a ``'+'`` accepted-entries_,
 and those that are rejected are prefixed with a ``'-'`` rejected-entries_.
 During the process of developing such a grammar
 it helps to filter out some of the tags ignored-tags_.
@@ -1456,7 +1458,7 @@ it helps to filter out some of the tags ignored-tags_.
        rd_parser = nltk.RecursiveDescentParser(grammar)
        for entry in lexicon:
            marker_list = [field.tag for field in entry if field.tag not in ignored_tags]
-           if rd_parser.parse(marker_list):
+           if list(rd_parser.parse(marker_list)):
                print("+", ':'.join(marker_list)) # [_accepted-entries]
            else:
                print("-", ':'.join(marker_list)) # [_rejected-entries]
@@ -1494,16 +1496,13 @@ A sample of the output from this program is shown in fig-iu-mien_.
        """
 
    >>> from xml.etree.ElementTree import ElementTree
-   >>> from nltk.util import elementtree_indent
    >>> from nltk.toolbox import ToolboxData
    >>> db = ToolboxData()
    >>> db.open(nltk.data.find('corpora/toolbox/iu_mien_samp.db'))
    >>> lexicon = db.parse(grammar, encoding='utf8')
-   >>> elementtree_indent(lexicon)
    >>> tree = ElementTree(lexicon)
-   >>> output = open("iu_mien_samp.xml", "w")
-   >>> tree.write(output, encoding='utf8')
-   >>> output.close()
+   >>> with open("iu_mien_samp.xml", "wb") as output:
+   ...     tree.write(output)
 
 .. _fig-iu-mien:
 .. figure:: ../images/iu-mien.png
