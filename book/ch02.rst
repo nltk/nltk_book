@@ -118,34 +118,34 @@ another version of the ``import`` statement, as follows:
 Let's write a short program to display other information about each
 text, by looping over all the values of ``fileid`` corresponding to
 the ``gutenberg`` file identifiers listed earlier and then computing
-statistics for each text.  For a compact output display, we will make
-sure that the numbers are all integers, using ``int()``.
+statistics for each text.  For a compact output display, we will round
+each number to the nearest integer, using ``round()``.
 
     >>> for fileid in gutenberg.fileids():
     ...     num_chars = len(gutenberg.raw(fileid)) # [_raw-access]
     ...     num_words = len(gutenberg.words(fileid))
     ...     num_sents = len(gutenberg.sents(fileid))
     ...     num_vocab = len(set(w.lower() for w in gutenberg.words(fileid)))
-    ...     print(int(num_chars/num_words), int(num_words/num_sents), int(num_words/num_vocab), fileid)
+    ...     print(round(num_chars/num_words), round(num_words/num_sents), round(num_words/num_vocab), fileid)
     ... 
-    4 24 26 austen-emma.txt
-    4 26 16 austen-persuasion.txt
-    4 28 22 austen-sense.txt
-    4 33 79 bible-kjv.txt
-    4 19 5 blake-poems.txt
+    5 25 26 austen-emma.txt
+    5 26 17 austen-persuasion.txt
+    5 28 22 austen-sense.txt
+    4 34 79 bible-kjv.txt
+    5 19 5 blake-poems.txt
     4 19 14 bryant-stories.txt
-    4 17 12 burgess-busterbrown.txt
-    4 20 12 carroll-alice.txt
-    4 20 11 chesterton-ball.txt
-    4 22 11 chesterton-brown.txt
-    4 18 10 chesterton-thursday.txt
-    4 20 24 edgeworth-parents.txt
-    4 25 15 melville-moby_dick.txt
-    4 52 10 milton-paradise.txt
-    4 11 8 shakespeare-caesar.txt
-    4 12 7 shakespeare-hamlet.txt
-    4 12 6 shakespeare-macbeth.txt
-    4 36 12 whitman-leaves.txt
+    4 18 12 burgess-busterbrown.txt
+    4 20 13 carroll-alice.txt
+    5 20 12 chesterton-ball.txt
+    5 23 11 chesterton-brown.txt
+    5 18 11 chesterton-thursday.txt
+    4 21 25 edgeworth-parents.txt
+    5 26 15 melville-moby_dick.txt
+    5 52 11 milton-paradise.txt
+    4 12 9 shakespeare-caesar.txt
+    4 12 8 shakespeare-hamlet.txt
+    4 12 7 shakespeare-macbeth.txt
+    5 36 12 whitman-leaves.txt
 
 This program displays three statistics for each text:
 average word length, average sentence length, and the number of times each vocabulary
@@ -751,14 +751,15 @@ variable to inspect it inspect-cfd_, and verify it has two conditions conditions
 Let's access the two conditions, and satisfy ourselves that each is just
 a frequency distribution:
 
-    >>> cfd['news']
+    >>> print(cfd['news'])
     <FreqDist with 14394 samples and 100554 outcomes>
-    >>> cfd['romance']
+    >>> print(cfd['romance'])
     <FreqDist with 8452 samples and 70022 outcomes>
-    >>> list(cfd['romance'])
-    [',', '.', 'the', 'and', 'to', 'a', 'of', '``', "''", 'was', 'I', 'in', 'he', 'had',
-    '?', 'her', 'that', 'it', 'his', 'she', 'with', 'you', 'for', 'at', 'He', 'on', 'him',
-    'said', '!', '--', 'be', 'as', ';', 'have', 'but', 'not', 'would', 'She', 'The', ...]
+    >>> cfd['romance'].most_common(20)
+    [(',', 3899), ('.', 3736), ('the', 2758), ('and', 1776), ('to', 1502),
+    ('a', 1335), ('of', 1186), ('``', 1045), ("''", 1044), ('was', 993),
+    ('I', 951), ('in', 875), ('he', 702), ('had', 692), ('?', 690),
+    ('her', 651), ('that', 583), ('it', 573), ('his', 559), ('she', 496)]
     >>> cfd['romance']['could']
     193
 
@@ -896,7 +897,7 @@ Their commonly-used methods are summarized in tab-conditionalfreqdist_.
    Example                                   Description
    ========================================  =======================================================================
    ``cfdist = ConditionalFreqDist(pairs)``   create a conditional frequency distribution from a list of pairs
-   ``cfdist.conditions()``                   alphabetically sorted list of conditions
+   ``cfdist.conditions()``                   the conditions
    ``cfdist[condition]``                     the frequency distribution for this condition
    ``cfdist[condition][sample]``             frequency for the given sample for this condition
    ``cfdist.tabulate()``                     tabulate the conditional frequency distribution
@@ -1058,11 +1059,11 @@ latest version of the function you want to use?
 It makes life a lot easier if you can collect your work into a single place, and
 access previously defined functions without making copies.
 
-To do this, save your function(s) in a file called (say) ``textproc.py``.
+To do this, save your function(s) in a file called (say) ``text_proc.py``.
 Now, you can access your work simply by importing it from the file:
 
 .. doctest-ignore::
-    >>> from textproc import plural
+    >>> from text_proc import plural
     >>> plural('wish')
     wishes
     >>> plural('fan')
@@ -1140,7 +1141,7 @@ words in a text corpus, as shown in code-unusual_.
     def unusual_words(text):
         text_vocab = set(w.lower() for w in text if w.isalpha())
         english_vocab = set(w.lower() for w in nltk.corpus.words.words())
-        unusual = text_vocab.difference(english_vocab)
+        unusual = text_vocab - english_vocab
         return sorted(unusual)
     
     >>> unusual_words(nltk.corpus.gutenberg.words('austen-sense.txt'))
@@ -1359,27 +1360,26 @@ and group them according to their first and last sounds group-first-last_.
     ...       for (word, pron) in entries
     ...       if pron[0] == 'P' and len(pron) == 3] # [_p3-words]
     >>> cfd = nltk.ConditionalFreqDist(p3)
-    >>> for template in cfd.conditions():
+    >>> for template in sorted(cfd.conditions()):
     ...     if len(cfd[template]) > 10:
-    ...         words = cfd[template].keys()
-    ...         wordlist = ' '.join(words)
-    ...         print(template, wordlist[:70] + "...")
+    ...         words = sorted(cfd[template])
+    ...         wordstring = ' '.join(words)
+    ...         print(template, wordstring[:70] + "...")
     ... 
     P-CH patch pautsch peach perch petsch petsche piche piech pietsch pitch pit...
     P-K pac pack paek paik pak pake paque peak peake pech peck peek perc perk ...
-    P-L pall pahl pail paille pal pale paul paule paull peal peale pearl pearl...
+    P-L pahl pail paille pal pale pall paul paule paull peal peale pearl pearl...
     P-N paign pain paine pan pane pawn payne peine pen penh penn pin pine pinn...
     P-P paap paape pap pape papp paup peep pep pip pipe pipp poop pop pope pop...
     P-R paar pair par pare parr pear peer pier poor poore por pore porr pour...
-    P-S puss pace pass pasts peace pearse pease perce pers perse pesce piece p...
+    P-S pace pass pasts peace pearse pease perce pers perse pesce piece piss p...
     P-T pait pat pate patt peart peat peet peete pert pet pete pett piet piett...
     P-UW1 peru peugh pew plew plue prew pru prue prugh pshew pugh...
-    P-Z p's p.'s p.s pais paiz pao's pas pause paws pays paz peas pease pei's ...
 
 Rather than iterating over the whole dictionary, we can also access it
 by looking up particular words.  We will use Python's dictionary data
 structure, which we will study systematically in sec-dictionaries_.
-We look up a dictionary by specifying its name, followed by a `key`:dt:
+We look up a dictionary by giving its name followed by a `key`:dt:
 (such as the word ``'fire'``) inside square brackets dict-key_.
 
     >>> prondict = nltk.corpus.cmudict.dict()
