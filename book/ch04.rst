@@ -317,7 +317,6 @@ there were always two members.  However, tuples can have any number
 of members.  Like lists and strings, tuples can be indexed index-tuple_
 and sliced slice-tuple_, and have a length length-tuple_.
 
-.. doctest-ignore::
    >>> t = 'walk', 'fem', 3 # [_create-tuple]
    >>> t
    ('walk', 'fem', 3)
@@ -675,6 +674,9 @@ program that computes the same thing:
     >>> total = sum(len(t) for t in tokens)
     >>> print(total / len(tokens))
     4.401...
+
+.. Monkey patching so that the next example doesn't take forever
+    >>> tokens = "the cat sat on the mat".split()
 
 The first line uses a generator expression to sum the token lengths,
 while the second line computes the average as before.
@@ -1137,12 +1139,11 @@ passed in as a parameter, and it also prints a list of the
 .. pylisting:: code-freq-words1
    :caption: Poorly Designed Function to Compute Frequent Words
 
-   from bs4 import BeautifulSoup
    from urllib import request
+   from bs4 import BeautifulSoup
 
    def freq_words(url, freqdist, n):
-       response = request.urlopen(url)
-       html = response.read().decode('utf8')
+       html = request.urlopen(url).read().decode('utf8')
        raw = BeautifulSoup(html).get_text()
        for word in word_tokenize(raw):
            freqdist[word.lower()] += 1
@@ -1153,9 +1154,10 @@ passed in as a parameter, and it also prints a list of the
 
    >>> constitution = "http://www.archives.gov/exhibits/charters/constitution_transcript.html"
    >>> fd = nltk.FreqDist()
-   >>> freq_words(constitution, fd, 20)
-   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in',
-   'states', 'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'president']
+   >>> freq_words(constitution, fd, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
 
 This function has a number of problems.
 The function has two side-effects: it modifies the contents of its second
@@ -1163,34 +1165,34 @@ parameter, and it prints a selection of the results it has computed.
 The function would be easier to understand and to reuse elsewhere if we
 initialize the ``FreqDist()`` object inside the function (in the same place
 it is populated), and if we moved the selection and display of results to the
-calling program.  In code-freq-words2_ we `refactor`:dt: this function,
-and simplify its interface by providing a single ``url`` parameter.
+calling program. Given that its task is to identify frequent words, it
+should probably just return a list, not the whole frequency distribution.
+In code-freq-words2_ we `refactor`:dt: this function,
+and simplify its interface by dropping the ``freqdist`` parameter.
 
 .. pylisting:: code-freq-words2
    :caption: Well-Designed Function to Compute Frequent Words
 
-   def freq_words(url):
-       text = nltk.clean_url(url)
+   from urllib import request
+   from bs4 import BeautifulSoup
+
+   def freq_words(url, n):
+       html = request.urlopen(url).read().decode('utf8')
+       text = BeautifulSoup(html).get_text()
        freqdist = nltk.FreqDist(word.lower() for word in word_tokenize(text))
-       return freqdist
+       return [word for (word, _) in fd.most_common(n)]
 
-   >>> fd = freq_words(constitution)
-   >>> [word for (word, count) in fd.most_common(20)]
-   ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
-   'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+   >>> freq_words(constitution, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
 
-Note that we have now simplified the work of ``freq_words``
-to the point that we can do its work with three lines of code:
+The readability and usability of the ``freq_words`` function is improved.
 
-    >>> words = word_tokenize(nltk.clean_url(constitution))
-    >>> fd = nltk.FreqDist(word.lower() for word in words)
-    >>> [word for (word, _) in fd.most_common(20)]
-    ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
-    'declaration', 'impact', 'freedom', '-', 'making', 'independence']
-
-We have used ``_`` as a variable name. This is no different to any other
-variable except it signals that we don't have a use for the information
-it holds.
+.. note::
+   We have used ``_`` as a variable name. This is no different to any other
+   variable except it signals to the reader that we don't have a use
+   for the information it holds.
 
 Documenting Functions
 ---------------------
@@ -1569,7 +1571,6 @@ When you start writing Python modules, it helps to have some
 examples to emulate.  You can locate the code for any |NLTK| module on your
 system using the ``__file__`` variable, e.g.:
 
-.. doctest-ignore::
     >>> nltk.metrics.distance.__file__
     '/usr/lib/python2.5/site-packages/nltk/metrics/distance.pyc'
 
@@ -1782,8 +1783,8 @@ function.  Remember that the problem arose the second time the function was
 called.  We'll start by calling the function without using the debugger first-run_,
 using the smallest possible input.  The second time, we'll call it with the
 debugger second-run_.
- 
 .. doctest-ignore::
+ 
     >>> import pdb
     >>> find_words(['cat'], 3) # [_first-run]
     ['cat']
@@ -2061,7 +2062,7 @@ provides much faster lookup.
 
    query = ''
    while query != "quit":
-       query = raw_input("query> ")
+       query = input("query> ")     # use raw_input() in Python 2
        if query in idx:
            for doc in idx[query]:
                print(snippet(doc, query))
@@ -2289,22 +2290,25 @@ format.  The output is shown in fig-modal-genre_ (a color figure in the graphica
 .. pylisting:: code-modal-plot
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
 
+   from numpy import arange
+   from matplotlib import pyplot
+
    colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
+
    def bar_chart(categories, words, counts):
        "Plot a bar chart showing counts for each word by category"
-       import pylab
-       ind = pylab.arange(len(words))
+       ind = arange(len(words))
        width = 1 / (len(categories) + 1)
        bar_groups = []
        for c in range(len(categories)):
-           bars = pylab.bar(ind+c*width, counts[categories[c]], width,
+           bars = pyplot.bar(ind+c*width, counts[categories[c]], width,
                             color=colors[c % len(colors)])
            bar_groups.append(bars)
-       pylab.xticks(ind+width, words)
-       pylab.legend([b[0] for b in bar_groups], categories, loc='upper left')
-       pylab.ylabel('Frequency')
-       pylab.title('Frequency of Six Modal Verbs by Genre')
-       pylab.show()
+       pyplot.xticks(ind+width, words)
+       pyplot.legend([b[0] for b in bar_groups], categories, loc='upper left')
+       pyplot.ylabel('Frequency')
+       pyplot.title('Frequency of Six Modal Verbs by Genre')
+       pyplot.show()
 
    >>> genres = ['news', 'religion', 'hobbies', 'government', 'adventure']
    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
@@ -2345,15 +2349,14 @@ search parameters, submit the form, and see a dynamically generated
 visualization.
 To do this we have to specify the ``Agg`` backend for ``matplotlib``,
 which is a library for producing raster (pixel) images agg-backend_.
-Next, we use all the same PyLab methods as before, but instead of displaying the
-result on a graphical terminal using ``pylab.show()``, we save it to a file
-using ``pylab.savefig()`` pylab-savefig_.  We specify the filename
+Next, we use all the same Matplotlib methods as before, but instead of displaying the
+result on a graphical terminal using ``pyplot.show()``, we save it to a file
+using ``pyplot.savefig()`` pyplot-savefig_.  We specify the filename
 then print HTML markup that directs the web browser to load the file.
 
-.. doctest-ignore::
-    >>> import matplotlib
-    >>> matplotlib.use('Agg') # [_agg-backend]
-    >>> pylab.savefig('modals.png') # [_pylab-savefig]
+    >>> from matplotlib import use, pyplot
+    >>> use('Agg') # [_agg-backend]
+    >>> pyplot.savefig('modals.png') # [_pyplot-savefig]
     >>> print('Content-Type: text/html')
     >>> print()
     >>> print('<html><body>')
@@ -2432,6 +2435,7 @@ We can use Python's CSV library to read and write files stored in this format.
 For example, we can open a CSV file called ``lexicon.csv`` open-csv_ 
 and iterate over its rows iterate-csv_:
 
+.. doctest-ignore::
     >>> import csv
     >>> input_file = open("lexicon.csv", "rb") # [_open-csv]
     >>> for row in csv.reader(input_file): # [_iterate-csv]
