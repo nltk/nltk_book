@@ -353,7 +353,7 @@ class callout_marker(docutils.nodes.Inline, docutils.nodes.Element):
     children; and defines the attribute 'number'.
     """
 
-DOCTEST_BLOCK_RE = re.compile('((?:[ ]*>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
+DOCTEST_BLOCK_RE = re.compile('((?:^>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
                               re.MULTILINE)
 CALLOUT_RE = re.compile(r'#[ ]+\[_([\w-]+)\][ ]*', re.MULTILINE)
 
