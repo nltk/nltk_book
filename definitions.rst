@@ -192,6 +192,7 @@
 .. |NLTK-URL| replace:: ``http://nltk.org/``
 .. |NLTK-HOWTO-URL| replace:: ``http://nltk.org/howto``
 .. |OLAC-URL| replace:: ``http://www.language-archives.org/``
+.. |GOOGLE-NGRAM| replace:: ``https://books.google.com/ngrams``
   
 .. Python example - a snippet of code in running text
 .. role:: py
