@@ -358,11 +358,11 @@ segmentations as strings, and apply the windowdiff scorer.
     >>> s2 = "00000001000000010000000"
     >>> s3 = "00010000000000000001000"
     >>> nltk.windowdiff(s1, s1, 3)
-    0
+    0.0
     >>> nltk.windowdiff(s1, s2, 3)
-    4
+    0.190...
     >>> nltk.windowdiff(s2, s3, 3)
-    16
+    0.571...
 
 In the above example, the window had a size of 3.
 The windowdiff computation slides this window across a pair of strings.
@@ -531,10 +531,10 @@ legal_pos``:
 
     >>> legal_pos = set(['n', 'v.t.', 'v.i.', 'adj', 'det'])
     >>> pattern = re.compile(r"'font-size:11.0pt'>([a-z.]+)<")
-    >>> document = open("dict.htm").read()
+    >>> document = open("dict.htm", encoding="windows-1252").read()
     >>> used_pos = set(re.findall(pattern, document))
     >>> illegal_pos = used_pos.difference(legal_pos)
-    >>> print list(illegal_pos)
+    >>> print(list(illegal_pos))
     ['v.i', 'intrans']
 
 This simple program represents the tip of the iceberg.  We can develop
@@ -551,19 +551,26 @@ in "comma-separated value" (CSV) format.
 .. pylisting:: code-html2csv
    :caption: Converting HTML Created by Microsoft Word into Comma-Separated Values
 
-   def lexical_data(html_file):
+   from bs4 import BeautifulSoup
+
+   def lexical_data(html_file, encoding="utf-8"):
        SEP = '_ENTRY'
-       html = open(html_file).read()
+       html = open(html_file, encoding=encoding).read()
        html = re.sub(r'<p', SEP + '<p', html)
-       text = nltk.clean_html(html)
+       text = BeautifulSoup(html).get_text()
        text = ' '.join(text.split())
        for entry in text.split(SEP):
            if entry.count(' ') > 2:
                yield entry.split(' ', 3)
 
    >>> import csv
-   >>> writer = csv.writer(open("dict1.csv", "wb"))
-   >>> writer.writerows(lexical_data("dict.htm"))
+   >>> writer = csv.writer(open("dict1.csv", "w", encoding="utf-8"))
+   >>> writer.writerows(lexical_data("dict.htm", encoding="windows-1252"))
+
+
+with gzip.open(fn+".gz","wb") as f_out:
+    f_out.write(bytes(s, 'UTF-8'))
+
 
 .. note::
    For more sophisticated processing of |HTML|, use the *Beautiful Soup* package,
@@ -657,12 +664,11 @@ the index entries, to write out the lines in the required format required-format
     ...                  for (lexeme, defn) in pairs # [_lexical-entry]
     ...                  for defn_word in nltk.word_tokenize(defn) # [_definition-text]
     ...                  if len(defn_word) > 3) # [_short-words]
-    >>> idx_file = open("dict.idx", "w")
-    >>> for word in sorted(idx):
-    ...     idx_words = ', '.join(idx[word])
-    ...     idx_line = "%s: %s\n" % (word, idx_words) # [_required-format]
-    ...     idx_file.write(idx_line)
-    >>> idx_file.close()
+    >>> with open("dict.idx", "w") as idx_file:
+    ...     for word in sorted(idx):
+    ...         idx_words = ', '.join(idx[word])
+    ...         idx_line = "{}: {}".format(word, idx_words) # [_required-format]
+    ...         print(idx_line, file=idx_file)
 
 The resulting file ``dict.idx`` contains the following lines.  (With a larger
 dictionary we would expect to find multiple lexemes listed for each index entry.)
@@ -907,7 +913,7 @@ This is done by the function ``rank()``.  The only remaining function provides a
 simple interface to the user:  
 
     >>> def rank(word, wordlist):
-    ...     ranked = sorted((nltk.edit_dist(word, w), w) for w in wordlist)
+    ...     ranked = sorted((nltk.edit_distance(word, w), w) for w in wordlist)
     ...     return [word for (_, word) in ranked]
     >>> def fuzzy_spell(word):
     ...     sig = signature(word)
@@ -920,7 +926,7 @@ simple interface to the user:
     >>> fuzzy_spell('ebsekwieous')
     ['obsequious']
     >>> fuzzy_spell('nucular')
-    ['nuclear', 'nucellar', 'anicular', 'inocular', 'unocular', 'unicolor', 'uniocular']
+    ['anicular', 'inocular', 'nucellar', 'nuclear', 'unocular', 'uniocular', 'unicolor']
 
 This is just one illustration where a simple program can facilitate access to lexical
 data in a context where the writing system of a language may not be standardized, or
@@ -1090,13 +1096,13 @@ We pick it up again at the start of Act 1 start-act-one_.
 
     >>> merchant_file = nltk.data.find('corpora/shakespeare/merchant.xml')
     >>> raw = open(merchant_file).read()
-    >>> print raw[0:168] # [_top-of-file]
+    >>> print(raw[:163]) # [_top-of-file]
     <?xml version="1.0"?>
     <?xml-stylesheet type="text/css" href="shakes.css"?>
     <!-- <!DOCTYPE PLAY SYSTEM "play.dtd"> -->
     <PLAY>
     <TITLE>The Merchant of Venice</TITLE>
-    >>> print raw[1850:2075] # [_start-act-one]
+    >>> print(raw[1789:2006]) # [_start-act-one]
     <TITLE>ACT I</TITLE>
     <SCENE><TITLE>SCENE I.  Venice. A street.</TITLE>
     <STAGEDIR>Enter ANTONIO, SALARINO, and SALANIO</STAGEDIR>
@@ -1117,18 +1123,20 @@ We can also see the text content of this element, the title of the play element-
 To get a list of all the child elements, we use the
 ``getchildren()`` method getchildren-method_.
 
-    >>> from nltk.etree.ElementTree import ElementTree
+    >>> from xml.etree.ElementTree import ElementTree
     >>> merchant = ElementTree().parse(merchant_file) # [_xml-parse]
     >>> merchant
-    <Element PLAY at 22fa800> # [_element-play]
+    <Element 'PLAY' at 0x10ac43d18> # [_element-play]
     >>> merchant[0]
-    <Element TITLE at 22fa828> # [_element-title]
+    <Element 'TITLE' at 0x10ac43c28> # [_element-title]
     >>> merchant[0].text
     'The Merchant of Venice' # [_element-text]
     >>> merchant.getchildren() # [_getchildren-method]
-    [<Element TITLE at 22fa828>, <Element PERSONAE at 22fa7b0>, <Element SCNDESCR at 2300170>,
-    <Element PLAYSUBT at 2300198>, <Element ACT at 23001e8>, <Element ACT at 234ec88>,
-    <Element ACT at 23c87d8>, <Element ACT at 2439198>, <Element ACT at 24923c8>]
+    [<Element 'TITLE' at 0x10ac43c28>, <Element 'PERSONAE' at 0x10ac43bd8>,
+    <Element 'SCNDESCR' at 0x10b067f98>, <Element 'PLAYSUBT' at 0x10af37048>,
+    <Element 'ACT' at 0x10af37098>, <Element 'ACT' at 0x10b936368>,
+    <Element 'ACT' at 0x10b934b88>, <Element 'ACT' at 0x10cfd8188>,
+    <Element 'ACT' at 0x10cfadb38>]
 
 The play consists of a title, the personae, a scene description, a subtitle, and five acts.
 Each act has a title and some scenes, and each scene consists of speeches which are made
@@ -1137,17 +1145,17 @@ up of lines, a structure with four levels of nesting.  Let's dig down into Act I
     >>> merchant[-2][0].text
     'ACT IV'
     >>> merchant[-2][1]
-    <Element SCENE at 224cf80>
+    <Element 'SCENE' at 0x10cfd8228>
     >>> merchant[-2][1][0].text
     'SCENE I.  Venice. A court of justice.'
     >>> merchant[-2][1][54]
-    <Element SPEECH at 226ee40>
+    <Element 'SPEECH' at 0x10cfb02c8>
     >>> merchant[-2][1][54][0]
-    <Element SPEAKER at 226ee90>
+    <Element 'SPEAKER' at 0x10cfb0318>
     >>> merchant[-2][1][54][0].text
     'PORTIA'
     >>> merchant[-2][1][54][1]
-    <Element LINE at 226eee0>
+    <Element 'LINE' at 0x10cfb0368>
     >>> merchant[-2][1][54][1].text
     "The quality of mercy is not strain'd,"
 
@@ -1167,7 +1175,7 @@ tag-specific searches at every level of nesting:
     ...         for k, speech in enumerate(scene.findall('SPEECH')):
     ...             for line in speech.findall('LINE'):
     ...                 if 'music' in str(line.text):
-    ...                     print "Act %d Scene %d Speech %d: %s" % (i+1, j+1, k+1, line.text)
+    ...                     print("Act %d Scene %d Speech %d: %s" % (i+1, j+1, k+1, line.text))
     Act 3 Scene 2 Speech 9: Let music sound while he doth make his choice;
     Act 3 Scene 2 Speech 9: Fading in music: that the comparison
     Act 3 Scene 2 Speech 9: And what is music then? Then music is
@@ -1187,22 +1195,25 @@ Instead of navigating each step of the way down the hierarchy, we can search for
 particular embedded elements.  For example, let's examine the sequence of speakers.
 We can use a frequency distribution to see who has the most to say:
 
+    >>> from collections import Counter
     >>> speaker_seq = [s.text for s in merchant.findall('ACT/SCENE/SPEECH/SPEAKER')]
-    >>> speaker_freq = nltk.FreqDist(speaker_seq)
-    >>> top5 = speaker_freq.keys()[:5]
+    >>> speaker_freq = Counter(speaker_seq)
+    >>> top5 = speaker_freq.most_common(5)
     >>> top5
-    ['PORTIA', 'SHYLOCK', 'BASSANIO', 'GRATIANO', 'ANTONIO']
+    [('PORTIA', 117), ('SHYLOCK', 79), ('BASSANIO', 73),
+    ('GRATIANO', 48), ('LORENZO', 47)]
 
 We can also look for patterns in who follows who in the dialogues.
 Since there's 23 speakers, we need to reduce the "vocabulary"
 to a manageable size first, using the method described in
 sec-dictionaries_.
 
-    >>> mapping = nltk.defaultdict(lambda: 'OTH')
-    >>> for s in top5:
-    ...     mapping[s] = s[:4]
+    >>> from collections import defaultdict
+    >>> abbreviate = defaultdict(lambda: 'OTH')
+    >>> for speaker, _ in top5:
+    ...     abbreviate[speaker] = speaker[:4]
     ...
-    >>> speaker_seq2 = [mapping[s] for s in speaker_seq]
+    >>> speaker_seq2 = [abbreviate[speaker] for speaker in speaker_seq]
     >>> cfd = nltk.ConditionalFreqDist(nltk.bigrams(speaker_seq2))
     >>> cfd.tabulate()
          ANTO BASS GRAT  OTH PORT SHYL
@@ -1215,7 +1226,7 @@ sec-dictionaries_.
 
 Ignoring the entries for exchanges between people
 other than the top 5 (labeled ``OTH``), the largest value suggests
-that Portia and Bassanio have the most significant interactions.
+that Portia and Bassanio have the most frequent interactions.
 
 Using ElementTree for Accessing Toolbox Data
 --------------------------------------------
@@ -1241,7 +1252,7 @@ indexes and by paths.  Indexes use the familiar syntax, thus
 entry counting from zero); ``lexicon[3][0]`` returns its first field:
 
     >>> lexicon[3][0] 
-    <Element lx at 77bd28>
+    <Element 'lx' at 0x10b2f6958>
     >>> lexicon[3][0].tag
     'lx'
     >>> lexicon[3][0].text
@@ -1266,9 +1277,11 @@ displayed on the screen, we can use a special pre-defined file object
 called ``stdout`` sys-stdout_ (standard output), defined in Python's ``sys`` module.
 
     >>> import sys
-    >>> from nltk.etree.ElementTree import ElementTree
+    >>> from nltk.util import elementtree_indent
+    >>> from xml.etree.ElementTree import ElementTree
+    >>> elementtree_indent(lexicon)
     >>> tree = ElementTree(lexicon[3])
-    >>> tree.write(sys.stdout) # [_sys-stdout]
+    >>> tree.write(sys.stdout, encoding='unicode') # [_sys-stdout]
     <record>
       <lx>kaa</lx>
       <ps>N</ps>
@@ -1299,7 +1312,7 @@ It produces HTML elements ``<table>``, ``<tr>`` (table row), and
     ...     ge = entry.findtext('ge')
     ...     html += "  <tr><td>%s</td><td>%s</td><td>%s</td></tr>\n" % (lx, ps, ge)
     >>> html += "</table>"
-    >>> print html
+    >>> print(html)
     <table>
       <tr><td>kakae</td><td>???</td><td>small</td></tr>
       <tr><td>kakae</td><td>CLASS</td><td>child</td></tr>
@@ -1328,7 +1341,7 @@ compute the average number of fields for each entry:
     >>> from nltk.corpus import toolbox
     >>> lexicon = toolbox.xml('rotokas.dic')
     >>> sum(len(entry) for entry in lexicon) / len(lexicon)
-    13.635955056179775
+    13.635...
 
 In this section we will discuss two tasks that arise in the context of documentary
 linguistics, neither of which is supported by the Toolbox software.
@@ -1352,7 +1365,7 @@ the last line of output, which shows the new ``cv`` field.
 .. pylisting:: code-add-cv-field
    :caption: Adding a new ``cv`` field to a lexical entry
 
-   from nltk.etree.ElementTree import SubElement
+   from xml.etree.ElementTree import SubElement
 
    def cv(s):
        s = s.lower()
@@ -1369,7 +1382,7 @@ the last line of output, which shows the new ``cv`` field.
 
    >>> lexicon = toolbox.xml('rotokas.dic')
    >>> add_cv_field(lexicon[53])
-   >>> print nltk.to_sfm_string(lexicon[53])
+   >>> print(nltk.toolbox.to_sfm_string(lexicon[53]))
    \lx kaeviro
    \ps V
    \pt A
@@ -1400,23 +1413,23 @@ Many lexicons in Toolbox format do not conform to any particular schema.
 Some entries may include extra fields, or may order existing fields
 in a new way.  
 Manually inspecting thousands of lexical entries is not practicable.
-However, we can easily identify frequent vs exceptional field sequences,
-with the help of a ``FreqDist``:
+However, we can easily identify frequent field sequences,
+with the help of a ``Counter``:
 
-    >>> fd = nltk.FreqDist(':'.join(field.tag for field in entry) for entry in lexicon)
-    >>> fd.items()
+    >>> from collections import Counter
+    >>> field_sequences = Counter(':'.join(field.tag for field in entry) for entry in lexicon)
+    >>> field_sequences.most_common()
     [('lx:ps:pt:ge:tkp:dt:ex:xp:xe', 41), ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe', 37),
-    ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe', 27), ('lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe', 20),
-    ..., ('lx:alt:rt:ps:pt:ge:eng:eng:eng:tkp:tkp:dt:ex:xp:xe:ex:xp:xe:ex:xp:xe', 1)]
+    ('lx:rt:ps:pt:ge:tkp:dt:ex:xp:xe:ex:xp:xe', 27), ('lx:ps:pt:ge:tkp:nt:dt:ex:xp:xe', 20), ...]
 
-After inspecting the high-frequency field sequences we could devise a context
+After inspecting these field sequences we could devise a context
 free grammar for lexical entries.  The grammar in code-toolbox-validation_
 uses the CFG format we saw in chap-parse_.  Such a grammar models the implicit
-nested structure of Toolbox entries, building a tree structure, where the
-leaves of the tree are individual field names.  We iterate
+nested structure of Toolbox entries, and builds a tree structure in which the
+leaves of the tree are individual field names.  Finally, we iterate
 over the entries and report their conformance with the grammar, as
 shown in code-toolbox-validation_.
-Those that are accepted by the grammar prefixed with a ``'+'`` accepted-entries_,
+Those that are accepted by the grammar are prefixed with a ``'+'`` accepted-entries_,
 and those that are rejected are prefixed with a ``'-'`` rejected-entries_.
 During the process of developing such a grammar
 it helps to filter out some of the tags ignored-tags_.
@@ -1424,7 +1437,7 @@ it helps to filter out some of the tags ignored-tags_.
 .. pylisting:: code-toolbox-validation
    :caption: Validating Toolbox Entries Using a Context Free Grammar
 
-   grammar = nltk.parse_cfg('''
+   grammar = nltk.CFG.fromstring('''
      S -> Head PS Glosses Comment Date Sem_Field Examples
      Head -> Lexeme Root
      Lexeme -> "lx"
@@ -1445,10 +1458,10 @@ it helps to filter out some of the tags ignored-tags_.
        rd_parser = nltk.RecursiveDescentParser(grammar)
        for entry in lexicon:
            marker_list = [field.tag for field in entry if field.tag not in ignored_tags]
-           if rd_parser.nbest_parse(marker_list):
-               print "+", ':'.join(marker_list) # [_accepted-entries]
+           if list(rd_parser.parse(marker_list)):
+               print("+", ':'.join(marker_list)) # [_accepted-entries]
            else:
-               print "-", ':'.join(marker_list) # [_rejected-entries]
+               print("-", ':'.join(marker_list)) # [_rejected-entries]
 
    >>> lexicon = toolbox.xml('rotokas.dic')[10:20]
    >>> ignored_tags = ['arg', 'dcsv', 'pt', 'vx'] # [_ignored-tags]
@@ -1475,8 +1488,6 @@ A sample of the output from this program is shown in fig-iu-mien_.
    :caption: Chunking a Toolbox Lexicon: A chunk grammar describing the structure of
              entries for a lexicon for `Iu Mien`:em:, a language of China.
 
-   from nltk_contrib import toolbox
-
    grammar = r"""
          lexfunc: {<lf>(<lv><ln|le>*)*}
          example: {<rf|xv><xn|xe>*}
@@ -1484,15 +1495,14 @@ A sample of the output from this program is shown in fig-iu-mien_.
          record:   {<lx><hm><sense>+<dt>}
        """
 
-   >>> from nltk.etree.ElementTree import ElementTree
-   >>> db = toolbox.ToolboxData()
+   >>> from xml.etree.ElementTree import ElementTree
+   >>> from nltk.toolbox import ToolboxData
+   >>> db = ToolboxData()
    >>> db.open(nltk.data.find('corpora/toolbox/iu_mien_samp.db'))
    >>> lexicon = db.parse(grammar, encoding='utf8')
-   >>> toolbox.data.indent(lexicon)
    >>> tree = ElementTree(lexicon)
-   >>> output = open("iu_mien_samp.xml", "w")
-   >>> tree.write(output, encoding='utf8')
-   >>> output.close()
+   >>> with open("iu_mien_samp.xml", "wb") as output:
+   ...     tree.write(output)
 
 .. _fig-iu-mien:
 .. figure:: ../images/iu-mien.png

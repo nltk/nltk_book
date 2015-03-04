@@ -77,7 +77,13 @@ If this location data was stored in Python as a list of tuples
 "Which organizations operate in Atlanta?" could be
 translated as follows:
 
-    >>> print([org for (e1, rel, e2) if rel=='IN' and e2=='Atlanta']) # doctest: +SKIP
+    >>> locs = [('Omnicom', 'IN', 'New York'),
+    ...         ('DDB Needham', 'IN', 'New York'),     
+    ...         ('Kaplan Thaler Group', 'IN', 'New York'),
+    ...         ('BBDO South', 'IN', 'Atlanta'),
+    ...         ('Georgia-Pacific', 'IN', 'Atlanta')]
+    >>> query = [e1 for (e1, rel, e2) in locs if e2=='Atlanta']
+    >>> print(query)
     ['BBDO South', 'Georgia-Pacific']
 
 .. table:: tab-db-answers
@@ -341,7 +347,7 @@ and run the chunker on this input code-chunker1-run_.
    :caption: Simple Noun Phrase Chunker
 
    grammar = r"""
-     NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and nouns
+     NP: {<DT|PP\$>?<JJ>*<NN>}   # chunk determiner/possessive, adjectives and noun
          {<NNP>+}                # chunk sequences of proper nouns
    """
    cp = nltk.RegexpParser(grammar)
@@ -462,7 +468,11 @@ then excise the chinks.
           ("dog", "NN"), ("barked", "VBD"), ("at", "IN"),  ("the", "DT"), ("cat", "NN")]
    cp = nltk.RegexpParser(grammar)
    >>> print(cp.parse(sentence))
-   (S the/DT little/JJ yellow/JJ dog/NN barked/VBD at/IN the/DT cat/NN)
+    (S
+      (NP the/DT little/JJ yellow/JJ dog/NN)
+      barked/VBD
+      at/IN
+      (NP the/DT cat/NN))
 
 .. We haven't talked about using conll yet; and these results are
    very far from impressive anyway: :)
@@ -470,7 +480,7 @@ then excise the chinks.
    >>> from nltk.corpus import conll2000
    >>> test_sents = conll2000.chunked_sents('test.txt', chunk_types=['NP'])
    >>> print(nltk.chunk.accuracy(cp, test_sents))
-   0.4174599489203622
+    0.5810414336070245
 
 .. Section: "Multiple Chunk Types" was here.  I moved it to
    ch07-extras because I didn't see that it added much, and it didn't
@@ -509,7 +519,6 @@ how the information in fig-chunk-tagrep_ would appear in a file::
   We PRP B-NP
   saw VBD O
   the DT B-NP
-  little JJ I-NP
   yellow JJ I-NP
   dog NN I-NP
 
@@ -541,7 +550,7 @@ We begin by looking at the mechanics of converting IOB format into an
 |NLTK| tree, then at how this is done on a larger scale using a
 chunked corpus.  We will see how to score
 the accuracy of a chunker relative to a corpus,
-then look some more data-driven ways to search for NP chunks.
+then look at some more data-driven ways to search for NP chunks.
 Our focus throughout will be on expanding the coverage of a chunker.
 
 .. Section: "Developing chunkers" was here.  I moved it to 
@@ -550,7 +559,7 @@ Our focus throughout will be on expanding the coverage of a chunker.
 Reading IOB Format and the CoNLL 2000 Corpus
 --------------------------------------------
 
-Using the ``corpora`` module we can load Wall Street Journal
+Using the ``corpus`` module we can load Wall Street Journal
 text that has been tagged then chunked using the IOB notation.  The
 chunk categories provided in this corpus are ``NP``, ``VP`` and ``PP``.  As we
 have seen, each sentence is represented using multiple lines, as shown
@@ -562,7 +571,7 @@ below::
   position NN I-NP
   ...
 
-A conversion function ``chunk.util.conllstr2tree()`` builds a tree
+A conversion function ``chunk.conllstr2tree()`` builds a tree
 representation from one of these multi-line strings.  Moreover, it
 permits us to choose any subset of the three chunk types to use,
 here just for ``NP`` chunks:
@@ -586,7 +595,7 @@ here just for ``NP`` chunks:
     ... concern NN I-NP
     ... . . O
     ... '''
-    >>> nltk.chunk.util.conllstr2tree(text, chunk_types=['NP']).draw()
+    >>> nltk.chunk.conllstr2tree(text, chunk_types=['NP']).draw()
 
 .. tree:: (S (NP (PRP he))
              (VBD accepted)
@@ -698,7 +707,7 @@ which is used to chunk new sentences.
 
    class UnigramChunker(nltk.ChunkParserI):
        def __init__(self, train_sents): # [_code-unigram-chunker-constructor]
-           train_data = [[(t,c) for w,t,c in nltk.chunk.util.tree2conlltags(sent)]
+           train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
                          for sent in train_sents]
            self.tagger = nltk.UnigramTagger(train_data) # [_code-unigram-chunker-buildit]
            
@@ -708,11 +717,11 @@ which is used to chunk new sentences.
            chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
            conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
                         in zip(sentence, chunktags)]
-           return nltk.chunk.util.conlltags2tree(conlltags)
+           return nltk.chunk.conlltags2tree(conlltags)
 
 The constructor code-unigram-chunker-constructor_ expects a list of
 training sentences, which will be in the form of chunk trees.  It
-first converts training data to a form that suitable for training the
+first converts training data to a form that is suitable for training the
 tagger, using ``tree2conlltags`` to map each chunk tree to a list of
 ``word,tag,chunk`` triples.  It then uses that converted training data
 to train a unigram tagger, and stores it in ``self.tagger`` for later
@@ -770,7 +779,7 @@ inside of NP chunks.
 
    >>> class BigramChunker(nltk.ChunkParserI):
    ...     def __init__(self, train_sents):
-   ...         train_data = [[(t,c) for w,t,c in nltk.chunk.util.tree2conlltags(sent)]
+   ...         train_data = [[(t,c) for w,t,c in nltk.chunk.tree2conlltags(sent)]
    ...                       for sent in train_sents]
    ...         self.tagger = nltk.BigramTagger(train_data)
    ...         
@@ -780,7 +789,7 @@ inside of NP chunks.
    ...         chunktags = [chunktag for (pos, chunktag) in tagged_pos_tags]
    ...         conlltags = [(word, pos, chunktag) for ((word,pos),chunktag)
    ...                      in zip(sentence, chunktags)]
-   ...         return nltk.chunk.util.conlltags2tree(conlltags)
+   ...         return nltk.chunk.conlltags2tree(conlltags)
 
 Having built a unigram chunker, it is quite easy to build a bigram
 chunker: we simply change the class name to ``BigramChunker``, and
@@ -874,7 +883,7 @@ tagger back into a chunk tree.
        def parse(self, sentence):
            tagged_sents = self.tagger.tag(sentence)
            conlltags = [(w,t,c) for ((w,t),c) in tagged_sents]
-           return nltk.chunk.util.conlltags2tree(conlltags)
+           return nltk.chunk.conlltags2tree(conlltags)
 
 .. Pre-load megam, so we won't get random trace output when it's loaded:
     >>> nltk.classify.config_megam()
@@ -914,8 +923,8 @@ chunker.
     ChunkParse score:
         IOB Accuracy:  93.6%
         Precision:     81.9%
-        Recall:        87.1%
-        F-Measure:     84.4%
+        Recall:        87.2%
+        F-Measure:     84.5%
 
 Next, we'll try adding a feature for the current word, since we
 hypothesized that word content should be useful for chunking.  We find
@@ -933,17 +942,19 @@ reduction in the error rate).
     >>> chunker = ConsecutiveNPChunker(train_sents)
     >>> print(chunker.evaluate(test_sents))
     ChunkParse score:
-        IOB Accuracy:  94.2%
-        Precision:     83.4%
-        Recall:        88.6%
-        F-Measure:     85.9%
+        IOB Accuracy:  94.5%
+        Precision:     84.2%
+        Recall:        89.4%
+        F-Measure:     86.7%
 
 Finally, we can try extending the feature extractor with a variety of
 additional features, such as lookahead features chunk-fe-lookahead_,
 paired features chunk-fe-paired_, and complex contextual features
 chunk-fe-complex_.  This last feature, called ``tags-since-dt``, creates a
 string describing the set of all part-of-speech tags that have been
-encountered since the most recent determiner.
+encountered since the most recent determiner, or since the beginning
+of the sentence if there is no determiner before index ``i``.
+.
 
     >>> def npchunk_features(sentence, i, history):
     ...     word, pos = sentence[i]
@@ -975,10 +986,10 @@ encountered since the most recent determiner.
     >>> chunker = ConsecutiveNPChunker(train_sents)
     >>> print(chunker.evaluate(test_sents))
     ChunkParse score:
-        IOB Accuracy:  95.9%
-        Precision:     88.3%
-        Recall:        90.7%
-        F-Measure:     89.5%
+        IOB Accuracy:  96.0%
+        Precision:     88.6%
+        Recall:        91.0%
+        F-Measure:     89.8%
 
 .. note:: |TRY|
    Try adding different features to the feature extractor function
@@ -1082,7 +1093,7 @@ by a unique path from a distinguished root node.  Here's an
 example of a tree (note that they are standardly drawn upside-down): 
 
 .. ex::
-  .. tree:: (S (NP Alice) (VP (V chased) (NP the rabbit)))
+  .. tree:: (S (NP Alice) (VP (V chased) (NP (Det the) (N rabbit))))
 
 We use a 'family' metaphor to talk about the
 relationships of nodes in a tree: for example, ``S`` is the
@@ -1156,12 +1167,12 @@ The listing in code-traverse_ demonstrates this.
    
    def traverse(t):
        try:
-           t.node
+           t.label()
        except AttributeError:
            print(t, end=" ")
        else:
            # Now we know that t.node is defined
-           print('(', t.node, end=" ")
+           print('(', t.label(), end=" ")
            for child in t:
                traverse(child)
            print(')', end=" ")
@@ -1172,7 +1183,7 @@ The listing in code-traverse_ demonstrates this.
 
 .. note::
   We have used a technique called `duck typing`:dt: to detect that ``t``
-  is a tree (i.e. ``t.node`` is defined).
+  is a tree (i.e. ``t.label()`` is defined).
 
 .. _sec-ner:
 
@@ -1238,7 +1249,7 @@ retrieved contained the following passage:
 Analysis of the question leads us to expect that an answer should be
 of the form  `X was the first President of the US`:lx:, where `X`
 is not only a noun phrase, but also refers to a named entity of type
-``PER``. This should allow us to ignore the first sentence in the
+PERSON. This should allow us to ignore the first sentence in the
 passage.  While it contains two occurrences of `Washington`:lx:,
 named entity recognition should tell us that neither of them
 has the correct type.
@@ -1304,7 +1315,7 @@ Here is part of the CONLL 2002 (``conll2002``) Dutch training data::
 In this representation, there is one token per line, each with its
 part-of-speech tag and its named entity tag.  Based on this training
 corpus, we can construct a tagger that can be used to label new
-sentences; and use the ``nltk.chunk.util.conlltags2tree()`` function to
+sentences; and use the ``nltk.chunk.conlltags2tree()`` function to
 convert the tag sequences into a chunk tree.  
 
 NLTK provides a classifier that has already been trained to recognize named entities,
@@ -1379,7 +1390,7 @@ of`:lx:, where `in`:lx: is followed by a gerund.
     >>> for doc in nltk.corpus.ieer.parsed_docs('NYT_19980315'):
     ...     for rel in nltk.sem.extract_rels('ORG', 'LOC', doc,
     ...                                      corpus='ieer', pattern = IN):
-    ...         print(nltk.sem.relextract.show_raw_rtuple(rel))
+    ...         print(nltk.sem.rtuple(rel))
     [ORG: 'WHYY'] 'in' [LOC: 'Philadelphia']
     [ORG: 'McGlashan &AMP; Sarrail'] 'firm in' [LOC: 'San Mateo']
     [ORG: 'Freedom Forum'] 'in' [LOC: 'Arlington']
@@ -1405,7 +1416,7 @@ excluding filler strings such as this.
 As shown above, the ``conll2002`` Dutch corpus contains not just named entity
 annotation but also part-of-speech tags. This allows us to devise
 patterns that are sensitive to these tags, as shown in the next
-example. The method ``show_clause()`` prints out the relations in a
+example. The method ``clause()`` prints out the relations in a
 clausal form, where the binary relation symbol is specified as the
 value of parameter ``relsym`` relsym_. 
 
@@ -1424,13 +1435,13 @@ value of parameter ``relsym`` relsym_.
     >>> for doc in conll2002.chunked_sents('ned.train'):
     ...     for r in nltk.sem.extract_rels('PER', 'ORG', doc,
     ...                                    corpus='conll2002', pattern=VAN): 
-    ...         print(nltk.sem.relextract.show_clause(r, relsym="VAN")) # [_relsym]
+    ...         print(nltk.sem.clause(r, relsym="VAN")) # [_relsym]
     VAN("cornet_d'elzius", 'buitenlandse_handel')
     VAN('johan_rottiers', 'kardinaal_van_roey_instituut')
     VAN('annie_lennox', 'eurythmics')
 
-.. note:: |TRY| Replace the last line relsym_, by ``print
-    show_raw_rtuple(rel, lcon=True, rcon=True)``. This will show you
+.. note:: |TRY| Replace the last line relsym_, by
+    ``print(rtuple(rel, lcon=True, rcon=True))``. This will show you
     the actual words that intervene between the two NEs and
     also their left and right context, within a default 10-word
     window. With the help of a Dutch dictionary, you might be able to

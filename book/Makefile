@@ -1,8 +1,8 @@
 # Tutorial Makefile
 #
-# Copyright (C) 2001-2012 NLTK Project
-# Author: Steven Bird <sb@csse.unimelb.edu.au>
-#         Edward Loper <edloper@gradient.cis.upenn.edu>
+# Copyright (C) 2001-2013 NLTK Project
+# Author: Steven Bird <stevenbird1@gmail.com>
+#         Edward Loper <edloper@gmail.com>
 # URL: <http://www.nltk.org/>
 # For license information, see LICENSE.TXT
 
@@ -18,7 +18,7 @@ CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../nltk.github.com/book3
+PUBLISH = ../../nltk.github.com/book
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
@@ -38,7 +38,7 @@ LATEXHACKS = ../latexhacks.py
 DOCTEST_SPLIT = ../doctest_split.py 
 RUNTESTS = ../../nltk/nltk/test/runtests.py
 
-RST = ../rst.py
+RST = $(PYTHON) ../rst.py
 NLTK_SRC = ../../nltk
 TOOLS = $(NLTK_SRC)/tools
 NLTK_INDEX = $(TOOLS)/nltk_term_index.py
@@ -47,7 +47,7 @@ RST2REF = $(RST) --ref
 RST2HTML = $(RST) --html
 RST2DOCBOOK = $(RST) --docbook
 RST2LATEX = $(RST) --latex --$(PAPER_SIZE)
-DOCTEST = PYTHONPATH=..: $(PYTHON) ../doctest_driver.py
+DOCTEST = PYTHONPATH=..:../../nltk $(PYTHON) ../doctest_driver.py
 BIBTEX = bibtex -terse
 XSLT = java org.apache.xalan.xslt.Process
 #get from environment
@@ -59,9 +59,11 @@ XMLLINT = xmllint --noout --dtdvalid $(DOCBOOKDTD)
 # <http://www.spinellis.gr/sw/textproc/bib2xhtml/>
 BIB2XHTML = bib2xhtml -s named
 LATEX_STYLESHEET_PATH = ../definitions.sty
-RSTHACKS = python ../rsthacks.py
+RSTHACKS = $(PYTHON) ../rsthacks.py
 
 .SUFFIXES: .rst .rst2 .html .pdf .errs .py
+
+html: $(HTML) bibliography.html 
 
 help: usage
 usage:
@@ -73,8 +75,7 @@ usage:
 	@echo "    make errs        -- Run doctest to generate .errs files"
 	@echo "    make clean       -- Remove all built files"
 
-all: html examples clean_up  # pdf
-html: $(HTML) bibliography.html 
+#all: html examples clean_up  # pdf
 pdf: $(PDF)
 xml: $(XML)
 	$(PYTHON) $(NLTK_INDEX)
@@ -120,7 +121,7 @@ clean_up:
 %.tex: %.rst $(REF) revision.rst
 	$(RSTHACKS) --format=latex $<
 	$(RST2LATEX) $(REF) $*.rst2
-	$(LATEXHACKS) $@
+	$(PYTHON) $(LATEXHACKS) $@
 
 revision.rst: $(CHAPTERS)
 	echo "This document was built on" > revision.rst
@@ -171,8 +172,8 @@ book.pdf: book.bbl book.tex
 
 .rst.errs:
 	$(PYTHON) $(DOCTEST_SPLIT) $<
-	$(PYTHON) $(RUNTESTS) $*-*.doctest 2>&1 |tee $@
-#	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
+#	$(PYTHON) $(RUNTESTS) $*-*.doctest 2>&1 |tee $@
+	$(DOCTEST) $*-*.doctest -v --ellipsis --normalize_whitespace --udiff |tee $@
 	rm -f $*-*.doctest
 
 .rst.py:

@@ -32,6 +32,11 @@ the following ways:
       multiple times.
 """
 
+# compat hack:
+import operator, numbers, collections
+operator.isNumberType = lambda x:isinstance(x, numbers.Number)
+operator.isSequenceType = lambda x:isinstance(x, collections.Sequence)
+
 import re, os.path, textwrap, sys, pickle
 from optparse import OptionParser
 from tree2image import tree_to_image
@@ -348,7 +353,7 @@ class callout_marker(docutils.nodes.Inline, docutils.nodes.Element):
     children; and defines the attribute 'number'.
     """
 
-DOCTEST_BLOCK_RE = re.compile('((?:[ ]*>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
+DOCTEST_BLOCK_RE = re.compile('((?:^>>>.*\n?(?:.*[^ ].*\n?)+\s*)+)',
                               re.MULTILINE)
 CALLOUT_RE = re.compile(r'#[ ]+\[_([\w-]+)\][ ]*', re.MULTILINE)
 

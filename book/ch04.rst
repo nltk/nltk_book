@@ -5,6 +5,7 @@
 .. standard global imports
 
     >>> import nltk, re, pprint
+    >>> from nltk import word_tokenize
 
 .. TODO: recipes for flattening a list of lists into a list, and for the reverse grouping a list into a list of lists
 .. TODO: discuss duck typing
@@ -201,7 +202,7 @@ You can do several pairwise tests to discover which position contains the interl
 but the ``id()`` function makes detection easier:
 
     >>> [id(snake) for snake in snake_nest]
-    [513528, 533168, 513528, 513528, 513528]
+    [4557855488, 4557854763, 4557855488, 4557855488, 4557855488]
 
 This reveals that the second item of the list has a distinct identifier.  If you try
 running this code snippet yourself, expect to see different numbers in the resulting list,
@@ -316,7 +317,6 @@ there were always two members.  However, tuples can have any number
 of members.  Like lists and strings, tuples can be indexed index-tuple_
 and sliced slice-tuple_, and have a length length-tuple_.
 
-.. doctest-ignore::
    >>> t = 'walk', 'fem', 3 # [_create-tuple]
    >>> t
    ('walk', 'fem', 3)
@@ -364,9 +364,6 @@ parentheses around tuples if there is no ambiguity. When we print a
 tuple, the parentheses are always displayed. By using tuples in this
 way, we are implicitly aggregating items together.
 
-.. note:: |TRY|
-   Define a set, e.g. using ``set(text)`` and see what happens when you
-   convert it to a list or iterate over its members.
 
 Operating on Sequence Types
 ---------------------------
@@ -384,7 +381,6 @@ as shown in tab-python-sequence_.
    ``for item in set(s)``                  iterate over unique elements of ``s``
    ``for item in reversed(s)``             iterate over elements of ``s`` in reverse
    ``for item in set(s).difference(t)``    iterate over elements of ``s`` not in ``t``
-   ``for item in random.shuffle(s)``       iterate over elements of ``s`` in random order
    ======================================  ===============================================
 
    Various ways to iterate over sequences
@@ -393,6 +389,8 @@ as shown in tab-python-sequence_.
 The sequence functions illustrated in tab-python-sequence_ can be combined
 in various ways; for example, to get unique elements of ``s`` sorted
 in reverse, use ``reversed(sorted(set(s)))``.
+We can randomize the contents of a list ``s`` before iterating over
+them, using ``random.shuffle(s)``.
 
 We can convert between these sequence types.  For example,
 ``tuple(s)`` converts any kind of sequence into a tuple, and
@@ -400,18 +398,18 @@ We can convert between these sequence types.  For example,
 We can convert a list of strings to a single string using the
 ``join()`` function, e.g. ``':'.join(words)``.
 
-Some other objects, such as a ``FreqDist``, can be converted into a sequence (using ``list()``)
-and support iteration, e.g. 
+Some other objects, such as a ``FreqDist``, can be converted into a
+sequence (using ``list()`` or ``sorted()``) and support iteration, e.g. 
 
     >>> raw = 'Red lorry, yellow lorry, red lorry, yellow lorry.'
-    >>> text = nltk.word_tokenize(raw)
+    >>> text = word_tokenize(raw)
     >>> fdist = nltk.FreqDist(text) 
-    >>> list(fdist)
-    ['lorry', ',', 'yellow', '.', 'Red', 'red']
+    >>> sorted(fdist)
+    [',', '.', 'Red', 'lorry', 'red', 'yellow']
     >>> for key in fdist:
-    ...     print(fdist[key], end=' ')
+    ...     print(key + ':', fdist[key], end='; ')
     ...
-    4 3 2 1 1 1
+    lorry: 4; red: 1; .: 1; ,: 3; Red: 1; yellow: 2
 
 In the next example, we use tuples to re-arrange the
 contents of our list.  (We can omit the parentheses
@@ -443,10 +441,20 @@ an index and the item at that index.
     >>> words = ['I', 'turned', 'off', 'the', 'spectroroute']
     >>> tags = ['noun', 'verb', 'prep', 'det', 'noun']
     >>> zip(words, tags)
+    <zip object at ...>
+    >>> list(zip(words, tags))
     [('I', 'noun'), ('turned', 'verb'), ('off', 'prep'),
     ('the', 'det'), ('spectroroute', 'noun')]
     >>> list(enumerate(words))
     [(0, 'I'), (1, 'turned'), (2, 'off'), (3, 'the'), (4, 'spectroroute')]
+
+.. note::
+   It is a widespread feature of Python 3 and NLTK 3 to only perform
+   computation when required (a feature known as "lazy evaluation").
+   If you ever see a result like ``<zip object at 0x10d005448>`` when
+   you expect to see a sequence, you can force the object to be
+   evaluated just by putting it in a context that expects a sequence,
+   like ``list(``\ `x`:mathit:\ ``)``, or ``for item in`` `x`:mathit:.
 
 For some |NLP| tasks it is necessary to cut up a sequence into two or more parts.
 For instance, we might want to "train" a system on 90% of the data and test it
@@ -459,7 +467,7 @@ cut the data cut-location_, then cut the sequence at that location cut-sequence_
     >>> text == training_data + test_data # [_cut-preserve]
     True
     >>> len(training_data) / len(test_data) # [_cut-ratio]
-    9
+    9.0
 
 We can verify that none of the original data is lost during this process, nor is it duplicated
 cut-preserve_.  We can also verify that the ratio of the sizes of the two pieces is what
@@ -558,16 +566,16 @@ processing of texts.  Here's an example where we tokenize and normalize a text:
 
     >>> text = '''"When I use a word," Humpty Dumpty said in rather a scornful tone,
     ... "it means just what I choose it to mean - neither more nor less."'''
-    >>> [w.lower() for w in nltk.word_tokenize(text)]
+    >>> [w.lower() for w in word_tokenize(text)]
     ['``', 'when', 'i', 'use', 'a', 'word', ',', "''", 'humpty', 'dumpty', 'said', ...]
 
 Suppose we now want to process these words further.  We can do this by inserting the above
 expression inside a call to some other function max-comprehension_,
 but Python allows us to omit the brackets max-generator_.
 
-    >>> max([w.lower() for w in nltk.word_tokenize(text)]) # [_max-comprehension]
+    >>> max([w.lower() for w in word_tokenize(text)]) # [_max-comprehension]
     'word'
-    >>> max(w.lower() for w in nltk.word_tokenize(text)) # [_max-generator]
+    >>> max(w.lower() for w in word_tokenize(text)) # [_max-generator]
     'word'
 
 The second line uses a `generator expression`:dt:.  This is more than a notational convenience:
@@ -615,23 +623,7 @@ avoid tabs for indentation, since these can be misinterpreted by
 different text editors and the indentation can be messed up.
 Lines should be less than 80 characters long; if necessary you can
 break a line inside parentheses, brackets, or braces, because
-Python is able to detect that the line continues over to the next line, e.g.:
-
-.. XXX note that the following example is a bad illustration of the above.
-   A pylisting would be apt here.
-
-.. doctest-ignore::
-    >>> from nltk.corpus import brown
-    >>> cv_word_pairs = [(cv, w) for w in rotokas_words
-    ...                          for cv in re.findall('[ptksvr][aeiou]', w)]
-    >>> cfd = nltk.ConditionalFreqDist(
-    ...           (genre, word)
-    ...           for genre in brown.categories()
-    ...           for word in brown.words(categories=genre))
-    >>> ha_words = ['aaahhhh', 'ah', 'ahah', 'ahahah', 'ahh', 'ahhahahaha',
-    ...             'ahhh', 'ahhhh', 'ahhhhhh', 'ahhhhhhhhhhhhhh', 'ha',
-    ...             'haaa', 'hah', 'haha', 'hahaaa', 'hahah', 'hahaha']
-
+Python is able to detect that the line continues over to the next line.
 If you need to break a line outside parentheses, brackets, or braces,
 you can often add extra parentheses, and you can always add a backslash at
 the end of the line that is broken:
@@ -674,8 +666,8 @@ program to compute the average length of words in the Brown Corpus:
     >>> for token in tokens:
     ...     count += 1
     ...     total += len(token)
-    >>> print(total / count)
-    4.2765382469
+    >>> total / count
+    4.401545438271973
 
 .. XXX above is first use of +=, so needs explaining
 
@@ -691,7 +683,10 @@ program that computes the same thing:
 
     >>> total = sum(len(t) for t in tokens)
     >>> print(total / len(tokens))
-    4.2765382469
+    4.401...
+
+.. Monkey patching so that the next example doesn't take forever
+    >>> tokens = "the cat sat on the mat".split()
 
 The first line uses a generator expression to sum the token lengths,
 while the second line computes the average as before.
@@ -704,39 +699,38 @@ programming at a more abstract level; the resulting code is
 more declarative.  Let's look at an extreme example:
 
     >>> word_list = []
-    >>> len_word_list = len(word_list)
     >>> i = 0
     >>> while i < len(tokens):
     ...     j = 0
-    ...     while j < len_word_list and word_list[j] < tokens[i]:
+    ...     while j < len(word_list) and word_list[j] <= tokens[i]:
     ...         j += 1
-    ...     if j == 0 or tokens[i] != word_list[j]:
+    ...     if j == 0 or tokens[i] != word_list[j-1]:
     ...         word_list.insert(j, tokens[i])
-    ...         len_word_list += 1
     ...     i += 1
+    ...
 
 The equivalent declarative version uses familiar built-in functions,
 and its purpose is instantly recognizable:
 
     >>> word_list = sorted(set(tokens))
 
-.. XXX you are taking for granted that the reader already knows what a loop counter /
-.. variable is.
+.. XXX you are taking for granted that the reader already knows what a loop variable is.
 
-Another case where a loop counter seems to be necessary is for printing
+Another case where a loop variable seems to be necessary is for printing
 a counter with each line of output.  Instead, we can use ``enumerate()``, which
 processes a sequence ``s`` and produces a tuple of the form ``(i, s[i])`` for each
-item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the keys of the
-frequency distribution, and capture the integer-string pair in the variables ``rank``
-and ``word``.  We print ``rank+1`` so that the counting appears to start from ``1``,
+item in ``s``, starting with ``(0, s[0])``.  Here we enumerate the key-value pairs of the
+frequency distribution, resulting in nested tuples ``(rank, (word, count))``.
+We print ``rank+1`` so that the counting appears to start from ``1``,
 as required when producing a list of ranked items.
 
     >>> fd = nltk.FreqDist(nltk.corpus.brown.words())
     >>> cumulative = 0.0
-    >>> for rank, word in enumerate(fd):
-    ...     cumulative += fd[word] * 100 / fd.N()
-    ...     print("%3d %6.2f%% %s" % (rank+1, cumulative, word))
-    ...     if cumulative > 25:
+    >>> most_common_words = [word for (word, count) in fd.most_common()]
+    >>> for rank, word in enumerate(most_common_words):
+    ...     cumulative += fd.freq(word)
+    ...     print("%3d %6.2f%% %s" % (rank + 1, cumulative * 100, word))
+    ...     if cumulative > 0.25:
     ...         break
     ...
       1   5.40% the
@@ -860,8 +854,8 @@ function, and give it a name such as ``get_text()``, as shown in code-get-text_.
    def get_text(file):
        """Read text from a file, normalizing whitespace and stripping HTML markup."""
        text = open(file).read()
-       text = re.sub('\s+', ' ', text)
        text = re.sub(r'<.*?>', ' ', text)
+       text = re.sub('\s+', ' ', text)
        return text
 
 Now, any time we want to get cleaned-up text from an HTML file, we can just call
@@ -882,12 +876,11 @@ a function definition is called a `docstring`:dt:.  Not only does it document th
 purpose of the function to someone reading the code, it is accessible to a programmer
 who has loaded the code from a file::
 
-    >>> help(get_text)
-    Help on function get_text:
-
-    get_text(file)
-        Read text from a file, normalizing whitespace
-        and stripping HTML markup.
+|   >>> help(get_text)
+|   Help on function get_text in module __main__:
+|
+|   get(text)
+|       Read text from a file, normalizing whitespace and stripping HTML markup.
 
 We have seen that functions help to make our work reusable and readable.  They
 also help make it *reliable*.  When we re-use code that has already been developed
@@ -920,7 +913,7 @@ the function's name in the function definition.  Here's a complete example:
 
 We first define the function to take two parameters, ``msg`` and ``num``
 fun-def_. Then we call the function and pass it two arguments, ``monty`` and ``3``
-fun-call_; these arguments fill the "placeholders" provide by the parameters and
+fun-call_; these arguments fill the "placeholders" provided by the parameters and
 provide values for the occurrences of ``msg`` and ``num`` in the function body.
 
 It is not necessary to have any parameters, as we see in the following example:
@@ -1043,7 +1036,7 @@ the so-called `LGB rule`:dt: of name resolution: local,
 then global, then built-in.
 
 .. caution::
-   A function can create a new global variable, using the
+   A function can enable access to a global variable using the
    ``global`` declaration.  However, this practice should be
    avoided as much as possible.  Defining global variables
    inside a function introduces dependencies on context
@@ -1054,11 +1047,12 @@ then global, then built-in.
 Checking Parameter Types
 ------------------------
 
-Python does not force us to declare the type of a variable when we write a program,
+Python does not allow us to declare the type of a variable when we write a program,
 and this permits us to define functions that are flexible
 about the type of their arguments.  For example, a tagger might expect
 a sequence of words, but it wouldn't care whether this sequence is expressed
-as a list, a tuple, or an iterator (a new sequence type that we'll discuss below).
+as a list or a tuple (or an iterator, another sequence type that is
+outside the scope of the current discussion).
 
 However, often we want to write programs for later use by others, and want
 to program in a defensive style, providing useful warnings when functions
@@ -1155,18 +1149,25 @@ passed in as a parameter, and it also prints a list of the
 .. pylisting:: code-freq-words1
    :caption: Poorly Designed Function to Compute Frequent Words
 
-   def freq_words(url, freqdist, n):
-       text = nltk.clean_url(url)
-       for word in nltk.word_tokenize(text):
-           freqdist.inc(word.lower())
-       print(freqdist.keys()[:n])
+   from urllib import request
+   from bs4 import BeautifulSoup
 
-   >>> constitution = "http://www.archives.gov/national-archives-experience" \
-   ...                "/charters/constitution_transcript.html"
+   def freq_words(url, freqdist, n):
+       html = request.urlopen(url).read().decode('utf8')
+       raw = BeautifulSoup(html).get_text()
+       for word in word_tokenize(raw):
+           freqdist[word.lower()] += 1
+       result = []
+       for word, count in freqdist.most_common(n):
+           result = result + [word]
+       print(result)
+
+   >>> constitution = "http://www.archives.gov/exhibits/charters/constitution_transcript.html"
    >>> fd = nltk.FreqDist()
-   >>> freq_words(constitution, fd, 20)
-   ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
-   'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+   >>> freq_words(constitution, fd, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
 
 This function has a number of problems.
 The function has two side-effects: it modifies the contents of its second
@@ -1174,32 +1175,34 @@ parameter, and it prints a selection of the results it has computed.
 The function would be easier to understand and to reuse elsewhere if we
 initialize the ``FreqDist()`` object inside the function (in the same place
 it is populated), and if we moved the selection and display of results to the
-calling program.  In code-freq-words2_ we `refactor`:dt: this function,
-and simplify its interface by providing a single ``url`` parameter.
+calling program. Given that its task is to identify frequent words, it
+should probably just return a list, not the whole frequency distribution.
+In code-freq-words2_ we `refactor`:dt: this function,
+and simplify its interface by dropping the ``freqdist`` parameter.
 
 .. pylisting:: code-freq-words2
    :caption: Well-Designed Function to Compute Frequent Words
 
-   def freq_words(url):
-       freqdist = nltk.FreqDist()
-       text = nltk.clean_url(url)
-       for word in nltk.word_tokenize(text):
-           freqdist.inc(word.lower())
-       return freqdist
+   from urllib import request
+   from bs4 import BeautifulSoup
 
-   >>> fd = freq_words(constitution)
-   >>> print(fd.keys()[:20])
-   ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
-   'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+   def freq_words(url, n):
+       html = request.urlopen(url).read().decode('utf8')
+       text = BeautifulSoup(html).get_text()
+       freqdist = nltk.FreqDist(word.lower() for word in word_tokenize(text))
+       return [word for (word, _) in fd.most_common(n)]
 
-Note that we have now simplified the work of ``freq_words``
-to the point that we can do its work with three lines of code:
+   >>> freq_words(constitution, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
 
-    >>> words = nltk.word_tokenize(nltk.clean_url(constitution))
-    >>> fd = nltk.FreqDist(word.lower() for word in words)
-    >>> fd.keys()[:20]
-    ['the', 'of', 'charters', 'bill', 'constitution', 'rights', ',',
-    'declaration', 'impact', 'freedom', '-', 'making', 'independence']
+The readability and usability of the ``freq_words`` function is improved.
+
+.. note::
+   We have used ``_`` as a variable name. This is no different to any other
+   variable except it signals to the reader that we don't have a use
+   for the information it holds.
 
 Documenting Functions
 ---------------------
@@ -1226,16 +1229,16 @@ the function and the expected output.  These can be tested automatically
 using Python's ``docutils`` module.
 Docstrings should document the type of each parameter to the function, and the return
 type.  At a minimum, that can be done in plain text.  However, note that |NLTK| uses
-the "epytext" markup language to document parameters.  This format
+the Sphinx markup language to document parameters.  This format
 can be automatically converted into richly structured
 API documentation (see |NLTK-URL|), and includes special handling of certain
-"fields" such as ``@param`` which allow the inputs and outputs of functions to be
-clearly documented.  code-epytext_ illustrates
+"fields" such as ``param`` which allow the inputs and outputs of functions to be
+clearly documented.  code-sphinx_ illustrates
 a complete docstring.
 
-.. pylisting:: code-epytext
+.. pylisting:: code-sphinx
    :caption: Illustration of a complete docstring, consisting of a one-line summary,
-             a more detailed explanation, a doctest example, and epytext markup
+             a more detailed explanation, a doctest example, and Sphinx markup
              specifying the parameters, types, return type, and exceptions.
 
    def accuracy(reference, test):
@@ -1250,20 +1253,20 @@ a complete docstring.
            >>> accuracy(['ADJ', 'N', 'V', 'N'], ['N', 'N', 'V', 'ADJ'])
            0.5
 
-       @param reference: An ordered list of reference values.
-       @type reference: C{list}
-       @param test: A list of values to compare against the corresponding
-           reference values.
-       @type test: C{list}
-       @rtype: C{float}
-       @raise ValueError: If C{reference} and C{length} do not have the
-           same length.
+       :param reference: An ordered list of reference values
+       :type reference: list
+       :param test: A list of values to compare against the corresponding
+           reference values
+       :type test: list
+       :return: the accuracy score
+       :rtype: float
+       :raises ValueError: If reference and length do not have the same length
        """
 
        if len(reference) != len(test):
            raise ValueError("Lists must have the same length.")
        num_correct = 0
-       for x, y in izip(reference, test):
+       for x, y in zip(reference, test):
            if x == y:
                num_correct += 1
        return float(num_correct) / len(reference)
@@ -1353,12 +1356,12 @@ in function ``search1()`` in code-search-examples_.
            if substring in word:
                yield word
 
-   print("search1:")
-   for item in search1('zz', nltk.corpus.brown.words()):
-       print(item)
-   print "search2:"
-   for item in search2('zz', nltk.corpus.brown.words()):
-       print(item)
+   >>> for item in search1('zz', nltk.corpus.brown.words()):
+   ...     print(item, end=" ")
+   Grizzlies' fizzled Rizzuto huzzahs dazzler jazz Pezza ...
+   >>> for item in search2('zz', nltk.corpus.brown.words()):
+   ...     print(item, end=" ")
+   Grizzlies' fizzled Rizzuto huzzahs dazzler jazz Pezza ...
    
 The function ``search2()`` is a generator.
 The first time this function is called, it gets as far as the ``yield``
@@ -1412,7 +1415,7 @@ the function returns ``True``.
     ...     return word.lower() not in ['a', 'of', 'the', 'and', 'will', ',', '.']
     >>> sent = ['Take', 'care', 'of', 'the', 'sense', ',', 'and', 'the', 
     ...         'sounds', 'will', 'take', 'care', 'of', 'themselves', '.'] 
-    >>> filter(is_content_word, sent)
+    >>> list(filter(is_content_word, sent))
     ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
     >>> [w for w in sent if is_content_word(w)]
     ['Take', 'care', 'sense', 'sounds', 'take', 'care', 'themselves']
@@ -1421,23 +1424,23 @@ Another higher-order function is ``map()``, which applies a function
 to every item in a sequence.  It is a general version of the
 ``extract_property()`` function we saw in sec-doing-more-with-functions_.  
 Here is a simple way to find the average length of a sentence in the news
-section of the Brown Corpus, followed by an equivalent version with list comprehension:
+section of the Brown Corpus, followed by an equivalent version with list comprehension
 calculation:
 
     >>> lengths = map(len, nltk.corpus.brown.sents(categories='news'))
     >>> sum(lengths) / len(lengths)
-    21.7508111616
-    >>> lengths = [len(w) for w in nltk.corpus.brown.sents(categories='news')]
+    21.75081116158339
+    >>> lengths = [len(sent) for sent in nltk.corpus.brown.sents(categories='news')]
     >>> sum(lengths) / len(lengths)
-    21.7508111616
+    21.75081116158339
 
 In the above examples we specified a user-defined function ``is_content_word()``
 and a built-in function ``len()``.  We can also provide a lambda expression.
 Here's a pair of equivalent examples which count the number of vowels in each word.
 
-    >>> map(lambda w: len(filter(lambda c: c.lower() in "aeiou", w)), sent)
+    >>> list(map(lambda w: len(filter(lambda c: c.lower() in "aeiou", w)), sent))
     [2, 2, 1, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 3, 0]
-    >>> [len([c for c in w if c.lower() in "aeiou"]) for w in sent]
+    >>> [len(c for c in w if c.lower() in "aeiou") for w in sent]
     [2, 2, 1, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 3, 0]
     
 The solutions based on list comprehensions are usually more readable than the
@@ -1487,9 +1490,9 @@ there's nothing special about the name ``*args``.
     >>> song = [['four', 'calling', 'birds'],
     ...         ['three', 'French', 'hens'],
     ...         ['two', 'turtle', 'doves']]
-    >>> zip(song[0], song[1], song[2])
+    >>> list(zip(song[0], song[1], song[2]))
     [('four', 'three', 'two'), ('calling', 'French', 'turtle'), ('birds', 'hens', 'doves')]
-    >>> zip(*song)
+    >>> list(zip(*song))
     [('four', 'three', 'two'), ('calling', 'French', 'turtle'), ('birds', 'hens', 'doves')]
 
 It should be clear from the above example that typing ``*song`` is just a convenient
@@ -1500,9 +1503,9 @@ definition, along with three equivalent ways to call the function:
 
     >>> def freq_words(file, min=1, num=10):
     ...     text = open(file).read()
-    ...     tokens = nltk.word_tokenize(text)
+    ...     tokens = word_tokenize(text)
     ...     freqdist = nltk.FreqDist(t for t in tokens if len(t) >= min)
-    ...     return freqdist.keys()[:num]
+    ...     return freqdist.most_common(num)
     >>> fw = freq_words('ch01.rst', 4, 10)
     >>> fw = freq_words('ch01.rst', min=4, num=10)
     >>> fw = freq_words('ch01.rst', num=10, min=4)
@@ -1519,12 +1522,12 @@ progress if a ``verbose`` flag is set:
     ...     if verbose: print("Opening", file)
     ...     text = open(file).read()
     ...     if verbose: print("Read in %d characters" % len(file))
-    ...     for word in nltk.word_tokenize(text):
+    ...     for word in word_tokenize(text):
     ...         if len(word) >= min:
-    ...             freqdist.inc(word)
-    ...             if verbose and freqdist.N() % 100 == 0: print(".")
+    ...             freqdist[word] += 1
+    ...             if verbose and freqdist.N() % 100 == 0: print(".", sep="")
     ...     if verbose: print
-    ...     return freqdist.keys()[:num]
+    ...     return freqdist.most_common(num)
 
 .. caution::
    Take care not to use a mutable object as the default value of
@@ -1532,6 +1535,14 @@ progress if a ``verbose`` flag is set:
    same object, sometimes with bizarre results as we will see in
    the discussion of debugging below.
 
+.. caution::
+   If your program will work with a lot of files, it is a good idea to
+   close any open files once they are no longer required. Python will
+   close open files automatically if you use the ``with`` statement:
+
+   >>> with open("lexicon.txt") as f:
+   ...     data = f.read()
+   ...     # process the data
 
 .. _sec-program-development:
 
@@ -1570,7 +1581,6 @@ When you start writing Python modules, it helps to have some
 examples to emulate.  You can locate the code for any |NLTK| module on your
 system using the ``__file__`` variable, e.g.:
 
-.. doctest-ignore::
     >>> nltk.metrics.distance.__file__
     '/usr/lib/python2.5/site-packages/nltk/metrics/distance.pyc'
 
@@ -1783,8 +1793,8 @@ function.  Remember that the problem arose the second time the function was
 called.  We'll start by calling the function without using the debugger first-run_,
 using the smallest possible input.  The second time, we'll call it with the
 debugger second-run_.
- 
 .. doctest-ignore::
+ 
     >>> import pdb
     >>> find_words(['cat'], 3) # [_first-run]
     ['cat']
@@ -1886,7 +1896,7 @@ See fig-mergesort_ for an illustration of this process.
 
 Another example is the process of looking up a word in a dictionary.  We open
 the book somewhere around the middle and compare our word with the current
-page.  If its earlier in the dictionary we repeat the process on the first
+page.  If it's earlier in the dictionary we repeat the process on the first
 half; if its later we use the second half.  This search method is called
 `binary search`:lx: since it splits the problem in half at every step.
 
@@ -1973,7 +1983,7 @@ It also maintains a total of the number of synsets encountered so far update-tot
 Not only is the iterative solution much longer, it is harder to interpret.
 It forces us to think procedurally, and keep track of what is happening with
 the ``layer`` and ``total`` variables through time.  Let's satisfy ourselves
-that both solutions give the same result.  We'll use a new form of the import
+that both solutions give the same result.  We'll use another form of the import
 statement, allowing us to abbreviate the name ``wordnet`` to ``wn``:
 
     >>> from nltk.corpus import wordnet as wn
@@ -2021,7 +2031,7 @@ store the intended value (in this case, the word `dog`:lx:).
    >>> trie = dict(trie)               # for nicer printing
    >>> trie['c']['h']['a']['t']['value']
    'cat'
-   >>> pprint.pprint(trie)
+   >>> pprint.pprint(trie, width=40)
    {'c': {'h': {'a': {'t': {'value': 'cat'}},
                      {'i': {'r': {'value': 'flesh'}}},
                 'i': {'e': {'n': {'value': 'dog'}}}
@@ -2051,7 +2061,7 @@ provides much faster lookup.
        contents = re.sub('\s+', ' ', contents)
        return contents
 
-   def snippet(doc, term): # buggy
+   def snippet(doc, term):
        text = ' '*30 + raw(doc) + ' '*30
        pos = text.index(term)
        return text[pos-30:pos+30]
@@ -2062,7 +2072,7 @@ provides much faster lookup.
 
    query = ''
    while query != "quit":
-       query = raw_input("query> ")
+       query = input("query> ")     # use raw_input() in Python 2
        if query in idx:
            for doc in idx[query]:
                print(snippet(doc, query))
@@ -2089,9 +2099,9 @@ for an example of how to do this for a tagged corpus.
            for word, tag in sent:
                words.add(word)
                tags.add(tag)
-       wm = dict((w,i) for (i,w) in enumerate(words))
-       tm = dict((t,i) for (i,t) in enumerate(tags))
-       return [[(wm[w], tm[t]) for (w,t) in sent] for sent in tagged_corpus]
+       wm = dict((w, i) for (i, w) in enumerate(words))
+       tm = dict((t, i) for (i, t) in enumerate(tags))
+       return [[(wm[w], tm[t]) for (w, t) in sent] for sent in tagged_corpus]
 
 Another example of a space-time tradeoff is maintaining a vocabulary list.
 If you need to process an input text to check that all words are in an
@@ -2159,7 +2169,7 @@ subsets, those starting with *L* and those starting with
         i.e. S prefixed to each item of *V*\ :subscript:`3` = {SL, LS, SSS}
 
 .. pylisting:: code-virahanka
-   :caption: Four Ways to Compute Sanskrit Meter: (i) iterative; (ii) bottom-up dynamic programming;
+   :caption: Four Ways to Compute Sanskrit Meter: (i) recursive; (ii) bottom-up dynamic programming;
              (iii) top-down dynamic programming; and (iv) built-in memoization.
 
    def virahanka1(n):
@@ -2290,22 +2300,25 @@ format.  The output is shown in fig-modal-genre_ (a color figure in the graphica
 .. pylisting:: code-modal-plot
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
 
+   from numpy import arange
+   from matplotlib import pyplot
+
    colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
+
    def bar_chart(categories, words, counts):
        "Plot a bar chart showing counts for each word by category"
-       import pylab
-       ind = pylab.arange(len(words))
+       ind = arange(len(words))
        width = 1 / (len(categories) + 1)
        bar_groups = []
        for c in range(len(categories)):
-           bars = pylab.bar(ind+c*width, counts[categories[c]], width,
+           bars = pyplot.bar(ind+c*width, counts[categories[c]], width,
                             color=colors[c % len(colors)])
            bar_groups.append(bars)
-       pylab.xticks(ind+width, words)
-       pylab.legend([b[0] for b in bar_groups], categories, loc='upper left')
-       pylab.ylabel('Frequency')
-       pylab.title('Frequency of Six Modal Verbs by Genre')
-       pylab.show()
+       pyplot.xticks(ind+width, words)
+       pyplot.legend([b[0] for b in bar_groups], categories, loc='upper left')
+       pyplot.ylabel('Frequency')
+       pyplot.title('Frequency of Six Modal Verbs by Genre')
+       pyplot.show()
 
    >>> genres = ['news', 'religion', 'hobbies', 'government', 'adventure']
    >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
@@ -2333,7 +2346,7 @@ format.  The output is shown in fig-modal-genre_ (a color figure in the graphica
       for genre in genres:
           for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
               if tag == t:
-                   cfdist[genre].inc(word.lower())
+                   cfdist[genre][word.lower()] += 1
       return cfdist
     
 
@@ -2346,15 +2359,14 @@ search parameters, submit the form, and see a dynamically generated
 visualization.
 To do this we have to specify the ``Agg`` backend for ``matplotlib``,
 which is a library for producing raster (pixel) images agg-backend_.
-Next, we use all the same PyLab methods as before, but instead of displaying the
-result on a graphical terminal using ``pylab.show()``, we save it to a file
-using ``pylab.savefig()`` pylab-savefig_.  We specify the filename and dpi,
+Next, we use all the same Matplotlib methods as before, but instead of displaying the
+result on a graphical terminal using ``pyplot.show()``, we save it to a file
+using ``pyplot.savefig()`` pyplot-savefig_.  We specify the filename
 then print HTML markup that directs the web browser to load the file.
 
-.. doctest-ignore::
-    >>> import matplotlib
-    >>> matplotlib.use('Agg') # [_agg-backend]
-    >>> pylab.savefig('modals.png') # [_pylab-savefig]
+    >>> from matplotlib import use, pyplot
+    >>> use('Agg') # [_agg-backend]
+    >>> pyplot.savefig('modals.png') # [_pyplot-savefig]
     >>> print('Content-Type: text/html')
     >>> print()
     >>> print('<html><body>')
@@ -2423,7 +2435,7 @@ csv
 
 Language analysis work often involves data tabulations, containing information
 about lexical items, or the participants in an empirical study, or the linguistic
-features extract`<ed from a corpus.  Here's a fragment of a simple lexicon, in CSV format:  
+features extracted from a corpus.  Here's a fragment of a simple lexicon, in CSV format:  
 
 |   sleep, sli:p, v.i, a condition of body and mind ...
 |   walk, wo:k, v.intr, progress by lifting and setting down each foot ...
@@ -2433,6 +2445,7 @@ We can use Python's CSV library to read and write files stored in this format.
 For example, we can open a CSV file called ``lexicon.csv`` open-csv_ 
 and iterate over its rows iterate-csv_:
 
+.. doctest-ignore::
     >>> import csv
     >>> input_file = open("lexicon.csv", "rb") # [_open-csv]
     >>> for row in csv.reader(input_file): # [_iterate-csv]
@@ -2516,11 +2529,6 @@ Summary
   common operations such as indexing, slicing, ``len()``, ``sorted()``, and
   membership testing using ``in``.
 
-* We can write text to a file by opening the file for writing
-  ``ofile = open('output.txt', 'w')``, then adding content to the
-  file ``ofile.write("Monty Python")``, and finally closing the
-  file ``ofile.close()``.
-
 * A declarative programming style usually produces more compact,
   readable code; manually-incremented loop variables are usually
   unnecessary; when a sequence must be enumerated, use ``enumerate()``.
@@ -2560,7 +2568,7 @@ An excellent resource for using Python for multimedia processing,
 including working with sound files, is [Guzdial2005]_.
 
 When using the online Python documentation, be aware that
-your installed version might be different to the version
+your installed version might be different from the version
 of the documentation you are reading.  You can easily
 check what version you have, with ``import sys; sys.version``.
 Version-specific documentation is available at
@@ -2717,7 +2725,7 @@ Exercises
    |NLTK|\ 's Shakespeare Corpus and using the NetworkX package, plot keyword linkage networks. 
 
 #. |soso| Read about string edit distance and the Levenshtein Algorithm.
-   Try the implementation provided in ``nltk.edit_dist()``.
+   Try the implementation provided in ``nltk.edit_distance()``.
    In what way is this using dynamic programming?  Does it use the bottom-up or
    top-down approach?
    [See also ``http://norvig.com/spell-correct.html``]
@@ -2757,7 +2765,7 @@ Exercises
    Use Python's ``textwrap`` module to break it up into multiple lines.
    Now write code to add extra spaces between words, in order to justify
    the output.  Each line must have the same width, and spaces must be
-   approximately evenly distributed across each lines.  No line can
+   approximately evenly distributed across each line.  No line can
    begin or end with a space.
 
 #. |hard| Develop a simple extractive summarization tool, that prints the
@@ -2781,7 +2789,7 @@ Exercises
    ``http://www.amazon.com/gp/search-inside/sipshelp.html``
 
 #. |hard| Write a program to implement a brute-force algorithm for
-   discovering word squares, a kind of `n`:math: |times| `n`:math crossword
+   discovering word squares, a kind of `n`:math: |times| `n`:math: crossword
    in which the entry in the `n`:math:\ th row is the same as the entry
    in the `n`:math:\ th column.  For discussion, see
    ``http://itre.cis.upenn.edu/~myl/languagelog/archives/002679.html``

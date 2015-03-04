@@ -174,7 +174,7 @@ Syntactic Agreement
 
 The following examples show pairs of word sequences, the first of which is
 grammatical and the second not. (We use an asterisk at the start of a
-word sequence to signal that is ungrammatical.) 
+word sequence to signal that it is ungrammatical.)
 
 .. _ex-thisdog:
 .. ex::
@@ -250,13 +250,13 @@ an abbreviation for 3rd person, "SG" for singular and "PL" for plural.)
 
 .. _ex-runs:
 .. gloss::
-   the | dog       |run-s
-       | dog.3.SG  |run-3.SG
+   the | dog       |run.s
+       | dog.3.SG  |run.3.SG
 
 .. _ex-run:
 .. gloss::
    the | dog-s     |run          
-       | dog.3.PL  |run-3.PL 
+       | dog.3.PL  |run.3.PL
 
 Let's see what happens when we encode these agreement constraints in a
 context-free grammar.  We will begin with the simple CFG in ex-agcfg0_.
@@ -438,15 +438,15 @@ two lexical entries to the grammar, one each for the singular and
 plural versions of determiner such as `the`:lx:
 ::
 
-    Det[NUM=sg] -> 'the' | 'some' | 'several' 
-    Det[NUM=pl] -> 'the' | 'some' | 'several' 
+    Det[NUM=sg] -> 'the' | 'some' | 'any'
+    Det[NUM=pl] -> 'the' | 'some' | 'any'
 
 However, a more elegant solution is to
 leave the ``NUM`` value `underspecified`:dt: and letting it agree
 in number with whatever noun it combines with. Assigning a variable
 value to ``NUM`` is one way of achieving this result::
 
-    Det[NUM=?n] -> 'the' | 'some' | 'several' 
+    Det[NUM=?n] -> 'the' | 'some' | 'any'
 
 But in fact we can be even more economical, and just omit any
 specification for ``NUM`` in such productions. We only need
@@ -472,6 +472,7 @@ far in this chapter, plus a couple of new ones.
     # S expansion productions
     S -> NP[NUM=?n] VP[NUM=?n]
     # NP expansion productions
+    NP[NUM=?n] -> N[NUM=?n]
     NP[NUM=?n] -> PropN[NUM=?n] 
     NP[NUM=?n] -> Det[NUM=?n] N[NUM=?n]
     NP[NUM=pl] -> N[NUM=pl] 
@@ -511,12 +512,12 @@ tested and revised.  We have saved code-feat0cfg_ as a file named
 ``'feat0.fcfg'`` in the NLTK data distribution. You can make your own
 copy of this for further experimentation using ``nltk.data.load()``.
 
-Feature based grammars are parsed in |NLTK| using an Earley chart
-parser (see sec-featgram-further-reading_ for more information about this).
+code-featurecharttrace_ illustrates the operation of a chart
+parser with a feature-based grammar.
 After tokenizing the input, we import the ``load_parser`` function
 load_parser1_ which takes a grammar filename as input and returns a
 chart parser ``cp`` load_parser2_.  Calling the parser's
-``nbest_parse()`` method will return a list ``trees`` of parse trees;
+``parse()`` method will iterate over the resulting parse trees;
 ``trees`` will be empty if the grammar fails to parse the input and
 will contain one or more parse trees, depending on whether the input
 is syntactically ambiguous or not.
@@ -527,7 +528,9 @@ is syntactically ambiguous or not.
     >>> tokens = 'Kim likes children'.split()
     >>> from nltk import load_parser # [_load_parser1]
     >>> cp = load_parser('grammars/book_grammars/feat0.fcfg', trace=2)  # [_load_parser2]
-    >>> trees = cp.nbest_parse(tokens) 
+    >>> for tree in cp.parse(tokens):
+    ...     print(tree)
+    ...
     |.Kim .like.chil.|
     Leaf Init Rule:
     |[----]    .    .| [0:1] 'Kim'
@@ -553,6 +556,11 @@ is syntactically ambiguous or not.
     |.    [---------]| [1:3] VP[NUM='sg', TENSE='pres'] -> TV[NUM='sg', TENSE='pres'] NP[] *
     Feature Single Edge Fundamental Rule:
     |[==============]| [0:3] S[] -> NP[NUM='sg'] VP[NUM='sg'] *
+    (S[]
+      (NP[NUM='sg'] (PropN[NUM='sg'] Kim))
+      (VP[NUM='sg', TENSE='pres']
+        (TV[NUM='sg', TENSE='pres'] likes)
+        (NP[NUM='pl'] (N[NUM='pl'] children))))
 
 The details of the parsing procedure are not that important for
 present purposes. However, there is an implementation issue which
@@ -594,12 +602,12 @@ case of atomic values are `boolean`:dt: values, that is, values that
 just specify whether a property is true or false. For
 example, we might want to distinguish `auxiliary`:dt: verbs such as
 `can`:lx:, `may`:lx:, `will`:lx: and `do`:lx: with the boolean feature
-``AUX``. For example, the production ``V[TENSE=pres, aux=+] -> 'can'``
+``AUX``. For example, the production ``V[TENSE=pres, AUX=+] -> 'can'``
 means that `can`:lx: receives the value ``pres`` for ``TENSE`` and
 ``+`` or ``true`` for ``AUX``. There is a widely adopted
 convention which abbreviates the representation of boolean
-features ``f``; instead of ``aux=+`` or ``aux=-``, we use ``+aux`` and
-``-aux`` respectively. These are just abbreviations, however, and the
+features ``f``; instead of ``AUX=+`` or ``AUX=-``, we use ``+AUX`` and
+``-AUX`` respectively. These are just abbreviations, however, and the
 parser interprets them as though ``+`` and ``-`` are like any
 other atomic value. ex-lex_ shows some representative productions:
 
@@ -607,11 +615,11 @@ other atomic value. ex-lex_ shows some representative productions:
 .. ex::
     ::
 
-        V[TENSE=pres, +aux] -> 'can'
-        V[TENSE=pres, +aux] -> 'may'
+        V[TENSE=pres, +AUX] -> 'can'
+        V[TENSE=pres, +AUX] -> 'may'
 
-        V[TENSE=pres, -aux] -> 'walks'
-        V[TENSE=pres, -aux] -> 'likes'
+        V[TENSE=pres, -AUX] -> 'walks'
+        V[TENSE=pres, -AUX] -> 'likes'
 
 We have spoken of attaching "feature annotations" to
 syntactic categories. A more radical approach represents the whole category
@@ -746,10 +754,10 @@ Feature structures are not inherently tied to linguistic objects; they are
 general purpose structures for representing knowledge. For example, we
 could encode information about a person in a feature structure:
 
-    >>> print(nltk.FeatStruct(name='Lee', telno='01 27 86 42 96', age=33))
-    [ age   = 33               ]
-    [ name  = 'Lee'            ]
-    [ telno = '01 27 86 42 96' ]
+    >>> print(nltk.FeatStruct(NAME='Lee', TELNO='01 27 86 42 96', AGE=33))
+    [ AGE   = 33               ]
+    [ NAME  = 'Lee'            ]
+    [ TELNO = '01 27 86 42 96' ]
 
 In the next couple of pages, we are going to use examples like this
 to explore standard operations over feature structures.
@@ -779,10 +787,10 @@ Just as before, feature values can be complex:
 When we look at such graphs, it is natural to think in terms of
 paths through the graph. A `feature path`:dt: is a sequence of arcs
 that can be followed from the root node. We will represent paths as
-tuples. Thus, ``('address', 'street')`` is a feature path whose value
-in ex-dag02_ is the sequence "rue Pascal".
+tuples. Thus, ``('ADDRESS', 'STREET')`` is a feature path whose value
+in ex-dag02_ is the node labeled ``'rue Pascal'``.
 
-Now let's consider a situation where Lee has a spouse named "Kim", and
+Now let's consider a situation where Lee has a spouse named *Kim*, and
 Kim's address is the same as Lee's.
 We might represent this as ex-dag04_.
 
@@ -859,8 +867,8 @@ Subsumption and Unification
 
 It is standard to think of feature structures as providing `partial
 information`:dt: about some object, in the sense that we can order
-feature structures according to how general they are. For example,
-ex-fs01_ is more general (less specific) than ex-fs02_, which in turn is more general than ex-fs03_.
+feature structures according to how much information they contain. For example,
+ex-fs01_ has less information than ex-fs02_, which in turn has less information than ex-fs03_.
 
 .. ex::
    .. _ex-fs01:
@@ -874,7 +882,7 @@ ex-fs01_ is more general (less specific) than ex-fs02_, which in turn is more ge
         ::
 
          [NUMBER = 74          ]
-         [street = 'rue Pascal']
+         [STREET = 'rue Pascal']
 
    .. _ex-fs03:
    .. ex::
@@ -884,14 +892,18 @@ ex-fs01_ is more general (less specific) than ex-fs02_, which in turn is more ge
          [STREET = 'rue Pascal']
          [CITY = 'Paris'       ]
 
-This ordering is called `subsumption`:dt:; a more general feature
-structure `subsumes`:dt: a less general one. If `FS`:math:\
-:subscript:`0` subsumes `FS`:math:\ :subscript:`1` (formally, we write
+This ordering is called `subsumption`:dt:; `FS`:math:\
+:subscript:`0` subsumes `FS`:math:\ :subscript:`1` if all the
+information contained in `FS`:math:\
+:subscript:`0` is also contained in `FS`:math:\ :subscript:`1`.
+We use the symbol |SquareSubsetEqual| to represent subsumption.
+
+When we add the possibility of reentrancy, we need to be more careful
+about how we describe subsumption: if
 `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
-:subscript:`1`), then `FS`:math:\ :subscript:`1` must have all the
-paths and path equivalences of `FS`:math:\ :subscript:`0`, and may
-have additional paths and equivalences as well. Thus, ex-dag04_ subsumes
-ex-dag03_, since the latter has additional path equivalences. It should
+:subscript:`1`, then `FS`:math:\ :subscript:`1` must have all the
+paths and reentrancies of `FS`:math:\ :subscript:`0`. Thus, ex-dag02_ subsumes
+ex-dag03_, since the latter has additional reentrancies. It should
 be obvious that subsumption only provides a partial ordering on
 feature structures, since some feature structures are
 incommensurable. For example, ex-fs04_ neither subsumes nor is subsumed
@@ -904,8 +916,8 @@ by ex-fs01_.
 
          [TELNO = 01 27 86 42 96]
 
-So we have seen that some feature structures are more specific than
-others. How do we go about specializing a given feature structure?
+So we have seen that some feature structures carry more information than
+others. How do we go about adding more information to a given feature structure?
 For example, we might decide that addresses should
 consist of not just a street number and a street name, but also a
 city. That is, we might want to *merge*  graph ex-dag042_ with ex-dag041_ to
@@ -937,12 +949,12 @@ Merging information from two feature structures is called
     [ NUMBER = 74           ]
     [ STREET = 'rue Pascal' ]
 
-Unification is formally defined as a binary operation:
-`FS`:math:\ :subscript:`0` |SquareIntersection|
+Unification is formally defined as a (partial) binary operation:
+`FS`:math:\ :subscript:`0` |SquareUnion|
 `FS`:math:\ :subscript:`1`.
 Unification is symmetric, so 
-`FS`:math:\ :subscript:`0` |SquareIntersection|
-`FS`:math:\ :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareIntersection|
+`FS`:math:\ :subscript:`0` |SquareUnion|
+`FS`:math:\ :subscript:`1` = `FS`:math:\ :subscript:`1` |SquareUnion|
 `FS`:math:\ :subscript:`0`.
 The same is true in Python:
 
@@ -958,13 +970,13 @@ The same is true in Python:
    only works with repr()
 
 If we unify two feature structures which stand in the subsumption
-relationship, then the result of unification is the most specific of
+relationship, then the result of unification is the most informative of
 the two:
 
 .. ex::
     If `FS`:math:\ :subscript:`0` |SquareSubsetEqual| `FS`:math:\
     :subscript:`1`,  then `FS`:math:\ :subscript:`0`
-    |SquareIntersection| `FS`:math:\ :subscript:`1` = `FS`:math:\
+    |SquareUnion| `FS`:math:\ :subscript:`1` = `FS`:math:\
     :subscript:`1` 
 
 For example, the result of unifying ex-fs02_ with ex-fs03_ is ex-fs03_.
@@ -1036,8 +1048,8 @@ ex-dag03_):
 
 Rather than just updating what was in effect Kim's "copy" of Lee's address,
 we have now updated `both`:em: their addresses at the same time. More
-generally, if a unification involves specializing the value of some
-path |pi|, then that unification simultaneously specializes the value
+generally, if a unification adds information to the value of some
+path |pi|, then that unification simultaneously updates the value
 of `any path that is equivalent to`:em: |pi|.
 
 .. XXX The ?x gets broken across lines
@@ -1269,6 +1281,7 @@ achieved by two applications of the recursive rule expanding ``N[BAR=1]``.
      N[BAR=2] -> Det N[BAR=1]
      N[BAR=1] -> N[BAR=1] P[BAR=2] 
      N[BAR=1] -> N[BAR=0] P[BAR=2] 
+     N[BAR=1] -> N[BAR=0]XS
 
 
 Auxiliary Verbs and Inversion
@@ -1340,7 +1353,7 @@ following production:
 
      S[+INV] -> V[+AUX] NP VP
 
-That is, a clause marked as [`+inv`] consists of an auxiliary
+That is, a clause marked as [`+INV`] consists of an auxiliary
 verb followed by a ``VP``. (In a more detailed grammar, we would
 need to place some constraints on the form of the ``VP``, depending
 on the choice of auxiliary.) ex-invtree_ illustrates the structure of an
@@ -1528,10 +1541,10 @@ Do we need to think of slash categories as a completely new kind of
 object?  Fortunately, we
 can accommodate them within our existing feature based framework,
 by treating slash as a feature, and the category to its right
-as a value; that is,  ``S/NP`` is reducible ``S[SLASH=NP]``. In practice,
-this is also how the parser interprets slassh categories. 
+as a value; that is,  ``S/NP`` is reducible to ``S[SLASH=NP]``. In practice,
+this is also how the parser interprets slash categories.
 
-The grammar show in code-slashcfg_ illustrates
+The grammar shown in code-slashcfg_ illustrates
 the main principles of slash categories, and also includes productions for
 inverted clauses. To simplify presentation, we have omitted any
 specification of tense on the verbs.
@@ -1594,7 +1607,7 @@ like`:lx:
     >>> tokens = 'who do you claim that you like'.split()
     >>> from nltk import load_parser 
     >>> cp = load_parser('grammars/book_grammars/feat1.fcfg')  
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     (S[-INV]
       (NP[+WH] who)
@@ -1622,7 +1635,7 @@ The grammar in code-slashcfg_ will also allow us to parse sentences
 without gaps:
 
     >>> tokens = 'you claim that you like cats'.split()
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     (S[-INV]
       (NP[-WH] you)
@@ -1638,7 +1651,7 @@ In addition, it admits inverted sentences which do not involve
 `wh`:lx: constructions:
 
     >>> tokens = 'rarely do you sing'.split()
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     (S[-INV]
       (Adv[+NEG] rarely)
@@ -1771,7 +1784,7 @@ tree for a sentence containing a verb which governs dative case.
     
     >>> tokens = 'ich folge den Katzen'.split()
     >>> cp = load_parser('grammars/book_grammars/german.fcfg')  
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     (S[]
       (NP[AGR=[NUM='sg', PER=1], CASE='nom']
@@ -1783,14 +1796,14 @@ tree for a sentence containing a verb which governs dative case.
           (N[AGR=[GND='fem', NUM='pl', PER=3]] Katzen))))
 
 In developing grammars, excluding ungrammatical word sequences is often as
-challenging than parsing grammatical ones. In order to get an idea
+challenging as parsing grammatical ones. In order to get an idea
 where and why a sequence fails to parse, setting the ``trace``
 parameter of the ``load_parser()`` method can be crucial. Consider the
 following parse failure:
 
     >>> tokens = 'ich folge den Katze'.split()
     >>> cp = load_parser('grammars/book_grammars/german.fcfg', trace=2)  
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     |.ich.fol.den.Kat.|
     Leaf Init Rule:
@@ -1865,7 +1878,8 @@ Summary
 
 * Feature structures are partially ordered by subsumption.
   `FS`:math:\ :subscript:`0` subsumes `FS`:math:\ :subscript:`1` when
-  `FS`:math:\ :subscript:`0` is more general (less informative) than
+  all the information contained in
+  `FS`:math:\ :subscript:`0` is also present in
   `FS`:math:\ :subscript:`1`. 
 
 * The unification of two structures `FS`:math:\ :subscript:`0` and
@@ -1874,8 +1888,8 @@ Summary
   information of both `FS`:math:\ :subscript:`0` and `FS`:math:\
   :subscript:`1`.
 
-* If unification specializes a path |pi| in `FS`:math:, then it also
-  specializes every path |pi|\ ' equivalent to |pi|.
+* If unification adds information to a path |pi| in `FS`:math:, then it also
+  adds information to every path |pi|\ ' equivalent to |pi|.
 
 * We can use feature structures to build succinct analyses of a wide
   variety of linguistic phenomena, including verb subcategorization,
@@ -1887,10 +1901,8 @@ Summary
 Further Reading
 ---------------
 
-Please consult [NLTK-URL] for further materials on this chapter, including HOWTOs
-feature structures, feature grammars, Earley parsing and grammar test suites.
-
-.. XXX Mention Earley chart parser info as promised.
+Please consult |NLTK-URL| for further materials on this chapter, including
+feature structures, feature grammars, and grammar test suites.
 
 X-bar Syntax: [Chomsky1970RN]_, [Jackendoff1977XS]_ 
 (The primes we use replace Chomsky's typographically more demanding horizontal bars.)
@@ -2034,8 +2046,8 @@ Exercises
           'beautiful curtains'     
 
 
-#. |soso| Develop a wrapper for the ``earley_parser`` so that a trace
-   is only printed if the input sequence fails to parse.
+#. |soso| Develop your own version of the ``EarleyChartParser`` which only
+   prints a trace if the input sequence fails to parse.
 
 #. |soso| Consider the feature structures shown in code-featstructures_.
 

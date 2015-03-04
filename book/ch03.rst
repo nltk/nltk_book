@@ -1,10 +1,11 @@
-.. -*- mode: rst -*-
+:.. -*- mode: rst -*-
 .. include:: ../definitions.rst
 .. include:: regexp-defns.rst
 
 .. standard global imports
 
     >>> import nltk, re, pprint
+    >>> from nltk import word_tokenize
 
 .. TODO: more on regular expressions, including ()
 .. TODO: talk about fact that English lexicon is open set (e.g. malware = malicious software)
@@ -57,8 +58,9 @@ see how to dispense with markup.
    begin your interactive session or your program with the following import
    statements:
    
-     >>> from __future__ import division 
+     >>> from __future__ import division  # Python 2 users only
      >>> import nltk, re, pprint
+     >>> from nltk import word_tokenize
 
 .. _sec-accessing-text:
 
@@ -83,25 +85,25 @@ and we can access it as follows.
 
     >>> from urllib import request
     >>> url = "http://www.gutenberg.org/files/2554/2554.txt"
-    >>> raw = request.urlopen(url).read().decode('utf8')
+    >>> response = request.urlopen(url)
+    >>> raw = response.read().decode('utf8')
     >>> type(raw)
-    <type 'str'>
+    <class 'str'>
     >>> len(raw)
-    1176831
+    1176893
     >>> raw[:75]
     'The Project Gutenberg EBook of Crime and Punishment, by Fyodor Dostoevsky\r\n'
 
 .. note::
    The ``read()`` process will take a few seconds as it downloads this large book.
    If you're using an internet proxy which is not correctly detected by Python,
-   you may need to specify the proxy manually as follows:
+   you may need to specify the proxy manually, before using ``urlopen``, as follows:
    
     .. doctest-ignore::
        >>> proxies = {'http': 'http://www.someproxy.com:3128'}
        >>> request.ProxyHandler(proxies)
-       >>> raw = request.urlopen(url).read().decode('utf8')
    
-The variable ``raw`` contains a string with 1,176,831 characters.
+The variable ``raw`` contains a string with 1,176,893 characters.
 (We can see that it is a string, using ``type(raw)``.)
 This is the raw content of the book,
 including many details we are not interested in such as
@@ -114,11 +116,11 @@ words and punctuation, as we saw in chap-introduction_.  This step is
 called `tokenization`:dt:, and it produces our familiar structure, a list of words
 and punctuation.
 
-    >>> tokens = nltk.word_tokenize(raw)
+    >>> tokens = word_tokenize(raw)
     >>> type(tokens)
-    <type 'list'>
+    <class 'list'>
     >>> len(tokens)
-    255809
+    254354
     >>> tokens[:10]
     ['The', 'Project', 'Gutenberg', 'EBook', 'of', 'Crime', 'and', 'Punishment', ',', 'by']
 
@@ -131,18 +133,18 @@ like slicing:
 
     >>> text = nltk.Text(tokens)
     >>> type(text)
-    <type 'nltk.text.Text'>
-    >>> text[1020:1060]
+    <class 'nltk.text.Text'>
+    >>> text[1024:1062]
     ['CHAPTER', 'I', 'On', 'an', 'exceptionally', 'hot', 'evening', 'early', 'in',
-    'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
-    'which', 'he', 'lodged', 'in', 'S', '.', 'Place', 'and', 'walked', 'slowly',
-    ',', 'as', 'though', 'in', 'hesitation', ',', 'towards', 'K', '.', 'bridge', '.']
+     'July', 'a', 'young', 'man', 'came', 'out', 'of', 'the', 'garret', 'in',
+     'which', 'he', 'lodged', 'in', 'S.', 'Place', 'and', 'walked', 'slowly',
+     ',', 'as', 'though', 'in', 'hesitation', ',', 'towards', 'K.', 'bridge', '.']
     >>> text.collocations()
-    Katerina Ivanovna; Pulcheria Alexandrovna; Avdotya Romanovna; Pyotr
-    Petrovitch; Project Gutenberg; Marfa Petrovna; Rodion Romanovitch;
-    Sofya Semyonovna; Nikodim Fomitch; did not; Hay Market; Andrey
-    Semyonovitch; old woman; Literary Archive; Dmitri Prokofitch; great
-    deal; United States; Praskovya Pavlovna; Porfiry Petrovitch; ear rings
+    Katerina Ivanovna; Pyotr Petrovitch; Pulcheria Alexandrovna; Avdotya
+    Romanovna; Rodion Romanovitch; Marfa Petrovna; Sofya Semyonovna; old
+    woman; Project Gutenberg-tm; Porfiry Petrovitch; Amalia Ivanovna;
+    great deal; Nikodim Fomitch; young man; Ilya Petrovitch; n't know;
+    Project Gutenberg; Dmitri Prokofitch; Andrey Semyonovitch; Hay Market
 
 Notice that `Project Gutenberg`:lx: appears as a collocation.
 This is because each text downloaded from Project Gutenberg contains a header with the
@@ -154,10 +156,10 @@ inspection of the file, to discover unique strings that mark the beginning
 and the end, before trimming ``raw`` to be just the content and nothing else:
 
     >>> raw.find("PART I")
-    5303
+    5338
     >>> raw.rfind("End of Project Gutenberg's Crime")
-    1157681
-    >>> raw = raw[5303:1157681] # [_raw-slice]
+    1157743
+    >>> raw = raw[5338:1157743] # [_raw-slice]
     >>> raw.find("PART I")
     0
 
@@ -185,38 +187,35 @@ called *Blondes to die out in 200 years*, an urban legend
 passed along by the BBC as established scientific fact:
 
     >>> url = "http://news.bbc.co.uk/2/hi/health/2284783.stm"
-    >>> html = urlopen(url).read()
+    >>> html = request.urlopen(url).read().decode('utf8')
     >>> html[:60]
     '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN'
 
 You can type ``print(html)`` to see the |HTML| content in all its glory,
 including meta tags, an image map, JavaScript, forms, and tables.
 
-Getting text out of |HTML| is a sufficiently common task that |NLTK| provides
-a helper function ``nltk.clean_html()``, which takes an |HTML| string and
-returns raw text.  We can then tokenize this to get our familiar text structure:
+To get text out of |HTML| we will use a Python library called *BeautifulSoup*,
+available from ``http://www.crummy.com/software/BeautifulSoup/``:
 
-    >>> raw = nltk.clean_html(html)
-    >>> tokens = nltk.word_tokenize(raw)
+    >>> from bs4 import BeautifulSoup
+    >>> raw = BeautifulSoup(html).get_text()
+    >>> tokens = word_tokenize(raw)
     >>> tokens
-    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'", 'to', 'die', 'out', ...]
+    ['BBC', 'NEWS', '|', 'Health', '|', 'Blondes', "'to", 'die', 'out', ...]
 
 This still contains unwanted material concerning site navigation and related
 stories.  With some trial and error you can find the start and end indexes of the
 content and select the tokens of interest, and initialize a text as before.
 
-    >>> tokens = tokens[96:399]
+    >>> tokens = tokens[110:390]
     >>> text = nltk.Text(tokens)
     >>> text.concordance('gene')
-     they say too few people now carry the gene for blondes to last beyond the next tw
-    t blonde hair is caused by a recessive gene . In order for a child to have blonde 
-    to have blonde hair , it must have the gene on both sides of the family in the gra
-    there is a disadvantage of having that gene or by chance . They don ' t disappear 
-    ondes would disappear is if having the gene was a disadvantage and I do not think 
-
-.. note::
-   For more sophisticated processing of |HTML|, use the *Beautiful Soup* package,
-   available from ``http://www.crummy.com/software/BeautifulSoup/``
+    Displaying 5 of 5 matches:
+    hey say too few people now carry the gene for blondes to last beyond the next
+    blonde hair is caused by a recessive gene . In order for a child to have blond
+    have blonde hair , it must have the gene on both sides of the family in the g
+    ere is a disadvantage of having that gene or by chance . They do n't disappear
+    des would disappear is if having the gene was a disadvantage and I do not thin
 
 Processing Search Engine Results
 --------------------------------
@@ -273,32 +272,37 @@ which is ameliorated by the use of search engine APIs).
 Processing RSS Feeds
 --------------------
 
+.. XX We either need to control the feed more (is this possible?) or
+.. else warn the reader that they will get different results
+
 The blogosphere is an important source of text, in both formal and informal registers.
-With the help of a third-party Python library called the *Universal Feed Parser*,
-freely downloadable from ``http://feedparser.org/``, we can access the content
+With the help of a Python library called the *Universal Feed Parser*,
+available from ``https://pypi.python.org/pypi/feedparser``, we can access the content
 of a blog, as shown below:
+
 
     >>> import feedparser
     >>> llog = feedparser.parse("http://languagelog.ldc.upenn.edu/nll/?feed=atom")
     >>> llog['feed']['title']
-    u'Language Log'
+    'Language Log'
     >>> len(llog.entries)
     15
     >>> post = llog.entries[2]
     >>> post.title
-    u"He's My BF"
+    "He's My BF"
     >>> content = post.content[0].value
     >>> content[:70]
-    u'<p>Today I was chatting with three of our visiting graduate students f'
-    >>> nltk.word_tokenize(nltk.clean_html(content))
-    >>> nltk.word_tokenize(nltk.clean_html(llog.entries[2].content[0].value))
-    [u'Today', u'I', u'was', u'chatting', u'with', u'three', u'of', u'our', u'visiting',
-    u'graduate', u'students', u'from', u'the', u'PRC', u'.', u'Thinking', u'that', u'I',
-    u'was', u'being', u'au', u'courant', u',', u'I', u'mentioned', u'the', u'expression',
-    u'DUI4XIANG4', u'\u5c0d\u8c61', u'("', u'boy', u'/', u'girl', u'friend', u'"', ...]
+    '<p>Today I was chatting with three of our visiting graduate students f'
+    >>> raw = BeautifulSoup(content).get_text()
+    >>> word_tokenize(raw)
+    ['Today', 'I', 'was', 'chatting', 'with', 'three', 'of', 'our', 'visiting',
+    'graduate', 'students', 'from', 'the', 'PRC', '.', 'Thinking', 'that', 'I',
+    'was', 'being', 'au', 'courant', ',', 'I', 'mentioned', 'the', 'expression',
+    'DUI4XIANG4', '\u5c0d\u8c61', '("', 'boy', '/', 'girl', 'friend', '"', ...]
 
-Note that the resulting strings have a ``u`` prefix to indicate that they are Unicode strings
-(see sec-unicode_).
+..
+       >>> word_tokenize(nltk.clean_html(llog.entries[2].content[0].value))
+
 With some further work, we can write programs to create a small corpus of blog posts,
 and use this as the basis for our |NLP| work.
 
@@ -308,7 +312,7 @@ and use this as the basis for our |NLP| work.
    kind of operations you can perform. This snippet illustrates the
    problem rather poignantly. How can the reader get a handle on what
    something like this means?
-   >>> content = post.content[0].value
+      >>> content = post.content[0].value
    NB this also prints out unicode strings, which haven't been
    explained yet. There's also a "so what" feeling about this --
    there's a chunk of code, but no discussion about what it amounts to.
@@ -319,7 +323,7 @@ Reading Local Files
 
 .. Monkey-patching to fake the file/web examples in this section:
 
-    >>> from StringIO import StringIO
+    >>> from io import StringIO
     >>> def fake_open(filename, mode=None):
     ...     return StringIO('Time flies like an arrow.\nFruit flies like a banana.\n')
     >>> def fake_urlopen(url):
@@ -410,7 +414,8 @@ Extracting Text from PDF, MSWord and other Binary Formats
 
 ASCII text and |HTML| text are human readable formats.  Text often comes in binary
 formats |mdash| like PDF and MSWord |mdash| that can only be opened using specialized
-software.  Third-party libraries such as ``pypdf`` and ``pywin32`` provide access
+software.  Third-party libraries such as ``pypdf`` and ``pywin32``
+provide access to
 these formats.  Extracting text from multi-column documents is particularly
 challenging.  For once-off conversion of a few documents,
 it is simpler to open the document with a suitable application, then save it as text
@@ -424,13 +429,13 @@ Capturing User Input
 
 Sometimes we want to capture the text that a user inputs when she is
 interacting with our program. To prompt the user
-to type a line of input, call the Python function ``raw_input()``.
+to type a line of input, call the Python function ``input()``.
 After saving the input to a variable, we can
 manipulate it just as we have done for other strings.
 
-    >>> s = raw_input("Enter some text: ")
+    >>> s = input("Enter some text: ")
     Enter some text: On an exceptionally hot evening early in July
-    >>> print("You typed", len(nltk.word_tokenize(s)), "words.")
+    >>> print("You typed", len(word_tokenize(s)), "words.")
     You typed 8 words.
 
 The NLP Pipeline
@@ -438,7 +443,7 @@ The NLP Pipeline
 
 fig-pipeline1_ summarizes what we have covered in this section, including the process
 of building a vocabulary that we saw in chap-introduction_.  (One step, normalization,
-will be discussed in sec-normalizing-text_).
+will be discussed in sec-normalizing-text_.)
 
 .. _fig-pipeline1:
 .. figure:: ../images/pipeline1.png
@@ -455,25 +460,25 @@ of any Python object ``x`` using ``type(x)``, e.g. ``type(1)`` is ``<int>``
 since ``1`` is an integer.
 
 When we load the contents of a URL or file, and when we strip out HTML markup,
-we are dealing with strings, Python's ``<str>`` data type
+we are dealing with strings, Python's ``<str>`` data type.
 (We will learn more about strings in sec-strings_):
 
     >>> raw = open('document.txt').read()
     >>> type(raw)
-    <type 'str'>
+    <class 'str'>
 
 When we tokenize a string we produce a list (of words), and this is Python's ``<list>``
 type.  Normalizing and sorting lists produces other lists:
 
-    >>> tokens = nltk.word_tokenize(raw)
+    >>> tokens = word_tokenize(raw)
     >>> type(tokens)
-    <type 'list'> 
+    <class 'list'> 
     >>> words = [w.lower() for w in tokens]
     >>> type(words)
-    <type 'list'>
+    <class 'list'>
     >>> vocab = sorted(set(words))
     >>> type(vocab)
-    <type 'list'>
+    <class 'list'>
 
 The type of an object determines what operations you can perform on it.
 So, for example, we can append to a list but not to a string:
@@ -489,6 +494,7 @@ So, for example, we can append to a list but not to a string:
 Similarly, we can concatenate strings with strings, and lists with
 lists, but we cannot concatenate strings with lists:
 
+.. doctest-ignore::
     >>> query = 'Who knows?'
     >>> beatles = ['john', 'paul', 'george', 'ringo']
     >>> query + beatles
@@ -502,9 +508,7 @@ lists, but we cannot concatenate strings with lists:
 Strings: Text Processing at the Lowest Level
 --------------------------------------------
 
-.. XXX "study" followed by "studiously" sounds a bit odd
-
-It's time to study a fundamental data type that we've been studiously avoiding
+It's time to examine a fundamental data type that we've been studiously avoiding
 so far.  In earlier chapters we focused on a text as a list of words.  We didn't
 look too closely at words and how they are handled in the programming
 language.  By using |NLTK|\ 's corpus interface we were able to ignore
@@ -701,9 +705,13 @@ distinction by normalizing everything to lowercase, and filter out non-alphabeti
     >>> from nltk.corpus import gutenberg
     >>> raw = gutenberg.raw('melville-moby_dick.txt')
     >>> fdist = nltk.FreqDist(ch.lower() for ch in raw if ch.isalpha())
-    >>> fdist.keys()
+    >>> fdist.most_common(5)
+    [('e', 117092), ('t', 87996), ('a', 77916), ('o', 69326), ('n', 65617)]
+    >>> [char for (char, count) in fdist.most_common()]
     ['e', 't', 'a', 'o', 'n', 'i', 's', 'h', 'r', 'l', 'd', 'u', 'm', 'c', 'w',
     'f', 'g', 'p', 'b', 'y', 'v', 'k', 'q', 'j', 'x', 'z']
+
+.. [sb] explain this tuple unpacking somewhere?
 
 This gives us the letters of the alphabet, with the most frequently occurring letters
 listed first (this is quite complicated and we'll explain it more carefully below).
@@ -927,38 +935,39 @@ file for us.
 
     >>> path = nltk.data.find('corpora/unicode_samples/polish-lat2.txt')
 
-The Python ``codecs`` module provides functions to read encoded data
-into Unicode strings, and to write out Unicode strings in encoded
-form.  The ``codecs.open()`` function takes an encoding parameter to
-specify the encoding of the file being read or written. So let's import
-the ``codecs`` module, and call it with the encoding ``'latin2'`` to open
-our Polish file as Unicode.
+The Python ``open()`` function can read encoded data
+into Unicode strings, and write out Unicode strings in encoded
+form.  It takes a parameter to
+specify the encoding of the file being read or written. So let's open
+our Polish file
+with the encoding ``'latin2'`` and  inspect the contents of the file:
 
-    >>> import codecs
-    >>> f = codecs.open(path, encoding='latin2')
+    >>> f = open(path, encoding='latin2')
+    >>> for line in f:
+    ...    line = line.strip()
+    ...    print(line)
+    Pruska Biblioteka Państwowa. Jej dawne zbiory znane pod nazwą
+    "Berlinka" to skarb kultury i sztuki niemieckiej. Przewiezione przez
+    Niemców pod koniec II wojny światowej na Dolny Śląsk, zostały
+    odnalezione po 1945 r. na terytorium Polski. Trafiły do Biblioteki
+    Jagiellońskiej w Krakowie, obejmują ponad 500 tys. zabytkowych
+    archiwaliów, m.in. manuskrypty Goethego, Mozarta, Beethovena, Bacha.
 
-For a list of encoding parameters allowed by ``codecs``, see
-``http://docs.python.org/lib/standard-encodings.html``.
-Note that we can write unicode-encoded data to a
-file using ``f = codecs.open(path, 'w', encoding='utf-8')``.
+If this does not display correctly on your terminal, or if we want
+to see the underlying numerical values (or "codepoints") of the characters,
+then we can convert all non-ASCII characters into their two-digit ``\x``\ *XX*
+and four-digit ``\u``\ *XXXX* representations:
 
-Text read from the file object ``f`` will be returned in Unicode. As
-we pointed out earlier, in order to view this text on a terminal, we
-need to encode it, using a suitable encoding.  The Python-specific
-encoding ``unicode_escape`` is a dummy encoding that converts all
-non-ASCII characters into their ``\u``\ *XXXX* representations.  Code
-points above the ASCII 0-127 range but below 256 are represented in
-the two-digit form ``\x``\ *XX*.
-
+    >>> f = open(path, encoding='latin2')
     >>> for line in f:
     ...     line = line.strip()
     ...     print(line.encode('unicode_escape'))
-    Pruska Biblioteka Pa\u0144stwowa. Jej dawne zbiory znane pod nazw\u0105
-    "Berlinka" to skarb kultury i sztuki niemieckiej. Przewiezione przez
-    Niemc\xf3w pod koniec II wojny \u015bwiatowej na Dolny \u015al\u0105sk, zosta\u0142y
-    odnalezione po 1945 r. na terytorium Polski. Trafi\u0142y do Biblioteki
-    Jagiello\u0144skiej w Krakowie, obejmuj\u0105 ponad 500 tys. zabytkowych
-    archiwali\xf3w, m.in. manuskrypty Goethego, Mozarta, Beethovena, Bacha.
+    b'Pruska Biblioteka Pa\\u0144stwowa. Jej dawne zbiory znane pod nazw\\u0105'
+    b'"Berlinka" to skarb kultury i sztuki niemieckiej. Przewiezione przez'
+    b'Niemc\\xf3w pod koniec II wojny \\u015bwiatowej na Dolny \\u015al\\u0105sk, zosta\\u0142y'
+    b'odnalezione po 1945 r. na terytorium Polski. Trafi\\u0142y do Biblioteki'
+    b'Jagiello\\u0144skiej w Krakowie, obejmuj\\u0105 ponad 500 tys. zabytkowych'
+    b'archiwali\\xf3w, m.in. manuskrypty Goethego, Mozarta, Beethovena, Bacha.'
 
 The first line above illustrates a Unicode escape string
 preceded by the ``\u`` escape string, namely ``\u0144`` . The relevant
@@ -967,72 +976,61 @@ Unicode character will be dislayed on the screen as the glyph
 ``\xf3``, which corresponds to the glyph |oacute|, and is within the
 128-255 range.
 
-In Python, a Unicode string literal can be specified by
-preceding an ordinary string literal with a ``u``, as in
-``u'hello'``. Arbitrary Unicode characters are defined using the
-``\u``\ *XXXX* escape sequence inside a Unicode string literal.
+In Python 3, source code is encoded using UTF-8 by default, and you can
+include Unicode characters in strings if you are using IDLE or another program editor
+that supports Unicode.
+ Arbitrary Unicode characters can be included using the
+``\u``\ *XXXX* escape sequence.
 We find the integer ordinal of a character using ``ord()``. For example:
 
-    >>> ord('a')
-    97
+    >>> ord('ń')
+    324
 
-The hexadecimal 4 digit notation for 97 is 0061, so we can define a
-Unicode string literal with the appropriate escape sequence:
+The hexadecimal 4 digit notation for 324 is 0144 (type ``hex(324)`` to discover this),
+and we can define a string with the appropriate escape sequence.
 
-    >>> a = u'\u0061'
-    >>> a
-    u'a'
-    >>> print(a)
-    a
-
-Notice that the Python ``print`` statement is assuming a default encoding of the
-Unicode character, namely ASCII. However, |nacute| is outside the
-ASCII range, so cannot be printed unless we specify an encoding. In
-the following example, we have specified that ``print`` should use the
-``repr()`` of the string, which outputs the UTF-8 escape sequences
-(of the form ``\x``\ *XX*) rather than trying to render the glyphs.
-
-    >>> nacute = u'\u0144'
+    >>> nacute = '\u0144'
     >>> nacute
-    u'\u0144'
-    >>> nacute_utf = nacute.encode('utf8')
-    >>> print(repr(nacute_utf))
-    '\xc5\x84'
-
-If your operating system and locale are set up to render UTF-8 encoded
-characters, you ought to be able to give the Python command
-``print(nacute_utf)`` and see |nacute| on your screen.
+    'ń'
 
 .. Note::
    There are many factors determining what glyphs are rendered
    on your screen. If you are sure that you have the correct encoding,
    but your Python code is still failing to produce the glyphs you
    expected, you should also check that you have the necessary fonts
-   installed on your system.
+   installed on your system. It may be necessary to configure your locale
+   to render UTF-8 encoded characters, then use ``print(nacute.encode('utf8'))``
+   in order to see the |nacute| displayed in your terminal.
+
+We can also see how this character is represented as a sequence of bytes inside
+a text file:
+
+    >>> nacute.encode('utf8')
+    b'\xc5\x84'
 
 The module ``unicodedata`` lets us inspect the properties of Unicode
 characters. In the following example, we select all characters in the
 third line of our Polish text outside the ASCII range and print their
-UTF-8 escaped value, followed by their code point integer using the
+UTF-8 byte sequence, followed by their code point integer using the
 standard Unicode convention (i.e., prefixing the hex digits with
 ``U+``), followed by their Unicode name.
 
     >>> import unicodedata
-    >>> lines = codecs.open(path, encoding='latin2').readlines()
+    >>> lines = open(path, encoding='latin2').readlines()
     >>> line = lines[2]
     >>> print(line.encode('unicode_escape'))
-    Niemc\xf3w pod koniec II wojny \u015bwiatowej na Dolny \u015al\u0105sk, zosta\u0142y\n
-    >>> for c in line:
+    b'Niemc\\xf3w pod koniec II wojny \\u015bwiatowej na Dolny \\u015al\\u0105sk, zosta\\u0142y\\n'
+    >>> for c in line: # [_unicode-info]
     ...     if ord(c) > 127:
-    ...         print('%r U+%04x %s' % (c.encode('utf8'), ord(c), unicodedata.name(c)))
-    '\xc3\xb3' U+00f3 LATIN SMALL LETTER O WITH ACUTE
-    '\xc5\x9b' U+015b LATIN SMALL LETTER S WITH ACUTE
-    '\xc5\x9a' U+015a LATIN CAPITAL LETTER S WITH ACUTE
-    '\xc4\x85' U+0105 LATIN SMALL LETTER A WITH OGONEK
-    '\xc5\x82' U+0142 LATIN SMALL LETTER L WITH STROKE
+    ...         print('{} U+{:04x} {}'.format(c.encode('utf8'), ord(c), unicodedata.name(c)))
+    b'\xc3\xb3' U+00f3 LATIN SMALL LETTER O WITH ACUTE
+    b'\xc5\x9b' U+015b LATIN SMALL LETTER S WITH ACUTE
+    b'\xc5\x9a' U+015a LATIN CAPITAL LETTER S WITH ACUTE
+    b'\xc4\x85' U+0105 LATIN SMALL LETTER A WITH OGONEK
+    b'\xc5\x82' U+0142 LATIN SMALL LETTER L WITH STROKE
 
-If you replace the ``%r`` (which yields the ``repr()`` value) by
-``%s`` in the format string of the code sample above, and if your system supports UTF-8,
+If you replace
+``c.encode('utf8')`` in unicode-info_ with ``c``, and if your system supports UTF-8,
 you should see an output like the following:
  
 | |oacute| U+00f3 LATIN SMALL LETTER O WITH ACUTE
@@ -1045,24 +1043,27 @@ Alternatively, you may need to replace the encoding ``'utf8'`` in the
 example by ``'latin2'``, again depending on the details of your system.
 
 The next examples illustrate how Python string methods and the ``re``
-module accept Unicode strings.
+module can work with Unicode characters. (We will take a close look at
+the ``re`` module in the following section. The ``\w`` matches a "word
+character", cf tab-re-symbols_).
 
-    >>> line.find(u'zosta\u0142y')
+    >>> line.find('zosta\u0142y')
     54
     >>> line = line.lower()
-    >>> print(line.encode('unicode_escape'))
-    niemc\xf3w pod koniec ii wojny \u015bwiatowej na dolny \u015bl\u0105sk, zosta\u0142y\n
+    >>> line
+    'niemców pod koniec ii wojny światowej na dolny śląsk, zostały\n'
+    >>> line.encode('unicode_escape')
+    b'niemc\\xf3w pod koniec ii wojny \\u015bwiatowej na dolny \\u015bl\\u0105sk, zosta\\u0142y\\n'
     >>> import re
-    >>> m = re.search(u'\u015b\w*', line)
+    >>> m = re.search('\u015b\w*', line)
     >>> m.group()
-    u'\u015bwiatowej'
+    '\u015bwiatowej'
 
 |NLTK| tokenizers allow Unicode strings as input, and
 correspondingly yield Unicode strings as output.
 
-    >>> nltk.word_tokenize(line)  # doctest: +NORMALIZE_WHITESPACE
-    [u'niemc\xf3w', u'pod', u'koniec', u'ii', u'wojny', u'\u015bwiatowej',
-    u'na', u'dolny', u'\u015bl\u0105sk', u'zosta\u0142y']
+    >>> word_tokenize(line)
+    ['niemców', 'pod', 'koniec', 'ii', 'wojny', 'światowej', 'na', 'dolny', 'śląsk', ',', 'zostały']
 
 Using your local encoding in Python
 -----------------------------------
@@ -1215,7 +1216,7 @@ individual letters, or to bracketed sets of letters:
 
 It should be clear that ``+`` simply means "one or more instances of the preceding item",
 which could be an individual character like ``m``, a set like ``[fed]`` or a range like ``[d-f]``.
-Now let's replace ``+`` with ``*`` which means "zero or more instances of the preceding item".
+Now let's replace ``+`` with ``*``, which means "zero or more instances of the preceding item".
 The regular expression |l|\ ``^m*i*n*e*$``\ |r| will match everything that we found using
 |l|\ ``^m+i+n+e+$``\ |r|, but also words where some of the letters don't appear at all,
 e.g. `me`:lx:, `min`:lx:, and `mmmmm`:lx:.
@@ -1337,10 +1338,9 @@ and determine their relative frequency:
     >>> wsj = sorted(set(nltk.corpus.treebank.words()))
     >>> fd = nltk.FreqDist(vs for word in wsj
     ...                       for vs in re.findall(r'[aeiou]{2,}', word))
-    >>> fd.items()
+    >>> fd.most_common(12)
     [('io', 549), ('ea', 476), ('ie', 331), ('ou', 329), ('ai', 261), ('ia', 253),
-    ('ee', 217), ('oo', 174), ('ua', 109), ('au', 106), ('ue', 105), ('ui', 95),
-    ('ei', 86), ('oi', 65), ('oa', 59), ('eo', 39), ('iou', 27), ('eu', 18), ...]
+    ('ee', 217), ('oo', 174), ('ua', 109), ('au', 106), ('ue', 105), ('ui', 95)]
 
 .. note:: |TRY|
    In the W3C Date Time Format, dates are represented like this: 2009-12-31.
@@ -1392,7 +1392,7 @@ distribution.  We then tabulate the frequency of each pair:
     >>> cvs = [cv for w in rotokas_words for cv in re.findall(r'[ptksvr][aeiou]', w)]
     >>> cfd = nltk.ConditionalFreqDist(cvs)
     >>> cfd.tabulate()
-         a    e    i    o    u
+        a    e    i    o    u
     k  418  148   94  420  173
     p   83   31  105   34   51
     r  187   63   84   89   79
@@ -1406,7 +1406,7 @@ distinct phonemes in the language.  Thus, we could conceivably drop
 `s`:lx: from the Rotokas alphabet and simply have a pronunciation rule
 that the letter `t`:lx: is pronounced `s`:lx: when followed by
 `i`:lx:.  (Note that the single entry having *su*, namely *kasuari*,
-'cassowary' is borrowed from English).
+'cassowary' is borrowed from English.)
 
 If we want to be able to inspect the words behind the numbers in the above table,
 it would be helpful to have an index, allowing us to quickly find the list of words
@@ -1507,12 +1507,12 @@ on to define a function to perform stemming, and apply it to a whole text:
     >>> raw = """DENNIS: Listen, strange women lying in ponds distributing swords
     ... is no basis for a system of government.  Supreme executive power derives from
     ... a mandate from the masses, not from some farcical aquatic ceremony."""
-    >>> tokens = nltk.word_tokenize(raw)
+    >>> tokens = word_tokenize(raw)
     >>> [stem(t) for t in tokens]
-    ['DENNIS', ':', 'Listen', ',', 'strange', 'women', 'ly', 'in', 'pond',
-    'distribut', 'sword', 'i', 'no', 'basi', 'for', 'a', 'system', 'of', 'govern',
-    '.', 'Supreme', 'execut', 'power', 'deriv', 'from', 'a', 'mandate', 'from',
-    'the', 'mass', ',', 'not', 'from', 'some', 'farcical', 'aquatic', 'ceremony', '.']
+    ['DENNIS', ':', 'Listen', ',', 'strange', 'women', 'ly', 'in', 'pond', 'distribut',
+    'sword', 'i', 'no', 'basi', 'for', 'a', 'system', 'of', 'govern', '.', 'Supreme',
+    'execut', 'power', 'deriv', 'from', 'a', 'mandate', 'from', 'the', 'mass', ',',
+    'not', 'from', 'some', 'farcical', 'aquatic', 'ceremony', '.']
 
 Notice that our regular expression removed the `s`:lx: from `ponds`:lx: but also from `is`:lx:
 and `basis`:lx:.  It produced some non-words like `distribut`:lx: and `deriv`:lx:, but these
@@ -1621,7 +1621,7 @@ to define the data we will use in this section:
     >>> raw = """DENNIS: Listen, strange women lying in ponds distributing swords
     ... is no basis for a system of government.  Supreme executive power derives from
     ... a mandate from the masses, not from some farcical aquatic ceremony."""
-    >>> tokens = nltk.word_tokenize(raw)
+    >>> tokens = word_tokenize(raw)
 
 Stemmers
 --------
@@ -1667,12 +1667,12 @@ to be explained in sec-sequences_).
 
        def concordance(self, word, width=40):
            key = self._stem(word)
-           wc = width/4                # words of context
+           wc = int(width/4)                # words of context
            for i in self._index[key]:
                lcontext = ' '.join(self._text[i-wc:i])
                rcontext = ' '.join(self._text[i:i+wc])
-               ldisplay = '%*s'  % (width, lcontext[-width:])
-               rdisplay = '%-*s' % (width, rcontext[:width])
+               ldisplay = '{:>{width}}'.format(lcontext[-width:], width=width)
+               rdisplay = '{:{width}}'.format(rcontext[:width], width=width)
                print(ldisplay, rdisplay)
 
        def _stem(self, word):
@@ -1842,7 +1842,7 @@ seen in this section, in addition to some other useful symbols.
    ``\b``       Word boundary (zero width)
    ``\d``       Any decimal digit (equivalent to ``[0-9]``)
    ``\D``       Any non-digit character (equivalent to ``[^0-9]``)
-   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``
+   ``\s``       Any whitespace character (equivalent to ``[ \t\n\r\f\v]``)
    ``\S``       Any non-whitespace character (equivalent to ``[^ \t\n\r\f\v]``)
    ``\w``       Any alphanumeric character (equivalent to ``[a-zA-Z0-9_]``)
    ``\W``       Any non-alphanumeric character (equivalent to ``[^a-zA-Z0-9_]``)
@@ -1869,7 +1869,7 @@ tells Python to strip out the embedded whitespace and comments.
     ...   | \w+(-\w+)*        # words with optional internal hyphens
     ...   | \$?\d+(\.\d+)?%?  # currency and percentages, e.g. $12.40, 82%
     ...   | \.\.\.            # ellipsis
-    ...   | [][.,;"'?():-_`]  # these are separate tokens
+    ...   | [][.,;"'?():-_`]  # these are separate tokens; includes ], [
     ... '''
     >>> nltk.regexp_tokenize(text, pattern)
     ['That', 'U.S.A.', 'poster-print', 'costs', '$12.40', '...']
@@ -1939,20 +1939,26 @@ Here is an example of its use in segmenting the text of a novel.
 (Note that if the segmenter's internal data has been updated by the time you read this,
 you will see different output):
 
-    >>> sent_tokenizer=nltk.data.load('tokenizers/punkt/english.pickle')
     >>> text = nltk.corpus.gutenberg.raw('chesterton-thursday.txt')
-    >>> sents = sent_tokenizer.tokenize(text)
-    >>> pprint.pprint(sents[171:181])
-    ['"Nonsense!',
-     '" said Gregory, who was very rational when anyone else\nattempted paradox.',
-     '"Why do all the clerks and navvies in the\nrailway trains look so sad and tired,...',
+    >>> sents = nltk.sent_tokenize(text)
+    >>> pprint.pprint(sents[79:89])
+    ['"Nonsense!"',
+     'said Gregory, who was very rational when anyone else\nattempted paradox.',
+     '"Why do all the clerks and navvies in the\n'
+     'railway trains look so sad and tired, so very sad and tired?',
      'I will\ntell you.',
      'It is because they know that the train is going right.',
-     'It\nis because they know that whatever place they have taken a ticket\nfor that ...',
-     'It is because after they have\npassed Sloane Square they know that the next stat...',
+     'It\n'
+     'is because they know that whatever place they have taken a ticket\n'
+     'for that place they will reach.',
+     'It is because after they have\n'
+     'passed Sloane Square they know that the next station must be\n'
+     'Victoria, and nothing but Victoria.',
      'Oh, their wild rapture!',
-     'oh,\ntheir eyes like stars and their souls again in Eden, if the next\nstation w...'
-     '"\n\n"It is you who are unpoetical," replied the poet Syme.']
+     'oh,\n'
+     'their eyes like stars and their souls again in Eden, if the next\n'
+     'station were unaccountably Baker Street!"',
+     '"It is you who are unpoetical," replied the poet Syme.']
 
 Notice that this example is really a single sentence, reporting the speech of Mr Lucian Gregory.
 However, the quoted speech contains several sentences, and these have been split into individual
@@ -1969,10 +1975,10 @@ Word Segmentation
 
 For some writing systems, tokenizing text is made more difficult by the fact that there
 is no visual representation of word boundaries.
-For example, in Chinese, the three-character string: |ai4|\ |guo3|\ |ren2|
-(ai4 "love" (verb), guo3 "country", ren2 "person") could
-be tokenized as |ai4|\ |guo3| / |ren2|\ , "country-loving person"
-or as |ai4| / |guo3|\ |ren2|\ , "love country-person."
+For example, in Chinese, the three-character string: |ai4|\ |guo2|\ |ren2|
+(ai4 "love" (verb), guo2 "country", ren2 "person") could
+be tokenized as |ai4|\ |guo2| / |ren2|\ , "country-loving person"
+or as |ai4| / |guo2|\ |ren2|\ , "love country-person."
 
 A similar problem arises in the processing of spoken language, where the
 hearer must segment a continuous speech stream into individual words.
@@ -2031,7 +2037,7 @@ get back to the original segmented text from the above representation.
    ['doyouseethekitty', 'seethedoggy', 'doyoulikethekitty', 'likethedoggy']
    >>> segment(text, seg2)
    ['do', 'you', 'see', 'the', 'kitty', 'see', 'the', 'doggy', 'do', 'you',
-    'like', 'the', kitty', 'like', 'the', 'doggy']
+   'like', 'the', 'kitty', 'like', 'the', 'doggy']
 
 Now the segmentation task becomes a search problem: find the bit string that causes
 the text string to be correctly segmented into words.
@@ -2039,7 +2045,8 @@ We assume the learner is acquiring words and storing them in an internal lexicon
 Given a suitable lexicon, it is possible to reconstruct the source text as a sequence of
 lexical items.  Following [Brent1995]_, we can define an `objective function`:dt:,
 a scoring function whose value we will try to optimize, based on
-the size of the lexicon and the amount of information needed to
+the size of the lexicon (number of characters in the words plus an extra
+delimiter character to mark the end of each word) and the amount of information needed to
 reconstruct the source text from the lexicon.  We illustrate this in
 fig-brent_.
 
@@ -2051,7 +2058,7 @@ fig-brent_.
    of the source text (on the left), derive a lexicon and a derivation
    table that permit the source text to be reconstructed, then total
    up the number of characters used by each lexical item (including a boundary
-   marker) and each derivation, to serve as a score of the quality of
+   marker) and the number of lexical items used by each derivation, to serve as a score of the quality of
    the segmentation; smaller values of the score indicate a better segmentation.
 
 It is a simple matter to implement this objective function, as shown in
@@ -2063,7 +2070,7 @@ code-evaluate_.
    def evaluate(text, segs):
        words = segment(text, segs)
        text_size = len(words)
-       lexicon_size = len(' '.join(list(set(words))))
+       lexicon_size = sum(len(word) + 1 for word in set(words))
        return text_size + lexicon_size
 
    >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
@@ -2074,21 +2081,24 @@ code-evaluate_.
    ['doyou', 'see', 'thekitt', 'y', 'see', 'thedogg', 'y', 'doyou', 'like',
     'thekitt', 'y', 'like', 'thedogg', 'y']
    >>> evaluate(text, seg3)
-   46
-   >>> evaluate(text, seg2)
    47
+   >>> evaluate(text, seg2)
+   48
    >>> evaluate(text, seg1)
-   63
+   64
 
 The final step is to search for the pattern of zeros and ones that minimizes this objective
 function, shown in code-anneal_.  Notice that the best segmentation includes "words" like
 `thekitty`:lx:, since there's not enough evidence in the data to split this any further.
 
+
 .. pylisting:: code-anneal
    :caption: Non-Deterministic Search Using Simulated Annealing: begin searching
              with phrase segmentations only; randomly perturb the zeros and ones
              proportional to the "temperature"; with each iteration the temperature
-             is lowered and the perturbation of boundaries is reduced.
+             is lowered and the perturbation of boundaries is reduced. As this
+  	     search algorithm is non-deterministic, you may see a slightly different
+	     result.
 
    from random import randint
    
@@ -2097,7 +2107,7 @@ function, shown in code-anneal_.  Notice that the best segmentation includes "wo
 
    def flip_n(segs, n):
        for i in range(n):
-           segs = flip(segs, randint(0,len(segs)-1))
+           segs = flip(segs, randint(0, len(segs)-1))
        return segs
 
    def anneal(text, segs, iterations, cooling_rate):
@@ -2105,26 +2115,26 @@ function, shown in code-anneal_.  Notice that the best segmentation includes "wo
        while temperature > 0.5:
            best_segs, best = segs, evaluate(text, segs)
            for i in range(iterations):
-               guess = flip_n(segs, int(round(temperature)))
+               guess = flip_n(segs, round(temperature))
                score = evaluate(text, guess)
                if score < best:
                    best, best_segs = score, guess
            score, segs = best, best_segs
            temperature = temperature / cooling_rate
            print(evaluate(text, segs), segment(text, segs))
-       print
+       print()
        return segs
     
    >>> text = "doyouseethekittyseethedoggydoyoulikethekittylikethedoggy"
    >>> seg1 = "0000000000000001000000000010000000000000000100000000000"
    >>> anneal(text, seg1, 5000, 1.2)
-   60 ['doyouseetheki', 'tty', 'see', 'thedoggy', 'doyouliketh', 'ekittylike', 'thedoggy']
-   58 ['doy', 'ouseetheki', 'ttysee', 'thedoggy', 'doy', 'o', 'ulikethekittylike', 'thedoggy']
-   56 ['doyou', 'seetheki', 'ttysee', 'thedoggy', 'doyou', 'liketh', 'ekittylike', 'thedoggy']
-   54 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'likethekittylike', 'thedoggy']
-   53 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   51 ['doyou', 'seethekittysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
-   42 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
+   61 ['doyouseetheki', 'tty', 'see', 'thedoggy', 'doyouliketh', 'ekittylike', 'thedoggy']
+   59 ['doy', 'ouseetheki', 'ttysee', 'thedoggy', 'doy', 'o', 'ulikethekittylike', 'thedoggy']
+   57 ['doyou', 'seetheki', 'ttysee', 'thedoggy', 'doyou', 'liketh', 'ekittylike', 'thedoggy']
+   55 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'likethekittylike', 'thedoggy']
+   54 ['doyou', 'seethekit', 'tysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
+   52 ['doyou', 'seethekittysee', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
+   43 ['doyou', 'see', 'thekitty', 'see', 'thedoggy', 'doyou', 'like', 'thekitty', 'like', 'thedoggy']
    '0000100100000001001000000010000100010000000100010000000'
    
 With enough data, it is possible to automatically segment text into words with a reasonable
@@ -2203,93 +2213,123 @@ pre-specified strings, e.g. given a frequency distribution ``fdist``
 we could do:
 
     >>> fdist = nltk.FreqDist(['dog', 'cat', 'dog', 'cat', 'dog', 'snake', 'dog', 'cat'])
-    >>> for word in fdist:
+    >>> for word in sorted(fdist):
     ...     print(word, '->', fdist[word], end='; ')
-    dog -> 4; cat -> 3; snake -> 1;
+    cat -> 3; dog -> 4; snake -> 1;
 
 Print statements that contain alternating variables and constants can be difficult to read and
-maintain.  Another solution is to use `string formatting expressions`:dt:.
+maintain.  Another solution is to use `string formatting`:dt:.
 
-    >>> for word in fdist:
-    ...    print('%s->%d;' % (word, fdist[word]), end=' ')
-    dog->4; cat->3; snake->1;
+    >>> for word in sorted(fdist):
+    ...    print('{}->{};'.format(word, fdist[word]), end=' ')
+    cat->3; dog->4; snake->1;
 
 To understand what is going on here, let's test out the
-string formatting expression on its own.  (By now this will be
-your usual method of exploring new syntax).
+format string on its own.  (By now this will be
+your usual method of exploring new syntax.)
 
-    >>> '%s->%d;' % ('cat', 3)
+    >>> '{}->{};'.format ('cat', 3)
     'cat->3;'
-    >>> '%s->%d;' % 'cat'
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: not enough arguments for format string
+ 
+The curly brackets ``'{}'``  mark the presence of a `replacement
+field`:dt:: this acts as a
+placeholder for the string values of objects that are
+passed to the ``str.format()`` method. We can embed occurrences of ``'{}'``
+inside a string, then replacet them with strings by calling ``format()`` with
+appropriate arguments.  A string containing
+replacement fields is called a `format string`:dt:.
 
-The special symbols ``%s`` and ``%d`` are placeholders
-for strings and (decimal) integers.  We can embed these
-inside a string, then use the ``%`` operator to combine them.
 Let's unpack the above code further, in order to see this
 behavior up close:
 
-    >>> '%s->' % 'cat'
+    >>> '{}->'.format('cat')
     'cat->'
-    >>> '%d' % 3
+    >>> '{}'.format(3)
     '3'
-    >>> 'I want a %s right now' % 'coffee'
+    >>> 'I want a {} right now'.format('coffee')
     'I want a coffee right now'
 
-We can have a number of placeholders, but following the ``%`` operator
-we need to specify a tuple with exactly the same number of values.
+We can have any number of placeholders, but  the ``str.format`` method
+must be called with exactly the same number of arguments.
 
-    >>> "%s wants a %s %s" % ("Lee", "sandwich", "for lunch")
+    >>> '{} wants a {} {}'.format ('Lee', 'sandwich', 'for lunch')
     'Lee wants a sandwich for lunch'
+    >>> '{} wants a {} {}'.format ('sandwich', 'for lunch')
+    Traceback (most recent call last):
+    ...
+        '{} wants a {} {}'.format ('sandwich', 'for lunch')
+    IndexError: tuple index out of range
+
+Arguments to ``format()`` are consumed left to right, and any
+superfluous arguments are simply ignored.
+    >>> '{} wants a {}'.format ('Lee', 'sandwich', 'for lunch')
+    'Lee wants a sandwich'
+
+The field name in a format string can start with a number, which
+refers to a positional argument of ``format()``. Something like
+``'from {} to {}'``
+is equivalent to  ``'from {0} to {1}'``, but we can use the numbers to get
+non-default orders:
+
+    >>> 'from {1} to {0}'.format('A', 'B')
+    'from B to A'
 
 We can also provide the values for the placeholders indirectly. Here's
 an example using a ``for`` loop:
 
-    >>> template = 'Lee wants a %s right now'
+    >>> template = 'Lee wants a {} right now'
     >>> menu = ['sandwich', 'spam fritter', 'pancake']
     >>> for snack in menu:
-    ...     print(template % snack)
+    ...     print(template.format(snack))
     ... 
     Lee wants a sandwich right now
     Lee wants a spam fritter right now
     Lee wants a pancake right now
 
-The ``%s`` and ``%d`` symbols are called `conversion specifiers`:dt:.
-They start with the ``%`` character and end with a conversion character
-such as ``s`` (for string) or ``d`` (for decimal integer)
-The string containing conversion specifiers is
-called a `format string`:dt:.
-We combine a format string with the ``%`` operator and
-a tuple of values to create a complete string formatting expression.
 
 Lining Things Up
 ----------------
-
-So far our formatting strings generated output of arbitrary width
-on the page (or screen), such as ``%s`` and ``%d``.  We can specify
-a width as well, such as ``%6s``, producing a string that is
-padded to width 6.  It is right-justified by default right-justified_,
-but we can include a minus sign to make it left-justified left-justified_.
-In case we don't know in advance how wide a displayed value should be,
-the width value can be replaced with a star in the formatting string,
-then specified using a variable width-variable_.
-
-    >>> '%6s' % 'dog' # [_right-justified]
-    '   dog'
-    >>> '%-6s' % 'dog' # [_left-justified]
-    'dog   '
-    >>> width = 6
-    >>> '%-*s' % (width, 'dog') # [_width-variable]
+.. In case we don't know in advance how wide a displayed value should be,
+   the width value can be replaced with a star in the formatting string,
+   then specified using a variable width-variable_.
+   width = 6
+   '%-*s' % (width, 'dog') # [_width-variable]
     'dog   '
 
-Other control characters are used for decimal integers and floating point numbers.
-Since the percent character ``%`` has a special interpretation in formatting strings,
-we have to precede it with another ``%`` to get it in the output.
+So far our format strings generated output of arbitrary width
+on the page (or screen).  We can add padding to obtain output of a given
+width by inserting into the brackets a colon ``':'`` followed by an integer. So ``{:6}``
+specifies that we want a string that is
+padded to width 6.  It is right-justified by default for numbers right-justified_,
+but we can precede the width specifier with a ``'<'`` alignment option to make numbers left-justified left-justified_.
+
+    >>> '{:6}'.format(41) # [_right-justified]
+    '    41'
+    >>> '{:<6}' .format(41) # [_left-justified]
+    '41    '
+
+Strings are left-justified by default, but can be right-justified with
+the ``'>'`` alignment option.
+    >>> '{:6}'.format('dog') # [_left-justified-str]
+    'dog   '
+    >>> '{:>6}'.format('dog') # [_right-justified-str]
+     '   dog'
+
+Other control characters can be used to specify the sign and precision
+of floating point numbers; for example ``{:.4f}`` indicates that four
+digits should be displayed after the decimal point for a floating
+point number.
+
+    >>> import math
+    >>> '{:.4f}'.format(math.pi)
+    '3.1416'
+
+The string formatting is smart enough to know that if you include a
+``'%'`` in your format specification, then you want to represent the
+value as a percentage; there's no need to multiply by 100.
 
     >>> count, total = 3205, 9375 
-    >>> "accuracy for %d words: %2.4f%%" % (total, 100 * count / total)
+    >>> "accuracy for {} words: {:.4%}".format(total, count / total)
     'accuracy for 9375 words: 34.1867%'
 
 An important use of formatting strings is for tabulating data.
@@ -2304,15 +2344,15 @@ and the tabulation of results.
    :caption: Frequency of Modals in Different Sections of the Brown Corpus
 
     def tabulate(cfdist, words, categories):
-        print('%-16s' % 'Category', end=' ')
-        for word in words:                                      # column headings
-            print('%6s' % word, end=' ')
-        print
+        print('{:16}'.format('Category'), end=' ')                    # column headings
+        for word in words:
+            print('{:>6}'.format(word), end=' ')
+        print()
         for category in categories:
-            print('%-16s' % category, end=' ')                  # row heading
-            for word in words:                                  # for each word
-                print('%6d' % cfdist[category][word], end=' ')  # print table cell
-            print                                               # end the row
+            print('{:16}'.format(category), end=' ')                  # row heading
+            for word in words:                                        # for each word
+                print('{:6}'.format(cfdist[category][word]), end=' ') # print table cell
+            print()                                                   # end the row
 
     >>> from nltk.corpus import brown
     >>> cfd = nltk.ConditionalFreqDist(
@@ -2330,11 +2370,13 @@ and the tabulation of results.
     romance              74    193     11     51     45     43
     humor                16     30      8      8      9     13
 
-Recall from the listing in code-stemmer-indexing_ that we used a formatting string
-``"%*s"``.  This allows us to specify the width of a field using a variable.
+Recall from the listing in code-stemmer-indexing_ that we used a format string
+``'{:{width}}'`` and bound a value to the ``width`` parameter in
+``format()``.  This allows us to specify the width of a field using a
+variable.
 
-    >>> '%*s' % (15, "Monty Python")
-    '   Monty Python'
+    >>> '{:{width}}' % ("Monty Python", width=15)
+    'Monty Python   '
 
 We could use this to automatically customize the column to be
 just wide enough to accommodate all the words, using
@@ -2351,27 +2393,17 @@ output to the file.
     >>> output_file = open('output.txt', 'w')
     >>> words = set(nltk.corpus.genesis.words('english-kjv.txt'))
     >>> for word in sorted(words):
-    ...     output_file.write(word + "\n")
-
-.. note:: |TRY|
-   What is the effect of appending ``\n`` to each string before
-   we write it to the file?  If you're using a Windows machine
-   you may want to use ``word + "\r\n"`` instead.  
-   What happens if we do ``output_file.write(word)``?
+    ...     print(word, file=output_file)
 
 When we write non-text data to a file we must convert it to a string first.
 We can do this conversion using formatting strings, as we saw above.
-Let's write the total number of words to our file, before closing it.
+Let's write the total number of words to our file:
 
     >>> len(words)
     2789
     >>> str(len(words))
     '2789'
-    >>> output_file.write(str(len(words)) + "\n")
-    >>> output_file.close()
-
-.. XXX try to ensure that output file.txt doesn't get broken across a
-.. line here
+    >>> print(str(len(words)), file=output_file)
 
 .. caution::
    You should avoid filenames that contain space characters like
@@ -2429,9 +2461,12 @@ Summary
 * Strings can be split into lists: ``'Monty Python'.split()`` gives
   ``['Monty', 'Python']``.  Lists can be joined into strings:
   ``'/'.join(['Monty', 'Python'])`` gives ``'Monty/Python'``.
-* We can read text from a file ``f`` using ``text = open(f).read()``.
-  We can read text from a URL ``url`` using ``text = request.urlopen(url).read().decode('utf8')``.
+* We can read text from a file ``input.txt`` using ``text = open('input.txt').read()``.
+  We can read text from ``url`` using ``text = request.urlopen(url).read().decode('utf8')``.
   We can iterate over the lines of a text file using ``for line in open(f)``.
+* We can write text to a file by opening the file for writing
+  ``output_file = open('output.txt', 'w')``, then adding content to the
+  file ``print("Monty Python", file=output_file)``.
 * Texts found on the web may contain unwanted material (such as headers, footers, markup),
   that need to be removed before we do any linguistic processing.
 * Tokenization is the segmentation of a text into basic units |mdash| or tokens |mdash|
@@ -2485,13 +2520,13 @@ and Chapter 3 of [Mertz2003TPP]_.
 There are many online resources for Unicode.  Useful discussions
 of Python's facilities for handling Unicode are:
 
-* PEP-100 ``http://www.python.org/dev/peps/pep-0100/``
-* Jason Orendorff, *Unicode for Programmers*,
-  ``http://www.jorendorff.com/articles/unicode/``
-* A. M. Kuchling, *Unicode HOWTO*,
-  ``http://www.amk.ca/python/howto/unicode``
-* Frederik Lundh, *Python Unicode Objects*,
-  ``http://effbot.org/zone/unicode-objects.htm``
+
+
+* Ned Batchelder, *Pragmatic Unicode*, ``http://nedbatchelder.com/text/unipain.html``
+* *Unicode HOWTO*, Python Documentation,
+  ``http://docs.python.org/3/howto/unicode.html``
+* David Beazley, Mastering Python 3 I/O,
+  ``http://pyvideo.org/video/289/pycon-2010--mastering-python-3-i-o``
 * Joel Spolsky, *The Absolute Minimum Every Software Developer
   Absolutely, Positively Must Know About Unicode and Character Sets
   (No Excuses!)*, ``http://www.joelonsoftware.com/articles/Unicode.html``
@@ -2610,21 +2645,20 @@ Exercises
    Try converting between strings and integers using
    ``int("3")`` and ``str(3)``.  
 
-#. |easy| Earlier, we asked you to use a text editor to create a file
-   called ``test.py``, containing the single line ``monty = 'Monty Python'``.
-   If you haven't already done this (or can't find the file),
-   go ahead and do it now. Next, start up a new session with the
+#. |easy| Use a text editor to create a file
+   called ``prog.py`` containing the single line ``monty = 'Monty Python'``.
+   Next, start up a new session with the
    Python interpreter, and enter the expression ``monty`` at the prompt.
    You will get an error from the interpreter. Now, try the following
    (note that you have to leave off the ``.py`` part of the filename):
 
     .. doctest-ignore::
-       >>> from test import monty
+       >>> from prog import monty
        >>> monty
 
    This time, Python should return with a value. You can also try
-   ``import test``, in which case Python should be able to
-   evaluate the expression ``test.monty`` at the prompt.  
+   ``import prog``, in which case Python should be able to
+   evaluate the expression ``prog.monty`` at the prompt.  
 
 #. |easy| What happens when the formatting strings ``%6s`` and ``%-6s``
    are used to display strings that are longer than six characters?
@@ -2715,7 +2749,7 @@ Exercises
    Should we say that the numeric expression `4.53 +/- 0.15%`:lx: is three
    words?  Or should we say that it's a single compound word?  Or should
    we say that it is actually *nine* words, since it's read "four point
-   five three, plus or minus fifteen percent"?  Or should we say that
+   five three, plus or minus zero point fifteen percent"?  Or should we say that
    it's not a "real" word at all, since it wouldn't appear in any dictionary?
    Discuss these different possibilities.  Can you think of application domains
    that motivate at least two of these answers?
@@ -2729,7 +2763,7 @@ Exercises
    is defined to be:
    ``4.71`` |mu|\ :subscript:`w` ``+ 0.5`` |mu|\ :subscript:`s` ``- 21.43``.
    Compute the ARI score for various sections of the Brown Corpus, including
-   section ``f`` (popular lore) and ``j`` (learned).  Make use of the fact that
+   section ``f`` (lore) and ``j`` (learned).  Make use of the fact that
    ``nltk.corpus.brown.words()`` produces a sequence of words, while
    ``nltk.corpus.brown.sents()`` produces a sequence of sentences.
 
@@ -2740,10 +2774,10 @@ Exercises
 #. |soso| Define the variable ``saying`` to contain the list
    ``['After', 'all', 'is', 'said', 'and', 'done', ',', 'more',
    'is', 'said', 'than', 'done', '.']``.  Process this list using a ``for`` loop, and store the
-   result in a new list ``lengths``.  Hint: begin by assigning the
+   length of each word in a new list ``lengths``.  Hint: begin by assigning the
    empty list to ``lengths``, using ``lengths = []``. Then each time
    through the loop, use ``append()`` to add another length value to
-   the list.
+   the list. Now do the same thing using a list comprehension.
 
 #. |soso| Define a variable ``silly`` to contain the string:
    ``'newly formed bland ideas are inexpressible in an infuriating
@@ -2788,7 +2822,7 @@ Exercises
 #. |soso| Study the `lolcat`:em: version of the book of Genesis,
    accessible as ``nltk.corpus.genesis.words('lolcat.txt')``, and
    the rules for converting text into `lolspeak`:em: at
-   ``http://www.lolcatbible.com/index.php?title=How_to_speak_lolcat``
+   ``http://www.lolcatbible.com/index.php?title=How_to_speak_lolcat``.
    Define regular expressions to convert English words into
    corresponding lolspeak words.
 
@@ -2809,7 +2843,7 @@ Exercises
       words.
 
    c) How might you identify words that should not remain hyphenated
-      once the newline is removed, e.g. ``'encyclo-\npedia'``.
+      once the newline is removed, e.g. ``'encyclo-\npedia'``?x
 
 #. |hard| Read the Wikipedia entry on *Soundex*.  Implement this
    algorithm in Python.

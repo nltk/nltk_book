@@ -149,17 +149,19 @@ Ubiquitous Ambiguity
 A well-known example of ambiguity is shown in ex-marx-elephant_,
 from the Groucho Marx movie, *Animal Crackers* (1930):
 
+.. http://www.youtube.com/watch?v=NfN_gcjGoJo
+
 .. _ex-marx-elephant:
 .. ex::
 
    While hunting in Africa, I shot an elephant in my pajamas.
-   How an elephant got into my pajamas I'll never know.
+   How he got into my pajamas, I don't know.
 
 Let's take a closer look at the ambiguity in the phrase:
 `I shot an elephant in my pajamas`:lx:.  First we
 need to define a simple grammar:
 
-    >>> groucho_grammar = nltk.parse_cfg("""
+    >>> groucho_grammar = nltk.CFG.fromstring("""
     ... S -> NP VP
     ... PP -> P NP
     ... NP -> Det N | Det N PP | 'I'
@@ -176,8 +178,7 @@ describes the elephant or the shooting event.
 
     >>> sent = ['I', 'shot', 'an', 'elephant', 'in', 'my', 'pajamas']
     >>> parser = nltk.ChartParser(groucho_grammar) 
-    >>> trees = parser.nbest_parse(sent)
-    >>> for tree in trees:
+    >>> for tree in parser.parse(sent):
     ...     print(tree)
     ... 
     (S
@@ -199,7 +200,7 @@ trees, as shown in ex-elephant_:
 
   .. ex::
     .. tree:: (S (NP I) (VP (VP (V shot) (NP (Det an) (N elephant)))
-    (PP (P in) (NP (Det my) (N pajamas))))) 
+              (PP (P in) (NP (Det my) (N pajamas))))) 
 
   .. ex::
     .. tree:: (S (NP I) (VP (V shot)  (NP (Det an) (N elephant) (PP (P in) (NP (Det my) (N pajamas)))))) 
@@ -381,7 +382,7 @@ simple sentence admitted by the grammar.
 .. pylisting:: code-cfg1
    :caption: A Simple Context-Free Grammar
 
-   grammar1 = nltk.parse_cfg("""
+   grammar1 = nltk.CFG.fromstring("""
      S -> NP VP
      VP -> V NP | V NP PP
      PP -> P NP
@@ -394,7 +395,7 @@ simple sentence admitted by the grammar.
 
    >>> sent = "Mary saw Bob".split()
    >>> rd_parser = nltk.RecursiveDescentParser(grammar1)
-   >>> for tree in rd_parser.nbest_parse(sent):
+   >>> for tree in rd_parser.parse(sent):
    ...      print(tree)
    (S (NP Mary) (VP (V saw) (NP Bob)))
 
@@ -432,7 +433,7 @@ righthand side, shown by the ``|`` and is an abbreviation for the two production
    a recursive descent parser as it grows the parse tree and matches it against
    the input words.
 
-.. note |TRY|
+.. note:: |TRY|
    Try developing a simple grammar of your own, using the
    recursive descent parser application, ``nltk.app.rdparser()``,
    shown in fig-parse-rdparsewindow_.
@@ -484,7 +485,7 @@ parse with it as follows:
     >>> grammar1 = nltk.data.load('file:mygrammar.cfg')
     >>> sent = "Mary saw Bob".split()
     >>> rd_parser = nltk.RecursiveDescentParser(grammar1)
-    >>> for tree in rd_parser.nbest_parse(sent):
+    >>> for tree in rd_parser.parse(sent):
     ...      print(tree)
 
 Make sure that you put a ``.cfg`` suffix on the filename, and that
@@ -519,7 +520,7 @@ combination of two productions, namely ``S -> NP VP`` and ``VP -> V S``.
 .. pylisting:: code-cfg2
    :caption: A Recursive Context-Free Grammar
 
-   grammar2 = nltk.parse_cfg("""
+   grammar2 = nltk.CFG.fromstring("""
      S  -> NP VP
      NP -> Det Nom | PropN 
      Nom -> Adj Nom | N
@@ -541,7 +542,7 @@ while ex-recsentences_ contains nested sentences.
   .. _ex-recnominals:
   .. ex::
     .. tree::
-     (S (NP (Det the) (Nom (Adj angry)(Nom (N bear))))
+      (S (NP (Det the) (Nom (Adj angry)(Nom (N bear))))
          (VP (V chased)
             (NP (Det the) (Nom (Adj frightened)(Nom (Adj little) (N squirrel))))))
   .. _ex-recsentences:
@@ -551,7 +552,7 @@ while ex-recsentences_ contains nested sentences.
          (VP (V said)
              (S (NP (PropN Buster))
                 (VP (V thought)
-                    (S (NP (Det the) (N tree))
+                    (S (NP (Det the) (Nom (N tree)))
                              (VP (V was)(Adj tall)))))))
 
 
@@ -570,7 +571,7 @@ Parsing With Context Free Grammar
 ---------------------------------
 
 ..
-    >>> grammar1 = nltk.parse_cfg("""
+    >>> grammar1 = nltk.CFG.fromstring("""
     ...     S -> NP VP
     ...     VP -> V NP | V NP PP
     ...     PP -> P NP
@@ -580,7 +581,7 @@ Parsing With Context Free Grammar
     ...     N -> "man" | "dog" | "cat" | "telescope" | "park"
     ...     P -> "in" | "on" | "by" | "with"
     ...     """)
-    >>> groucho_grammar = nltk.parse_cfg("""
+    >>> groucho_grammar = nltk.CFG.fromstring("""
     ... S -> NP VP
     ... PP -> P NP
     ... NP -> Det N | Det N PP | 'I'
@@ -671,8 +672,8 @@ NLTK provides a recursive descent parser:
 
     >>> rd_parser = nltk.RecursiveDescentParser(grammar1)
     >>> sent = 'Mary saw a dog'.split()
-    >>> for t in rd_parser.nbest_parse(sent):
-    ...     print(t)
+    >>> for tree in rd_parser.parse(sent):
+    ...     print(tree)
     (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
 
 .. note::
@@ -748,9 +749,10 @@ most one parse, even if more parses exist.  We can provide an
 optional ``trace`` parameter that controls how verbosely the
 parser reports the steps that it takes as it parses a text: 
 
-    >>> sr_parse = nltk.ShiftReduceParser(grammar1)
+    >>> sr_parser = nltk.ShiftReduceParser(grammar1)
     >>> sent = 'Mary saw a dog'.split()
-    >>> print(sr_parse.parse(sent))
+    >>> for tree in sr_parser.parse(sent):
+    ...     print(tree)
       (S (NP Mary) (VP (V saw) (NP (Det a) (N dog))))
 
 .. note:: |TRY|
@@ -798,22 +800,19 @@ Mary`:lx:\ :
 .. _ex-jmtree:
 .. ex::
   .. tree::
-   (S (NP John) 
-      (VP (V saw)
-         (NP Mary)))
-
-.. XXX the following example is stale; the grammar it refers to does not
-   have these productions; also the formatting with rarr is stale.
+    (S (NP John) 
+       (VP (V saw)
+          (NP Mary)))
 
 Recall that the grammar (defined in code-cfg2_) has the following productions for expanding ``NP``\ :
 
 .. ex::
    .. _ex-r1:
-   .. ex:: ``NP`` |rarr| ``dt nom``   (stale!)
+   .. ex:: ``NP -> Det N``   
    .. _ex-r2:
-   .. ex:: ``NP`` |rarr| ``dt nom pp``  (stale!)
+   .. ex:: ``NP -> Det N PP`` 
    .. _ex-r3:
-   .. ex:: ``NP`` |rarr| ``propn``  (stale!)
+   .. ex:: ``NP -> "John" | "Mary" | "Bob"``
 
 .. XXX Following notation with DoubleRightArrow wrongly assumes
    this relation has been defined.
@@ -907,9 +906,9 @@ To simplify this presentation, we will assume each word has a unique
 lexical category, and we will store this (not the word) in the matrix.
 So cell (1, 2) will contain the entry ``V``.
 More generally, if our input string is
-`a`:sub:`1`\ `a`:sub:`2` ... `a`:sub:`n`, and our grammar
+`a`:sub:`0`\ `a`:sub:`1` ... `a`:sub:`n`, and our grammar
 contains a production of the form *A* |rarr| `a`:sub:`i`, then we add *A* to
-the cell (`i`-1, `i`).
+the cell (`i`, `i`+1).
 
 So, for every word in ``text``, we can look up in our grammar what
 category it belongs to.
@@ -952,7 +951,7 @@ As expected, there is a ``V`` in cell (1, 2).
         return wfst
 
     def display(wfst, tokens):
-        print('\nWFST ' + ' '.join([("%-4d" % i) for i in range(1, len(wfst))]))
+        print('\nWFST ' + ' '.join(("%-4d" % i) for i in range(1, len(wfst))))
         for i in range(len(wfst)-1):
             print("%d   " % i, end=" ")
             for j in range(1, len(wfst)):
@@ -984,7 +983,9 @@ Returning to our tabular representation, given that we have ``Det``
 in cell (2, 3) for the word `an`:lx:, and ``N`` in cell (3, 4) for the
 word `elephant`:lx:, what should we put into cell (2, 4) for `an elephant`:lx:?
 We need to find a production of the form *A* |rarr| ``Det N``.
-Consulting the grammar, we know that we can enter ``NP`` in cell (0,2).
+Consulting the grammar, we know that we can enter ``NP`` in cell (2, 4).
+
+.. XXX overuse of 'more generally'? Maybe say: 'To summarise'?
 
 More generally, we can enter *A* in `(i, j)`:math: if there
 is a production *A* |rarr| *B* *C*, and we find
@@ -1030,6 +1031,8 @@ We've implemented a complete, primitive chart parser from the ground up!
 .. XXX distinction between recognition and parsing should be explained
    more carefully or else dropped.
 
+
+
 |WFST|\ 's have several shortcomings.
 First, as you can see, the |WFST| is not itself a parse tree, so the technique is
 strictly speaking `recognizing`:dt: that a sentence is admitted by a
@@ -1041,9 +1044,11 @@ Third, as a bottom-up approach it is potentially wasteful, being
 able to propose constituents in locations that would not be licensed by
 the grammar.
 
+.. XXX is this correct? There isn't an NP -> NP PP edge in the table
+
 Finally, the |WFST| did not represent the structural ambiguity in
 the sentence (i.e. the two verb phrase readings).  The ``VP``
-in cell (`2,8`) was actually entered twice, once for a ``V NP``
+in cell (1, 7) was actually entered twice, once for a ``V NP``
 reading, and once for a ``VP PP`` reading.  These are different
 hypotheses, and the second overwrote the first (as it happens this didn't
 matter since the left hand side was the same.)
@@ -1095,7 +1100,7 @@ Here's one way of encoding a
 dependency grammar in |NLTK| |mdash| note that it only captures bare
 dependency information without specifying the type of dependency:
 
-    >>> groucho_dep_grammar = nltk.parse_dependency_grammar("""
+    >>> groucho_dep_grammar = nltk.DependencyGrammar.fromstring("""
     ... 'shot' -> 'I' | 'elephant' | 'in'
     ... 'elephant' -> 'an' | 'in'
     ... 'in' -> 'pajamas'
@@ -1200,7 +1205,7 @@ These possibilities correspond to the following productions:
     | ``VP -> V NP PP``  |  `put`:lx:         |
     +--------------------+--------------------+
 
-    Missing Caption
+    VP productions and their lexical heads
 
 .. XXX above table is missing a caption, required for formal tables
 
@@ -1372,9 +1377,9 @@ that would be included in the expansion of ``Vs``.
    :caption: Searching a Treebank to find Sentential Complements
 
    def filter(tree):
-       child_nodes = [child.node for child in tree
+       child_nodes = [child.label() for child in tree
                       if isinstance(child, nltk.Tree)]
-       return  (tree.node == 'VP') and ('S' in child_nodes)
+       return  (tree.label() == 'VP') and ('S' in child_nodes)
 
    >>> from nltk.corpus import treebank
    >>> [subtree for tree in treebank.parsed_sents()
@@ -1389,8 +1394,9 @@ and noun are fixed, but where the choice of verb determines whether
 the prepositional phrase is attached to the ``VP`` or to the ``NP``.
 
 .. doctest-ignore::
+    >>> from collections import defaultdict
     >>> entries = nltk.corpus.ppattach.attachments('training')
-    >>> table = nltk.defaultdict(lambda: nltk.defaultdict(set))
+    >>> table = defaultdict(lambda: defaultdict(set))
     >>> for entry in entries:
     ...     key = entry.noun1 + '-' + entry.prep + '-' + entry.noun2
     ...     table[key][entry.attachment].add(entry.verb)
@@ -1439,7 +1445,7 @@ The word
 (Try this with `police`:lx: if you prefer something more sensible.)
 Here is a toy grammar for the "fish" sentences.
 
-    >>> grammar = nltk.parse_cfg("""
+    >>> grammar = nltk.CFG.fromstring("""
     ... S -> NP V NP
     ... NP -> NP Sbar
     ... Sbar -> NP V 
@@ -1450,12 +1456,12 @@ Here is a toy grammar for the "fish" sentences.
 Now we can try parsing a longer sentence, `fish fish fish fish
 fish`:lx:, which amongst other things, means 'fish that other fish
 fish are in the habit of fishing fish themselves'. We use the |NLTK|
-chart parser, which is presented later on in this chapter.  This
+chart parser, which was mentioned earlier in this chapter.  This
 sentence has two readings.
 
     >>> tokens = ["fish"] * 5
     >>> cp = nltk.ChartParser(grammar)
-    >>> for tree in cp.nbest_parse(tokens):
+    >>> for tree in cp.parse(tokens):
     ...     print(tree)
     (S (NP fish) (V fish) (NP (NP fish) (Sbar (NP fish) (V fish))))
     (S (NP (NP fish) (Sbar (NP fish) (V fish))) (V fish) (NP fish))
@@ -1510,7 +1516,7 @@ nouns designating coordinates, as shown in fig-are_.
    the top left cell is the `a`:em: "are" of column `I`:em: (after Abney).
 
 |nopar|
-Even though this phrase is unlikely, it is still grammatical and a
+Even though this phrase is unlikely, it is still grammatical and
 a broad-coverage parser should be able to construct a parse tree
 for it.  Similarly, sentences that seem to be
 unambiguous, such as `John saw Mary`:lx:, turn out to have other
@@ -1574,21 +1580,21 @@ prepositional dative and double object constructions involving
    :caption: Usage of Give and Gave in the Penn Treebank sample
 
    def give(t):
-       return t.node == 'VP' and len(t) > 2 and t[1].node == 'NP'\
-              and (t[2].node == 'PP-DTV' or t[2].node == 'NP')\
+       return t.label() == 'VP' and len(t) > 2 and t[1].label() == 'NP'\
+              and (t[2].label() == 'PP-DTV' or t[2].label() == 'NP')\
               and ('give' in t[0].leaves() or 'gave' in t[0].leaves())
    def sent(t):
        return ' '.join(token for token in t.leaves() if token[0] not in '*-0')
    def print_node(t, width):
            output = "%s %s: %s / %s: %s" %\
-               (sent(t[0]), t[1].node, sent(t[1]), t[2].node, sent(t[2]))
+               (sent(t[0]), t[1].label(), sent(t[1]), t[2].label(), sent(t[2]))
            if len(output) > width:
                output = output[:width] + "..."
            print(output)
 
    >>> for tree in nltk.corpus.treebank.parsed_sents():
    ...     for t in tree.subtrees(give):
-   ...         print(node(t, 72))
+   ...         print_node(t, 72)
    gave NP: the chefs / NP: a standing ovation
    give NP: advertisers / NP: discounts for maintaining or increasing ad sp...
    give NP: it / PP-DTV: to the politicians
@@ -1631,7 +1637,7 @@ where weights appear in brackets, as shown in code-pcfg1_.
 .. pylisting:: code-pcfg1
    :caption: Defining a Probabilistic Context Free Grammar (PCFG)
 
-   grammar = nltk.parse_pcfg("""
+   grammar = nltk.PCFG.fromstring("""
        S    -> NP VP              [1.0]
        VP   -> TV NP              [0.4]
        VP   -> IV                 [0.3]
@@ -1667,7 +1673,8 @@ there is only one production, with a probability of 1.0; for ``VP``,
 The parse tree returned by ``parse()`` includes probabilities:
 
     >>> viterbi_parser = nltk.ViterbiParser(grammar)
-    >>> print(viterbi_parser.parse(['Jack', 'saw', 'telescopes']))
+    >>> for tree in viterbi_parser.parse(['Jack', 'saw', 'telescopes']):
+    ...     print(tree)
     (S (NP Jack) (VP (TV saw) (NP telescopes))) (p=0.064)
 
 Now that parse trees are assigned probabilities, it no longer matters
@@ -1735,8 +1742,11 @@ recommended for its coverage of transformational approaches to
 unbounded dependency constructions.  The most widely used
 term in linguistics for formal grammar is `generative grammar`:dt:,
 though it has nothing to do with generation [Chomsky1965]_.
+The framework of X-bar Syntax is
+due to [Chomsky1970RN]_, and is explored at greater length in [Jackendoff1977XS]_ 
+(The primes we use replace Chomsky's typographically more demanding horizontal bars.)
 
-[BurtonRoberts1997AS]_ is practically oriented textbook on how to
+[BurtonRoberts1997AS]_ is a practically oriented textbook on how to
 analyze constituency in English, with extensive exemplification and
 exercises. [Huddleston2002CGE]_ provides an up-to-date and comprehensive analysis of
 syntactic phenomena in English.
@@ -1833,7 +1843,7 @@ Exercises
 
 #. |soso| You can modify the grammar in the recursive descent parser demo
    by selecting *Edit Grammar*  in the *Edit* menu. Change
-   the first expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
+   the second expansion production, namely ``NP -> Det N PP``, to ``NP -> NP
    PP``. Using the *Step* button, try to build a parse tree. What happens?
 
 #. |soso| Extend the grammar in ``grammar2`` with productions that expand prepositions as

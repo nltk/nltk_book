@@ -15,8 +15,8 @@ SEC = r"\n(?=-+\n.+\n-+\n)"  # pattern to match section heading
 
 # include this at the top of each output file
 HDR = """
-    >>> from __future__ import division
     >>> import nltk, re, pprint
+    >>> from nltk import word_tokenize
 """
 
 for filename in sys.argv[1:]:
