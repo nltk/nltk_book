@@ -9,8 +9,7 @@
 PAPER_SIZE = a4
 
 CHAPTERS = ch00.rst ch01.rst ch02.rst ch03.rst ch04.rst ch05.rst ch06.rst\
-           ch07.rst ch08.rst ch09.rst ch10.rst ch11.rst ch12.rst\
-           ch00-pt.rst
+           ch07.rst ch08.rst ch09.rst ch10.rst ch11.rst ch12.rst app1.rst
 
 EXTRAS = ch00-extras.rst ch01-extras.rst ch02-extras.rst ch04-extras.rst ch08-extras.rst ch10-extras.rst
 
@@ -18,7 +17,7 @@ CONTENT = $(CHAPTERS) $(EXTRAS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../nltk.github.com/book
+PUBLISH = ../../nltk.github.com/book_2ed
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
