@@ -16,7 +16,7 @@ CONTENT = $(CHAPTERS) term_index.rst
 
 REF_EXTENSION = .ref
 
-PUBLISH = ../../nltk.github.com/book
+PUBLISH = ../../nltk.github.com/book_2ed
 
 PDF := $(CONTENT:.rst=.pdf)
 TEX := $(CONTENT:.rst=.tex)
