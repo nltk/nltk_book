@@ -180,7 +180,7 @@
   
 .. Chinese
 .. |ai4| unicode:: U+7231 .. zh ai (love)
-.. |guo3| unicode:: U+56FD .. zh guo (country)
+.. |guo2| unicode:: U+56FD .. zh guo (country)
 .. |ren2| unicode:: U+4EBA .. zh ren (person)
   
 .. URLs
