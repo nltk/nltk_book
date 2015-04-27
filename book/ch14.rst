@@ -1,0 +1,267 @@
+.. -*- mode: rst -*-
+.. include:: ../definitions.rst
+.. include:: regexp-defns.rst
+
+.. standard global imports
+
+    >>> import nltk, re, pprint
+    >>> from nltk import word_tokenize
+
+.. TODO: recipes for flattening a list of lists into a list, and for the reverse grouping a list into a list of lists
+.. TODO: discuss duck typing
+.. TODO: check ch06-extras for further content
+.. TODO: shared values between multiple dictionaries
+.. TODO: general technique for computing transitive closures, e.g.
+         adjectives connected by synonymy to a particular word, cf.
+         http://www.aclweb.org/anthology/W04-3253
+.. TODO: explain function vs method
+.. TODO: say more about performance tuning of a Python program
+.. TODO: add exercises on string formatting
+.. TODO: this chapter presumes knowledge of dictionaries, not defined until ch05
+.. TODO: the "b" flag for read(), when to use "rb"; also the "rU" flag
+
+.. _app-libraries:
+
+==========================================
+14. Appendix: A Sample of Python Libraries 
+==========================================
+
+Python has hundreds of third-party libraries, specialized software packages that extend
+the functionality of Python.  |NLTK| is one such library.  To realize the full power
+of Python programming, you should become familiar with several other libraries.
+Most of these will need to be manually installed on your computer.
+
+Matplotlib
+----------
+
+Python has some libraries that are useful for visualizing language data.
+The Matplotlib package supports sophisticated
+plotting functions with a MATLAB-style interface, and is available from
+``http://matplotlib.sourceforge.net/``.
+
+So far we have focused on textual presentation and the use of formatted print
+statements to get output lined up in columns.  It is often very useful to display
+numerical data in graphical form, since this often makes it easier to detect
+patterns.  For example, in code-modal-tabulate_ we saw a table of numbers
+showing the frequency of particular modal verbs in the Brown Corpus, classified
+by genre.  The program in code-modal-plot_ presents the same information in graphical
+format.  The output is shown in fig-modal-genre_ (a color figure in the graphical display).
+
+.. pylisting:: code-modal-plot
+   :caption: Frequency of Modals in Different Sections of the Brown Corpus
+
+   from numpy import arange
+   from matplotlib import pyplot
+
+   colors = 'rgbcmyk' # red, green, blue, cyan, magenta, yellow, black
+
+   def bar_chart(categories, words, counts):
+       "Plot a bar chart showing counts for each word by category"
+       ind = arange(len(words))
+       width = 1 / (len(categories) + 1)
+       bar_groups = []
+       for c in range(len(categories)):
+           bars = pyplot.bar(ind+c*width, counts[categories[c]], width,
+                            color=colors[c % len(colors)])
+           bar_groups.append(bars)
+       pyplot.xticks(ind+width, words)
+       pyplot.legend([b[0] for b in bar_groups], categories, loc='upper left')
+       pyplot.ylabel('Frequency')
+       pyplot.title('Frequency of Six Modal Verbs by Genre')
+       pyplot.show()
+
+   >>> genres = ['news', 'religion', 'hobbies', 'government', 'adventure']
+   >>> modals = ['can', 'could', 'may', 'might', 'must', 'will']
+   >>> cfdist = nltk.ConditionalFreqDist(
+   ...              (genre, word)
+   ...              for genre in genres
+   ...              for word in nltk.corpus.brown.words(categories=genre)
+   ...              if word in modals)
+   ...
+   >>> counts = {}
+   >>> for genre in genres:
+   ...     counts[genre] = [cfdist[genre][word] for word in modals]
+   >>> bar_chart(genres, modals, counts)
+
+.. _fig-modal-genre:
+.. figure:: ../images/modal_genre.png
+   :scale: 25
+
+   Bar Chart Showing Frequency of Modals in Different Sections of Brown Corpus: this
+   visualization was produced by the program in code-modal-plot_.
+
+..
+  def count_words_by_tag(t, genres):
+      cfdist = nltk.ConditionalFreqDist()
+      for genre in genres:
+          for (word,tag) in nltk.corpus.brown.tagged_words(categories=genre):
+              if tag == t:
+                   cfdist[genre][word.lower()] += 1
+      return cfdist
+    
+
+From the bar chart it is immediately obvious that `may`:lx: and `must`:lx: have
+almost identical relative frequencies.  The same goes for `could`:lx: and `might`:lx:.
+
+It is also possible to generate such data visualizations on the fly.
+For example, a web page with form input could permit visitors to specify
+search parameters, submit the form, and see a dynamically generated
+visualization.
+To do this we have to specify the ``Agg`` backend for ``matplotlib``,
+which is a library for producing raster (pixel) images agg-backend_.
+Next, we use all the same Matplotlib methods as before, but instead of displaying the
+result on a graphical terminal using ``pyplot.show()``, we save it to a file
+using ``pyplot.savefig()`` pyplot-savefig_.  We specify the filename
+then print HTML markup that directs the web browser to load the file.
+
+    >>> from matplotlib import use, pyplot
+    >>> use('Agg') # [_agg-backend]
+    >>> pyplot.savefig('modals.png') # [_pyplot-savefig]
+    >>> print('Content-Type: text/html')
+    >>> print()
+    >>> print('<html><body>')
+    >>> print('<img src="modals.png"/>')
+    >>> print('</body></html>')
+
+NetworkX
+--------
+
+The NetworkX package is for defining and manipulating structures consisting of
+nodes and edges, known as `graphs`:dt:.  It is
+available from ``https://networkx.lanl.gov/``.
+NetworkX can be used in conjunction with Matplotlib to
+visualize networks, such as WordNet (the semantic network we
+introduced in sec-wordnet_).  The program in code-networkx_
+initializes an empty graph define-graph_ then traverses
+the WordNet hypernym hierarchy adding edges to
+the graph add-edge_.
+Notice that the traversal is recursive recursive-traversal_,
+applying the programming technique discussed in
+sec-algorithm-design_.  The resulting display is shown in fig-dog-graph_.
+
+.. pylisting:: code-networkx
+    :caption: Using the NetworkX and Matplotlib Libraries
+
+    import networkx as nx
+    import matplotlib
+    from nltk.corpus import wordnet as wn
+
+    def traverse(graph, start, node):
+        graph.depth[node.name] = node.shortest_path_distance(start)
+        for child in node.hyponyms():
+            graph.add_edge(node.name, child.name) # [_add-edge]
+            traverse(graph, start, child) # [_recursive-traversal]
+
+    def hyponym_graph(start):
+        G = nx.Graph() # [_define-graph]
+        G.depth = {}
+        traverse(G, start, start)
+        return G
+
+    def graph_draw(graph):
+        nx.draw_graphviz(graph,
+             node_size = [16 * graph.degree(n) for n in graph],
+             node_color = [graph.depth[n] for n in graph],
+             with_labels = False)
+        matplotlib.pyplot.show()
+
+    >>> dog = wn.synset('dog.n.01')
+    >>> graph = hyponym_graph(dog)
+    >>> graph_draw(graph)
+
+    
+.. _fig-dog-graph:
+.. figure:: ../images/dog-graph.png
+   :scale: 80:80:80
+
+   Visualization with NetworkX and Matplotlib: Part of the WordNet hypernym
+   hierarchy is displayed, starting with ``dog.n.01`` (the darkest node in the middle);
+   node size is based on the number of children of the node, and color is based on
+   the distance of the node from ``dog.n.01``; this visualization was produced
+   by the program in code-networkx_.
+
+csv
+---
+
+Language analysis work often involves data tabulations, containing information
+about lexical items, or the participants in an empirical study, or the linguistic
+features extracted from a corpus.  Here's a fragment of a simple lexicon, in CSV format:  
+
+|   sleep, sli:p, v.i, a condition of body and mind ...
+|   walk, wo:k, v.intr, progress by lifting and setting down each foot ...
+|   wake, weik, intrans, cease to sleep
+
+We can use Python's CSV library to read and write files stored in this format.
+For example, we can open a CSV file called ``lexicon.csv`` open-csv_ 
+and iterate over its rows iterate-csv_:
+
+.. doctest-ignore::
+    >>> import csv
+    >>> input_file = open("lexicon.csv", "rb") # [_open-csv]
+    >>> for row in csv.reader(input_file): # [_iterate-csv]
+    ...     print(row)
+    ['sleep', 'sli:p', 'v.i', 'a condition of body and mind ...']
+    ['walk', 'wo:k', 'v.intr', 'progress by lifting and setting down each foot ...']
+    ['wake', 'weik', 'intrans', 'cease to sleep']
+
+Each row is just a list of strings.  If any fields contain numerical
+data, they will appear as strings, and will have to be converted using
+``int()`` or ``float()``.
+
+NumPy
+-----
+
+The NumPy package provides substantial support for numerical processing in Python.
+NumPy has a multi-dimensional array object, which is easy to initialize and access:
+
+    >>> from numpy import array
+    >>> cube = array([ [[0,0,0], [1,1,1], [2,2,2]],
+    ...                [[3,3,3], [4,4,4], [5,5,5]],
+    ...                [[6,6,6], [7,7,7], [8,8,8]] ])
+    >>> cube[1,1,1]
+    4
+    >>> cube[2].transpose()
+    array([[6, 7, 8],
+           [6, 7, 8],
+           [6, 7, 8]])
+    >>> cube[2,1:]
+    array([[7, 7, 7],
+           [8, 8, 8]])
+
+NumPy includes linear algebra functions.  Here we perform
+singular value decomposition on a matrix, an operation used
+in `latent semantic analysis`:dt: to help identify implicit
+concepts in a document collection.
+
+    >>> from numpy import linalg
+    >>> a=array([[4,0], [3,-5]])
+    >>> u,s,vt = linalg.svd(a)
+    >>> u
+    array([[-0.4472136 , -0.89442719],
+           [-0.89442719,  0.4472136 ]])
+    >>> s
+    array([ 6.32455532,  3.16227766])
+    >>> vt
+    array([[-0.70710678,  0.70710678],
+           [-0.70710678, -0.70710678]])
+
+|NLTK|\ 's clustering package ``nltk.cluster`` makes extensive use of NumPy arrays,
+and includes support for `k`:math:\ -means clustering, Gaussian EM clustering,
+group average agglomerative clustering, and dendrogram plots.
+For details, type ``help(nltk.cluster)``.
+
+Other Python Libraries
+----------------------
+
+There are many other Python libraries, and you can search for them with the
+help of the Python Package Index ``http://pypi.python.org/``.
+Many libraries provide an interface to external software, such
+as relational databases (e.g. ``mysql-python``)
+and large document collections (e.g. ``PyLucene``).
+Many other libraries give access to file formats
+such as PDF, MSWord, and XML (``pypdf``, ``pywin32``, ``xml.etree``),
+RSS feeds (e.g. ``feedparser``),
+and electronic mail (e.g. ``imaplib``, ``email``).
+
+
+.. include:: footer.rst
