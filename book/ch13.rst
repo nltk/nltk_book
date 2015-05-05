@@ -1169,6 +1169,510 @@ The lexicon itself could also be modeled as a list:
     ...     ...]
 
 
+.. _sec-dictionaries:
+
+------------
+Dictionaries
+------------
+
+A dictionary, also known as a `mapping`:dt:, `associative array`:dt:
+or `hash array`:dt:, is a data type for storing correspondences
+between keys and values. For instance, we could define a dictionary
+that maps from words to their definitions (like a real-world
+dictionary). But we could also map from a word to its part of speech,
+or a word and its frequency, and so forth.
+
+Lists vs Dictionaries
+---------------------
+
+A text, as we have seen, is treated in Python as a list of words.
+An important property of lists is that we can "look up" a particular
+item by giving its index, e.g. ``text1[100]``.  Notice how we specify
+a number, and get back a word.  We can think of a list as a simple
+kind of table, as shown in fig-maps01_.
+
+.. _fig-maps01:
+.. figure:: ../images/maps01.png
+   :scale: 20:90:20
+
+   List Look-up: we access the contents of a Python list with the help of an integer index.
+
+Contrast this situation with frequency distributions (sec-computing-with-language-simple-statistics_),
+where we specify a word, and get back a number, e.g. ``fdist['monstrous']``, which
+tells us the number of times a given word has occurred in a text.  Look-up using words is
+familiar to anyone who has used a dictionary.  Some more examples are shown in
+fig-maps02_.
+
+.. _fig-maps02:
+.. figure:: ../images/maps02.png
+   :scale: 22
+
+   Dictionary Look-up: we access the entry of a dictionary using a key
+   such as someone's name, a web domain, or an English word;
+   other names for dictionary are map, hashmap, hash, and associative array.
+
+In the case of a phonebook, we look up an entry using a `name`:em:,
+and get back a number.  When we type a domain name in a web browser,
+the computer looks this up to get back an IP address.  A word
+frequency table allows us to look up a word and find its frequency in
+a text collection.  In all these cases, we are mapping from names to
+numbers, rather than the other way around as with a list.
+In general, we would like to be able to map between
+arbitrary types of information.  tab-linguistic-objects_ lists a variety
+of linguistic objects, along with what they map.
+
+.. table:: tab-linguistic-objects
+
+    ======================  ============  ====================================================
+    Linguistic Object       Maps From     Maps To
+    ======================  ============  ====================================================
+    Document Index          Word          List of pages (where word is found)
+    Thesaurus               Word sense    List of synonyms
+    Dictionary              Headword      Entry (part-of-speech, sense definitions, etymology)
+    Comparative Wordlist    Gloss term    Cognates (list of words, one per language)
+    Morph Analyzer          Surface form  Morphological analysis (list of component morphemes)
+    ======================  ============  ====================================================
+
+    Linguistic Objects as Mappings from Keys to Values
+
+Most often, we are mapping from a "word" to some structured object.
+For example, a document index maps from a word (which we can represent
+as a string), to a list of pages (represented as a list of integers).
+In this section, we will see how to represent such mappings in Python.
+
+Dictionaries in Python
+----------------------
+
+Python provides a `dictionary`:dt: data type that can be used for
+mapping between arbitrary types.  It is like a conventional dictionary,
+in that it gives you an efficient way to look things up.  However,
+as we see from tab-linguistic-objects_, it has a much wider range of uses.
+
+To illustrate, we define ``pos`` to be an empty dictionary and then add four
+entries to it, specifying the part-of-speech of some words.  We add
+entries to a dictionary using the familiar square bracket notation:
+
+    >>> pos = {}
+    >>> pos
+    {}
+    >>> pos['colorless'] = 'ADJ' # [_pos-colorless]
+    >>> pos
+    {'colorless': 'ADJ'}
+    >>> pos['ideas'] = 'N'
+    >>> pos['sleep'] = 'V'
+    >>> pos['furiously'] = 'ADV'
+    >>> pos # [_pos-inspect]
+    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
+
+So, for example, pos-colorless_ says that
+the part-of-speech of `colorless`:lx: is adjective, or more
+specifically, that the `key`:dt: ``'colorless'``
+is assigned the `value`:dt: ``'ADJ'``  in dictionary ``pos``.
+When we inspect the value of ``pos`` pos-inspect_ we see
+a set of key-value pairs.  Once we have populated the dictionary
+in this way, we can employ the keys to retrieve values:
+
+    >>> pos['ideas']
+    'N'
+    >>> pos['colorless']
+    'ADJ'
+
+Of course, we might accidentally use a key that hasn't been assigned a value.
+
+    >>> pos['green']
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    KeyError: 'green'
+
+This raises an important question.  Unlike lists and strings, where we
+can use ``len()`` to work out which integers will be legal indexes,
+how do we work out the legal keys for a dictionary?  If the dictionary
+is not too big, we can simply inspect its contents by evaluating the
+variable ``pos``.  As we saw above (line pos-inspect_), this gives
+us the key-value pairs.  Notice that they are not in the same order they
+were originally entered; this is because dictionaries are not sequences
+but mappings (cf. fig-maps02_), and the keys are not inherently
+ordered.
+
+Alternatively, to just find the keys, we can convert the
+dictionary to a list dict-to-list_ |mdash| or use
+the dictionary in a context where a list is expected,
+as the parameter of ``sorted()`` dict-sorted_,
+or in a ``for`` loop dict-for-loop_.
+
+    >>> list(pos) # [_dict-to-list]
+    ['ideas', 'furiously', 'colorless', 'sleep']
+    >>> sorted(pos) # [_dict-sorted]
+    ['colorless', 'furiously', 'ideas', 'sleep']
+    >>> [w for w in pos if w.endswith('s')] # [_dict-for-loop]
+    ['colorless', 'ideas']
+
+.. note::
+   When you type ``list(pos)`` you might see a different order
+   to the one shown above.  If you want to see the keys in order, just sort them.
+
+As well as iterating over all keys
+in the dictionary with a ``for`` loop, we can use the ``for`` loop
+as we did for printing lists:
+
+    >>> for word in sorted(pos):
+    ...     print(word + ":", pos[word])
+    ...
+    colorless: ADJ
+    furiously: ADV
+    sleep: V
+    ideas: N
+
+Finally, the dictionary methods ``keys()``, ``values()`` and
+``items()`` allow us to access the keys, values, and key-value pairs as separate lists.
+We can even sort tuples sort-tuples_, which orders them according to their first element
+(and if the first elements are the same, it uses their second elements).
+
+    >>> list(pos.keys())
+    ['colorless', 'furiously', 'sleep', 'ideas']
+    >>> list(pos.values())
+    ['ADJ', 'ADV', 'V', 'N']
+    >>> list(pos.items())
+    [('colorless', 'ADJ'), ('furiously', 'ADV'), ('sleep', 'V'), ('ideas', 'N')]
+    >>> for key, val in sorted(pos.items()): # [_sort-tuples]
+    ...     print(key + ":", val)
+    ...
+    colorless: ADJ
+    furiously: ADV
+    ideas: N
+    sleep: V
+
+We want to be sure that when we look something up in a dictionary, we
+only get one value for each key. Now
+suppose we try to use a dictionary to store the fact that the
+word `sleep`:lx: can be used as both a verb and a noun:
+
+    >>> pos['sleep'] = 'V'
+    >>> pos['sleep']
+    'V'
+    >>> pos['sleep'] = 'N'
+    >>> pos['sleep']
+    'N'
+
+Initially, ``pos['sleep']`` is given the value ``'V'``. But this is
+immediately overwritten with the new value ``'N'``.
+In other words, there can only be one entry in the dictionary for ``'sleep'``.
+However, there is a way of storing multiple values in
+that entry: we use a list value,
+e.g. ``pos['sleep'] = ['N', 'V']``.  In fact, this is what we
+saw in sec-lexical-resources_ for the CMU Pronouncing Dictionary,
+which stores multiple pronunciations for a single word.
+
+Defining Dictionaries
+---------------------
+
+We can use the same key-value pair format to create a dictionary.  There's
+a couple of ways to do this, and we will normally use the first:
+
+    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
+    >>> pos = dict(colorless='ADJ', ideas='N', sleep='V', furiously='ADV')
+
+Note that dictionary keys must be immutable types, such as strings and tuples.
+If we try to define a dictionary using a mutable key, we get a ``TypeError``:
+
+    >>> pos = {['ideas', 'blogs', 'adventures']: 'N'}
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: list objects are unhashable
+
+Default Dictionaries
+--------------------
+
+If we try to access a key that is not in a dictionary, we get an error.
+However, its often useful if a dictionary can automatically create
+an entry for this new key and give it a default value, such as zero or
+the empty list.  For this reason, a special kind of dictionary
+called a ``defaultdict`` is available.
+In order to use it, we have to supply a parameter which can be used to
+create the default value, e.g. ``int``, ``float``, ``str``, ``list``, ``dict``,
+``tuple``.
+
+    >>> from collections import defaultdict
+    >>> frequency = defaultdict(int)
+    >>> frequency['colorless'] = 4
+    >>> frequency['ideas']
+    0
+    >>> pos = defaultdict(list)
+    >>> pos['sleep'] = ['NOUN', 'VERB']
+    >>> pos['ideas']
+    []
+
+.. note::
+   These default values are actually functions that convert other
+   objects to the specified type (e.g. ``int("2")``, ``list("2")``).
+   When they are called with no parameter |mdash| ``int()``, ``list()``
+   |mdash| they return ``0`` and ``[]`` respectively.
+
+The above examples specified the default value of a dictionary entry to
+be the default value of a particular data type.  However, we can specify
+any default value we like, simply by providing the name of a function
+that can be called with no arguments to create the required value.
+Let's return to our part-of-speech example, and create a dictionary
+whose default value for any entry is ``'N'`` default-noun_.
+When we access a non-existent entry non-existent_,
+it is automatically added to the dictionary automatically-added_.
+
+    >>> pos = defaultdict(lambda: 'NOUN') # [_default-noun]
+    >>> pos['colorless'] = 'ADJ'
+    >>> pos['blog'] # [_non-existent]
+    'NOUN'
+    >>> list(pos.items())
+    [('blog', 'NOUN'), ('colorless', 'ADJ')] # [_automatically-added]
+
+.. note::
+   The above example used a `lambda expression`:em:, introduced in
+   sec-functions_.  This lambda expression specifies no
+   parameters, so we call it using parentheses with no arguments.
+   Thus, the definitions of ``f`` and ``g`` below are equivalent:
+
+      >>> f = lambda: 'NOUN'
+      >>> f()
+      'NOUN'
+      >>> def g():
+      ...     return 'NOUN'
+      >>> g()
+      'NOUN'
+
+Let's see how default dictionaries could be used in a more substantial
+language processing task.
+Many language processing tasks |mdash| including tagging |mdash| struggle to correctly process
+the hapaxes of a text.  They can perform better with a fixed vocabulary and a
+guarantee that no new words will appear.  We can preprocess a text to replace
+low-frequency words with a special "out of vocabulary" token ``UNK``, with
+the help of a default dictionary.  (Can you work out how to do this without
+reading on?)
+
+We need to create a default dictionary that maps each word to its replacement.
+The most frequent `n`:math: words will be mapped to themselves.
+Everything else will be mapped to ``UNK``.
+
+    >>> alice = nltk.corpus.gutenberg.words('carroll-alice.txt')
+    >>> vocab = nltk.FreqDist(alice)
+    >>> v1000 = [word for (word, _) in vocab.most_common(1000)]
+    >>> mapping = defaultdict(lambda: 'UNK')
+    >>> for v in v1000:
+    ...     mapping[v] = v
+    ...
+    >>> alice2 = [mapping[v] for v in alice]
+    >>> alice2[:100]
+    ['UNK', 'Alice', "'", 's', 'UNK', 'in', 'UNK', 'by', 'UNK', 'UNK', 'UNK',
+    'UNK', 'CHAPTER', 'I', '.', 'UNK', 'the', 'Rabbit', '-', 'UNK', 'Alice',
+    'was', 'beginning', 'to', 'get', 'very', 'tired', 'of', 'sitting', 'by',
+    'her', 'sister', 'on', 'the', 'UNK', ',', 'and', 'of', 'having', 'nothing',
+    'to', 'do', ':', 'once', 'or', 'twice', 'she', 'had', 'UNK', 'into', 'the',
+    'book', 'her', 'sister', 'was', 'UNK', ',', 'but', 'it', 'had', 'no',
+    'pictures', 'or', 'UNK', 'in', 'it', ',', "'", 'and', 'what', 'is', 'the',
+    'use', 'of', 'a', 'book', ",'", 'thought', 'Alice', "'", 'without',
+    'pictures', 'or', 'conversation', "?'" ...]
+    >>> len(set(alice2))
+    1001
+
+.. note: |TRY|
+   Repeat the above example for different vocabulary sizes and different texts.
+   How small a vocabulary can you tolerate while still getting something useful
+   from the text?
+
+Incrementally Updating a Dictionary
+-----------------------------------
+
+We can employ dictionaries to count occurrences, emulating the method
+for tallying words shown in fig-tally_.
+We begin by initializing an empty ``defaultdict``, then process each
+part-of-speech tag in the text.  If the tag hasn't been seen before,
+it will have a zero count by default.  Each time we encounter a tag,
+we increment its count using the ``+=`` operator.
+
+.. pylisting:: code-dictionary
+   :caption: Incrementally Updating a Dictionary, and Sorting by Value
+
+    >>> from collections import defaultdict
+    >>> counts = defaultdict(int)
+    >>> from nltk.corpus import brown
+    >>> for (word, tag) in brown.tagged_words(categories='news', tagset='universal'):
+    ...     counts[tag] += 1
+    ...
+    >>> counts['NOUN']
+    30640
+    >>> sorted(counts)
+    ['.', 'ADJ', 'ADP', 'ADV', 'CONJ', 'DET', 'NOUN', 'NUM', 'PRON', 'PRT', 'VERB', 'X']
+
+    >>> from operator import itemgetter
+    >>> sorted(counts.items(), key=itemgetter(1), reverse=True)
+    [('NOUN', 30640), ('VERB', 14399), ('ADP', 12355), ('.', 11928), ...]
+    >>> [t for t, c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
+    ['NOUN', 'VERB', 'ADP', '.', 'DET', 'ADJ', 'ADV', 'CONJ', 'PRON', 'PRT', 'NUM', 'X']
+
+The listing in code-dictionary_ illustrates an important idiom for
+sorting a dictionary by its values, to show words in decreasing
+order of frequency.  The first parameter of ``sorted()`` is the items
+to sort, a list of tuples consisting of a POS tag and a frequency.
+The second parameter specifies the sort key using a function ``itemgetter()``.
+In general, ``itemgetter(n)`` returns a function that can be called on
+some other sequence object to obtain the `n`:math:\ th element, e.g.:
+
+    >>> pair = ('NP', 8336)
+    >>> pair[1]
+    8336
+    >>> itemgetter(1)(pair)
+    8336
+
+The last parameter of ``sorted()`` specifies that the items should be returned
+in reverse order, i.e. decreasing values of frequency.
+
+There's a second useful programming idiom at the beginning of
+code-dictionary_, where we initialize a ``defaultdict`` and then use a
+``for`` loop to update its values. Here's a schematic version:
+
+|    ``>>> my_dictionary = defaultdict(``\ *function to create default value*\ ``)``
+|    ``>>> for`` *item* ``in`` *sequence*\ ``:``
+|    ``...      my_dictionary[``\ *item_key*\ ``]`` *is updated with information about item*
+
+Here's another instance of this pattern, where we index words according to their last two letters:
+
+    >>> last_letters = defaultdict(list)
+    >>> words = nltk.corpus.words.words('en')
+    >>> for word in words:
+    ...     key = word[-2:]
+    ...     last_letters[key].append(word)
+    ...
+    >>> last_letters['ly']
+    ['abactinally', 'abandonedly', 'abasedly', 'abashedly', 'abashlessly', 'abbreviately',
+    'abdominally', 'abhorrently', 'abidingly', 'abiogenetically', 'abiologically', ...]
+    >>> last_letters['zy']
+    ['blazy', 'bleezy', 'blowzy', 'boozy', 'breezy', 'bronzy', 'buzzy', 'Chazy', ...]
+
+The following example uses the same pattern to create an anagram dictionary.
+(You might experiment with the third line to get an idea of why this program works.)
+
+    >>> anagrams = defaultdict(list)
+    >>> for word in words:
+    ...     key = ''.join(sorted(word))
+    ...     anagrams[key].append(word)
+    ...
+    >>> anagrams['aeilnrt']
+    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
+
+Since accumulating words like this is such a common task,
+|NLTK| provides a more convenient way of creating a ``defaultdict(list)``,
+in the form of ``nltk.Index()``.
+
+    >>> anagrams = nltk.Index((''.join(sorted(w)), w) for w in words)
+    >>> anagrams['aeilnrt']
+    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
+
+.. note::
+   ``nltk.Index`` is a ``defaultdict(list)`` with extra support for
+   initialization.  Similarly,
+   ``nltk.FreqDist`` is essentially a ``defaultdict(int)`` with extra
+   support for initialization (along with sorting and plotting methods).
+
+Complex Keys and Values
+-----------------------
+
+We can use default dictionaries with complex keys and values.
+Let's study the range of possible tags for a word, given the
+word itself, and the tag of the previous word.  We will see
+how this information can be used by a POS tagger.
+
+    >>> pos = defaultdict(lambda: defaultdict(int))
+    >>> brown_news_tagged = brown.tagged_words(categories='news', tagset='universal')
+    >>> for ((w1, t1), (w2, t2)) in nltk.bigrams(brown_news_tagged): # [_processing-pairs]
+    ...     pos[(t1, w2)][t2] += 1 # [_tag-word-update]
+    ...
+    >>> pos[('DET', 'right')] # [_compound-key]
+    defaultdict(<class 'int'>, {'ADJ': 11, 'NOUN': 5})
+
+This example uses a dictionary whose default value for an entry
+is a dictionary (whose default value is ``int()``, i.e. zero).
+Notice how we iterated over the bigrams of the tagged
+corpus, processing a pair of word-tag pairs for each iteration processing-pairs_.
+Each time through the loop we updated our ``pos`` dictionary's
+entry for ``(t1, w2)``, a tag and its *following* word tag-word-update_.
+When we look up an item in ``pos`` we must specify a compound key compound-key_,
+and we get back a dictionary object.
+A POS tagger could use such information to decide that the
+word `right`:lx:, when preceded by a determiner, should be tagged as ``ADJ``.
+
+Inverting a Dictionary
+----------------------
+
+Dictionaries support efficient lookup, so long as you want to get the value for
+any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
+immediately obtain the value.  Finding a key given a value is slower and more
+cumbersome:
+
+    >>> counts = defaultdict(int)
+    >>> for word in nltk.corpus.gutenberg.words('milton-paradise.txt'):
+    ...     counts[word] += 1
+    ...
+    >>> [key for (key, value) in counts.items() if value == 32]
+    ['brought', 'Him', 'virtue', 'Against', 'There', 'thine', 'King', 'mortal',
+    'every', 'been']
+
+If we expect to do this kind of "reverse lookup" often, it helps to construct
+a dictionary that maps values to keys.  In the case that no two keys have
+the same value, this is an easy thing to do.  We just get all the key-value
+pairs in the dictionary, and create a new dictionary of value-key
+pairs. The next example also illustrates another way of initializing a
+dictionary ``pos`` with key-value pairs.
+
+    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
+    >>> pos2 = dict((value, key) for (key, value) in pos.items())
+    >>> pos2['N']
+    'ideas'
+
+Let's first make our part-of-speech dictionary a bit more realistic
+and add some more words to ``pos`` using the dictionary ``update()`` method, to
+create the situation where multiple keys have the same value. Then the
+technique just shown for reverse lookup will no longer work (why
+not?).  Instead, we have to use ``append()`` to accumulate the words
+for each part-of-speech, as follows:
+
+    >>> pos.update({'cats': 'N', 'scratch': 'V', 'peacefully': 'ADV', 'old': 'ADJ'})
+    >>> pos2 = defaultdict(list)
+    >>> for key, value in pos.items():
+    ...     pos2[value].append(key)
+    ...
+    >>> pos2['ADV']
+    ['peacefully', 'furiously']
+
+Now we have inverted the ``pos`` dictionary, and can look up any part-of-speech and find
+all words having that part-of-speech.  We can do the same thing even
+more simply using |NLTK|\ 's support for indexing as follows:
+
+    >>> pos2 = nltk.Index((value, key) for (key, value) in pos.items())
+    >>> pos2['ADV']
+    ['peacefully', 'furiously']
+
+A summary of Python's dictionary methods is given in tab-dict_.
+
+.. table:: tab-dict
+
+   ==================================  ==========================================================
+   Example                             Description
+   ==================================  ==========================================================
+   ``d = {}``                          create an empty dictionary and assign it to ``d``
+   ``d[key] = value``                  assign a value to a given dictionary key
+   ``d.keys()``                        the list of keys of the dictionary
+   ``list(d)``                         the list of keys of the dictionary
+   ``sorted(d)``                       the keys of the dictionary, sorted
+   ``key in d``                        test whether a particular key is in the dictionary
+   ``for key in d``                    iterate over the keys of the dictionary
+   ``d.values()``                      the list of values in the dictionary
+   ``dict([(k1,v1), (k2,v2), ...])``   create a dictionary from a list of key-value pairs
+   ``d1.update(d2)``                   add all items from ``d2`` to ``d1``
+   ``defaultdict(int)``                a dictionary whose default value is zero
+   ==================================  ==========================================================
+
+   Python's Dictionary Methods: A summary of commonly-used methods and idioms
+   involving dictionaries.
+
+
 .. _sec-reusing-code:
 
 ------------
@@ -2379,508 +2883,6 @@ names, and simplify the code wherever possible by decomposing it into
 functions and modules with well-documented interfaces.
 
 
-.. _sec-dictionaries:
-
-------------
-Dictionaries
-------------
-
-A dictionary, also known as a `mapping`:dt:, `associative array`:dt:
-or `hash array`:dt:, is a data type for storing correspondences
-between keys and values. For instance, we could define a dictionary
-that maps from words to their definitions (like a real-world
-dictionary). But we could also map from a word to its part of speech,
-or a word and its frequency, and so forth.
-
-Lists vs Dictionaries
----------------------
-
-A text, as we have seen, is treated in Python as a list of words.
-An important property of lists is that we can "look up" a particular
-item by giving its index, e.g. ``text1[100]``.  Notice how we specify
-a number, and get back a word.  We can think of a list as a simple
-kind of table, as shown in fig-maps01_.
-
-.. _fig-maps01:
-.. figure:: ../images/maps01.png
-   :scale: 20:90:20
-
-   List Look-up: we access the contents of a Python list with the help of an integer index.
-
-Contrast this situation with frequency distributions (sec-computing-with-language-simple-statistics_),
-where we specify a word, and get back a number, e.g. ``fdist['monstrous']``, which
-tells us the number of times a given word has occurred in a text.  Look-up using words is
-familiar to anyone who has used a dictionary.  Some more examples are shown in
-fig-maps02_.
-
-.. _fig-maps02:
-.. figure:: ../images/maps02.png
-   :scale: 22
-
-   Dictionary Look-up: we access the entry of a dictionary using a key
-   such as someone's name, a web domain, or an English word;
-   other names for dictionary are map, hashmap, hash, and associative array.
-
-In the case of a phonebook, we look up an entry using a `name`:em:,
-and get back a number.  When we type a domain name in a web browser,
-the computer looks this up to get back an IP address.  A word
-frequency table allows us to look up a word and find its frequency in
-a text collection.  In all these cases, we are mapping from names to
-numbers, rather than the other way around as with a list.
-In general, we would like to be able to map between
-arbitrary types of information.  tab-linguistic-objects_ lists a variety
-of linguistic objects, along with what they map.
-
-.. table:: tab-linguistic-objects
-
-    ======================  ============  ====================================================
-    Linguistic Object       Maps From     Maps To
-    ======================  ============  ====================================================
-    Document Index          Word          List of pages (where word is found)
-    Thesaurus               Word sense    List of synonyms
-    Dictionary              Headword      Entry (part-of-speech, sense definitions, etymology)
-    Comparative Wordlist    Gloss term    Cognates (list of words, one per language)
-    Morph Analyzer          Surface form  Morphological analysis (list of component morphemes)
-    ======================  ============  ====================================================
-
-    Linguistic Objects as Mappings from Keys to Values
-
-Most often, we are mapping from a "word" to some structured object.
-For example, a document index maps from a word (which we can represent
-as a string), to a list of pages (represented as a list of integers).
-In this section, we will see how to represent such mappings in Python.
-
-Dictionaries in Python
-----------------------
-
-Python provides a `dictionary`:dt: data type that can be used for
-mapping between arbitrary types.  It is like a conventional dictionary,
-in that it gives you an efficient way to look things up.  However,
-as we see from tab-linguistic-objects_, it has a much wider range of uses.
-
-To illustrate, we define ``pos`` to be an empty dictionary and then add four
-entries to it, specifying the part-of-speech of some words.  We add
-entries to a dictionary using the familiar square bracket notation:
-
-    >>> pos = {}
-    >>> pos
-    {}
-    >>> pos['colorless'] = 'ADJ' # [_pos-colorless]
-    >>> pos
-    {'colorless': 'ADJ'}
-    >>> pos['ideas'] = 'N'
-    >>> pos['sleep'] = 'V'
-    >>> pos['furiously'] = 'ADV'
-    >>> pos # [_pos-inspect]
-    {'furiously': 'ADV', 'ideas': 'N', 'colorless': 'ADJ', 'sleep': 'V'}
-
-So, for example, pos-colorless_ says that
-the part-of-speech of `colorless`:lx: is adjective, or more
-specifically, that the `key`:dt: ``'colorless'``
-is assigned the `value`:dt: ``'ADJ'``  in dictionary ``pos``.
-When we inspect the value of ``pos`` pos-inspect_ we see
-a set of key-value pairs.  Once we have populated the dictionary
-in this way, we can employ the keys to retrieve values:
-
-    >>> pos['ideas']
-    'N'
-    >>> pos['colorless']
-    'ADJ'
-
-Of course, we might accidentally use a key that hasn't been assigned a value.
-
-    >>> pos['green']
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    KeyError: 'green'
-
-This raises an important question.  Unlike lists and strings, where we
-can use ``len()`` to work out which integers will be legal indexes,
-how do we work out the legal keys for a dictionary?  If the dictionary
-is not too big, we can simply inspect its contents by evaluating the
-variable ``pos``.  As we saw above (line pos-inspect_), this gives
-us the key-value pairs.  Notice that they are not in the same order they
-were originally entered; this is because dictionaries are not sequences
-but mappings (cf. fig-maps02_), and the keys are not inherently
-ordered.
-
-Alternatively, to just find the keys, we can convert the
-dictionary to a list dict-to-list_ |mdash| or use
-the dictionary in a context where a list is expected,
-as the parameter of ``sorted()`` dict-sorted_,
-or in a ``for`` loop dict-for-loop_.
-
-    >>> list(pos) # [_dict-to-list]
-    ['ideas', 'furiously', 'colorless', 'sleep']
-    >>> sorted(pos) # [_dict-sorted]
-    ['colorless', 'furiously', 'ideas', 'sleep']
-    >>> [w for w in pos if w.endswith('s')] # [_dict-for-loop]
-    ['colorless', 'ideas']
-
-.. note::
-   When you type ``list(pos)`` you might see a different order
-   to the one shown above.  If you want to see the keys in order, just sort them.
-
-As well as iterating over all keys
-in the dictionary with a ``for`` loop, we can use the ``for`` loop
-as we did for printing lists:
-
-    >>> for word in sorted(pos):
-    ...     print(word + ":", pos[word])
-    ...
-    colorless: ADJ
-    furiously: ADV
-    sleep: V
-    ideas: N
-
-Finally, the dictionary methods ``keys()``, ``values()`` and
-``items()`` allow us to access the keys, values, and key-value pairs as separate lists.
-We can even sort tuples sort-tuples_, which orders them according to their first element
-(and if the first elements are the same, it uses their second elements).
-
-    >>> list(pos.keys())
-    ['colorless', 'furiously', 'sleep', 'ideas']
-    >>> list(pos.values())
-    ['ADJ', 'ADV', 'V', 'N']
-    >>> list(pos.items())
-    [('colorless', 'ADJ'), ('furiously', 'ADV'), ('sleep', 'V'), ('ideas', 'N')]
-    >>> for key, val in sorted(pos.items()): # [_sort-tuples]
-    ...     print(key + ":", val)
-    ...
-    colorless: ADJ
-    furiously: ADV
-    ideas: N
-    sleep: V
-
-We want to be sure that when we look something up in a dictionary, we
-only get one value for each key. Now
-suppose we try to use a dictionary to store the fact that the
-word `sleep`:lx: can be used as both a verb and a noun:
-
-    >>> pos['sleep'] = 'V'
-    >>> pos['sleep']
-    'V'
-    >>> pos['sleep'] = 'N'
-    >>> pos['sleep']
-    'N'
-
-Initially, ``pos['sleep']`` is given the value ``'V'``. But this is
-immediately overwritten with the new value ``'N'``.
-In other words, there can only be one entry in the dictionary for ``'sleep'``.
-However, there is a way of storing multiple values in
-that entry: we use a list value,
-e.g. ``pos['sleep'] = ['N', 'V']``.  In fact, this is what we
-saw in sec-lexical-resources_ for the CMU Pronouncing Dictionary,
-which stores multiple pronunciations for a single word.
-
-Defining Dictionaries
----------------------
-
-We can use the same key-value pair format to create a dictionary.  There's
-a couple of ways to do this, and we will normally use the first:
-
-    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
-    >>> pos = dict(colorless='ADJ', ideas='N', sleep='V', furiously='ADV')
-
-Note that dictionary keys must be immutable types, such as strings and tuples.
-If we try to define a dictionary using a mutable key, we get a ``TypeError``:
-
-    >>> pos = {['ideas', 'blogs', 'adventures']: 'N'}
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: list objects are unhashable
-
-Default Dictionaries
---------------------
-
-If we try to access a key that is not in a dictionary, we get an error.
-However, its often useful if a dictionary can automatically create
-an entry for this new key and give it a default value, such as zero or
-the empty list.  For this reason, a special kind of dictionary
-called a ``defaultdict`` is available.
-In order to use it, we have to supply a parameter which can be used to
-create the default value, e.g. ``int``, ``float``, ``str``, ``list``, ``dict``,
-``tuple``.
-
-    >>> from collections import defaultdict
-    >>> frequency = defaultdict(int)
-    >>> frequency['colorless'] = 4
-    >>> frequency['ideas']
-    0
-    >>> pos = defaultdict(list)
-    >>> pos['sleep'] = ['NOUN', 'VERB']
-    >>> pos['ideas']
-    []
-
-.. note::
-   These default values are actually functions that convert other
-   objects to the specified type (e.g. ``int("2")``, ``list("2")``).
-   When they are called with no parameter |mdash| ``int()``, ``list()``
-   |mdash| they return ``0`` and ``[]`` respectively.
-
-The above examples specified the default value of a dictionary entry to
-be the default value of a particular data type.  However, we can specify
-any default value we like, simply by providing the name of a function
-that can be called with no arguments to create the required value.
-Let's return to our part-of-speech example, and create a dictionary
-whose default value for any entry is ``'N'`` default-noun_.
-When we access a non-existent entry non-existent_,
-it is automatically added to the dictionary automatically-added_.
-
-    >>> pos = defaultdict(lambda: 'NOUN') # [_default-noun]
-    >>> pos['colorless'] = 'ADJ'
-    >>> pos['blog'] # [_non-existent]
-    'NOUN'
-    >>> list(pos.items())
-    [('blog', 'NOUN'), ('colorless', 'ADJ')] # [_automatically-added]
-
-.. note::
-   The above example used a `lambda expression`:em:, introduced in
-   sec-functions_.  This lambda expression specifies no
-   parameters, so we call it using parentheses with no arguments.
-   Thus, the definitions of ``f`` and ``g`` below are equivalent:
-
-      >>> f = lambda: 'NOUN'
-      >>> f()
-      'NOUN'
-      >>> def g():
-      ...     return 'NOUN'
-      >>> g()
-      'NOUN'
-
-Let's see how default dictionaries could be used in a more substantial
-language processing task.
-Many language processing tasks |mdash| including tagging |mdash| struggle to correctly process
-the hapaxes of a text.  They can perform better with a fixed vocabulary and a
-guarantee that no new words will appear.  We can preprocess a text to replace
-low-frequency words with a special "out of vocabulary" token ``UNK``, with
-the help of a default dictionary.  (Can you work out how to do this without
-reading on?)
-
-We need to create a default dictionary that maps each word to its replacement.
-The most frequent `n`:math: words will be mapped to themselves.
-Everything else will be mapped to ``UNK``.
-
-    >>> alice = nltk.corpus.gutenberg.words('carroll-alice.txt')
-    >>> vocab = nltk.FreqDist(alice)
-    >>> v1000 = [word for (word, _) in vocab.most_common(1000)]
-    >>> mapping = defaultdict(lambda: 'UNK')
-    >>> for v in v1000:
-    ...     mapping[v] = v
-    ...
-    >>> alice2 = [mapping[v] for v in alice]
-    >>> alice2[:100]
-    ['UNK', 'Alice', "'", 's', 'UNK', 'in', 'UNK', 'by', 'UNK', 'UNK', 'UNK',
-    'UNK', 'CHAPTER', 'I', '.', 'UNK', 'the', 'Rabbit', '-', 'UNK', 'Alice',
-    'was', 'beginning', 'to', 'get', 'very', 'tired', 'of', 'sitting', 'by',
-    'her', 'sister', 'on', 'the', 'UNK', ',', 'and', 'of', 'having', 'nothing',
-    'to', 'do', ':', 'once', 'or', 'twice', 'she', 'had', 'UNK', 'into', 'the',
-    'book', 'her', 'sister', 'was', 'UNK', ',', 'but', 'it', 'had', 'no',
-    'pictures', 'or', 'UNK', 'in', 'it', ',', "'", 'and', 'what', 'is', 'the',
-    'use', 'of', 'a', 'book', ",'", 'thought', 'Alice', "'", 'without',
-    'pictures', 'or', 'conversation', "?'" ...]
-    >>> len(set(alice2))
-    1001
-
-.. note: |TRY|
-   Repeat the above example for different vocabulary sizes and different texts.
-   How small a vocabulary can you tolerate while still getting something useful
-   from the text?
-
-Incrementally Updating a Dictionary
------------------------------------
-
-We can employ dictionaries to count occurrences, emulating the method
-for tallying words shown in fig-tally_.
-We begin by initializing an empty ``defaultdict``, then process each
-part-of-speech tag in the text.  If the tag hasn't been seen before,
-it will have a zero count by default.  Each time we encounter a tag,
-we increment its count using the ``+=`` operator.
-
-.. pylisting:: code-dictionary
-   :caption: Incrementally Updating a Dictionary, and Sorting by Value
-
-    >>> from collections import defaultdict
-    >>> counts = defaultdict(int)
-    >>> from nltk.corpus import brown
-    >>> for (word, tag) in brown.tagged_words(categories='news', tagset='universal'):
-    ...     counts[tag] += 1
-    ...
-    >>> counts['NOUN']
-    30640
-    >>> sorted(counts)
-    ['.', 'ADJ', 'ADP', 'ADV', 'CONJ', 'DET', 'NOUN', 'NUM', 'PRON', 'PRT', 'VERB', 'X']
-
-    >>> from operator import itemgetter
-    >>> sorted(counts.items(), key=itemgetter(1), reverse=True)
-    [('NOUN', 30640), ('VERB', 14399), ('ADP', 12355), ('.', 11928), ...]
-    >>> [t for t, c in sorted(counts.items(), key=itemgetter(1), reverse=True)]
-    ['NOUN', 'VERB', 'ADP', '.', 'DET', 'ADJ', 'ADV', 'CONJ', 'PRON', 'PRT', 'NUM', 'X']
-
-The listing in code-dictionary_ illustrates an important idiom for
-sorting a dictionary by its values, to show words in decreasing
-order of frequency.  The first parameter of ``sorted()`` is the items
-to sort, a list of tuples consisting of a POS tag and a frequency.
-The second parameter specifies the sort key using a function ``itemgetter()``.
-In general, ``itemgetter(n)`` returns a function that can be called on
-some other sequence object to obtain the `n`:math:\ th element, e.g.:
-
-    >>> pair = ('NP', 8336)
-    >>> pair[1]
-    8336
-    >>> itemgetter(1)(pair)
-    8336
-
-The last parameter of ``sorted()`` specifies that the items should be returned
-in reverse order, i.e. decreasing values of frequency.
-
-There's a second useful programming idiom at the beginning of
-code-dictionary_, where we initialize a ``defaultdict`` and then use a
-``for`` loop to update its values. Here's a schematic version:
-
-|    ``>>> my_dictionary = defaultdict(``\ *function to create default value*\ ``)``
-|    ``>>> for`` *item* ``in`` *sequence*\ ``:``
-|    ``...      my_dictionary[``\ *item_key*\ ``]`` *is updated with information about item*
-
-Here's another instance of this pattern, where we index words according to their last two letters:
-
-    >>> last_letters = defaultdict(list)
-    >>> words = nltk.corpus.words.words('en')
-    >>> for word in words:
-    ...     key = word[-2:]
-    ...     last_letters[key].append(word)
-    ...
-    >>> last_letters['ly']
-    ['abactinally', 'abandonedly', 'abasedly', 'abashedly', 'abashlessly', 'abbreviately',
-    'abdominally', 'abhorrently', 'abidingly', 'abiogenetically', 'abiologically', ...]
-    >>> last_letters['zy']
-    ['blazy', 'bleezy', 'blowzy', 'boozy', 'breezy', 'bronzy', 'buzzy', 'Chazy', ...]
-
-The following example uses the same pattern to create an anagram dictionary.
-(You might experiment with the third line to get an idea of why this program works.)
-
-    >>> anagrams = defaultdict(list)
-    >>> for word in words:
-    ...     key = ''.join(sorted(word))
-    ...     anagrams[key].append(word)
-    ...
-    >>> anagrams['aeilnrt']
-    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
-
-Since accumulating words like this is such a common task,
-|NLTK| provides a more convenient way of creating a ``defaultdict(list)``,
-in the form of ``nltk.Index()``.
-
-    >>> anagrams = nltk.Index((''.join(sorted(w)), w) for w in words)
-    >>> anagrams['aeilnrt']
-    ['entrail', 'latrine', 'ratline', 'reliant', 'retinal', 'trenail']
-
-.. note::
-   ``nltk.Index`` is a ``defaultdict(list)`` with extra support for
-   initialization.  Similarly,
-   ``nltk.FreqDist`` is essentially a ``defaultdict(int)`` with extra
-   support for initialization (along with sorting and plotting methods).
-
-Complex Keys and Values
------------------------
-
-We can use default dictionaries with complex keys and values.
-Let's study the range of possible tags for a word, given the
-word itself, and the tag of the previous word.  We will see
-how this information can be used by a POS tagger.
-
-    >>> pos = defaultdict(lambda: defaultdict(int))
-    >>> brown_news_tagged = brown.tagged_words(categories='news', tagset='universal')
-    >>> for ((w1, t1), (w2, t2)) in nltk.bigrams(brown_news_tagged): # [_processing-pairs]
-    ...     pos[(t1, w2)][t2] += 1 # [_tag-word-update]
-    ...
-    >>> pos[('DET', 'right')] # [_compound-key]
-    defaultdict(<class 'int'>, {'ADJ': 11, 'NOUN': 5})
-
-This example uses a dictionary whose default value for an entry
-is a dictionary (whose default value is ``int()``, i.e. zero).
-Notice how we iterated over the bigrams of the tagged
-corpus, processing a pair of word-tag pairs for each iteration processing-pairs_.
-Each time through the loop we updated our ``pos`` dictionary's
-entry for ``(t1, w2)``, a tag and its *following* word tag-word-update_.
-When we look up an item in ``pos`` we must specify a compound key compound-key_,
-and we get back a dictionary object.
-A POS tagger could use such information to decide that the
-word `right`:lx:, when preceded by a determiner, should be tagged as ``ADJ``.
-
-Inverting a Dictionary
-----------------------
-
-Dictionaries support efficient lookup, so long as you want to get the value for
-any key.  If ``d`` is a dictionary and ``k`` is a key, we type ``d[k]`` and
-immediately obtain the value.  Finding a key given a value is slower and more
-cumbersome:
-
-    >>> counts = defaultdict(int)
-    >>> for word in nltk.corpus.gutenberg.words('milton-paradise.txt'):
-    ...     counts[word] += 1
-    ...
-    >>> [key for (key, value) in counts.items() if value == 32]
-    ['brought', 'Him', 'virtue', 'Against', 'There', 'thine', 'King', 'mortal',
-    'every', 'been']
-
-If we expect to do this kind of "reverse lookup" often, it helps to construct
-a dictionary that maps values to keys.  In the case that no two keys have
-the same value, this is an easy thing to do.  We just get all the key-value
-pairs in the dictionary, and create a new dictionary of value-key
-pairs. The next example also illustrates another way of initializing a
-dictionary ``pos`` with key-value pairs.
-
-    >>> pos = {'colorless': 'ADJ', 'ideas': 'N', 'sleep': 'V', 'furiously': 'ADV'}
-    >>> pos2 = dict((value, key) for (key, value) in pos.items())
-    >>> pos2['N']
-    'ideas'
-
-Let's first make our part-of-speech dictionary a bit more realistic
-and add some more words to ``pos`` using the dictionary ``update()`` method, to
-create the situation where multiple keys have the same value. Then the
-technique just shown for reverse lookup will no longer work (why
-not?).  Instead, we have to use ``append()`` to accumulate the words
-for each part-of-speech, as follows:
-
-    >>> pos.update({'cats': 'N', 'scratch': 'V', 'peacefully': 'ADV', 'old': 'ADJ'})
-    >>> pos2 = defaultdict(list)
-    >>> for key, value in pos.items():
-    ...     pos2[value].append(key)
-    ...
-    >>> pos2['ADV']
-    ['peacefully', 'furiously']
-
-Now we have inverted the ``pos`` dictionary, and can look up any part-of-speech and find
-all words having that part-of-speech.  We can do the same thing even
-more simply using |NLTK|\ 's support for indexing as follows:
-
-    >>> pos2 = nltk.Index((value, key) for (key, value) in pos.items())
-    >>> pos2['ADV']
-    ['peacefully', 'furiously']
-
-A summary of Python's dictionary methods is given in tab-dict_.
-
-.. table:: tab-dict
-
-   ==================================  ==========================================================
-   Example                             Description
-   ==================================  ==========================================================
-   ``d = {}``                          create an empty dictionary and assign it to ``d``
-   ``d[key] = value``                  assign a value to a given dictionary key
-   ``d.keys()``                        the list of keys of the dictionary
-   ``list(d)``                         the list of keys of the dictionary
-   ``sorted(d)``                       the keys of the dictionary, sorted
-   ``key in d``                        test whether a particular key is in the dictionary
-   ``for key in d``                    iterate over the keys of the dictionary
-   ``d.values()``                      the list of values in the dictionary
-   ``dict([(k1,v1), (k2,v2), ...])``   create a dictionary from a list of key-value pairs
-   ``d1.update(d2)``                   add all items from ``d2`` to ``d1``
-   ``defaultdict(int)``                a dictionary whose default value is zero
-   ==================================  ==========================================================
-
-   Python's Dictionary Methods: A summary of commonly-used methods and idioms
-   involving dictionaries.
 
 
 ---------
