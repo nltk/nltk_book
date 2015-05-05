@@ -186,22 +186,22 @@ systematically evaluate the classifier on a much larger quantity of
 unseen data:
 
     >>> print(nltk.classify.accuracy(classifier, test_set))
-    0.758
+    0.77
 
 Finally, we can examine the classifier to determine which features it
 found most effective for distinguishing the names' genders:
 
     >>> classifier.show_most_informative_features(5)
     Most Informative Features
-                 last_letter = 'a'            female : male   =     38.3 : 1.0
-                 last_letter = 'k'              male : female =     31.4 : 1.0
-                 last_letter = 'f'              male : female =     15.3 : 1.0
-                 last_letter = 'p'              male : female =     10.6 : 1.0
-                 last_letter = 'w'              male : female =     10.6 : 1.0
+                 last_letter = 'a'            female : male   =     33.2 : 1.0
+                 last_letter = 'k'              male : female =     32.6 : 1.0
+                 last_letter = 'p'              male : female =     19.7 : 1.0
+                 last_letter = 'v'              male : female =     18.6 : 1.0
+                 last_letter = 'f'              male : female =     17.3 : 1.0
 
 This listing shows that the names in the training set that end in "a"
-are female 38 times more often than they are male, but names that end
-in "k" are male 31 times more often than they are female.  These
+are female 33 times more often than they are male, but names that end
+in "k" are male 32 times more often than they are female.  These
 ratios are known as `likelihood ratios`:dt:, and can be useful for
 comparing different feature-outcome relationships.
 
@@ -219,8 +219,8 @@ amount of memory.  In these cases, use the function
 like a list but does not store all the feature sets in memory:
 
     >>> from nltk.classify import apply_features
-    >>> train_set = apply_features(gender_features, names.words()[500:])
-    >>> test_set = apply_features(gender_features, names.words()[:500])
+    >>> train_set = apply_features(gender_features, labeled_names[500:])
+    >>> test_set = apply_features(gender_features, labeled_names[:500])
 
 
 Choosing The Right Features
@@ -285,11 +285,11 @@ the relatively small training set, resulting in a system whose accuracy
 is about 1% lower than the accuracy of a classifier that only
 pays attention to the final letter of each name:
 
-    >>> featuresets = [(gender_features2(n), gender) for (n, gender) in names]
+    >>> featuresets = [(gender_features2(n), gender) for (n, gender) in labeled_names]
     >>> train_set, test_set = featuresets[500:], featuresets[:500]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
     >>> print(nltk.classify.accuracy(classifier, test_set))
-    0.748
+    0.768
 
 .. XXX How common is it to call the training + dev-test data a 'development set'?
 .. I've not come across it. In
@@ -302,9 +302,9 @@ we select a `development set`:dt:, containing the corpus data for
 creating the model.  This development set is then subdivided
 into the `training set`:dt: and the `dev-test`:dt: set.  
 
-    >>> train_names = names.words()[1500:]
-    >>> devtest_names = names.words()[500:1500]
-    >>> test_names = names.words()[:500]
+    >>> train_names = labeled_names[1500:]
+    >>> devtest_names = labeled_names[500:1500]
+    >>> test_names = labeled_names[:500]
 
 The training set is used to train the model, and the dev-test set is
 used to perform error analysis.  The test set serves in our final
@@ -332,7 +332,7 @@ dev-test set err-analysis-run_.
     >>> test_set = [(gender_features(n), gender) for (n, gender) in test_names]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set) # [_err-analysis-train]
     >>> print(nltk.classify.accuracy(classifier, devtest_set)) # [_err-analysis-run]
-    0.765
+    0.75
 
 Using the dev-test set, we can generate a list of the errors that the
 classifier makes when predicting name genders:
@@ -353,7 +353,7 @@ dev-test corpus:
 
     >>> for (tag, guess, name) in sorted(errors):
     ...     print('correct={:<8} guess={:<8s} name={:<30}'.format(tag, guess, name))
-
+    correct=female   guess=male     name=Abigail     
       ...
     correct=female   guess=male     name=Cindelyn
       ...
@@ -442,7 +442,7 @@ words is present in a given document.
              in a given document.
 
    all_words = nltk.FreqDist(w.lower() for w in movie_reviews.words())
-   word_features = all_words.keys()[:2000] # [_document-classify-all-words]
+   word_features = list(all_words)[:2000] # [_document-classify-all-words]
 
    def document_features(document): # [_document-classify-extractor]
        document_words = set(document) # [_document-classify-set]
@@ -492,7 +492,11 @@ mentions "Damon" is about 6 times more likely to be positive.
 
 .. I tried adding simple frequencies w/ binning, but it didn't improve
    performance.  Using something more advanced like tf-idf probably
-   would, but I don't want to take up the space here to explain all that.
+   would, but I don't want to take up the space here to explain all
+   that.
+
+.. This classifier gives different results for most_informative_features on
+   successive runs. [EK]
 
 Part-of-Speech Tagging
 ----------------------
@@ -1274,7 +1278,7 @@ tagger developed in sec-automatic-tagging_:
     >>> gold = tag_list(brown.tagged_sents(categories='editorial'))
     >>> test = tag_list(apply_tagger(t2, brown.tagged_sents(categories='editorial')))
     >>> cm = nltk.ConfusionMatrix(gold, test)
-    >>> print(cm.pp(sort_by_count=True, show_percents=True, truncate=9))
+    >>> print(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
         |                                         N                      |
         |      N      I      A      J             N             V      N |
         |      N      N      T      J      .      S      ,      B      P |
