@@ -497,6 +497,195 @@ in labeling noun chunks as ``NX``.
       ./.)
 
 
+.. _sec-recursion-in-linguistic-structure:
+
+---------------------------------
+Recursion in Linguistic Structure
+---------------------------------
+
+Building Nested Structure with Cascaded Chunkers
+------------------------------------------------
+
+So far, our chunk structures have been relatively flat.  Trees consist
+of tagged tokens, optionally grouped under a chunk node such as
+``NP``.  However, it is possible to build chunk structures of
+arbitrary depth, simply by creating a multi-stage chunk grammar
+containing recursive rules.  code-cascaded-chunker_ has
+patterns for noun phrases, prepositional phrases, verb phrases, and
+sentences.
+This is a four-stage chunk grammar, and can be used to create
+structures having a depth of at most four.
+
+.. I changed this example grammar to use "CLAUSE" rather than "S",
+   since there's an "S" node that's automatically supplied by the
+   chunk parser.  And the fact that we have these two different "S"
+   nodes is confusing.
+
+.. pylisting:: code-cascaded-chunker
+   :caption: A Chunker that Handles NP, PP, VP and S
+
+   grammar = r"""
+     NP: {<DT|JJ|NN.*>+}          # Chunk sequences of DT, JJ, NN
+     PP: {<IN><NP>}               # Chunk prepositions followed by NP
+     VP: {<VB.*><NP|PP|CLAUSE>+$} # Chunk verbs and their arguments
+     CLAUSE: {<NP><VP>}           # Chunk NP, VP
+     """
+   cp = nltk.RegexpParser(grammar)
+   sentence = [("Mary", "NN"), ("saw", "VBD"), ("the", "DT"), ("cat", "NN"),
+       ("sit", "VB"), ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+
+   >>> print(cp.parse(sentence))
+   (S
+     (NP Mary/NN)
+     saw/VBD
+     (CLAUSE
+       (NP the/DT cat/NN)
+       (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
+
+Unfortunately this result misses the ``VP`` headed by `saw`:lx:.  It has
+other shortcomings too.  Let's see what happens when we apply this
+chunker to a sentence having deeper nesting.  Notice that it fails to
+identify the ``VP`` chunk starting at saw-vbd_.
+
+    >>> sentence = [("John", "NNP"), ("thinks", "VBZ"), ("Mary", "NN"),
+    ...     ("saw", "VBD"), ("the", "DT"), ("cat", "NN"), ("sit", "VB"),
+    ...     ("on", "IN"), ("the", "DT"), ("mat", "NN")]
+    >>> print(cp.parse(sentence))
+    (S
+      (NP John/NNP)
+      thinks/VBZ
+      (NP Mary/NN)
+      saw/VBD # [_saw-vbd]
+      (CLAUSE
+        (NP the/DT cat/NN)
+        (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))
+
+The solution to these problems is to get the chunker to loop over its
+patterns: after trying all of them, it repeats the process.
+We add an optional second argument ``loop`` to specify the number
+of times the set of patterns should be run:
+
+    >>> cp = nltk.RegexpParser(grammar, loop=2)
+    >>> print(cp.parse(sentence))
+    (S
+      (NP John/NNP)
+      thinks/VBZ
+      (CLAUSE
+        (NP Mary/NN)
+        (VP
+          saw/VBD
+          (CLAUSE
+            (NP the/DT cat/NN)
+            (VP sit/VB (PP on/IN (NP the/DT mat/NN)))))))
+
+.. note::
+   This cascading process enables us to create deep structures.  However,
+   creating and debugging a cascade is difficult, and there comes
+   a point where it is more effective to do full parsing (see chap-parse_).
+   Also, the cascading process can only produce trees of fixed depth
+   (no deeper than the number of stages in the cascade), and this is
+   insufficient for complete syntactic analysis.
+
+Trees
+-----
+
+A `tree`:dt: is a set of connected labeled nodes, each reachable
+by a unique path from a distinguished root node.  Here's an
+example of a tree (note that they are standardly drawn upside-down): 
+
+.. ex::
+  .. tree:: (S (NP Alice) (VP (V chased) (NP (Det the) (N rabbit))))
+
+We use a 'family' metaphor to talk about the
+relationships of nodes in a tree: for example, ``S`` is the
+`parent`:dt: of ``VP``; conversely ``VP`` is a `child`:dt:
+of ``S``.  Also, since ``NP`` and ``VP`` are both
+children of ``S``, they are also `siblings`:dt:.
+For convenience, there is also a text format for specifying
+trees: 
+
+.. doctest-ignore::
+      (S 
+         (NP Alice)
+         (VP 
+            (V chased)
+            (NP 
+               (Det the)
+               (N rabbit))))
+
+Although we will focus on syntactic trees, trees can be used to encode
+`any`:em: homogeneous hierarchical structure that spans a sequence
+of linguistic forms (e.g. morphological structure, discourse structure).
+In the general case, leaves and node values do not have to be strings.
+
+In |NLTK|, we create a tree by giving a node label and a list of children:
+
+    >>> tree1 = nltk.Tree('NP', ['Alice'])
+    >>> print(tree1)
+    (NP Alice)
+    >>> tree2 = nltk.Tree('NP', ['the', 'rabbit'])
+    >>> print(tree2)
+    (NP the rabbit)
+
+We can incorporate these into successively larger trees as follows:
+
+    >>> tree3 = nltk.Tree('VP', ['chased', tree2])
+    >>> tree4 = nltk.Tree('S', [tree1, tree3])
+    >>> print(tree4)
+    (S (NP Alice) (VP chased (NP the rabbit)))
+
+Here are some of the methods available for tree objects:
+
+    >>> print(tree4[1])
+    (VP chased (NP the rabbit))
+    >>> tree4[1].label()
+    'VP'
+    >>> tree4.leaves()
+    ['Alice', 'chased', 'the', 'rabbit']
+    >>> tree4[1][1][1]
+    'rabbit'
+
+The bracketed representation for complex trees can be difficult to read.
+In these cases, the ``draw`` method can be very useful. 
+It opens a new window, containing a graphical representation
+of the tree.  The tree display window allows you to zoom in and out,
+to collapse and expand subtrees, and to print the graphical
+representation to a postscript file (for inclusion in a document).
+
+    >>> tree3.draw()                           # doctest: +SKIP
+
+.. image:: ../images/parse_draw.png
+   :scale: 70
+
+Tree Traversal
+--------------
+
+It is standard to use a recursive function to traverse a tree.
+The listing in code-traverse_ demonstrates this.
+
+.. pylisting:: code-traverse
+   :caption: A Recursive Function to Traverse a Tree
+   
+   def traverse(t):
+       try:
+           t.label()
+       except AttributeError:
+           print(t, end=" ")
+       else:
+           # Now we know that t.node is defined
+           print('(', t.label(), end=" ")
+           for child in t:
+               traverse(child)
+           print(')', end=" ")
+
+    >>> t = nltk.Tree('(S (NP Alice) (VP chased (NP the rabbit)))')
+    >>> traverse(t)
+    ( S ( NP Alice ) ( VP chased ( NP the rabbit ) ) )
+
+.. note::
+  We have used a technique called `duck typing`:dt: to detect that ``t``
+  is a tree (i.e. ``t.label()`` is defined).
+
 ----------
 Conclusion
 ----------
