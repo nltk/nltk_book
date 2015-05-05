@@ -1,3 +1,133 @@
+
+Documenting Functions
+---------------------
+
+If we have done a good job at decomposing our program into functions, then it should
+be easy to describe the purpose of each function in plain language, and provide
+this in the docstring at the top of the function definition.  This statement
+should not explain how the functionality is implemented; in fact it should be possible
+to re-implement the function using a different method without changing this
+statement.
+
+For the simplest functions, a one-line docstring is usually adequate (see code-get-text_).
+You should provide a triple-quoted string containing a complete sentence on a single line.
+For non-trivial functions, you should still provide a one sentence summary on the first line,
+since many docstring processing tools index this string.  This should be followed by
+a blank line, then a more detailed description of the functionality
+(see ``http://www.python.org/dev/peps/pep-0257/`` for more information in docstring
+conventions).
+
+.. XXX it would be really nice to have a screen dump of the HTML output.
+
+Docstrings can include a `doctest block`:dt:, illustrating the use of
+the function and the expected output.  These can be tested automatically
+using Python's ``docutils`` module.
+Docstrings should document the type of each parameter to the function, and the return
+type.  At a minimum, that can be done in plain text.  However, note that |NLTK| uses
+the Sphinx markup language to document parameters.  This format
+can be automatically converted into richly structured
+API documentation (see |NLTK-URL|), and includes special handling of certain
+"fields" such as ``param`` which allow the inputs and outputs of functions to be
+clearly documented.  code-sphinx_ illustrates
+a complete docstring.
+
+.. pylisting:: code-sphinx
+   :caption: Illustration of a complete docstring, consisting of a one-line summary,
+             a more detailed explanation, a doctest example, and Sphinx markup
+             specifying the parameters, types, return type, and exceptions.
+
+   def accuracy(reference, test):
+       """
+       Calculate the fraction of test items that equal the corresponding reference items.
+
+       Given a list of reference values and a corresponding list of test values,
+       return the fraction of corresponding values that are equal.
+       In particular, return the fraction of indexes
+       {0<i<=len(test)} such that C{test[i] == reference[i]}.
+
+           >>> accuracy(['ADJ', 'N', 'V', 'N'], ['N', 'N', 'V', 'ADJ'])
+           0.5
+
+       :param reference: An ordered list of reference values
+       :type reference: list
+       :param test: A list of values to compare against the corresponding
+           reference values
+       :type test: list
+       :return: the accuracy score
+       :rtype: float
+       :raises ValueError: If reference and length do not have the same length
+       """
+
+       if len(reference) != len(test):
+           raise ValueError("Lists must have the same length.")
+       num_correct = 0
+       for x, y in zip(reference, test):
+           if x == y:
+               num_correct += 1
+       return float(num_correct) / len(reference)
+
+
+
+
+
+
+
+Functions as Arguments
+----------------------
+
+So far the arguments we have passed into functions have been simple objects like
+strings, or structured objects like lists.  Python also lets us pass a function as
+an argument to another function.  Now we can abstract out the operation, and apply
+a `different operation`:em: on the `same data`:em:.  As the following examples show,
+we can pass the built-in function ``len()`` or a user-defined function ``last_letter()``
+as arguments to another function:
+
+    >>> sent = ['Take', 'care', 'of', 'the', 'sense', ',', 'and', 'the',
+    ...         'sounds', 'will', 'take', 'care', 'of', 'themselves', '.']
+    >>> def extract_property(prop):
+    ...     return [prop(word) for word in sent]
+    ...
+    >>> extract_property(len)
+    [4, 4, 2, 3, 5, 1, 3, 3, 6, 4, 4, 4, 2, 10, 1]
+    >>> def last_letter(word):
+    ...     return word[-1]
+    >>> extract_property(last_letter)
+    ['e', 'e', 'f', 'e', 'e', ',', 'd', 'e', 's', 'l', 'e', 'e', 'f', 's', '.']
+
+The objects ``len`` and ``last_letter`` can be
+passed around like lists and dictionaries.  Notice that parentheses
+are only used after a function name if we are invoking the function;
+when we are simply treating the function as an object these are omitted.
+
+Python provides us with one more way to define functions as arguments
+to other functions, so-called `lambda expressions`:dt:.  Supposing there
+was no need to use the above ``last_letter()`` function in multiple places,
+and thus no need to give it a name.  We can equivalently write the following:
+
+    >>> extract_property(lambda w: w[-1])
+    ['e', 'e', 'f', 'e', 'e', ',', 'd', 'e', 's', 'l', 'e', 'e', 'f', 's', '.']
+
+Our next example illustrates passing a function to the ``sorted()`` function.
+When we call the latter with a single argument (the list to be sorted),
+it compares the elements directly.
+However, we can specify an operation to be performed on the item
+before the comparison takes place, and we can specify whether sorting
+should be based on increasing or decreasing values.
+
+    >>> sorted(sent)
+    [',', '.', 'Take', 'and', 'care', 'care', 'of', 'of', 'sense', 'sounds',
+    'take', 'the', 'the', 'themselves', 'will']
+    >>> sorted(sent, key=str.lower)
+    [',', '.', 'and', 'care', 'care', 'of', 'of', 'sense', 'sounds', 'Take',
+    'take', 'the', 'the', 'themselves', 'will']
+    >>> sorted(sent, key=len, reverse=True)
+    ['themselves', 'sounds', 'sense', 'Take', 'care', 'will', 'take', 'care',
+    'the', 'and', 'the', 'of', 'of', ',', '.']
+
+
+       
+
+
 .. _sec-program-development:
 
 -------------------
