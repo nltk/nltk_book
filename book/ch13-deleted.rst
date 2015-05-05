@@ -125,6 +125,112 @@ should be based on increasing or decreasing values.
     'the', 'and', 'the', 'of', 'of', ',', '.']
 
 
+
+
+
+
+
+
+Functional Decomposition
+------------------------
+
+Well-structured programs usually make extensive use of functions.
+When a block of program code grows longer than 10-20 lines, it is a
+great help to readability if the code is broken up into one or more
+functions, each one having a clear purpose.  This is analogous to
+the way a good essay is divided into paragraphs, each expressing one main idea.
+
+.. XXX not clear here whether you are really talking about actions (in which case
+.. :lx: role is maybe inappropriate / misleading) or about lexical semantics.
+
+.. XXX the following code snippet could well occur earlier, e.g in section where you
+.. talk about function inputs and outputs, so as to motivate different kinds of
+.. return values, and then perhaps repeated here.
+
+Functions provide an important kind of abstraction.
+They allow us to group multiple actions into a single, complex action,
+and associate a name with it.
+(Compare this with the way we combine the actions of
+`go`:lx: and `bring back`:lx: into a single more complex action `fetch`:lx:.)
+When we use functions, the main program can be written at a higher level
+of abstraction, making its structure transparent, e.g.
+
+.. doctest-ignore::
+    >>> data = load_corpus()
+    >>> results = analyze(data)
+    >>> present(results)
+
+Appropriate use of functions makes programs more readable and maintainable.
+Additionally, it becomes possible to reimplement a function
+|mdash| replacing the function's body with more efficient code |mdash|
+without having to be concerned with the rest of the program.
+
+Consider the ``freq_words`` function in code-freq-words1_.
+It updates the contents of a frequency distribution that is
+passed in as a parameter, and it also prints a list of the
+`n`:math: most frequent words.
+
+.. pylisting:: code-freq-words1
+   :caption: Poorly Designed Function to Compute Frequent Words
+
+   from urllib import request
+   from bs4 import BeautifulSoup
+
+   def freq_words(url, freqdist, n):
+       html = request.urlopen(url).read().decode('utf8')
+       raw = BeautifulSoup(html).get_text()
+       for word in word_tokenize(raw):
+           freqdist[word.lower()] += 1
+       result = []
+       for word, count in freqdist.most_common(n):
+           result = result + [word]
+       print(result)
+
+   >>> constitution = "http://www.archives.gov/exhibits/charters/constitution_transcript.html"
+   >>> fd = nltk.FreqDist()
+   >>> freq_words(constitution, fd, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
+
+This function has a number of problems.
+The function has two side-effects: it modifies the contents of its second
+parameter, and it prints a selection of the results it has computed.
+The function would be easier to understand and to reuse elsewhere if we
+initialize the ``FreqDist()`` object inside the function (in the same place
+it is populated), and if we moved the selection and display of results to the
+calling program. Given that its task is to identify frequent words, it
+should probably just return a list, not the whole frequency distribution.
+In code-freq-words2_ we `refactor`:dt: this function,
+and simplify its interface by dropping the ``freqdist`` parameter.
+
+.. pylisting:: code-freq-words2
+   :caption: Well-Designed Function to Compute Frequent Words
+
+   from urllib import request
+   from bs4 import BeautifulSoup
+
+   def freq_words(url, n):
+       html = request.urlopen(url).read().decode('utf8')
+       text = BeautifulSoup(html).get_text()
+       freqdist = nltk.FreqDist(word.lower() for word in word_tokenize(text))
+       return [word for (word, _) in fd.most_common(n)]
+
+   >>> freq_words(constitution, 30)
+   ['the', ',', 'of', 'and', 'shall', '.', 'be', 'to', ';', 'in', 'states',
+   'or', 'united', 'a', 'state', 'by', 'for', 'any', '=', 'which', 'president',
+   'all', 'on', 'may', 'such', 'as', 'have', ')', '(', 'congress']
+
+The readability and usability of the ``freq_words`` function is improved.
+
+.. note::
+   We have used ``_`` as a variable name. This is no different to any other
+   variable except it signals to the reader that we don't have a use
+   for the information it holds.
+
+
+
+   
        
 
 
