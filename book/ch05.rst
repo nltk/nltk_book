@@ -36,7 +36,7 @@ of the distribution of words in text.  The goal of this chapter is to
 answer the following questions:
 
 #. What are lexical categories and how are they used in natural language processing?
-#. What is a good Python data structure for storing words and their categories?
+#. How do we access the contents of corpora that have been "tagged" with parts-of-speech?
 #. How can we automatically tag each word of a text with its word class?
 
 Along the way, we'll cover some fundamental techniques in NLP, including
@@ -53,6 +53,15 @@ The collection of tags
 used for a particular task is known as a `tagset`:dt:.  Our emphasis
 in this chapter is on exploiting tags, and tagging text automatically.
 
+.. note:: |IMPORTANT|
+   In this chapter, our program samples will assume you
+   begin your interactive session or your program with the following import
+   statements:
+   
+     >>> from __future__ import division, print_function  # Python 2 users only
+     >>> import nltk, pprint
+     >>> from nltk import word_tokenize, pos_tag
+
 .. _sec-using-a-tagger:
 
 --------------
@@ -60,36 +69,53 @@ Using a Tagger
 --------------
 
 A part-of-speech tagger, or `POS-tagger`:dt:, processes a sequence of words, and attaches a
-part of speech tag to each word (don't forget to ``import nltk``):
+part of speech tag to each word.
+Here we use |NLTK|\ 's built-in POS-tagger:
 
     >>> text = word_tokenize("And now for something completely different")
-    >>> nltk.pos_tag(text)
-    [('And', 'CC'), ('now', 'RB'), ('for', 'IN'), ('something', 'NN'),
-    ('completely', 'RB'), ('different', 'JJ')]
+    >>> pos_tag(text, tagset='universal')
+    [('And', 'CONJ'), ('now', 'ADV'), ('for', 'ADP'), ('something', 'NOUN'),
+    ('completely', 'ADV'), ('different', 'ADJ')]
 
-Here we see that `and`:lx: is ``CC``, a coordinating conjunction;
-`now`:lx: and `completely`:lx: are ``RB``, or adverbs;
-`for`:lx: is ``IN``, a preposition;
-`something`:lx: is ``NN``, a noun; and
-`different`:lx: is ``JJ``, an adjective.
+Here we see that `and`:lx: is ``CONJ``, a coordinating conjunction;
+`now`:lx: and `completely`:lx: are ``ADV``, or adverbs;
+`for`:lx: is ``ADP``, a preposition (strictly speaking, an adposition,
+which is neutral as to whether it precedes or follows the noun);
+`something`:lx: is ``NOUN``; and
+`different`:lx: is ``ADJ``, an adjective.
+These tags come from the "Universal Tagset", a set of 12 tags that has
+been developed to facilitate comparison of syntactic annotations of
+different languages (see tab-universal-tagset_).
 
-.. note::
-   |NLTK| provides documentation for each tag, which can be queried using
-   the tag, e.g. ``nltk.help.upenn_tagset('RB')``, or a regular
-   expression, e.g. ``nltk.help.upenn_tagset('NN.*')``.
-   Some corpora have README files with tagset documentation,
-   see ``nltk.corpus.???.readme()``, substituting in the name
-   of the corpus.
+.. table:: tab-universal-tagset
+
+   ========  ===================  ============================================
+   Tag       Meaning              English Examples
+   ========  ===================  ============================================
+   ``ADJ``   adjective            `new, good, high, special, big, local`:lx:
+   ``ADP``   adposition           `on, of, at, with, by, into, under`:lx:
+   ``ADV``   adverb               `really, already, still, early, now`:lx:
+   ``CONJ``  conjunction          `and, or, but, if, while, although`:lx:
+   ``DET``   determiner, article  `the, a, some, most, every, no, which`:lx:
+   ``NOUN``  noun                 `year, home, costs, time, Africa`:lx:
+   ``NUM``   numeral              `twenty-four, fourth, 1991, 14:24`:lx: 
+   ``PRT``   particle             `at, on, out, over per, that, up, with`:lx:
+   ``PRON``  pronoun              `he, their, her, its, my, I, us`:lx:
+   ``VERB``  verb                 `is, say, told, given, playing, would`:lx:
+   ``.``     punctuation marks    `. , ; !`:lx:
+   ``X``     other                `ersatz, esprit, dunno, gr8, univeristy`:lx:
+   ========  ===================  ============================================
+
+   Universal Part-of-Speech Tagset
 
 Let's look at another example, this time including some homonyms:
 
     >>> text = word_tokenize("They refuse to permit us to obtain the refuse permit")
-    >>> nltk.pos_tag(text)
-    [('They', 'PRP'), ('refuse', 'VBP'), ('to', 'TO'), ('permit', 'VB'), ('us', 'PRP'),
-    ('to', 'TO'), ('obtain', 'VB'), ('the', 'DT'), ('refuse', 'NN'), ('permit', 'NN')]
+    >>> pos_tag(text, tagset='universal')
+    [('They', 'PRON'), ('refuse', 'VERB'), ('to', 'PRT'), ('permit', 'VERB'), ('us', 'PRON'),
+    ('to', 'PRT'), ('obtain', 'VERB'), ('the', 'DET'), ('refuse', 'NOUN'), ('permit', 'NOUN')]
 
-Notice that `refuse`:lx: and `permit`:lx: both appear as a
-present tense verb (``VBP``) and a noun (``NN``).
+Notice that `refuse`:lx: and `permit`:lx: both appear as a verb and a noun.
 E.g. `refUSE`:lx: is a verb meaning "deny," while `REFuse`:lx: is
 a noun meaning "trash" (i.e. they are not homophones).
 Thus, we need to know which word is being used in order to pronounce
@@ -105,11 +131,12 @@ text-to-speech systems usually perform POS-tagging.)
    it can also be a noun.  Now make up a sentence with both uses
    of this word, and run the POS-tagger on this sentence.  
 
-Lexical categories like "noun" and part-of-speech tags like ``NN`` seem to have
-their uses, but the details will be obscure to many readers.  You might wonder what
-justification there is for introducing this extra level of information.
-Many of these categories arise from superficial analysis the distribution
-of words in text.  Consider the following analysis involving
+Lexical categories may seem obscure to many readers. You might wonder what
+justification there is for introducing this extra kind of information
+in our language processing pipeline.
+It turns out that many of these categories arise from superficial
+analysis of the distribution of words in text.
+Consider the following analysis involving
 `woman`:lx: (a noun), `bought`:lx: (a verb),
 `over`:lx: (a preposition), and `the`:lx: (a determiner).
 The ``text.similar()`` method takes a word `w`:math:, finds all contexts
@@ -161,11 +188,11 @@ representation of a tagged token, using the function ``str2tuple()``:
 
     >>> tagged_token = nltk.tag.str2tuple('fly/NN')
     >>> tagged_token
-    ('fly', 'NN')
+    ('fly', 'NOUN')
     >>> tagged_token[0]
     'fly'
     >>> tagged_token[1]
-    'NN'
+    'NOUN'
 
 We can construct a list of tagged tokens directly from a string.  The first
 step is to tokenize the string
@@ -173,16 +200,12 @@ to access the individual ``word/tag`` strings, and then to convert
 each of these into a tuple (using ``str2tuple()``).
 
     >>> sent = '''
-    ... The/AT grand/JJ jury/NN commented/VBD on/IN a/AT number/NN of/IN
-    ... other/AP topics/NNS ,/, AMONG/IN them/PPO the/AT Atlanta/NP and/CC
-    ... Fulton/NP-tl County/NN-tl purchasing/VBG departments/NNS which/WDT it/PPS
-    ... said/VBD ``/`` ARE/BER well/QL operated/VBN and/CC follow/VB generally/RB
-    ... accepted/VBN practices/NNS which/WDT inure/VB to/IN the/AT best/JJT
-    ... interest/NN of/IN both/ABX governments/NNS ''/'' ./.
+    ... They/PRON refuse/VERB to/PRT permit/VERB us/PRON to/PRT
+    ... obtain/VERB the/DET refuse/NOUN permit/NOUN
     ... '''
     >>> [nltk.tag.str2tuple(t) for t in sent.split()]
-    [('The', 'AT'), ('grand', 'JJ'), ('jury', 'NN'), ('commented', 'VBD'),
-    ('on', 'IN'), ('a', 'AT'), ('number', 'NN'), ... ('.', '.')]
+    [('They', 'PRON'), ('refuse', 'VERB'), ('to', 'PRT'), ('permit', 'VERB'), ('us', 'PRON'),
+    ('to', 'PRT'), ('obtain', 'VERB'), ('the', 'DET'), ('refuse', 'NOUN'), ('permit', 'NOUN')]
 
 Reading Tagged Corpora
 ----------------------
@@ -197,23 +220,27 @@ opened a file from the Brown Corpus with a text editor:
     evidence/nn ''/'' that/cs any/dti irregularities/nns took/vbd
     place/nn ./.
 
-Other corpora use a variety of formats for storing part-of-speech tags.
+Notice that it uses different POS tags, e.g. ``at`` for article
+(or determiner), and ``np-tl`` for a proper noun appearing in a title,
+and so on.
+
+Other corpora use different tagsets and file formats.
 |NLTK|\ 's corpus readers provide a uniform interface so that you
 don't have to be concerned with the different file formats.
-In contrast with the file fragment shown above,
-the corpus reader for the Brown Corpus represents the data as shown below.
-Note that part-of-speech tags have been converted to uppercase, since this has
-become standard practice since the Brown Corpus was published.
+For example, the corpus reader for the Brown Corpus loads the above
+data into Python data structures as follows:
 
     >>> nltk.corpus.brown.tagged_words()
     [('The', 'AT'), ('Fulton', 'NP-TL'), ...]
     >>> nltk.corpus.brown.tagged_words(tagset='universal')
     [('The', 'DET'), ('Fulton', 'NOUN'), ...]
 
+Note that part-of-speech tags have been converted to uppercase, since this has
+become standard practice since the Brown Corpus was published.
+
 Whenever a corpus contains tagged text, the |NLTK| corpus interface
 will have a ``tagged_words()`` method.
-Here are some more examples, again using the output format
-illustrated for the Brown Corpus:
+Here are some more examples, each with their "native" tagset:
 
     >>> print(nltk.corpus.nps_chat.tagged_words())
     [('now', 'RB'), ('im', 'PRP'), ('left', 'VBD'), ...]
@@ -222,17 +249,15 @@ illustrated for the Brown Corpus:
     >>> nltk.corpus.treebank.tagged_words()
     [('Pierre', 'NNP'), ('Vinken', 'NNP'), (',', ','), ...]
 
-Not all corpora employ the same set of tags; see the
-tagset help functionality and the ``readme()`` methods
-mentioned above for documentation.
-Initially we want to avoid the complications of these tagsets,
-so we use a built-in mapping to the "Universal Tagset":
+.. note::
+   To find out about the tagset used by a given corpus, you can
+   consult it's ``readme()`` method.
+   In addition, |NLTK| provides documentation for several tagsets,
+   making it possible to look up the meaning of a tag or a
+   set of tags specified using a regular expression,
+   e.g. ``nltk.help.upenn_tagset('RB')``,
+   ``nltk.help.upenn_tagset('NN.*')``.
 
-    >>> nltk.corpus.brown.tagged_words(tagset='universal')
-    [('The', 'DET'), ('Fulton', 'NOUN'), ...]
-    >>> nltk.corpus.treebank.tagged_words(tagset='universal')
-    [('Pierre', 'NOUN'), ('Vinken', 'NOUN'), (',', '.'), ...]
-    
 Tagged corpora for several other languages are distributed with NLTK,
 including Chinese, Hindi, Portuguese, Spanish, Dutch and Catalan.
 These usually contain non-ASCII text,
@@ -269,36 +294,9 @@ sentences rather than presenting them as one big list.
 This will be useful when we come to developing automatic taggers,
 as they are trained and tested on lists of sentences, not words.
 
-A Universal Part-of-Speech Tagset
----------------------------------
-
-Tagged corpora use many different conventions for tagging words.
-To help us get started, we will be looking at a simplified tagset
-(shown in tab-universal-tagset_).
-
-.. table:: tab-universal-tagset
-
-   ========  ===================  ============================================
-   Tag       Meaning              English Examples
-   ========  ===================  ============================================
-   ``ADJ``   adjective            `new, good, high, special, big, local`:lx:
-   ``ADP``   adposition           `on, of, at, with, by, into, under`:lx:
-   ``ADV``   adverb               `really, already, still, early, now`:lx:
-   ``CONJ``  conjunction          `and, or, but, if, while, although`:lx:
-   ``DET``   determiner, article  `the, a, some, most, every, no, which`:lx:
-   ``NOUN``  noun                 `year, home, costs, time, Africa`:lx:
-   ``NUM``   numeral              `twenty-four, fourth, 1991, 14:24`:lx: 
-   ``PRT``   particle             `at, on, out, over per, that, up, with`:lx:
-   ``PRON``  pronoun              `he, their, her, its, my, I, us`:lx:
-   ``VERB``  verb                 `is, say, told, given, playing, would`:lx:
-   ``.``     punctuation marks    `. , ; !`:lx:
-   ``X``     other                `ersatz, esprit, dunno, gr8, univeristy`:lx:
-   ========  ===================  ============================================
-
-   Universal Part-of-Speech Tagset
-
-Let's see which of these tags are the most common in the news
-category of the Brown corpus:
+Now that we can read a tagged corpus, we are ready to do some
+non-trivial processing. For example, we can find which POS tags
+are the most frequent. Here we use the news section of the Brown Corpus:
 
     >>> from nltk.corpus import brown
     >>> brown_news_tagged = brown.tagged_words(categories='news', tagset='universal')
@@ -310,7 +308,7 @@ category of the Brown corpus:
 
 .. note:: |TRY|
    Plot the above frequency distribution using ``tag_fd.plot(cumulative=True)``.
-   What percentage of words are tagged using the first five tags of the above list? 
+   What percentage of words are tagged using the first three tags of the above list? 
 
 We can use these tags to do powerful searches using a graphical
 POS-concordance tool ``nltk.app.concordance()``.  Use it
@@ -341,13 +339,10 @@ verb, as shown in tab-syntax-nouns_.
 
    Syntactic Patterns involving some Nouns
 
-The simplified noun tags are ``N`` for common nouns like `book`:lx:,
-and ``NP`` for proper nouns like `Scotland`:lx:.
-
 Let's inspect some tagged text to see what parts of speech occur before a noun,
 with the most frequent ones first. To begin with, we construct a list
 of bigrams whose members are themselves word-tag pairs such as
-``(('The', 'DET'), ('Fulton', 'NP'))`` and  ``(('Fulton', 'NP'), ('County', 'N'))``.
+``(('The', 'DET'), ('Fulton', 'NOUN'))`` and  ``(('Fulton', 'NOUN'), ('County', 'NOUN'))``.
 Then we construct a ``FreqDist`` from the tag parts of the bigrams.
 
     >>> word_tag_pairs = nltk.bigrams(brown_news_tagged)
