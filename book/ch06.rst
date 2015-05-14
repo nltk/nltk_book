@@ -17,7 +17,6 @@
       about language as linguists
     - ML in Python
 
-.. XXX clustering and nltk.cluster not mentioned at all
 
 .. _chap-data-intensive:
 
@@ -136,17 +135,17 @@ given name:
     {'last_letter': 'k'}
 
 The returned dictionary, known as a :dt:`feature set`, maps from
-features' names to their values.  Feature names are case-sensitive
+feature names to their values.  Feature names are case-sensitive
 strings that typically provide a short human-readable description of
-the feature.  Feature values are values with simple types, such as
+the feature, as in the example ``'last_letter'``.  Feature values are values with simple types, such as
 booleans, numbers, and strings.
 
 .. note:: 
    Most classification methods require that features be encoded using
    simple value types, such as booleans, numbers, and strings.  But
-   note that just because a feature has a simple type, does not
+   note that just because a feature has a simple type, this does not
    necessarily mean that the feature's value is simple to express or
-   compute; indeed, it is even possible to use very complex and
+   compute. Indeed, it is even possible to use very complex and
    informative values, such as the output of a second supervised
    classifier, as features.
 
@@ -187,22 +186,22 @@ systematically evaluate the classifier on a much larger quantity of
 unseen data:
 
     >>> print(nltk.classify.accuracy(classifier, test_set))
-    0.758
+    0.77
 
 Finally, we can examine the classifier to determine which features it
 found most effective for distinguishing the names' genders:
 
     >>> classifier.show_most_informative_features(5)
     Most Informative Features
-                 last_letter = 'a'            female : male   =     38.3 : 1.0
-                 last_letter = 'k'              male : female =     31.4 : 1.0
-                 last_letter = 'f'              male : female =     15.3 : 1.0
-                 last_letter = 'p'              male : female =     10.6 : 1.0
-                 last_letter = 'w'              male : female =     10.6 : 1.0
+                 last_letter = 'a'            female : male   =     33.2 : 1.0
+                 last_letter = 'k'              male : female =     32.6 : 1.0
+                 last_letter = 'p'              male : female =     19.7 : 1.0
+                 last_letter = 'v'              male : female =     18.6 : 1.0
+                 last_letter = 'f'              male : female =     17.3 : 1.0
 
 This listing shows that the names in the training set that end in "a"
-are female 38 times more often than they are male, but names that end
-in "k" are male 31 times more often than they are female.  These
+are female 33 times more often than they are male, but names that end
+in "k" are male 32 times more often than they are female.  These
 ratios are known as `likelihood ratios`:dt:, and can be useful for
 comparing different feature-outcome relationships.
 
@@ -220,8 +219,8 @@ amount of memory.  In these cases, use the function
 like a list but does not store all the feature sets in memory:
 
     >>> from nltk.classify import apply_features
-    >>> train_set = apply_features(gender_features, names[500:])
-    >>> test_set = apply_features(gender_features, names[:500])
+    >>> train_set = apply_features(gender_features, labeled_names[500:])
+    >>> test_set = apply_features(gender_features, labeled_names[:500])
 
 
 Choosing The Right Features
@@ -257,7 +256,7 @@ code-gender-features-overfitting_.
 
 .. pylisting:: code-gender-features-overfitting
    :caption: A Feature Extractor that Overfits Gender Features.
-             The featuresets returned by this feature extractor contain a
+             The feature sets returned by this feature extractor contain a
              large number of specific features, leading to overfitting for
              the relatively small Names Corpus.
 
@@ -266,8 +265,8 @@ code-gender-features-overfitting_.
        features["first_letter"] = name[0].lower()
        features["last_letter"] = name[-1].lower()
        for letter in 'abcdefghijklmnopqrstuvwxyz':
-           features["count(%s)" % letter] = name.lower().count(letter)
-           features["has(%s)" % letter] = (letter in name.lower())
+           features["count({})".format(letter)] = name.lower().count(letter)
+           features["has({})".format(letter)] = (letter in name.lower())
        return features
 
    >>> gender_features2('John') # doctest: +SKIP
@@ -282,15 +281,15 @@ well to new examples.  This problem is known as `overfitting`:dt:, and
 can be especially problematic when working with small training sets.  For
 example, if we train a naive Bayes classifier using the feature
 extractor shown in code-gender-features-overfitting_, it will overfit
-relatively small training set, resulting in a system whose accuracy
+the relatively small training set, resulting in a system whose accuracy
 is about 1% lower than the accuracy of a classifier that only
 pays attention to the final letter of each name:
 
-    >>> featuresets = [(gender_features2(n), gender) for (n, gender) in names]
+    >>> featuresets = [(gender_features2(n), gender) for (n, gender) in labeled_names]
     >>> train_set, test_set = featuresets[500:], featuresets[:500]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
     >>> print(nltk.classify.accuracy(classifier, test_set))
-    0.748
+    0.768
 
 .. XXX How common is it to call the training + dev-test data a 'development set'?
 .. I've not come across it. In
@@ -303,9 +302,9 @@ we select a `development set`:dt:, containing the corpus data for
 creating the model.  This development set is then subdivided
 into the `training set`:dt: and the `dev-test`:dt: set.  
 
-    >>> train_names = names[1500:]
-    >>> devtest_names = names[500:1500]
-    >>> test_names = names[:500]
+    >>> train_names = labeled_names[1500:]
+    >>> devtest_names = labeled_names[500:1500]
+    >>> test_names = labeled_names[:500]
 
 The training set is used to train the model, and the dev-test set is
 used to perform error analysis.  The test set serves in our final
@@ -326,14 +325,14 @@ into different subsets is shown in fig-corpus-org_.
 
 Having divided the corpus into appropriate datasets, we train a model
 using the training set err-analysis-train_, and then run it on the
-devtest set err-analysis-run_.  
+dev-test set err-analysis-run_.  
 
     >>> train_set = [(gender_features(n), gender) for (n, gender) in train_names]
     >>> devtest_set = [(gender_features(n), gender) for (n, gender) in devtest_names]
     >>> test_set = [(gender_features(n), gender) for (n, gender) in test_names]
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set) # [_err-analysis-train]
     >>> print(nltk.classify.accuracy(classifier, devtest_set)) # [_err-analysis-run]
-    0.765
+    0.75
 
 Using the dev-test set, we can generate a list of the errors that the
 classifier makes when predicting name genders:
@@ -353,7 +352,8 @@ names classifier that we have built generates about 100 errors on the
 dev-test corpus:
 
     >>> for (tag, guess, name) in sorted(errors):
-    ...     print('correct=%-8s guess=%-8s name=%-30s' % (tag, guess, name))
+    ...     print('correct={:<8} guess={:<8s} name={:<30}'.format(tag, guess, name))
+    correct=female   guess=male     name=Abigail     
       ...
     correct=female   guess=male     name=Cindelyn
       ...
@@ -402,7 +402,7 @@ model, we can no longer trust that it will give us an accurate idea of
 how well the model would perform on new data.  It is therefore
 important to keep the test set separate, and unused, until our model
 development is complete.  At that point, we can use the test set to
-evaluate well our model will perform on new input values.
+evaluate how well our model will perform on new input values.
 
 Document Classification
 -----------------------
@@ -442,13 +442,13 @@ words is present in a given document.
              in a given document.
 
    all_words = nltk.FreqDist(w.lower() for w in movie_reviews.words())
-   word_features = all_words.keys()[:2000] # [_document-classify-all-words]
+   word_features = list(all_words)[:2000] # [_document-classify-all-words]
 
    def document_features(document): # [_document-classify-extractor]
        document_words = set(document) # [_document-classify-set]
        features = {}
        for word in word_features:
-           features['contains(%s)' % word] = (word in document_words)
+           features['contains({})'.format(word)] = (word in document_words)
        return features
 
    >>> print(document_features(movie_reviews.words('pos/cv957_8737.txt'))) # doctest: +SKIP
@@ -492,7 +492,11 @@ mentions "Damon" is about 6 times more likely to be positive.
 
 .. I tried adding simple frequencies w/ binning, but it didn't improve
    performance.  Using something more advanced like tf-idf probably
-   would, but I don't want to take up the space here to explain all that.
+   would, but I don't want to take up the space here to explain all
+   that.
+
+.. This classifier gives different results for most_informative_features on
+   successive runs. [EK]
 
 Part-of-Speech Tagging
 ----------------------
@@ -529,7 +533,7 @@ word for these suffixes:
   >>> def pos_features(word):
   ...     features = {}
   ...     for suffix in common_suffixes:
-  ...         features['endswith(%s)' % suffix] = word.lower().endswith(suffix)
+  ...         features['endswith({})'.format(suffix)] = word.lower().endswith(suffix)
   ...     return features
 
 Feature extraction functions behave like tinted glasses, highlighting
@@ -924,7 +928,7 @@ the post contains:
     >>> def dialogue_act_features(post):
     ...     features = {}
     ...     for word in nltk.word_tokenize(post):
-    ...         features['contains(%s)' % word.lower()] = True
+    ...         features['contains({})'.format(word.lower())] = True
     ...     return features
     
 Finally, we construct the training and testing data by applying the
@@ -1180,7 +1184,7 @@ function ``nltk.classify.accuracy()`` will calculate the
 accuracy of a classifier model on a given test set:
 
     >>> classifier = nltk.NaiveBayesClassifier.train(train_set) # doctest: +SKIP
-    >>> print('Accuracy: %4.2f' % nltk.classify.accuracy(classifier, test_set)) # doctest: +SKIP
+    >>> print('Accuracy: {:4.2f}'.format(nltk.classify.accuracy(classifier, test_set))) # doctest: +SKIP
     0.75
 
 When interpreting the accuracy score of a classifier, it is important
@@ -1274,7 +1278,7 @@ tagger developed in sec-automatic-tagging_:
     >>> gold = tag_list(brown.tagged_sents(categories='editorial'))
     >>> test = tag_list(apply_tagger(t2, brown.tagged_sents(categories='editorial')))
     >>> cm = nltk.ConfusionMatrix(gold, test)
-    >>> print(cm.pp(sort_by_count=True, show_percents=True, truncate=9))
+    >>> print(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
         |                                         N                      |
         |      N      I      A      J             N             V      N |
         |      N      N      T      J      .      S      ,      B      P |
