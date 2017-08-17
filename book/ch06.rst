@@ -153,10 +153,18 @@ Now that we've defined a feature extractor, we need to prepare
 a list of examples and corresponding
 class labels.
 
-    >>> from nltk.corpus import names
-    >>> labeled_names = ([(name, 'male') for name in names.words('male.txt')] + 
-    ... [(name, 'female') for name in names.words('female.txt')])
     >>> import random
+    >>> from nltk.corpus import names
+
+    # Read the names from the files.
+    # Label each name with the corresponding gender.
+    >>> male_names = [(name, 'male') for name in names.words('male.txt')]
+    >>> female_names = [(name, 'female') for name in names.words('female.txt')]
+
+    # Combine the lists.
+    >>> labeled_names = male_names + female_names
+
+    # Shuffle the list.
     >>> random.shuffle(labeled_names)
 
 .. XXX say something about what featuresets are 
@@ -166,9 +174,17 @@ divide the resulting list of feature sets into a `training set`:dt:
 and a `test set`:dt:.  The training set is used to train a new 
 "naive Bayes" classifier.
 
+    >>> from nltk import NaiveBayesClassifier
+
+    # Extract the features using the `gender_features()` function.
     >>> featuresets = [(gender_features(n), gender) for (n, gender) in labeled_names]
+
+    # Split the dataset into train and test set.
     >>> train_set, test_set = featuresets[500:], featuresets[:500]
-    >>> classifier = nltk.NaiveBayesClassifier.train(train_set)
+
+    # Train a Naive Bayes classifier
+    >>> classifier = NaiveBayesClassifier.train(train_set)
+
 
 We will learn more about the naive Bayes classifier later in the
 chapter.  For now, let's just test it out on some names that did not
@@ -185,7 +201,8 @@ still conforms with our expectations about names and genders.  We can
 systematically evaluate the classifier on a much larger quantity of
 unseen data:
 
-    >>> print(nltk.classify.accuracy(classifier, test_set))
+    >>> from nltk.classify import accuracy
+    >>> print(accuracy(classifier, test_set))
     0.77
 
 Finally, we can examine the classifier to determine which features it
@@ -219,8 +236,26 @@ amount of memory.  In these cases, use the function
 like a list but does not store all the feature sets in memory:
 
     >>> from nltk.classify import apply_features
+
+    # Instead of looping through a list comprehension as we have
+    # demonstrated above that returns a list. 
+    >>> train_set_old = [(gender_features(n), gender) for (n, gender) in labeled_names[500:]]
+    >>> test_set_old = [(gender_features(n), gender) for (n, gender) in labeled_names[:500]]
+
+    # We can simply use the `apply_features()` to return a generator instead.
     >>> train_set = apply_features(gender_features, labeled_names[500:])
     >>> test_set = apply_features(gender_features, labeled_names[:500])
+    >>> type(train_set_old), type(train_set)
+    (list, nltk.collections.LazyMap)
+    
+    # We can train a Naive Bayes classifier with either 
+    # `list` and `LazyMap` input, e.g.
+    >>> classifier_old = NaiveBayesClassifier.train(train_set_old)
+    >>> classifier = NaiveBayesClassifier.train(train_set)
+
+    # And we see that the accuracy is the same.
+    >>> accuracy(classifier, test_set) == accuracy(classifier_old, test_set_old)
+    True
 
 
 Choosing The Right Features
