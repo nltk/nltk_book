@@ -184,7 +184,7 @@
 .. |ren2| unicode:: U+4EBA .. zh ren (person)
   
 .. URLs
-.. |StevenBird| replace:: `Steven Bird <http://estive.net/>`__
+.. |StevenBird| replace:: `Steven Bird <http://stevenbird.net/>`__
 .. |EwanKlein| replace:: `Ewan Klein <http://homepages.inf.ed.ac.uk/ewan/>`__
 .. |EdwardLoper| replace:: `Edward Loper <http://ed.loper.org/>`__
 .. |PYTHON-URL| replace:: ``http://python.org/``
