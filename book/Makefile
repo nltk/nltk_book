@@ -1,6 +1,6 @@
 # Tutorial Makefile
 #
-# Copyright (C) 2001-2013 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Steven Bird <stevenbird1@gmail.com>
 #         Edward Loper <edloper@gmail.com>
 # URL: <http://www.nltk.org/>
